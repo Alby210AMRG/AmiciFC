@@ -1902,17 +1902,91 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title">🤖 Configurazione AI</div>
         <div class="input-group">
           <label class="input-label">Servizio AI</label>
-          <select class="select-field" v-model="settings.aiProvider">
-            <option value="claude">Claude (Anthropic)</option>
-            <option value="gemini">Gemini 2.5 (Google)</option>
-            <option value="chatgpt">ChatGPT (OpenAI)</option>
+          <select class="select-field" v-model="settings.aiProvider" @change="saveSettings">
+            <option value="gemini">✨ Gemini 2.5 Flash (Google) — GRATUITO</option>
+            <option value="claude">🟠 Claude (Anthropic)</option>
+            <option value="chatgpt">🟢 ChatGPT (OpenAI)</option>
           </select>
         </div>
-        <div class="input-group">
-          <label class="input-label">API Key</label>
-          <input class="input-field" type="password" v-model="settings.apiKey" placeholder="Inserisci la tua API key...">
+
+        <!-- Istruzioni per provider selezionato -->
+        <div style="margin-bottom:14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+
+          <!-- GEMINI FREE -->
+          <template v-if="settings.aiProvider==='gemini'">
+            <div style="background:rgba(58,123,255,0.1);padding:12px 16px;border-bottom:1px solid var(--border)">
+              <div style="font-weight:800;font-size:0.85rem;color:var(--blue)">✨ Gemini 2.5 Flash — GRATIS</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">Piano gratuito con 1.500 richieste/giorno</div>
+            </div>
+            <div style="padding:12px 16px">
+              <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:var(--blue)">aistudio.google.com</strong></div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Accedi con il tuo account Google</div></div>
+              <div class="install-step"><div class="install-num">3</div><div class="install-text">Clicca <strong>"Get API key"</strong> → <strong>"Create API key"</strong></div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave e incollala qui sotto</div></div>
+              <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--lime)">
+                💡 Completamente gratuito! Nessuna carta di credito richiesta.
+              </div>
+            </div>
+          </template>
+
+          <!-- CLAUDE -->
+          <template v-if="settings.aiProvider==='claude'">
+            <div style="background:rgba(255,140,60,0.1);padding:12px 16px;border-bottom:1px solid var(--border)">
+              <div style="font-weight:800;font-size:0.85rem;color:#ff8c3c">🟠 Claude — Anthropic</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">Piano a pagamento, molto potente</div>
+            </div>
+            <div style="padding:12px 16px">
+              <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:#ff8c3c">console.anthropic.com</strong></div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Registrati e aggiungi un metodo di pagamento</div></div>
+              <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>"API Keys"</strong> → <strong>"Create Key"</strong></div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave e incollala qui sotto</div></div>
+              <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--yellow)">
+                ⚠️ Servizio a pagamento ~$0.003 per richiesta (pochi centesimi al mese per uso normale)
+              </div>
+            </div>
+          </template>
+
+          <!-- CHATGPT -->
+          <template v-if="settings.aiProvider==='chatgpt'">
+            <div style="background:rgba(16,163,127,0.1);padding:12px 16px;border-bottom:1px solid var(--border)">
+              <div style="font-weight:800;font-size:0.85rem;color:#10a37f">🟢 ChatGPT — OpenAI</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">GPT-4o mini, economico e veloce</div>
+            </div>
+            <div style="padding:12px 16px">
+              <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:#10a37f">platform.openai.com</strong></div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Registrati e aggiungi credito (minimo $5)</div></div>
+              <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>"API Keys"</strong> → <strong>"Create new secret key"</strong></div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave e incollala qui sotto</div></div>
+              <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--yellow)">
+                ⚠️ Servizio a pagamento, usa GPT-4o mini (~$0.0002/richiesta — quasi gratis)
+              </div>
+            </div>
+          </template>
+
         </div>
-        <button class="btn btn-primary btn-full" @click="saveSettings">💾 Salva AI</button>
+
+        <div class="input-group">
+          <label class="input-label">🔑 API Key
+            <span style="font-size:0.7rem;color:var(--text2);font-weight:400;margin-left:6px">(salvata solo sul tuo dispositivo)</span>
+          </label>
+          <div style="display:flex;gap:8px">
+            <input class="input-field" :type="showApiKey?'text':'password'"
+              v-model="settings.apiKey"
+              :placeholder="settings.aiProvider==='gemini' ? 'AIzaSy...' : settings.aiProvider==='claude' ? 'sk-ant-...' : 'sk-proj-...'"
+              style="flex:1">
+            <button class="btn btn-ghost btn-sm" @click="showApiKey=!showApiKey" style="flex-shrink:0">
+              {{ showApiKey ? '🙈' : '👁️' }}
+            </button>
+          </div>
+        </div>
+
+        <div v-if="settings.apiKey" style="margin-bottom:12px">
+          <button class="btn btn-ghost btn-sm" @click="testAI" :disabled="aiLoading">
+            {{ aiLoading ? '⏳ Test...' : '🧪 Testa connessione AI' }}
+          </button>
+        </div>
+
+        <button class="btn btn-primary btn-full" @click="saveSettings">💾 Salva</button>
       </div>
 
       <!-- TEMA & FONT -->
@@ -2449,6 +2523,43 @@ createApp({
     const installSubTab     = ref('android');
     const syncLoading       = ref(false);
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
+    const showApiKey        = ref(false);
+
+    // ── Test AI connection ──
+    const testAI = async () => {
+      if (!settings.value.apiKey) return;
+      aiLoading.value = true;
+      const prompt = 'Rispondi solo con: "Connessione AI funzionante! ⚽"';
+      try {
+        let result = '';
+        if (settings.value.aiProvider === 'gemini') {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${settings.value.apiKey}`, {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
+          });
+          const d = await r.json();
+          result = d.candidates?.[0]?.content?.parts?.[0]?.text || d.error?.message || 'Errore';
+        } else if (settings.value.aiProvider === 'claude') {
+          const r = await fetch('https://api.anthropic.com/v1/messages', {
+            method:'POST', headers:{'Content-Type':'application/json','x-api-key':settings.value.apiKey,'anthropic-version':'2023-06-01'},
+            body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:50,messages:[{role:'user',content:prompt}]})
+          });
+          const d = await r.json();
+          result = d.content?.[0]?.text || d.error?.message || 'Errore';
+        } else {
+          const r = await fetch('https://api.openai.com/v1/chat/completions', {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey},
+            body: JSON.stringify({model:'gpt-4o-mini',max_tokens:50,messages:[{role:'user',content:prompt}]})
+          });
+          const d = await r.json();
+          result = d.choices?.[0]?.message?.content || d.error?.message || 'Errore';
+        }
+        toast('✅ ' + result.slice(0, 80));
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error');
+      }
+      aiLoading.value = false;
+    };
 
     // Player form
     const editingPlayer = ref(null);
@@ -2473,7 +2584,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.011');
+    const appVersion      = ref('1.012');
     const appDate         = ref('2026-05-01');
 
     // PNG Preview
@@ -3230,10 +3341,15 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     };
 
     const syncFromCloudAndGo = async () => {
+      // Save Firebase URL to localStorage BEFORE syncing so it persists
+      localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
       await syncFromCloud();
       await loadGroups();
       if (groups.value.length > 0) {
         if (!currentGroup.value) await selectGroup(groups.value[0]);
+        // Also ensure sync is marked as enabled
+        settings.value.syncEnabled = true;
+        localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
         currentView.value = 'home';
       }
     };
@@ -3482,13 +3598,23 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       }
     };
 
-    const doUpdate = () => {
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then(reg => {
+    const doUpdate = async () => {
+      toast('⏳ Aggiornamento in corso...', 'info', 2000);
+      try {
+        // 1. Tell waiting SW to take over
+        if ('serviceWorker' in navigator) {
+          const reg = await navigator.serviceWorker.ready;
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
-        });
+        }
+        // 2. Clear ALL caches so browser fetches fresh files
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+        console.log('[AmiciFC] Cache cleared, reloading...');
+      } catch(e) {
+        console.warn('[AmiciFC] Cache clear error:', e);
       }
-      window.location.reload();
+      // 3. Hard reload bypassing cache
+      window.location.reload(true);
     };
 
     // ── Logo embedded as base64 (funziona sempre, locale + GitHub Pages) ──
@@ -3571,6 +3697,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       saveSettings, toggleTheme, toggleFont,
       syncLoading, lastSyncDate, syncToCloud, syncFromCloud,
+      showApiKey, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
