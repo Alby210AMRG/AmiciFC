@@ -1,0 +1,2722 @@
+<!DOCTYPE html>
+<html lang="it" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#A6FF4D">
+  <title>Amici FC ⚽</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/dexie@3/dist/dexie.min.js"></script>
+  <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script src="https://unpkg.com/sortablejs@1.15.0/Sortable.min.js"></script>
+<style>
+/* ═══════════════════════════════════════
+   DESIGN SYSTEM – AMICI FC
+   ═══════════════════════════════════════ */
+:root {
+  --lime:    #A6FF4D;
+  --blue:    #3A7BFF;
+  --yellow:  #FFD93D;
+  --red:     #FF4D4D;
+  --dark:    #1A1A1A;
+  --light:   #F7F7F7;
+  --lime-dim: rgba(166,255,77,0.15);
+  --blue-dim: rgba(58,123,255,0.15);
+
+  /* Dark theme default */
+  --bg:        #111118;
+  --bg2:       #1c1c28;
+  --bg3:       #252535;
+  --card:      #1e1e2e;
+  --card2:     #26263a;
+  --text:      #F7F7F7;
+  --text2:     #a0a0c0;
+  --border:    rgba(255,255,255,0.08);
+  --shadow:    0 4px 24px rgba(0,0,0,0.5);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
+
+  --font-title: 'Fredoka One', cursive;
+  --font-body:  'Nunito', sans-serif;
+  --radius: 18px;
+  --radius-sm: 10px;
+  --nav-h: 70px;
+  --top-h: 64px;
+  --font-scale: 1;
+
+  /* Font scale si applica al root così tutti i rem scalano */
+  font-size: calc(16px * var(--font-scale));
+}
+
+[data-theme="light"] {
+  --bg:    #f0f2f8;
+  --bg2:   #e4e8f4;
+  --bg3:   #d8ddf0;
+  --card:  #ffffff;
+  --card2: #f5f7ff;
+  --text:  #1A1A1A;
+  --text2: #555577;
+  --border: rgba(0,0,0,0.08);
+  --shadow: 0 4px 24px rgba(0,0,0,0.12);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  transition: background 0.3s, color 0.3s;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--blue); border-radius: 4px; }
+
+/* ═══════════════════════════════════════
+   LAYOUT SHELL
+   ═══════════════════════════════════════ */
+#app { min-height: 100dvh; display: flex; flex-direction: column; }
+
+.topbar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  height: var(--top-h);
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px;
+  padding: 0 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.topbar-logo { width: 40px; height: 40px; object-fit: contain; }
+.topbar-logo-svg { width: 40px; height: 40px; }
+
+.topbar-title {
+  font-family: var(--font-title);
+  font-size: 1.3rem;
+  color: var(--lime);
+  letter-spacing: 0.5px;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.topbar-group-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 12px;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--text);
+  max-width: 130px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: all 0.2s;
+}
+.topbar-group-btn:hover { border-color: var(--lime); color: var(--lime); }
+.topbar-group-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--lime); flex-shrink: 0; }
+
+.main-content {
+  flex: 1;
+  padding-top: calc(var(--top-h) + 8px);
+  padding-bottom: calc(var(--nav-h) + 8px);
+  padding-left: 16px;
+  padding-right: 16px;
+  max-width: 600px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* ── Bottom Nav ── */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+  height: var(--nav-h);
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: stretch;
+  padding-bottom: env(safe-area-inset-bottom);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.nav-item {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 3px;
+  cursor: pointer; transition: all 0.2s;
+  border: none; background: none; color: var(--text2);
+  font-family: var(--font-body); font-size: 0.65rem; font-weight: 700;
+  padding: 8px 4px;
+  -webkit-tap-highlight-color: transparent;
+}
+.nav-item svg { width: 24px; height: 24px; transition: transform 0.2s; }
+.nav-item.active { color: var(--lime); }
+.nav-item.active svg { transform: scale(1.15); }
+.nav-item.center-btn {
+  background: var(--lime);
+  color: var(--dark);
+  border-radius: 50%;
+  width: 56px; height: 56px;
+  flex: none;
+  margin: auto;
+  box-shadow: 0 4px 20px rgba(166,255,77,0.5);
+}
+.nav-item.center-btn svg { width: 28px; height: 28px; }
+
+/* ═══════════════════════════════════════
+   CARDS & UI COMPONENTS
+   ═══════════════════════════════════════ */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-bottom: 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.card-title {
+  font-family: var(--font-title);
+  font-size: 1.15rem;
+  color: var(--lime);
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: 14px;
+  font-family: var(--font-body); font-weight: 800;
+  cursor: pointer; transition: all 0.18s;
+  padding: 12px 20px;
+  font-size: 0.95rem;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.96); }
+
+.btn-primary   { background: var(--lime);   color: var(--dark); box-shadow: 0 4px 16px rgba(166,255,77,0.35); }
+.btn-blue      { background: var(--blue);   color: #fff;        box-shadow: 0 4px 16px rgba(58,123,255,0.35); }
+.btn-yellow    { background: var(--yellow); color: var(--dark); box-shadow: 0 4px 16px rgba(255,217,61,0.35); }
+.btn-red       { background: var(--red);    color: #fff;        box-shadow: 0 4px 16px rgba(255,77,77,0.35); }
+.btn-ghost     { background: var(--bg3);    color: var(--text);  border: 1.5px solid var(--border); }
+.btn-sm        { padding: 8px 14px; font-size: 0.82rem; border-radius: 10px; }
+.btn-full      { width: 100%; }
+.btn:hover:not(:disabled) { filter: brightness(1.08); transform: translateY(-1px); }
+.btn:disabled  { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+/* Input fields */
+.input-group { margin-bottom: 14px; }
+.input-label { font-size: 0.8rem; font-weight: 700; color: var(--text2); margin-bottom: 6px; display: block; }
+.input-field, .select-field, textarea.input-field {
+  width: 100%; background: var(--bg3);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-family: var(--font-body); font-size: 0.95rem;
+  padding: 12px 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.input-field:focus, .select-field:focus { border-color: var(--lime); }
+textarea.input-field { resize: vertical; min-height: 80px; }
+.select-field { appearance: none; cursor: pointer; }
+
+/* Tags/badges */
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 0.75rem; font-weight: 800;
+}
+.badge-lime   { background: rgba(166,255,77,0.15); color: var(--lime); }
+.badge-blue   { background: rgba(58,123,255,0.15);  color: var(--blue); }
+.badge-yellow { background: rgba(255,217,61,0.15);  color: var(--yellow); }
+.badge-red    { background: rgba(255,77,77,0.15);   color: var(--red); }
+.badge-gray   { background: var(--bg3); color: var(--text2); }
+
+/* Stat numbers */
+.stat-big {
+  font-family: var(--font-title);
+  font-size: 2.2rem;
+  line-height: 1;
+  color: var(--lime);
+}
+.stat-label { font-size: 0.75rem; color: var(--text2); font-weight: 700; margin-top: 4px; }
+
+/* ═══════════════════════════════════════
+   MODAL
+   ═══════════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+.modal-overlay.center { align-items: center; justify-content: center; }
+
+.modal-sheet {
+  background: var(--card);
+  border-radius: 24px 24px 0 0;
+  width: 100%; max-height: 90dvh;
+  overflow-y: auto;
+  padding: 0 20px 40px;
+  animation: slideUp 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.modal-center {
+  background: var(--card);
+  border-radius: 24px;
+  width: 90%; max-width: 420px;
+  max-height: 90dvh;
+  overflow-y: auto;
+  padding: 24px;
+  animation: scaleIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+.modal-handle {
+  width: 40px; height: 4px;
+  background: var(--bg3);
+  border-radius: 4px;
+  margin: 14px auto 20px;
+}
+.modal-title {
+  font-family: var(--font-title);
+  font-size: 1.3rem;
+  color: var(--lime);
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+@keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes scaleIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+/* ═══════════════════════════════════════
+   PLAYER CARD
+   ═══════════════════════════════════════ */
+.player-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+
+.player-card {
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+.player-card:hover  { border-color: var(--lime); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(166,255,77,0.2); }
+.player-card:active { transform: scale(0.97); }
+.player-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--blue), var(--lime));
+  border-radius: 16px 16px 0 0;
+}
+
+.player-avatar {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 2.5px solid var(--border);
+  margin: 0 auto 10px;
+  overflow: hidden;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.8rem;
+}
+.player-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.player-name { font-weight: 800; font-size: 0.9rem; margin-bottom: 2px; }
+.player-nick { font-size: 0.75rem; color: var(--lime); font-style: italic; }
+.player-role { font-size: 0.7rem; color: var(--text2); margin-top: 4px; }
+.player-stats { display: flex; justify-content: space-around; margin-top: 10px; border-top: 1px solid var(--border); padding-top: 8px; }
+.player-stat  { text-align: center; }
+.player-stat-val { font-family: var(--font-title); font-size: 1rem; color: var(--yellow); }
+.player-stat-lbl { font-size: 0.62rem; color: var(--text2); }
+
+/* ═══════════════════════════════════════
+   TEAM DISPLAY
+   ═══════════════════════════════════════ */
+.team-split {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 16px;
+}
+
+.team-box {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 14px;
+  border: 1.5px solid var(--border);
+  min-height: 160px;
+}
+.team-box.team-a { border-color: rgba(58,123,255,0.4); }
+.team-box.team-b { border-color: rgba(255,77,77,0.4); }
+
+.team-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 10px;
+}
+.team-label-a { font-family: var(--font-title); color: var(--blue); font-size: 1rem; }
+.team-label-b { font-family: var(--font-title); color: var(--red); font-size: 1rem; }
+
+.team-player-chip {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3);
+  border-radius: 8px; padding: 6px 8px;
+  margin-bottom: 4px; font-size: 0.78rem; font-weight: 700;
+  cursor: grab;
+}
+.team-player-chip .chip-role {
+  font-size: 0.65rem; color: var(--text2);
+}
+
+/* ═══════════════════════════════════════
+   RATING STARS & SLIDERS
+   ═══════════════════════════════════════ */
+.rating-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid var(--border);
+}
+.rating-player { flex: 1; font-size: 0.85rem; font-weight: 700; }
+.rating-nick   { font-size: 0.72rem; color: var(--lime); font-style: italic; }
+
+.rating-stars { display: flex; gap: 4px; }
+.star {
+  font-size: 1.3rem; cursor: pointer;
+  transition: transform 0.15s;
+  opacity: 0.3;
+}
+.star.active { opacity: 1; }
+.star:hover { transform: scale(1.25); }
+
+.rating-number {
+  font-family: var(--font-title);
+  font-size: 1.2rem;
+  min-width: 32px;
+  text-align: center;
+  color: var(--yellow);
+}
+
+.goal-assist-row {
+  display: flex; gap: 8px;
+}
+.counter-box {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--bg3); border-radius: 10px; padding: 6px 10px;
+}
+.counter-btn {
+  width: 26px; height: 26px;
+  border-radius: 50%; border: none;
+  font-weight: 900; font-size: 1rem;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  background: var(--bg2); color: var(--text);
+  transition: all 0.15s;
+}
+.counter-btn:active { transform: scale(0.9); }
+.counter-val { font-family: var(--font-title); font-size: 1rem; min-width: 20px; text-align: center; }
+
+/* ═══════════════════════════════════════
+   MATCH HISTORY
+   ═══════════════════════════════════════ */
+.match-card {
+  background: var(--card);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.match-card:hover { border-color: var(--blue); }
+
+.match-score {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  margin: 10px 0;
+}
+.score-num {
+  font-family: var(--font-title);
+  font-size: 2.4rem;
+  line-height: 1;
+}
+.score-a { color: var(--blue); }
+.score-b { color: var(--red); }
+.score-sep { font-family: var(--font-title); font-size: 1.5rem; color: var(--text2); }
+
+.match-date { font-size: 0.75rem; color: var(--text2); }
+.match-mvp  { font-size: 0.8rem; color: var(--yellow); }
+
+/* ═══════════════════════════════════════
+   STATS PAGE
+   ═══════════════════════════════════════ */
+.stats-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.stats-rank {
+  font-family: var(--font-title);
+  font-size: 1.4rem;
+  width: 32px; text-align: center;
+  color: var(--text2);
+}
+.stats-rank.gold   { color: var(--yellow); }
+.stats-rank.silver { color: #aaa; }
+.stats-rank.bronze { color: #cd7f32; }
+.stats-avatar {
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--bg3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  overflow: hidden; flex-shrink: 0;
+}
+.stats-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.stats-info { flex: 1; }
+.stats-name { font-weight: 800; font-size: 0.9rem; }
+.stats-sub  { font-size: 0.72rem; color: var(--text2); }
+.stats-val  { font-family: var(--font-title); font-size: 1.6rem; color: var(--lime); }
+
+/* ═══════════════════════════════════════
+   PROGRESS BAR
+   ═══════════════════════════════════════ */
+.progress-bar {
+  height: 6px; background: var(--bg3); border-radius: 6px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; border-radius: 6px;
+  background: linear-gradient(90deg, var(--blue), var(--lime));
+  transition: width 0.6s ease;
+}
+
+/* ═══════════════════════════════════════
+   HOME HERO
+   ═══════════════════════════════════════ */
+.hero-card {
+  background: linear-gradient(135deg, #0d1b3e 0%, #1a1a2e 50%, #16213e 100%);
+  border-radius: 24px;
+  padding: 28px 24px;
+  margin-bottom: 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(58,123,255,0.3);
+}
+.hero-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at top right, rgba(166,255,77,0.12) 0%, transparent 60%),
+              radial-gradient(ellipse at bottom left, rgba(58,123,255,0.15) 0%, transparent 60%);
+}
+.hero-logo { width: 130px; height: 130px; object-fit: contain; margin: 0 auto 16px; display: block; position: relative; z-index: 1; }
+.hero-title {
+  font-family: var(--font-title);
+  font-size: 1.7rem;
+  color: var(--lime);
+  position: relative; z-index: 1;
+  line-height: 1.2;
+}
+.hero-sub {
+  font-size: 0.85rem;
+  color: rgba(255,255,255,0.6);
+  margin-top: 8px;
+  font-style: italic;
+  position: relative; z-index: 1;
+}
+
+.quick-stats {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
+  margin-bottom: 20px;
+}
+.quick-stat-card {
+  background: var(--card);
+  border-radius: 14px; padding: 14px 10px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════
+   SETTINGS
+   ═══════════════════════════════════════ */
+.setting-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+}
+.setting-label { font-weight: 700; font-size: 0.9rem; }
+.setting-sub   { font-size: 0.72rem; color: var(--text2); margin-top: 2px; }
+
+/* Toggle switch */
+.toggle {
+  position: relative; width: 50px; height: 28px;
+  flex-shrink: 0;
+}
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider {
+  position: absolute; inset: 0;
+  background: var(--bg3); border-radius: 28px;
+  cursor: pointer; transition: background 0.2s;
+}
+.toggle-slider::before {
+  content: '';
+  position: absolute; left: 3px; top: 3px;
+  width: 22px; height: 22px;
+  background: #fff; border-radius: 50%;
+  transition: transform 0.2s;
+}
+input:checked + .toggle-slider { background: var(--lime); }
+input:checked + .toggle-slider::before { transform: translateX(22px); }
+
+/* ═══════════════════════════════════════
+   STEP WIZARD
+   ═══════════════════════════════════════ */
+.step-indicator {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin-bottom: 24px;
+}
+.step-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--bg3); transition: all 0.3s;
+}
+.step-dot.active { background: var(--lime); width: 24px; border-radius: 6px; }
+.step-dot.done   { background: var(--blue); }
+
+/* ═══════════════════════════════════════
+   PNG PREVIEW
+   ═══════════════════════════════════════ */
+.png-preview {
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  border: 2px solid var(--border);
+}
+
+/* ═══════════════════════════════════════
+   HIDDEN PNG TEMPLATES
+   ═══════════════════════════════════════ */
+#png-formation, #png-result, #png-pagelle {
+  position: fixed; left: -9999px; top: -9999px;
+  width: 800px;
+}
+
+/* Formation PNG */
+.formation-png {
+  background: linear-gradient(160deg, #0a2818 0%, #1a4a30 40%, #0d3322 100%);
+  padding: 32px;
+  font-family: 'Fredoka One', cursive;
+  color: #fff;
+  min-height: 500px;
+}
+.formation-pitch {
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.04) 0, rgba(255,255,255,0.04) 1px, transparent 1px, transparent 80px),
+              linear-gradient(180deg, rgba(255,255,255,0.02) 50%, transparent 50%);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 12px; padding: 20px; margin-top: 20px;
+}
+.formation-player-chip {
+  display: inline-block;
+  background: var(--lime); color: var(--dark);
+  padding: 4px 10px; border-radius: 20px;
+  font-size: 13px; margin: 3px;
+}
+.formation-player-chip.team-b {
+  background: var(--red); color: #fff;
+}
+
+/* Result PNG */
+.result-png {
+  background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+  padding: 40px 32px;
+  font-family: 'Fredoka One', cursive;
+  color: #fff; text-align: center;
+}
+.result-score-big {
+  font-size: 80px; letter-spacing: 8px; line-height: 1;
+  background: linear-gradient(90deg, #3A7BFF, #A6FF4D);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.result-teams { display: flex; justify-content: space-between; font-size: 22px; margin-bottom: 20px; }
+
+/* Pagelle PNG */
+.pagelle-png {
+  background: linear-gradient(160deg, #1a0a2e 0%, #2a1a3e 100%);
+  padding: 32px; font-family: 'Fredoka One', cursive; color: #fff;
+}
+.pagelle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.pagelle-vote {
+  font-size: 28px;
+  color: var(--yellow);
+}
+
+/* ═══════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════ */
+.bounce { animation: bounce 0.5s cubic-bezier(0.34,1.56,0.64,1); }
+@keyframes bounce { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
+
+.fade-slide { animation: fadeSlide 0.35s ease; }
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+
+.pulse { animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(166,255,77,0.4); } 50% { box-shadow: 0 0 0 8px transparent; } }
+
+/* ═══════════════════════════════════════
+   AI TYPING EFFECT
+   ═══════════════════════════════════════ */
+.ai-comment-box {
+  background: linear-gradient(135deg, rgba(58,123,255,0.1), rgba(166,255,77,0.05));
+  border: 1.5px solid rgba(58,123,255,0.3);
+  border-radius: 14px; padding: 16px;
+  font-style: italic; line-height: 1.7;
+  position: relative;
+}
+.ai-comment-box::before {
+  content: '🤖 AI';
+  position: absolute; top: -10px; left: 16px;
+  background: var(--blue); color: #fff;
+  font-style: normal; font-size: 0.7rem; font-weight: 900;
+  padding: 2px 8px; border-radius: 10px;
+  font-family: var(--font-body);
+}
+.ai-loading { color: var(--text2); }
+.ai-loading::after {
+  content: '⚡';
+  animation: spin 1s linear infinite;
+  display: inline-block;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ═══════════════════════════════════════
+   TOAST NOTIFICATION
+   ═══════════════════════════════════════ */
+.toast-container {
+  position: fixed; top: 80px; right: 16px; z-index: 999;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.toast {
+  background: var(--card2);
+  border-radius: 12px; padding: 12px 16px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-size: 0.85rem; font-weight: 700;
+  max-width: 260px;
+  animation: slideIn 0.3s ease;
+}
+@keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.toast.success { border-color: var(--lime); color: var(--lime); }
+.toast.error   { border-color: var(--red); color: var(--red); }
+.toast.info    { border-color: var(--blue); color: var(--blue); }
+
+/* ═══════════════════════════════════════
+   CREDITS
+   ═══════════════════════════════════════ */
+.credits-card {
+  text-align: center; padding: 40px 20px;
+}
+.credits-ball { font-size: 4rem; display: block; margin-bottom: 16px;
+  animation: wobble 3s ease-in-out infinite;
+}
+@keyframes wobble { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
+.credits-main { font-family: var(--font-title); font-size: 1.5rem; color: var(--lime); margin-bottom: 8px; }
+.credits-by   { font-size: 1.1rem; color: var(--yellow); font-weight: 800; }
+
+/* ═══════════════════════════════════════
+   UPDATE BANNER
+   ═══════════════════════════════════════ */
+.update-banner {
+  position: fixed; top: var(--top-h); left: 0; right: 0; z-index: 99;
+  background: linear-gradient(90deg, var(--blue), var(--lime));
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 0.82rem; font-weight: 700; color: var(--dark);
+  animation: slideDown 0.4s ease;
+}
+@keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+
+/* ═══════════════════════════════════════
+   GROUP SELECTOR MODAL
+   ═══════════════════════════════════════ */
+.group-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 14px;
+  background: var(--bg3); margin-bottom: 8px;
+  cursor: pointer; transition: all 0.2s;
+  border: 1.5px solid var(--border);
+}
+.group-item.active { border-color: var(--lime); background: var(--lime-dim); }
+.group-item:hover  { border-color: var(--blue); }
+.group-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.group-name { flex: 1; font-weight: 800; }
+.group-sub  { font-size: 0.72rem; color: var(--text2); }
+
+/* FAB */
+.fab {
+  position: fixed; bottom: calc(var(--nav-h) + 16px); right: 20px;
+  z-index: 90;
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--lime);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem;
+  box-shadow: 0 6px 24px rgba(166,255,77,0.5);
+  transition: all 0.2s;
+  -webkit-tap-highlight-color: transparent;
+}
+.fab:hover  { transform: scale(1.08); }
+.fab:active { transform: scale(0.94); }
+
+/* ═══════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════ */
+@media (min-width: 600px) {
+  .main-content { padding-left: 24px; padding-right: 24px; }
+  .player-grid { grid-template-columns: repeat(3, 1fr); }
+  .quick-stats { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ═══════════════════════════════════════
+   WELCOME SCREEN
+   ═══════════════════════════════════════ */
+.welcome-action-btn {
+  display: flex; align-items: center; gap: 16px;
+  width: 100%; background: var(--card2);
+  border: 1.5px solid var(--border);
+  border-radius: 18px; padding: 20px 22px;
+  margin-bottom: 12px; cursor: pointer;
+  transition: all 0.2s; text-align: left;
+  font-family: var(--font-body); color: var(--text);
+}
+.welcome-action-btn:hover { border-color: var(--lime); transform: translateX(4px); }
+.welcome-action-btn:active { transform: scale(0.98); }
+.welcome-action-icon {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem; flex-shrink: 0;
+}
+.welcome-action-title { font-weight: 800; font-size: 1rem; margin-bottom: 3px; }
+.welcome-action-sub   { font-size: 0.78rem; color: var(--text2); line-height: 1.4; }
+
+/* Install instructions */
+.install-step {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid var(--border);
+}
+.install-step:last-child { border-bottom: none; }
+.install-num {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--blue); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 0.8rem; flex-shrink: 0; margin-top: 2px;
+}
+.install-text { font-size: 0.85rem; line-height: 1.6; }
+.install-text strong { color: var(--lime); }
+
+.platform-tabs {
+  display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap;
+}
+.platform-tab {
+  padding: 8px 16px; border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--bg3); color: var(--text2);
+  font-weight: 700; font-size: 0.82rem; cursor: pointer;
+  transition: all 0.15s;
+}
+.platform-tab.active { background: var(--blue); color: #fff; border-color: var(--blue); }
+
+/* Export selector */
+.export-group-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.export-group-row:last-child { border-bottom: none; }
+.export-checkbox {
+  width: 22px; height: 22px; border-radius: 6px;
+  border: 2px solid var(--border);
+  background: var(--bg3); flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s; font-size: 0.9rem;
+}
+.export-checkbox.checked { background: var(--lime); border-color: var(--lime); color: var(--dark); }
+.more-menu-overlay {
+  position: fixed; inset: 0; z-index: 98;
+  background: rgba(0,0,0,0.4);
+  backdrop-filter: blur(4px);
+}
+.more-menu {
+  position: fixed; bottom: calc(var(--nav-h) + 12px); right: 12px;
+  background: var(--card2);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  min-width: 200px;
+  animation: scaleIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  transform-origin: bottom right;
+  z-index: 99;
+}
+.more-menu-item {
+  display: flex; align-items: center; gap: 12px;
+  width: 100%; border: none; background: none;
+  color: var(--text); font-family: var(--font-body);
+  font-weight: 700; font-size: 0.95rem;
+  padding: 16px 20px; cursor: pointer;
+  text-align: left; transition: background 0.15s;
+  border-bottom: 1px solid var(--border);
+}
+.more-menu-item:last-child { border-bottom: none; }
+.more-menu-item:hover { background: var(--bg3); }
+.more-icon { font-size: 1.2rem; }
+.sortable-ghost { opacity: 0.3; }
+.sortable-chosen { background: rgba(166,255,77,0.15) !important; }
+
+/* Drag zone */
+.drag-zone {
+  min-height: 60px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 8px;
+  margin-top: 8px;
+  transition: border-color 0.2s;
+}
+.drag-zone.dragover { border-color: var(--lime); background: var(--lime-dim); }
+
+/* ═══════════════════════════════════════
+   NO GROUP / EMPTY STATES
+   ═══════════════════════════════════════ */
+.empty-state {
+  text-align: center; padding: 48px 20px;
+  color: var(--text2);
+}
+.empty-state .emoji { font-size: 3.5rem; display: block; margin-bottom: 16px; }
+.empty-state h3 { font-family: var(--font-title); font-size: 1.3rem; color: var(--text); margin-bottom: 8px; }
+.empty-state p { font-size: 0.85rem; line-height: 1.6; }
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ── TOPBAR ── -->
+  <header class="topbar">
+    <img v-if="logoDataUrl" :src="logoDataUrl" class="topbar-logo" alt="Logo">
+    <svg v-else class="topbar-logo-svg" viewBox="0 0 40 40">
+      <circle cx="20" cy="20" r="18" fill="#3A7BFF"/>
+      <text x="20" y="26" text-anchor="middle" font-size="18" fill="#A6FF4D" font-family="Fredoka One">⚽</text>
+    </svg>
+    <span class="topbar-title">Amici FC</span>
+    <button class="topbar-group-btn" @click="showGroupSelector = true">
+      <span class="dot"></span>
+      <span>{{ currentGroup ? currentGroup.nome : 'Gruppo' }}</span>
+    </button>
+  </header>
+
+  <!-- ── UPDATE BANNER ── -->
+  <div v-if="updateAvailable" class="update-banner">
+    <span>🎉 Nuova versione {{ newVersion }}!</span>
+    <button class="btn btn-sm" style="background:#fff;color:#1a1a1a;margin-left:auto" @click="doUpdate">Aggiorna</button>
+    <button @click="updateAvailable=false" style="background:none;border:none;cursor:pointer;font-size:1.1rem">✕</button>
+  </div>
+
+  <!-- ── MAIN CONTENT ── -->
+  <main class="main-content fade-slide" :key="currentView">
+
+    <!-- ════ HOME ════ -->
+    <template v-if="currentView === 'home'">
+      <div class="hero-card">
+        <img v-if="logoDataUrl" :src="logoDataUrl" class="hero-logo" alt="Amici FC">
+        <div v-else style="font-size:3rem;margin-bottom:14px">⚽</div>
+        <div class="hero-title">Amici FC</div>
+        <div class="hero-sub">Dove i campioni nascono… e litigano! 😂</div>
+      </div>
+
+      <template v-if="!currentGroup">
+        <!-- WELCOME SCREEN -->
+        <div style="padding: 8px 0">
+          <div class="card" style="text-align:center;padding:28px 20px 20px;background:linear-gradient(135deg,rgba(58,123,255,0.1),rgba(166,255,77,0.06));border-color:rgba(58,123,255,0.25)">
+            <div style="font-size:0.82rem;color:var(--text2);font-style:italic">Benvenuto nel tuo calcetto manager!</div>
+            <div style="font-size:0.78rem;color:var(--text2);margin-top:6px">Crea un gruppo o importa i dati di un amico per iniziare ⚽</div>
+          </div>
+
+          <!-- Nuovo Gruppo -->
+          <button class="welcome-action-btn" @click="currentView='groups'">
+            <div class="welcome-action-icon" style="background:rgba(166,255,77,0.15)">➕</div>
+            <div>
+              <div class="welcome-action-title" style="color:var(--lime)">Nuovo Gruppo</div>
+              <div class="welcome-action-sub">Crea il tuo primo gruppo (es. "Calcetto del Martedì") e aggiungi i giocatori</div>
+            </div>
+          </button>
+
+          <!-- Importa JSON -->
+          <label class="welcome-action-btn" style="cursor:pointer">
+            <div class="welcome-action-icon" style="background:rgba(58,123,255,0.15)">📥</div>
+            <div>
+              <div class="welcome-action-title" style="color:var(--blue)">Importa JSON</div>
+              <div class="welcome-action-sub">Importa il salvataggio di un gruppo ricevuto da un amico</div>
+            </div>
+            <input type="file" accept=".json" style="display:none" @change="importData">
+          </label>
+
+          <!-- Istruzioni installazione -->
+          <div class="card">
+            <div class="card-title">📲 Installa l'App</div>
+            <div class="platform-tabs">
+              <button class="platform-tab" :class="{active:installTab==='android'}" @click="installTab='android'">🤖 Android</button>
+              <button class="platform-tab" :class="{active:installTab==='ios'}"     @click="installTab='ios'">🍎 iPhone / iPad</button>
+              <button class="platform-tab" :class="{active:installTab==='pc'}"      @click="installTab='pc'">💻 PC / Mac</button>
+            </div>
+
+            <!-- Android -->
+            <template v-if="installTab==='android'">
+              <div class="install-step">
+                <div class="install-num">1</div>
+                <div class="install-text">Apri questa pagina in <strong>Google Chrome</strong> sul tuo Android</div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">2</div>
+                <div class="install-text">Tocca il menu <strong>⋮ (3 puntini)</strong> in alto a destra</div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">3</div>
+                <div class="install-text">Seleziona <strong>"Aggiungi alla schermata Home"</strong> o <strong>"Installa app"</strong></div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">4</div>
+                <div class="install-text">Conferma con <strong>"Installa"</strong> → l'icona di Amici FC apparirà nella home!</div>
+              </div>
+            </template>
+
+            <!-- iOS -->
+            <template v-if="installTab==='ios'">
+              <div class="install-step">
+                <div class="install-num">1</div>
+                <div class="install-text">Apri questa pagina in <strong>Safari</strong> (obbligatorio su iOS)</div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">2</div>
+                <div class="install-text">Tocca l'icona <strong>Condividi</strong> (quadrato con freccia su) in basso</div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">3</div>
+                <div class="install-text">Scorri e tocca <strong>"Aggiungi a schermata Home"</strong></div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">4</div>
+                <div class="install-text">Tocca <strong>"Aggiungi"</strong> in alto a destra → fatto! 🎉</div>
+              </div>
+            </template>
+
+            <!-- PC -->
+            <template v-if="installTab==='pc'">
+              <div class="install-step">
+                <div class="install-num">1</div>
+                <div class="install-text">Apri questa pagina in <strong>Google Chrome</strong> o <strong>Microsoft Edge</strong></div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">2</div>
+                <div class="install-text">Clicca sull'icona <strong>➕ Installa</strong> nella barra degli indirizzi (a destra)</div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">3</div>
+                <div class="install-text">In alternativa: menu <strong>⋮ → Salva e condividi → Installa come app</strong></div>
+              </div>
+              <div class="install-step">
+                <div class="install-num">4</div>
+                <div class="install-text">Clicca <strong>"Installa"</strong> → l'app si apre in una finestra dedicata!</div>
+              </div>
+            </template>
+
+            <div style="margin-top:14px;padding:12px;background:var(--bg3);border-radius:10px;font-size:0.78rem;color:var(--text2)">
+              💡 <strong style="color:var(--lime)">Funziona offline!</strong> Una volta installata, Amici FC funziona anche senza internet. I dati sono salvati sul tuo dispositivo.
+            </div>
+          </div>
+        </div>
+      </template>
+
+      <template v-else>
+        <div class="quick-stats">
+          <div class="quick-stat-card">
+            <div class="stat-big">{{ groupPlayers.length }}</div>
+            <div class="stat-label">👤 Giocatori</div>
+          </div>
+          <div class="quick-stat-card">
+            <div class="stat-big">{{ groupMatches.length }}</div>
+            <div class="stat-label">⚽ Partite</div>
+          </div>
+          <div class="quick-stat-card">
+            <div class="stat-big">{{ totalGoals }}</div>
+            <div class="stat-label">🥅 Goal</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⚡ Azioni rapide</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" @click="startNewMatch">⚽ Nuova Partita</button>
+            <button class="btn btn-blue"    @click="currentView='players'">👤 Giocatori</button>
+            <button class="btn btn-yellow"  @click="currentView='stats'">📊 Stats</button>
+          </div>
+        </div>
+
+        <div v-if="recentMatches.length">
+          <div class="card-title">🕐 Ultime Partite</div>
+          <div v-for="m in recentMatches" :key="m.id" class="match-card" @click="viewMatch(m)">
+            <div class="match-date">📅 {{ formatDate(m.data) }}</div>
+            <div class="match-score">
+              <span class="score-num score-a">{{ m.risultato.goalA }}</span>
+              <span class="score-sep">–</span>
+              <span class="score-num score-b">{{ m.risultato.goalB }}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="badge badge-blue">Squadra A</span>
+              <span v-if="m.mvp" class="match-mvp">⭐ MVP: {{ m.mvp }}</span>
+              <span class="badge badge-red">Squadra B</span>
+            </div>
+          </div>
+        </div>
+      </template>
+    </template>
+
+    <!-- ════ GIOCATORI ════ -->
+    <template v-if="currentView === 'players'">
+      <div class="card-title">👤 Giocatori
+        <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
+      </div>
+
+      <template v-if="!currentGroup">
+        <div class="empty-state"><span class="emoji">👥</span><h3>Seleziona un gruppo prima</h3></div>
+      </template>
+
+      <template v-else-if="groupPlayers.length === 0">
+        <div class="empty-state">
+          <span class="emoji">🦸</span>
+          <h3>Nessun giocatore!</h3>
+          <p>Aggiungi i tuoi amici campioni per iniziare a giocare.</p>
+          <button class="btn btn-primary" style="margin-top:20px" @click="openPlayerForm(null)">Aggiungi Giocatore</button>
+        </div>
+      </template>
+
+      <div v-else class="player-grid">
+        <div v-for="p in groupPlayers" :key="p.id" class="player-card" @click="openPlayerDetail(p)">
+          <div class="player-avatar">
+            <img v-if="p.foto" :src="p.foto" :alt="p.nome">
+            <span v-else>{{ roleEmoji(p.ruolo) }}</span>
+          </div>
+          <div class="player-name">{{ p.nome }} {{ p.cognome }}</div>
+          <div v-if="p.soprannome" class="player-nick">"{{ p.soprannome }}"</div>
+          <div class="player-role">{{ p.ruolo }}</div>
+          <div class="player-stats">
+            <div class="player-stat">
+              <div class="player-stat-val">{{ p.goalTotali }}</div>
+              <div class="player-stat-lbl">⚽</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">{{ p.assistTotali }}</div>
+              <div class="player-stat-lbl">🅰️</div>
+            </div>
+            <div class="player-stat">
+              <div class="player-stat-val">{{ (p.mediaVoto || 0).toFixed(1) }}</div>
+              <div class="player-stat-lbl">⭐</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button v-if="currentGroup" class="fab" @click="openPlayerForm(null)" title="Aggiungi Giocatore">+</button>
+    </template>
+
+    <!-- ════ NUOVA PARTITA ════ -->
+    <template v-if="currentView === 'newmatch'">
+      <div class="card-title">⚽ Nuova Partita
+        <span class="badge badge-blue">Step {{ matchStep }}/3</span>
+      </div>
+
+      <div class="step-indicator">
+        <div v-for="i in 3" :key="i" class="step-dot"
+          :class="{active: matchStep===i, done: matchStep>i}"></div>
+      </div>
+
+      <!-- STEP 1: Formazioni -->
+      <template v-if="matchStep === 1">
+        <div class="card">
+          <div class="card-title">🤖 Genera Squadre</div>
+          <p style="font-size:0.85rem;color:var(--text2);margin-bottom:14px">
+            Seleziona i giocatori disponibili oggi, poi genera le squadre!
+          </p>
+
+          <div style="margin-bottom:14px">
+            <label class="input-label">Giocatori disponibili (seleziona)</label>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;max-height:160px;overflow-y:auto;padding:4px 0">
+              <div v-for="p in groupPlayers" :key="p.id"
+                class="badge"
+                :class="selectedForMatch.includes(p.id) ? 'badge-lime' : 'badge-gray'"
+                style="cursor:pointer;padding:8px 12px;font-size:0.82rem"
+                @click="togglePlayerSelection(p.id)">
+                {{ roleEmoji(p.ruolo) }} {{ p.soprannome || p.nome }}
+              </div>
+            </div>
+            <div style="font-size:0.75rem;color:var(--text2);margin-top:6px">
+              Selezionati: {{ selectedForMatch.length }} giocatori
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" @click="generateTeamsAI" :disabled="selectedForMatch.length < 2 || aiLoading">
+              {{ aiLoading ? '⏳ Generando...' : '🤖 AI Bilanciata' }}
+            </button>
+            <button class="btn btn-ghost" @click="generateTeamsRandom" :disabled="selectedForMatch.length < 2">
+              🎲 Random
+            </button>
+            <button class="btn btn-ghost btn-sm" @click="selectAll">Tutti</button>
+            <button class="btn btn-ghost btn-sm" @click="selectedForMatch=[]">Nessuno</button>
+          </div>
+        </div>
+
+        <div v-if="teamA.length || teamB.length">
+          <div class="card">
+            <div class="card-title">📋 Formazioni</div>
+            <div class="team-split">
+              <div>
+                <div class="team-label-a" style="margin-bottom:8px">🔵 Squadra A</div>
+                <div id="teamA-drag" class="drag-zone">
+                  <div v-for="pid in teamA" :key="pid" class="team-player-chip" :data-id="pid">
+                    <span>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+                    <div>
+                      <div style="font-size:0.78rem;font-weight:800">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                      <div class="chip-role">{{ getPlayer(pid)?.ruolo }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <div class="team-label-b" style="margin-bottom:8px">🔴 Squadra B</div>
+                <div id="teamB-drag" class="drag-zone">
+                  <div v-for="pid in teamB" :key="pid" class="team-player-chip" :data-id="pid">
+                    <span>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+                    <div>
+                      <div style="font-size:0.78rem;font-weight:800">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                      <div class="chip-role">{{ getPlayer(pid)?.ruolo }}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p style="font-size:0.72rem;color:var(--text2);text-align:center">💡 Trascina i giocatori tra le squadre</p>
+          </div>
+          <button class="btn btn-primary btn-full" @click="matchStep=2">Avanti → Inserisci Risultato</button>
+        </div>
+      </template>
+
+      <!-- STEP 2: Risultato -->
+      <template v-if="matchStep === 2">
+        <div class="card">
+          <div class="card-title">🏆 Risultato</div>
+          <div class="match-score" style="margin-bottom:20px">
+            <div style="text-align:center">
+              <div class="team-label-a" style="margin-bottom:8px">🔵 Squadra A</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="counter-btn" @click="matchGoalA > 0 ? matchGoalA-- : null">−</button>
+                <span class="score-num score-a">{{ matchGoalA }}</span>
+                <button class="counter-btn" style="background:var(--blue);color:#fff" @click="matchGoalA++">+</button>
+              </div>
+            </div>
+            <div class="score-sep">VS</div>
+            <div style="text-align:center">
+              <div class="team-label-b" style="margin-bottom:8px">🔴 Squadra B</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="counter-btn" @click="matchGoalB > 0 ? matchGoalB-- : null">−</button>
+                <span class="score-num score-b">{{ matchGoalB }}</span>
+                <button class="counter-btn" style="background:var(--red);color:#fff" @click="matchGoalB++">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">📊 Statistiche Giocatori</div>
+          <p style="font-size:0.78rem;color:var(--text2);margin-bottom:12px">🔵 Squadra A</p>
+          <div v-for="pid in teamA" :key="'sa-'+pid" class="rating-row">
+            <div style="flex:1">
+              <div class="player-name" style="font-size:0.85rem">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+              <div class="rating-nick">{{ getPlayer(pid)?.ruolo }}</div>
+              <div class="goal-assist-row" style="margin-top:6px">
+                <div class="counter-box">
+                  <span style="font-size:0.7rem;font-weight:700">⚽</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].goal > 0 ? playerStats[pid].goal-- : null">−</button>
+                  <span class="counter-val">{{ playerStats[pid]?.goal || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                </div>
+                <div class="counter-box">
+                  <span style="font-size:0.7rem;font-weight:700">🅰️</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].assist > 0 ? playerStats[pid].assist-- : null">−</button>
+                  <span class="counter-val">{{ playerStats[pid]?.assist || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div class="rating-number">{{ playerStats[pid]?.voto || 6 }}</div>
+              <input type="range" min="1" max="10" step="0.5"
+                :value="playerStats[pid]?.voto || 6"
+                @input="ensureStats(pid);playerStats[pid].voto=parseFloat($event.target.value)"
+                style="width:70px;accent-color:var(--yellow)">
+            </div>
+          </div>
+          <p style="font-size:0.78rem;color:var(--text2);margin:12px 0 12px">🔴 Squadra B</p>
+          <div v-for="pid in teamB" :key="'sb-'+pid" class="rating-row">
+            <div style="flex:1">
+              <div class="player-name" style="font-size:0.85rem">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+              <div class="rating-nick">{{ getPlayer(pid)?.ruolo }}</div>
+              <div class="goal-assist-row" style="margin-top:6px">
+                <div class="counter-box">
+                  <span style="font-size:0.7rem;font-weight:700">⚽</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].goal > 0 ? playerStats[pid].goal-- : null">−</button>
+                  <span class="counter-val">{{ playerStats[pid]?.goal || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                </div>
+                <div class="counter-box">
+                  <span style="font-size:0.7rem;font-weight:700">🅰️</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].assist > 0 ? playerStats[pid].assist-- : null">−</button>
+                  <span class="counter-val">{{ playerStats[pid]?.assist || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+              <div class="rating-number">{{ playerStats[pid]?.voto || 6 }}</div>
+              <input type="range" min="1" max="10" step="0.5"
+                :value="playerStats[pid]?.voto || 6"
+                @input="ensureStats(pid);playerStats[pid].voto=parseFloat($event.target.value)"
+                style="width:70px;accent-color:var(--yellow)">
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" @click="matchStep=1">← Indietro</button>
+          <button class="btn btn-primary" style="flex:1" @click="matchStep=3;generateCommentAI()">Avanti → Pagelle</button>
+        </div>
+      </template>
+
+      <!-- STEP 3: Pagelle + AI + PNG -->
+      <template v-if="matchStep === 3">
+        <div class="card">
+          <div class="card-title">⭐ Pagelle</div>
+          <div v-for="pid in [...teamA,...teamB]" :key="'pg-'+pid" class="rating-row">
+            <div style="flex:1">
+              <div class="player-name" style="font-size:0.85rem">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+            </div>
+            <span class="badge" :class="votoColor(playerStats[pid]?.voto)">
+              {{ playerStats[pid]?.voto || 6 }}
+            </span>
+            <span style="font-size:0.72rem;color:var(--text2);margin-left:6px">
+              ⚽{{ playerStats[pid]?.goal||0 }} 🅰️{{ playerStats[pid]?.assist||0 }}
+            </span>
+          </div>
+
+          <div v-if="computedMVP" style="margin-top:14px;text-align:center">
+            <div class="badge badge-yellow" style="font-size:0.95rem;padding:10px 20px">
+              ⭐ MVP: {{ getPlayer(computedMVP)?.soprannome || getPlayer(computedMVP)?.nome }}
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🤖 Commento AI</div>
+          <div class="ai-comment-box">
+            <span v-if="aiLoading" class="ai-loading">Sto analizzando la partita... </span>
+            <span v-else>{{ aiComment || 'Il commento verrà generato automaticamente...' }}</span>
+          </div>
+          <button v-if="!aiLoading" class="btn btn-ghost btn-sm" style="margin-top:10px" @click="generateCommentAI">🔄 Rigenera</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🖼️ Condividi</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-blue btn-sm"   @click="generatePNG('formation')">📸 Formazione</button>
+            <button class="btn btn-yellow btn-sm" @click="generatePNG('result')">🏆 Risultato</button>
+            <button class="btn btn-primary btn-sm" @click="generatePNG('pagelle')">⭐ Pagelle</button>
+          </div>
+          <div v-if="generatedPNG" style="margin-top:12px">
+            <img :src="generatedPNG" style="width:100%;border-radius:12px;border:2px solid var(--border)">
+            <a :href="generatedPNG" :download="'amicifc-'+pngType+'.png'">
+              <button class="btn btn-primary btn-full" style="margin-top:8px">💾 Scarica PNG</button>
+            </a>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" @click="matchStep=2">← Indietro</button>
+          <button class="btn btn-primary" style="flex:1" @click="saveMatch">✅ Salva Partita</button>
+        </div>
+      </template>
+    </template>
+
+    <!-- ════ STORICO ════ -->
+    <template v-if="currentView === 'history'">
+      <div class="card-title">📅 Storico Partite
+        <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
+      </div>
+
+      <div v-if="!currentGroup">
+        <div class="empty-state"><span class="emoji">👥</span><h3>Seleziona un gruppo prima</h3></div>
+      </div>
+
+      <div v-else-if="groupMatches.length === 0">
+        <div class="empty-state">
+          <span class="emoji">📭</span>
+          <h3>Nessuna partita ancora!</h3>
+          <p>Gioca la tua prima partita e il risultato apparirà qui.</p>
+          <button class="btn btn-primary" style="margin-top:20px" @click="startNewMatch">⚽ Nuova Partita</button>
+        </div>
+      </div>
+
+      <div v-else>
+        <div v-for="m in sortedMatches" :key="m.id" class="match-card" @click="viewMatch(m)">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="match-date">📅 {{ formatDate(m.data) }}</span>
+            <span v-if="m.mvp" class="match-mvp">⭐ {{ m.mvp }}</span>
+          </div>
+          <div class="match-score">
+            <div style="text-align:center">
+              <div style="font-size:0.72rem;color:var(--blue);margin-bottom:4px">SQUADRA A</div>
+              <div class="score-num score-a">{{ m.risultato.goalA }}</div>
+            </div>
+            <div class="score-sep">–</div>
+            <div style="text-align:center">
+              <div style="font-size:0.72rem;color:var(--red);margin-bottom:4px">SQUADRA B</div>
+              <div class="score-num score-b">{{ m.risultato.goalB }}</div>
+            </div>
+          </div>
+          <div v-if="m.commentoAI" style="font-size:0.75rem;color:var(--text2);font-style:italic;margin-top:8px;line-height:1.5">
+            "{{ m.commentoAI.slice(0,100) }}..."
+          </div>
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+            <button class="btn btn-ghost btn-sm" @click.stop="viewMatchPNG(m,'formation')">📸 Form.</button>
+            <button class="btn btn-ghost btn-sm" @click.stop="viewMatchPNG(m,'result')">🏆 Ris.</button>
+            <button class="btn btn-ghost btn-sm" @click.stop="viewMatchPNG(m,'pagelle')">⭐ Pag.</button>
+            <button class="btn btn-red btn-sm"   @click.stop="deleteMatch(m.id)" style="margin-left:auto">🗑️</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ════ STATISTICHE ════ -->
+    <template v-if="currentView === 'stats'">
+      <div class="card-title">📊 Statistiche
+        <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
+      </div>
+
+      <div v-if="!currentGroup || groupPlayers.length === 0">
+        <div class="empty-state"><span class="emoji">📊</span><h3>Nessun dato disponibile</h3></div>
+      </div>
+
+      <template v-else>
+        <div class="card">
+          <div class="card-title">⚽ Classifica Marcatori</div>
+          <div v-for="(p, i) in topScorers" :key="p.id" class="stats-row">
+            <div class="stats-rank" :class="rankClass(i)">{{ i+1 }}</div>
+            <div class="stats-avatar">
+              <img v-if="p.foto" :src="p.foto" :alt="p.nome">
+              <span v-else>{{ roleEmoji(p.ruolo) }}</span>
+            </div>
+            <div class="stats-info">
+              <div class="stats-name">{{ p.soprannome || p.nome }}</div>
+              <div class="stats-sub">{{ p.nome }} {{ p.cognome }}</div>
+            </div>
+            <div class="stats-val">{{ p.goalTotali }}</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">🅰️ Classifica Assist</div>
+          <div v-for="(p, i) in topAssists" :key="p.id" class="stats-row">
+            <div class="stats-rank" :class="rankClass(i)">{{ i+1 }}</div>
+            <div class="stats-avatar">
+              <img v-if="p.foto" :src="p.foto" :alt="p.nome">
+              <span v-else>{{ roleEmoji(p.ruolo) }}</span>
+            </div>
+            <div class="stats-info">
+              <div class="stats-name">{{ p.soprannome || p.nome }}</div>
+              <div class="stats-sub">{{ p.assistTotali }} assist</div>
+            </div>
+            <div class="stats-val" style="color:var(--blue)">{{ p.assistTotali }}</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">⭐ Media Voto</div>
+          <div v-for="(p, i) in topRated" :key="p.id" class="stats-row">
+            <div class="stats-rank" :class="rankClass(i)">{{ i+1 }}</div>
+            <div class="stats-avatar">
+              <img v-if="p.foto" :src="p.foto" :alt="p.nome">
+              <span v-else>{{ roleEmoji(p.ruolo) }}</span>
+            </div>
+            <div class="stats-info">
+              <div class="stats-name">{{ p.soprannome || p.nome }}</div>
+              <div class="stats-sub">{{ p.votiTotali }} partite votate</div>
+            </div>
+            <div class="stats-val" style="color:var(--yellow)">{{ (p.mediaVoto||0).toFixed(1) }}</div>
+          </div>
+        </div>
+      </template>
+    </template>
+
+    <!-- ════ GRUPPI ════ -->
+    <template v-if="currentView === 'groups'">
+      <div class="card-title">👥 Gestione Gruppi</div>
+
+      <div class="card">
+        <div v-for="g in groups" :key="g.id" class="group-item" :class="{active: currentGroup?.id===g.id}">
+          <div class="group-dot" :style="{background: groupColor(g.id)}"></div>
+          <div style="flex:1;cursor:pointer" @click="selectGroup(g)">
+            <div class="group-name">{{ g.nome }}</div>
+            <div class="group-sub">{{ groupPlayerCount(g.id) }} giocatori · {{ groupMatchCount(g.id) }} partite</div>
+          </div>
+          <button class="btn btn-ghost btn-sm" @click.stop="renameGroup(g)">✏️</button>
+          <button class="btn btn-red btn-sm" @click.stop="deleteGroup(g)" style="margin-left:4px">🗑️</button>
+        </div>
+
+        <div v-if="groups.length === 0" class="empty-state" style="padding:24px 0">
+          <span class="emoji">👥</span>
+          <h3>Nessun gruppo ancora</h3>
+          <p>Crea il tuo primo gruppo per iniziare!</p>
+        </div>
+
+        <div style="display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+          <input class="input-field" v-model="newGroupName" placeholder="Nome nuovo gruppo..." style="flex:1"
+            @keyup.enter="createGroup">
+          <button class="btn btn-primary" @click="createGroup" :disabled="!newGroupName.trim()">➕ Crea</button>
+        </div>
+      </div>
+
+      <div class="card" style="background:linear-gradient(135deg,rgba(58,123,255,0.08),rgba(166,255,77,0.05))">
+        <div class="card-title">💡 Come funzionano i gruppi</div>
+        <p style="font-size:0.83rem;color:var(--text2);line-height:1.7">
+          Ogni gruppo è completamente <strong style="color:var(--lime)">indipendente</strong>: ha i propri giocatori,
+          le proprie partite, le proprie statistiche e i propri PNG.<br><br>
+          Esempi: <em>"Calcetto del Martedì"</em>, <em>"Torneo Estivo"</em>, <em>"Squadra Aziendale"</em>.
+        </p>
+      </div>
+    </template>
+
+    <!-- ════ IMPOSTAZIONI ════ -->
+    <template v-if="currentView === 'settings'">
+      <div class="card-title">⚙️ Impostazioni</div>
+
+      <!-- AI -->
+      <div class="card">
+        <div class="card-title">🤖 Configurazione AI</div>
+        <div class="input-group">
+          <label class="input-label">Servizio AI</label>
+          <select class="select-field" v-model="settings.aiProvider">
+            <option value="claude">Claude (Anthropic)</option>
+            <option value="gemini">Gemini 2.5 (Google)</option>
+            <option value="chatgpt">ChatGPT (OpenAI)</option>
+          </select>
+        </div>
+        <div class="input-group">
+          <label class="input-label">API Key</label>
+          <input class="input-field" type="password" v-model="settings.apiKey" placeholder="Inserisci la tua API key...">
+        </div>
+        <button class="btn btn-primary btn-full" @click="saveSettings">💾 Salva AI</button>
+      </div>
+
+      <!-- TEMA & FONT -->
+      <div class="card">
+        <div class="card-title">🎨 Aspetto</div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Tema Scuro</div>
+            <div class="setting-sub">Modalità chiara/scura</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" :checked="settings.darkTheme" @change="toggleTheme">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Font Grande</div>
+            <div class="setting-sub">Aumenta la dimensione del testo</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" :checked="settings.fontLarge" @change="toggleFont">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- IMPORT/EXPORT -->
+      <div class="card">
+        <div class="card-title">📤 Import / Export</div>
+        <p style="font-size:0.82rem;color:var(--text2);margin-bottom:14px">
+          Esporta uno o più gruppi in JSON (include foto giocatori). Importa salvataggi ricevuti da altri utenti.
+        </p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-blue" @click="openExportModal">📤 Esporta Gruppi</button>
+          <label class="btn btn-ghost" style="cursor:pointer">
+            📥 Importa JSON
+            <input type="file" accept=".json" style="display:none" @change="importData">
+          </label>
+        </div>
+      </div>
+
+      <!-- RESET -->
+      <div class="card">
+        <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
+        <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
+      </div>
+
+      <!-- VERSION -->
+      <div class="card">
+        <div class="card-title">ℹ️ Versione App</div>
+        <div style="font-size:0.85rem;color:var(--text2)">
+          <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
+          <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
+      </div>
+
+      <!-- CREDITI -->
+      <div class="card credits-card">
+        <span class="credits-ball">⚽</span>
+        <div class="credits-main">Amici FC</div>
+        <div class="credits-by">🕹️ Creato e sviluppato da Alby</div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-top:12px;line-height:1.7">
+          "Il calcetto non è solo uno sport,<br>è una filosofia di vita… e di amicizie!"
+          <br><br>Made with ❤️ + Vue 3 + IndexedDB + AI
+        </div>
+      </div>
+    </template>
+
+  </main>
+
+  <!-- ── BOTTOM NAV ── -->
+  <nav class="bottom-nav">
+    <button class="nav-item" :class="{active:currentView==='home'}" @click="currentView='home'">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+      Home
+    </button>
+    <button class="nav-item" :class="{active:currentView==='players'}" @click="currentView='players'">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+      Giocatori
+    </button>
+    <button class="nav-item center-btn" @click="startNewMatch">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
+    </button>
+    <button class="nav-item" :class="{active:currentView==='history'}" @click="currentView='history'">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.14L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+      Storico
+    </button>
+    <button class="nav-item" :class="{active:['stats','groups','settings'].includes(currentView)}" @click="showMoreMenu=!showMoreMenu">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/></svg>
+      Altro
+    </button>
+  </nav>
+
+  <!-- More Menu popup -->
+  <div v-if="showMoreMenu" class="more-menu-overlay" @click.self="showMoreMenu=false">
+    <div class="more-menu">
+      <button class="more-menu-item" @click="currentView='stats';showMoreMenu=false">
+        <span class="more-icon">📊</span> Statistiche
+      </button>
+      <button class="more-menu-item" @click="currentView='groups';showMoreMenu=false">
+        <span class="more-icon">👥</span> Gestione Gruppi
+      </button>
+      <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
+        <span class="more-icon">⚙️</span> Impostazioni
+      </button>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════
+       MODALS
+       ══════════════════════════════ -->
+
+  <!-- Group Selector Modal -->
+  <div v-if="showGroupSelector" class="modal-overlay" @click.self="showGroupSelector=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">👥 Seleziona Gruppo</div>
+      <div v-for="g in groups" :key="g.id" class="group-item" :class="{active: currentGroup?.id===g.id}" @click="selectGroup(g);showGroupSelector=false">
+        <div class="group-dot" :style="{background: groupColor(g.id)}"></div>
+        <div style="flex:1">
+          <div class="group-name">{{ g.nome }}</div>
+          <div class="group-sub">{{ groupPlayerCount(g.id) }} giocatori · {{ groupMatchCount(g.id) }} partite</div>
+        </div>
+        <span v-if="currentGroup?.id===g.id">✅</span>
+      </div>
+      <div v-if="groups.length === 0" class="empty-state" style="padding:24px">
+        <span class="emoji">👥</span>
+        <h3>Nessun gruppo</h3>
+        <p>Vai in Impostazioni per creare il tuo primo gruppo!</p>
+      </div>
+      <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showGroupSelector=false;currentView='groups'">
+        ⚙️ Gestisci Gruppi
+      </button>
+    </div>
+  </div>
+
+  <!-- Player Form Modal -->
+  <div v-if="showPlayerForm" class="modal-overlay" @click.self="showPlayerForm=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">{{ editingPlayer ? '✏️ Modifica Giocatore' : '➕ Nuovo Giocatore' }}</div>
+
+      <div class="input-group">
+        <label class="input-label">Foto Giocatore</label>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="player-avatar" style="width:72px;height:72px;font-size:2.2rem">
+            <img v-if="playerForm.foto" :src="playerForm.foto" alt="foto">
+            <span v-else>{{ roleEmoji(playerForm.ruolo) }}</span>
+          </div>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+            📷 Carica Foto
+            <input type="file" accept="image/*" style="display:none" @change="handlePhotoUpload">
+          </label>
+          <button v-if="playerForm.foto" class="btn btn-red btn-sm" @click="playerForm.foto=''">✕</button>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="input-group">
+          <label class="input-label">Nome *</label>
+          <input class="input-field" v-model="playerForm.nome" placeholder="Mario">
+        </div>
+        <div class="input-group">
+          <label class="input-label">Cognome</label>
+          <input class="input-field" v-model="playerForm.cognome" placeholder="Rossi">
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Soprannome</label>
+        <input class="input-field" v-model="playerForm.soprannome" placeholder="Il Fenomeno">
+      </div>
+      <div class="input-group">
+        <label class="input-label">Ruolo</label>
+        <select class="select-field" v-model="playerForm.ruolo">
+          <option value="Portiere">🥅 Portiere</option>
+          <option value="Difensore">🛡️ Difensore</option>
+          <option value="Centrocampista">🔄 Centrocampista</option>
+          <option value="Attaccante">⚡ Attaccante</option>
+          <option value="Jolly">🃏 Jolly</option>
+        </select>
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px">
+        <button class="btn btn-ghost" style="flex:1" @click="showPlayerForm=false">Annulla</button>
+        <button class="btn btn-primary" style="flex:2" @click="savePlayer" :disabled="!playerForm.nome.trim()">
+          {{ editingPlayer ? '💾 Salva Modifiche' : '➕ Aggiungi' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Player Detail Modal -->
+  <div v-if="showPlayerDetail && detailPlayer" class="modal-overlay" @click.self="showPlayerDetail=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div style="text-align:center;margin-bottom:20px">
+        <div class="player-avatar" style="width:90px;height:90px;font-size:2.8rem;margin:0 auto 12px">
+          <img v-if="detailPlayer.foto" :src="detailPlayer.foto" :alt="detailPlayer.nome">
+          <span v-else>{{ roleEmoji(detailPlayer.ruolo) }}</span>
+        </div>
+        <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
+        <div class="player-nick" style="font-size:1rem">"{{ detailPlayer.soprannome || 'Nessun soprannome' }}"</div>
+        <div class="badge badge-gray" style="margin-top:8px">{{ detailPlayer.ruolo }}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
+        <div class="quick-stat-card">
+          <div class="stat-big">{{ detailPlayer.goalTotali }}</div>
+          <div class="stat-label">⚽ Goal</div>
+        </div>
+        <div class="quick-stat-card">
+          <div class="stat-big">{{ detailPlayer.assistTotali }}</div>
+          <div class="stat-label">🅰️ Assist</div>
+        </div>
+        <div class="quick-stat-card">
+          <div class="stat-big" style="color:var(--yellow)">{{ (detailPlayer.mediaVoto||0).toFixed(1) }}</div>
+          <div class="stat-label">⭐ Media</div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-blue" style="flex:1" @click="openPlayerForm(detailPlayer);showPlayerDetail=false">✏️ Modifica</button>
+        <button class="btn btn-red" style="flex:1" @click="deletePlayer(detailPlayer);showPlayerDetail=false">🗑️ Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Match Detail Modal -->
+  <div v-if="showMatchDetail && detailMatch" class="modal-overlay" @click.self="showMatchDetail=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">⚽ Dettaglio Partita</div>
+      <div class="match-date" style="text-align:center;margin-bottom:10px">{{ formatDate(detailMatch.data) }}</div>
+      <div class="match-score">
+        <span class="score-num score-a">{{ detailMatch.risultato.goalA }}</span>
+        <span class="score-sep">–</span>
+        <span class="score-num score-b">{{ detailMatch.risultato.goalB }}</span>
+      </div>
+      <div v-if="detailMatch.mvp" style="text-align:center;margin:10px 0">
+        <span class="badge badge-yellow">⭐ MVP: {{ detailMatch.mvp }}</span>
+      </div>
+      <div v-if="detailMatch.commentoAI" class="ai-comment-box" style="margin:16px 0">
+        {{ detailMatch.commentoAI }}
+      </div>
+
+      <!-- Squadra A -->
+      <div style="font-weight:800;color:var(--blue);margin-bottom:6px">🔵 Squadra A</div>
+      <div v-for="pid in detailMatch.squadraA" :key="'da-'+pid" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+        <span>{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}</span>
+        <span style="color:var(--text2)">
+          ⚽{{ getStatForMatch(detailMatch,pid,'goal') }}
+          🅰️{{ getStatForMatch(detailMatch,pid,'assist') }}
+          ⭐{{ getStatForMatch(detailMatch,pid,'voto') }}
+        </span>
+      </div>
+
+      <!-- Squadra B -->
+      <div style="font-weight:800;color:var(--red);margin:12px 0 6px">🔴 Squadra B</div>
+      <div v-for="pid in detailMatch.squadraB" :key="'db-'+pid" style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
+        <span>{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}</span>
+        <span style="color:var(--text2)">
+          ⚽{{ getStatForMatch(detailMatch,pid,'goal') }}
+          🅰️{{ getStatForMatch(detailMatch,pid,'assist') }}
+          ⭐{{ getStatForMatch(detailMatch,pid,'voto') }}
+        </span>
+      </div>
+
+      <!-- PNG buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+        <button v-if="detailMatch.pngFormazione" class="btn btn-blue btn-sm" @click="downloadPNG(detailMatch.pngFormazione,'formazione')">📸 PNG Form.</button>
+        <button v-if="detailMatch.pngRisultato" class="btn btn-yellow btn-sm" @click="downloadPNG(detailMatch.pngRisultato,'risultato')">🏆 PNG Ris.</button>
+        <button v-if="detailMatch.pngPagelle" class="btn btn-primary btn-sm" @click="downloadPNG(detailMatch.pngPagelle,'pagelle')">⭐ PNG Pag.</button>
+      </div>
+
+      <button class="btn btn-ghost btn-full" style="margin-top:16px" @click="showMatchDetail=false">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- PNG Preview Modal -->
+  <div v-if="showPNGPreview" class="modal-overlay center" @click.self="showPNGPreview=false">
+    <div class="modal-center">
+      <div class="modal-title">🖼️ Anteprima PNG</div>
+      <img :src="previewPNGUrl" style="width:100%;border-radius:12px;margin-bottom:16px">
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" @click="showPNGPreview=false" style="flex:1">Chiudi</button>
+        <a :href="previewPNGUrl" :download="previewPNGName" style="flex:2">
+          <button class="btn btn-primary btn-full">💾 Scarica</button>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export Group Selector Modal -->
+  <div v-if="showExportModal" class="modal-overlay" @click.self="showExportModal=false">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📤 Esporta Gruppi</div>
+      <p style="font-size:0.82rem;color:var(--text2);margin-bottom:16px;text-align:center">
+        Seleziona i gruppi da esportare nel file JSON.<br>Le foto giocatori sono incluse automaticamente.
+      </p>
+
+      <div v-for="g in groups" :key="g.id" class="export-group-row" @click="toggleExportGroup(g.id)">
+        <div class="export-checkbox" :class="{checked: exportGroupIds.includes(g.id)}">
+          <span v-if="exportGroupIds.includes(g.id)">✓</span>
+        </div>
+        <div class="group-dot" :style="{background: groupColor(g.id)}"></div>
+        <div style="flex:1">
+          <div class="group-name">{{ g.nome }}</div>
+          <div class="group-sub">{{ groupPlayerCount(g.id) }} giocatori · {{ groupMatchCount(g.id) }} partite</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;padding:12px;background:var(--bg3);border-radius:10px;font-size:0.78rem;color:var(--text2)">
+        📦 Verranno esportati <strong style="color:var(--lime)">{{ exportGroupIds.length }}</strong> gruppo/i in un unico file JSON condivisibile.
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:16px">
+        <button class="btn btn-ghost" style="flex:1" @click="showExportModal=false">Annulla</button>
+        <button class="btn btn-blue" style="flex:2"
+          :disabled="exportGroupIds.length === 0"
+          @click="doExport">
+          📤 Esporta {{ exportGroupIds.length > 0 ? exportGroupIds.length+' gruppo/i' : '' }}
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATIONS -->
+  <div class="toast-container">
+    <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">{{ t.msg }}</div>
+  </div>
+
+  <!-- HIDDEN PNG RENDER TEMPLATES -->
+  <div id="png-formation">
+    <div class="formation-png">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:28px;margin-bottom:4px">⚽ AMICI FC</div>
+        <div v-if="currentGroup" style="font-size:16px;color:var(--lime)">{{ currentGroup.nome }}</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.6);margin-top:4px">{{ formatDate(new Date().toISOString().slice(0,10)) }}</div>
+      </div>
+      <div class="formation-pitch">
+        <div style="display:flex;justify-content:space-between;font-size:18px;margin-bottom:12px">
+          <span style="color:#3A7BFF">🔵 SQUADRA A</span>
+          <span style="color:#FF4D4D">🔴 SQUADRA B</span>
+        </div>
+        <div style="display:flex;gap:16px">
+          <div style="flex:1">
+            <div v-for="pid in teamA" :key="'fp-'+pid">
+              <div class="formation-player-chip">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+            </div>
+          </div>
+          <div style="flex:1;text-align:right">
+            <div v-for="pid in teamB" :key="'fp2-'+pid">
+              <div class="formation-player-chip team-b" style="float:right">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="png-result">
+    <div class="result-png">
+      <div style="font-size:18px;margin-bottom:8px;color:rgba(255,255,255,0.5)">⚽ AMICI FC {{ currentGroup ? '· '+currentGroup.nome : '' }}</div>
+      <div style="font-size:14px;color:rgba(255,255,255,0.4);margin-bottom:24px">{{ formatDate(new Date().toISOString().slice(0,10)) }}</div>
+      <div class="result-teams">
+        <span style="color:#3A7BFF">🔵 SQD A</span>
+        <span style="color:#FF4D4D">SQD B 🔴</span>
+      </div>
+      <div class="result-score-big">{{ matchGoalA }} – {{ matchGoalB }}</div>
+      <div v-if="computedMVP" style="margin-top:20px;font-size:22px;color:var(--yellow)">
+        ⭐ MVP: {{ getPlayer(computedMVP)?.soprannome || getPlayer(computedMVP)?.nome }}
+      </div>
+      <div style="margin-top:16px;font-size:14px;color:rgba(255,255,255,0.5)">Generato con Amici FC 🚀</div>
+    </div>
+  </div>
+
+  <div id="png-pagelle">
+    <div class="pagelle-png">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:24px">⭐ PAGELLE</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.5)">{{ currentGroup?.nome }} · {{ formatDate(new Date().toISOString().slice(0,10)) }}</div>
+      </div>
+      <div v-for="pid in [...teamA,...teamB]" :key="'ppg-'+pid" class="pagelle-row">
+        <span style="font-size:16px">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</span>
+        <span class="pagelle-vote">{{ playerStats[pid]?.voto || 6 }}</span>
+      </div>
+      <div v-if="computedMVP" style="text-align:center;margin-top:20px;font-size:20px;color:var(--yellow)">
+        ⭐ MVP: {{ getPlayer(computedMVP)?.soprannome || getPlayer(computedMVP)?.nome }}
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#app -->
+
+<script>
+/* ═══════════════════════════════════════════════════
+   AMICI FC – Main App v1.0.0
+   Vue 3 + Dexie (IndexedDB) + AI + PNG Generation
+   Creato da Alby
+   ═══════════════════════════════════════════════════ */
+
+// ──────────────────────────────────────
+// DATABASE (Dexie / IndexedDB)
+// ──────────────────────────────────────
+const db = new Dexie('AmiciFC');
+db.version(1).stores({
+  groups:  '++id, nome',
+  players: '++id, groupId, nome, cognome',
+  matches: '++id, groupId, data'
+});
+
+// ──────────────────────────────────────
+// HELPER: UUID
+// ──────────────────────────────────────
+const uuid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+
+// ──────────────────────────────────────
+// HELPER: Role emoji
+// ──────────────────────────────────────
+const ROLE_EMOJI = { Portiere:'🥅', Difensore:'🛡️', Centrocampista:'🔄', Attaccante:'⚡', Jolly:'🃏' };
+const roleEmoji = r => ROLE_EMOJI[r] || '⚽';
+
+// ──────────────────────────────────────
+// HELPER: Colors for groups
+// ──────────────────────────────────────
+const GROUP_COLORS = ['#A6FF4D','#3A7BFF','#FFD93D','#FF4D4D','#00D2FF','#FF6B9D','#7B61FF','#FF9500'];
+const groupColor = id => GROUP_COLORS[Math.abs(hashCode(String(id||''))) % GROUP_COLORS.length];
+const hashCode = s => [...s].reduce((h,c) => (Math.imul(31,h)+c.charCodeAt(0))|0, 0);
+
+// ──────────────────────────────────────
+// VUE APP
+// ──────────────────────────────────────
+const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
+
+createApp({
+  setup() {
+    // ── State ──
+    const currentView   = ref('home');
+    const groups        = ref([]);
+    const currentGroup  = ref(null);
+    const groupPlayers  = ref([]);
+    const groupMatches  = ref([]);
+    const settings      = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '' });
+    const toasts        = ref([]);
+    const logoDataUrl   = ref('');
+
+    // Modals
+    const showGroupSelector = ref(false);
+    const showPlayerForm    = ref(false);
+    const showPlayerDetail  = ref(false);
+    const showMatchDetail   = ref(false);
+    const showPNGPreview    = ref(false);
+    const showMoreMenu      = ref(false);
+    const showExportModal   = ref(false);
+    const exportGroupIds    = ref([]);
+    const installTab        = ref('android');
+
+    // Player form
+    const editingPlayer = ref(null);
+    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'' });
+    const detailPlayer  = ref(null);
+    const detailMatch   = ref(null);
+
+    // Match flow
+    const matchStep          = ref(1);
+    const selectedForMatch   = ref([]);
+    const teamA              = ref([]);
+    const teamB              = ref([]);
+    const matchGoalA         = ref(0);
+    const matchGoalB         = ref(0);
+    const playerStats        = ref({});  // { playerId: { goal, assist, voto } }
+    const aiLoading          = ref(false);
+    const aiComment          = ref('');
+    const generatedPNG       = ref('');
+    const pngType            = ref('');
+    const newGroupName       = ref('');
+
+    // Update
+    const updateAvailable = ref(false);
+    const newVersion      = ref('');
+    const appVersion      = ref('1.004');
+    const appDate         = ref('2026-05-01');
+
+    // PNG Preview
+    const previewPNGUrl  = ref('');
+    const previewPNGName = ref('');
+
+    // Sortable instances
+    let sortableA = null, sortableB = null;
+
+    // ── Computed ──
+    const totalGoals = computed(() =>
+      groupPlayers.value.reduce((s, p) => s + (p.goalTotali||0), 0)
+    );
+
+    const recentMatches = computed(() =>
+      [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data)).slice(0,3)
+    );
+
+    const sortedMatches = computed(() =>
+      [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))
+    );
+
+    const computedMVP = computed(() => {
+      if (!teamA.value.length && !teamB.value.length) return null;
+      let best = null, bestScore = -1;
+      [...teamA.value, ...teamB.value].forEach(pid => {
+        const s = playerStats.value[pid];
+        if (!s) return;
+        const score = (s.voto||6) + (s.goal||0)*0.5 + (s.assist||0)*0.3;
+        if (score > bestScore) { bestScore = score; best = pid; }
+      });
+      return best;
+    });
+
+    const topScorers = computed(() =>
+      [...groupPlayers.value].sort((a,b) => (b.goalTotali||0)-(a.goalTotali||0)).slice(0,10)
+    );
+
+    const topAssists = computed(() =>
+      [...groupPlayers.value].sort((a,b) => (b.assistTotali||0)-(a.assistTotali||0)).slice(0,10)
+    );
+
+    const topRated = computed(() =>
+      [...groupPlayers.value].filter(p => p.votiTotali > 0)
+        .sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
+    );
+
+    // ── Methods ──
+    const toast = (msg, type='success', duration=3000) => {
+      const id = uuid();
+      toasts.value.push({ id, msg, type });
+      setTimeout(() => { toasts.value = toasts.value.filter(t => t.id !== id); }, duration);
+    };
+
+    const formatDate = d => {
+      if (!d) return '';
+      try {
+        return new Date(d).toLocaleDateString('it-IT', { day:'2-digit', month:'short', year:'numeric' });
+      } catch { return d; }
+    };
+
+    const loadGroups = async () => {
+      groups.value = await db.groups.toArray();
+    };
+
+    const loadGroupData = async () => {
+      if (!currentGroup.value) { groupPlayers.value = []; groupMatches.value = []; return; }
+      const gid = currentGroup.value.id;
+      groupPlayers.value = await db.players.where('groupId').equals(gid).toArray();
+      groupMatches.value = await db.matches.where('groupId').equals(gid).toArray();
+    };
+
+    const selectGroup = async g => {
+      currentGroup.value = g;
+      localStorage.setItem('amicifc_group', g.id);
+      await loadGroupData();
+    };
+
+    const createGroup = async () => {
+      const n = newGroupName.value.trim();
+      if (!n) return;
+      const id = await db.groups.add({ nome: n });
+      await loadGroups();
+      const g = groups.value.find(x => x.id === id);
+      if (g) await selectGroup(g);
+      newGroupName.value = '';
+      toast(`✅ Gruppo "${n}" creato!`);
+    };
+
+    const renameGroup = async g => {
+      const n = prompt('Nuovo nome:', g.nome);
+      if (!n || !n.trim()) return;
+      await db.groups.update(g.id, { nome: n.trim() });
+      await loadGroups();
+      if (currentGroup.value?.id === g.id) currentGroup.value = groups.value.find(x => x.id === g.id);
+      toast('✅ Gruppo rinominato!');
+    };
+
+    const deleteGroup = async g => {
+      if (!confirm(`Eliminare il gruppo "${g.nome}" e TUTTI i suoi dati?`)) return;
+      await db.groups.delete(g.id);
+      await db.players.where('groupId').equals(g.id).delete();
+      await db.matches.where('groupId').equals(g.id).delete();
+      await loadGroups();
+      if (currentGroup.value?.id === g.id) {
+        currentGroup.value = groups.value[0] || null;
+        await loadGroupData();
+      }
+      toast('🗑️ Gruppo eliminato', 'error');
+    };
+
+    const groupPlayerCount = gid => groupPlayers.value.filter(p => p.groupId === gid).length;
+    const groupMatchCount  = gid => groupMatches.value.filter(m => m.groupId === gid).length;
+
+    // ── Players ──
+    const openPlayerForm = p => {
+      editingPlayer.value = p;
+      playerForm.value = p
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'' }
+        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'' };
+      showPlayerForm.value = true;
+    };
+
+    const savePlayer = async () => {
+      const f = playerForm.value;
+      if (!f.nome.trim()) return;
+      if (!currentGroup.value) return toast('Seleziona un gruppo prima!', 'error');
+
+      if (editingPlayer.value) {
+        await db.players.update(editingPlayer.value.id, { ...f });
+        toast('✅ Giocatore aggiornato!');
+      } else {
+        await db.players.add({
+          groupId: currentGroup.value.id, ...f,
+          goalTotali:0, assistTotali:0, mediaVoto:0, votiTotali:0, storicoPartite:[]
+        });
+        toast('✅ Giocatore aggiunto!');
+      }
+      showPlayerForm.value = false;
+      await loadGroupData();
+    };
+
+    const deletePlayer = async p => {
+      if (!confirm(`Eliminare ${p.nome}?`)) return;
+      await db.players.delete(p.id);
+      await loadGroupData();
+      toast('🗑️ Giocatore eliminato', 'error');
+    };
+
+    const openPlayerDetail = p => { detailPlayer.value = p; showPlayerDetail.value = true; };
+
+    const handlePhotoUpload = e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => { playerForm.value.foto = ev.target.result; };
+      reader.readAsDataURL(file);
+    };
+
+    // ── Match Flow ──
+    const startNewMatch = () => {
+      if (!currentGroup.value) { toast('Seleziona un gruppo prima!', 'error'); currentView.value = 'settings'; return; }
+      if (groupPlayers.value.length < 2) { toast('Aggiungi almeno 2 giocatori!', 'error'); return; }
+      matchStep.value      = 1;
+      selectedForMatch.value = [];
+      teamA.value          = [];
+      teamB.value          = [];
+      matchGoalA.value     = 0;
+      matchGoalB.value     = 0;
+      playerStats.value    = {};
+      aiComment.value      = '';
+      generatedPNG.value   = '';
+      currentView.value    = 'newmatch';
+    };
+
+    const togglePlayerSelection = id => {
+      const idx = selectedForMatch.value.indexOf(id);
+      if (idx >= 0) selectedForMatch.value.splice(idx, 1);
+      else selectedForMatch.value.push(id);
+    };
+
+    const selectAll = () => { selectedForMatch.value = groupPlayers.value.map(p => p.id); };
+
+    const ensureStats = pid => {
+      if (!playerStats.value[pid]) playerStats.value[pid] = { goal:0, assist:0, voto:6 };
+    };
+
+    const getPlayer = pid => groupPlayers.value.find(p => p.id === pid);
+
+    const generateTeamsRandom = () => {
+      const ids = [...selectedForMatch.value];
+      for (let i = ids.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i+1));
+        [ids[i], ids[j]] = [ids[j], ids[i]];
+      }
+      const half = Math.floor(ids.length / 2);
+      teamA.value = ids.slice(0, half);
+      teamB.value = ids.slice(half);
+      // pre-fill stats
+      ids.forEach(pid => ensureStats(pid));
+      nextTick(() => initDragDrop());
+      toast('🎲 Squadre generate casualmente!');
+    };
+
+    const generateTeamsAI = async () => {
+      const ids = selectedForMatch.value;
+      if (ids.length < 2) return;
+      aiLoading.value = true;
+
+      // AI-aware balancing: sort by average rating, interleave
+      const players = ids.map(id => ({ id, ...getPlayer(id) }))
+        .sort((a,b) => (b.mediaVoto||6) - (a.mediaVoto||6));
+
+      const a=[], b=[];
+      players.forEach((p,i) => { if(i%2===0) a.push(p.id); else b.push(p.id); });
+
+      // Also try to balance by role
+      const portieri = players.filter(p => p.ruolo === 'Portiere');
+      if (portieri.length >= 2) {
+        // Ensure each team has a goalkeeper
+        if (!a.includes(portieri[0].id)) {
+          const swapIdx = a.findIndex(id => !portieri.map(p=>p.id).includes(id));
+          if (swapIdx >= 0) { a[swapIdx] = portieri[0].id; }
+        }
+      }
+
+      teamA.value = a;
+      teamB.value = b;
+      ids.forEach(pid => ensureStats(pid));
+      aiLoading.value = false;
+      await nextTick();
+      initDragDrop();
+      toast('🤖 Squadre bilanciate dall\'AI!');
+    };
+
+    const initDragDrop = () => {
+      const elA = document.getElementById('teamA-drag');
+      const elB = document.getElementById('teamB-drag');
+      if (!elA || !elB) return;
+
+      if (sortableA) sortableA.destroy();
+      if (sortableB) sortableB.destroy();
+
+      const updateTeams = () => {
+        teamA.value = [...elA.querySelectorAll('[data-id]')].map(el => Number(el.dataset.id));
+        teamB.value = [...elB.querySelectorAll('[data-id]')].map(el => Number(el.dataset.id));
+      };
+
+      const opts = { group:'teams', animation:150, ghostClass:'sortable-ghost', chosenClass:'sortable-chosen', onEnd: updateTeams };
+      sortableA = Sortable.create(elA, opts);
+      sortableB = Sortable.create(elB, opts);
+    };
+
+    // ── AI Commentary ──
+    const generateCommentAI = async () => {
+      aiLoading.value = true;
+      aiComment.value = '';
+
+      const allPlayers = [...teamA.value, ...teamB.value];
+      const stats = allPlayers.map(pid => {
+        const p = getPlayer(pid);
+        const s = playerStats.value[pid] || {};
+        return `${p?.soprannome||p?.nome}: voto ${s.voto||6}, goal ${s.goal||0}, assist ${s.assist||0}`;
+      }).join('\n');
+
+      const mvpName = computedMVP.value ? (getPlayer(computedMVP.value)?.soprannome || getPlayer(computedMVP.value)?.nome) : 'nessuno';
+      const prompt = `Sei un telecronista italiano comico e ironico. Commenta questa partita di calcetto:
+Gruppo: ${currentGroup.value?.nome || 'Amici FC'}
+Risultato: Squadra A ${matchGoalA.value} - ${matchGoalB.value} Squadra B
+MVP: ${mvpName}
+
+Statistiche giocatori:
+${stats}
+
+Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista italiano anni '90. Usa i soprannomi dei giocatori. Sii creativo!`;
+
+      try {
+        const prov = settings.value.aiProvider;
+        const key  = settings.value.apiKey;
+
+        if (!key) {
+          // Fallback local commentary
+          aiComment.value = generateLocalComment(mvpName);
+          aiLoading.value = false;
+          return;
+        }
+
+        let resp;
+        if (prov === 'claude') {
+          resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01' },
+            body: JSON.stringify({ model:'claude-opus-4-6', max_tokens:300, messages:[{role:'user',content:prompt}] })
+          });
+          const data = await resp.json();
+          aiComment.value = data.content?.[0]?.text || generateLocalComment(mvpName);
+
+        } else if (prov === 'chatgpt') {
+          resp = await fetch('https://api.openai.com/v1/chat/completions', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
+            body: JSON.stringify({ model:'gpt-4o-mini', max_tokens:300, messages:[{role:'user',content:prompt}] })
+          });
+          const data = await resp.json();
+          aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
+
+        } else if (prov === 'gemini') {
+          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json' },
+            body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
+          });
+          const data = await resp.json();
+          aiComment.value = data.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
+        }
+      } catch (err) {
+        console.error('AI Error:', err);
+        aiComment.value = generateLocalComment(mvpName);
+      }
+      aiLoading.value = false;
+    };
+
+    const generateLocalComment = mvp => {
+      const a = matchGoalA.value, b = matchGoalB.value;
+      const diff = Math.abs(a - b);
+      const comments = [
+        `Che partita ragazzi! ${a} a ${b}, un risultato che farà discutere nei bar per settimane! ${mvp ? `${mvp} è stato semplicemente fenomenale!` : ''} Il prossimo girone è già atteso con trepidazione!`,
+        `Incredibile! ${diff <= 1 ? 'Una partita tiepidalissima, degna di una finale mondiale!' : 'Una goleada storica!'} ${a}-${b} e già si litiga sui rigori inesistenti! ${mvp} stava su un altro pianeta!`,
+        `Signori, questa non era una partita: era un FILM! ${a} reti contro ${b}! ${mvp ? `${mvp} ha mandato in crisi l'avversario come Totti in una domenica qualsiasi.` : 'Nessun MVP ma tutti vincitori!'} Alla prossima battaglia!`,
+        `${a} a ${b}! Il campo ha parlato chiaro, anche se qualcuno continuerà a dire che era in fuorigioco! Grande serata di calcetto per tutti! Arrivederci campioni!`
+      ];
+      return comments[Math.floor(Math.random()*comments.length)];
+    };
+
+    // ── PNG Generation ──
+    const generatePNG = async type => {
+      pngType.value = type;
+      const elId = type==='formation' ? 'png-formation' : type==='result' ? 'png-result' : 'png-pagelle';
+      const el = document.getElementById(elId);
+      if (!el) return;
+
+      try {
+        toast('⏳ Generando PNG...', 'info');
+        const canvas = await html2canvas(el, {
+          backgroundColor: null, scale: 2,
+          useCORS: true, allowTaint: true
+        });
+        generatedPNG.value = canvas.toDataURL('image/png');
+        toast('✅ PNG generato!');
+      } catch (err) {
+        console.error('PNG error:', err);
+        toast('❌ Errore PNG', 'error');
+      }
+    };
+
+    const downloadPNG = (dataUrl, name) => {
+      previewPNGUrl.value  = dataUrl;
+      previewPNGName.value = `amicifc-${name}.png`;
+      showPNGPreview.value = true;
+    };
+
+    const viewMatchPNG = (m, type) => {
+      const url = type==='formation' ? m.pngFormazione : type==='result' ? m.pngRisultato : m.pngPagelle;
+      if (!url) { toast('PNG non disponibile per questa partita', 'info'); return; }
+      downloadPNG(url, type);
+    };
+
+    // ── Save Match ──
+    const saveMatch = async () => {
+      if (!currentGroup.value) return;
+
+      // Build match object
+      const statsArr = [...teamA.value, ...teamB.value].map(pid => ({
+        playerId: pid,
+        goal:   playerStats.value[pid]?.goal   || 0,
+        assist: playerStats.value[pid]?.assist  || 0,
+        voto:   playerStats.value[pid]?.voto    || 6
+      }));
+
+      const mvpId   = computedMVP.value;
+      const mvpName = mvpId ? (getPlayer(mvpId)?.soprannome || getPlayer(mvpId)?.nome) : null;
+
+      // Generate PNGs
+      let pngForm='', pngRes='', pngPag='';
+      try { await generatePNG('formation'); pngForm = generatedPNG.value; } catch {}
+      try { await generatePNG('result');    pngRes  = generatedPNG.value; } catch {}
+      try { await generatePNG('pagelle');   pngPag  = generatedPNG.value; } catch {}
+
+      const match = {
+        id: uuid(),
+        groupId:    currentGroup.value.id,
+        data:       new Date().toISOString().slice(0,10),
+        squadraA:   [...teamA.value],
+        squadraB:   [...teamB.value],
+        risultato:  { goalA: matchGoalA.value, goalB: matchGoalB.value },
+        statisticheGiocatori: statsArr,
+        commentoAI: aiComment.value,
+        mvp:        mvpName,
+        pngFormazione: pngForm,
+        pngRisultato:  pngRes,
+        pngPagelle:    pngPag,
+        appVersion:    appVersion.value
+      };
+
+      await db.matches.add(match);
+
+      // Update player stats
+      for (const s of statsArr) {
+        const p = groupPlayers.value.find(x => x.id === s.playerId);
+        if (!p) continue;
+        const nuoviVoti    = (p.votiTotali||0) + 1;
+        const nuovaMedia   = ((p.mediaVoto||0) * (p.votiTotali||0) + s.voto) / nuoviVoti;
+        await db.players.update(s.playerId, {
+          goalTotali:   (p.goalTotali||0)   + s.goal,
+          assistTotali: (p.assistTotali||0) + s.assist,
+          votiTotali:   nuoviVoti,
+          mediaVoto:    nuovaMedia
+        });
+      }
+
+      await loadGroupData();
+      toast('🏆 Partita salvata!');
+      currentView.value = 'history';
+    };
+
+    const deleteMatch = async id => {
+      if (!confirm('Eliminare questa partita?')) return;
+      await db.matches.delete(id);
+      await loadGroupData();
+      toast('🗑️ Partita eliminata', 'error');
+    };
+
+    const viewMatch = m => { detailMatch.value = m; showMatchDetail.value = true; };
+
+    const getStatForMatch = (m, pid, field) => {
+      const s = m.statisticheGiocatori?.find(x => x.playerId === pid);
+      return s?.[field] ?? (field==='voto' ? 6 : 0);
+    };
+
+    // ── Settings ──
+    const saveSettings = () => {
+      localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
+      toast('✅ Impostazioni salvate!');
+    };
+
+    const toggleTheme = () => {
+      settings.value.darkTheme = !settings.value.darkTheme;
+      document.documentElement.setAttribute('data-theme', settings.value.darkTheme ? 'dark' : 'light');
+      saveSettings();
+    };
+
+    const toggleFont = () => {
+      settings.value.fontLarge = !settings.value.fontLarge;
+      const scale = settings.value.fontLarge ? '1.18' : '1';
+      document.documentElement.style.setProperty('--font-scale', scale);
+      document.documentElement.style.fontSize = `calc(16px * ${scale})`;
+      saveSettings();
+    };
+
+    // ── Import / Export ──
+    // ── Export ──
+    const openExportModal = () => {
+      // Pre-select current group if any
+      exportGroupIds.value = currentGroup.value ? [currentGroup.value.id] : groups.value.map(g=>g.id);
+      showExportModal.value = true;
+    };
+
+    const toggleExportGroup = id => {
+      const idx = exportGroupIds.value.indexOf(id);
+      if (idx >= 0) exportGroupIds.value.splice(idx, 1);
+      else exportGroupIds.value.push(id);
+    };
+
+    const doExport = async () => {
+      if (!exportGroupIds.value.length) return;
+
+      const exportGroups = [];
+      for (const gid of exportGroupIds.value) {
+        const g       = groups.value.find(x => x.id === gid);
+        const players = await db.players.where('groupId').equals(gid).toArray();
+        const matches = await db.matches.where('groupId').equals(gid).toArray();
+        // photos (base64) already inside player.foto — automatically included
+        exportGroups.push({ group: g, players, matches });
+      }
+
+      const data = {
+        exportDate:  new Date().toISOString(),
+        appVersion:  appVersion.value,
+        multiGroup:  true,
+        groups:      exportGroups
+      };
+
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type:'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href = url;
+      const names = exportGroups.map(eg => eg.group.nome.replace(/\s+/g,'-')).join('_');
+      a.download = `amicifc-${names}-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showExportModal.value = false;
+      toast(`✅ Esportati ${exportGroups.length} gruppo/i con successo!`);
+    };
+
+    const exportData = () => openExportModal(); // alias legacy
+
+    const importData = async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+
+        // Detect format: new multi-group vs old single-group
+        const groupsToImport = data.multiGroup
+          ? data.groups
+          : data.group ? [{ group: data.group, players: data.players||[], matches: data.matches||[] }]
+          : null;
+
+        if (!groupsToImport) throw new Error('Formato file non riconosciuto');
+
+        const names = groupsToImport.map(g => `"${g.group?.nome}"`).join(', ');
+        if (!confirm(`Importare ${groupsToImport.length} gruppo/i: ${names}?\n\nI gruppi verranno aggiunti come nuovi (senza sovrascrivere quelli esistenti).`)) return;
+
+        let totalPlayers = 0, totalMatches = 0, newGroups = 0;
+
+        for (const eg of groupsToImport) {
+          // Create new group (always, to avoid conflicts)
+          const newName = eg.group?.nome || 'Gruppo Importato';
+          const existing = groups.value.find(g => g.nome === newName);
+          const gid = existing
+            ? existing.id
+            : await db.groups.add({ nome: newName });
+
+          if (!existing) newGroups++;
+
+          const currentPlayers = await db.players.where('groupId').equals(gid).toArray();
+
+          for (const p of (eg.players||[])) {
+            const dup = currentPlayers.find(x => x.nome===p.nome && x.cognome===p.cognome);
+            if (!dup) {
+              // foto (base64) preserved automatically
+              await db.players.add({ ...p, id: undefined, groupId: gid });
+              totalPlayers++;
+            }
+          }
+
+          const currentMatches = await db.matches.where('groupId').equals(gid).toArray();
+          for (const m of (eg.matches||[])) {
+            const dup = currentMatches.find(x => x.data===m.data && x.risultato?.goalA===m.risultato?.goalA);
+            if (!dup) {
+              await db.matches.add({ ...m, id: undefined, groupId: gid });
+              totalMatches++;
+            }
+          }
+        }
+
+        await loadGroups();
+        await loadGroupData();
+        toast(`✅ Importati: ${newGroups} nuovi gruppi, ${totalPlayers} giocatori, ${totalMatches} partite!`);
+      } catch (err) {
+        toast('❌ Errore importazione: ' + err.message, 'error');
+      }
+      e.target.value = '';
+    };
+
+    const resetData = async () => {
+      if (!currentGroup.value) return;
+      if (!confirm(`ATTENZIONE! Cancellare TUTTI i dati di "${currentGroup.value.nome}"?`)) return;
+      await db.players.where('groupId').equals(currentGroup.value.id).delete();
+      await db.matches.where('groupId').equals(currentGroup.value.id).delete();
+      await loadGroupData();
+      toast('🗑️ Dati resettati!', 'error');
+    };
+
+    // ── UI Helpers ──
+    const rankClass = i => i===0?'gold': i===1?'silver': i===2?'bronze':'';
+
+    const votoColor = v => {
+      if (!v) return 'badge-gray';
+      if (v >= 8) return 'badge-lime';
+      if (v >= 6) return 'badge-yellow';
+      return 'badge-red';
+    };
+
+    // ── Update Check ──
+    const checkForUpdates = async () => {
+      try {
+        const resp = await fetch('./version.json?t=' + Date.now());
+        const data = await resp.json();
+        if (data.version && data.version !== appVersion.value) {
+          newVersion.value   = data.version;
+          updateAvailable.value = true;
+          toast(`🎉 Nuova versione ${data.version} disponibile!`, 'info', 5000);
+        } else {
+          toast('✅ App già aggiornata!');
+        }
+      } catch {
+        toast('⚠️ Impossibile verificare gli aggiornamenti', 'info');
+      }
+    };
+
+    const doUpdate = () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => {
+          if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+        });
+      }
+      window.location.reload();
+    };
+
+    // ── Logo embedded as base64 (funziona sempre, locale + GitHub Pages) ──
+    const LOGO_EMBEDDED = 'data:image/png;base64,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';
+    const loadLogo = () => { logoDataUrl.value = LOGO_EMBEDDED; };
+
+    // ── Lifecycle ──
+    onMounted(async () => {
+      // Load settings
+      try {
+        const s = JSON.parse(localStorage.getItem('amicifc_settings')||'{}');
+        Object.assign(settings.value, s);
+        document.documentElement.setAttribute('data-theme', settings.value.darkTheme ? 'dark' : 'light');
+        if (settings.value.fontLarge) {
+          document.documentElement.style.setProperty('--font-scale','1.18');
+          document.documentElement.style.fontSize = 'calc(16px * 1.18)';
+        }
+      } catch {}
+
+      // Load DB
+      await loadGroups();
+
+      // Restore last group
+      const lastGid = localStorage.getItem('amicifc_group');
+      if (lastGid) {
+        const g = groups.value.find(x => String(x.id) === String(lastGid));
+        if (g) await selectGroup(g);
+      } else if (groups.value.length > 0) {
+        await selectGroup(groups.value[0]);
+      }
+
+      // Load logo
+      loadLogo();
+
+      // Register SW
+      if ('serviceWorker' in navigator) {
+        try {
+          const reg = await navigator.serviceWorker.register('./sw.js');
+          reg.addEventListener('updatefound', () => {
+            const nw = reg.installing;
+            nw?.addEventListener('statechange', () => {
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
+                newVersion.value = 'nuova';
+                updateAvailable.value = true;
+              }
+            });
+          });
+        } catch (e) { console.warn('SW registration failed:', e); }
+      }
+
+      // Check updates after 2s
+      setTimeout(checkForUpdates, 2000);
+    });
+
+    // Expose to template
+    return {
+      currentView, groups, currentGroup, groupPlayers, groupMatches, settings,
+      toasts, logoDataUrl, showGroupSelector, showPlayerForm, showPlayerDetail,
+      showMatchDetail, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
+      installTab, editingPlayer, playerForm, detailPlayer,
+      detailMatch, matchStep, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
+      playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
+      updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
+      totalGoals, recentMatches, sortedMatches, computedMVP, topScorers, topAssists, topRated,
+      formatDate, roleEmoji, groupColor, rankClass, votoColor,
+      loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup,
+      groupPlayerCount, groupMatchCount,
+      openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, handlePhotoUpload,
+      startNewMatch, togglePlayerSelection, selectAll, ensureStats, getPlayer,
+      generateTeamsRandom, generateTeamsAI, generateCommentAI,
+      generatePNG, downloadPNG, viewMatchPNG,
+      saveMatch, deleteMatch, viewMatch, getStatForMatch,
+      saveSettings, toggleTheme, toggleFont,
+      exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
+      checkForUpdates, doUpdate
+    };
+  }
+}).mount('#app');
+
+// ── Register SW ──
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(console.warn);
+  });
+}
+</script>
+</body>
+</html>
