@@ -2473,7 +2473,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.010');
+    const appVersion      = ref('1.011');
     const appDate         = ref('2026-05-01');
 
     // PNG Preview
@@ -3460,15 +3460,25 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       try {
         const resp = await fetch('./version.json?t=' + Date.now());
         const data = await resp.json();
-        if (data.version && data.version !== appVersion.value) {
-          newVersion.value   = data.version;
+        if (!data.version) return;
+
+        // Parse version numbers for proper comparison (e.g. 1.004 vs 1.010)
+        const parseVer = v => parseFloat(String(v).replace(/^(\d+\.\d+).*/, '$1'));
+        const remoteVer  = parseVer(data.version);
+        const currentVer = parseVer(appVersion.value);
+
+        if (remoteVer > currentVer) {
+          // Remote is newer → show update banner
+          newVersion.value      = data.version;
           updateAvailable.value = true;
           toast(`🎉 Nuova versione ${data.version} disponibile!`, 'info', 5000);
-        } else {
-          toast('✅ App già aggiornata!');
+        } else if (remoteVer < currentVer) {
+          // Local is newer than GitHub → version.json not yet updated, no popup
+          console.log(`[AmiciFC] App v${appVersion.value} più recente del server v${data.version} — OK`);
         }
-      } catch {
-        toast('⚠️ Impossibile verificare gli aggiornamenti', 'info');
+        // Equal → already up to date, no popup
+      } catch (err) {
+        console.warn('[AmiciFC] Update check failed:', err);
       }
     };
 
@@ -3521,8 +3531,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
             const nw = reg.installing;
             nw?.addEventListener('statechange', () => {
               if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                newVersion.value = 'nuova';
-                updateAvailable.value = true;
+                // New SW installed - silently ready, user can reload
+                console.log('[AmiciFC] Nuovo Service Worker installato, ricarica per aggiornare.');
               }
             });
           });
