@@ -1,83 +1,67 @@
-/* =============================================
-   AMICI FC – Service Worker v1.0.0
-   Offline-first con cache intelligente
-   ============================================= */
+/* AMICI FC – Service Worker v1.020 – NUCLEAR CACHE RESET */
+const V = '1.020';
+const CACHE = `amicifc-${V}`;
 
-const CACHE_NAME = 'amicifc-v1.0.0';
-const STATIC_CACHE = 'amicifc-static-v1.0.0';
-
-const STATIC_ASSETS = [
-  './',
-  './index.html',
-  './manifest.json',
-  './version.json',
-  'https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap',
-  'https://unpkg.com/vue@3/dist/vue.global.prod.js',
-  'https://unpkg.com/dexie@3/dist/dexie.min.js',
-  'https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js',
-  'https://unpkg.com/sortablejs@1.15.0/Sortable.min.js'
-];
-
-// Install: precache static assets
+// INSTALL: skip waiting immediately, no precaching
 self.addEventListener('install', event => {
-  console.log('[SW] Installing Amici FC Service Worker...');
-  event.waitUntil(
-    caches.open(STATIC_CACHE)
-      .then(cache => cache.addAll(STATIC_ASSETS.map(url => new Request(url, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-      .catch(err => console.warn('[SW] Cache error:', err))
-  );
+  console.log(`[SW ${V}] install`);
+  self.skipWaiting(); // Take over immediately
 });
 
-// Activate: clean old caches
+// ACTIVATE: delete ALL old caches, claim all clients
 self.addEventListener('activate', event => {
-  console.log('[SW] Activating Amici FC Service Worker...');
+  console.log(`[SW ${V}] activate - deleting all old caches`);
   event.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys
-        .filter(k => k !== CACHE_NAME && k !== STATIC_CACHE)
-        .map(k => caches.delete(k))
-      )
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => {
+        console.log(`[SW ${V}] deleting cache: ${k}`);
+        return caches.delete(k);
+      })))
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch: cache-first for static, network-first for API
+// FETCH: amici-fc.html and version.json ALWAYS from network (never cached)
+// Everything else: network first, cache fallback
 self.addEventListener('fetch', event => {
-  const { request } = event;
-  const url = new URL(request.url);
+  const url = new URL(event.request.url);
 
-  // Skip non-GET and cross-origin API calls
-  if (request.method !== 'GET') return;
-  if (url.hostname.includes('anthropic.com') ||
-      url.hostname.includes('openai.com') ||
-      url.hostname.includes('googleapis.com') && url.pathname.includes('generativelanguage')) return;
+  // Skip non-GET
+  if (event.request.method !== 'GET') return;
 
-  // Cache-first for static assets
-  if (STATIC_ASSETS.some(a => request.url.includes(a.replace('./', '')))) {
+  // Skip external APIs (AI, Firebase, weather, maps)
+  const externalHosts = ['anthropic.com','openai.com','generativelanguage.googleapis.com',
+    'firebaseio.com','nominatim.openstreetmap.org','open-meteo.com'];
+  if (externalHosts.some(h => url.hostname.includes(h))) return;
+
+  // HTML and JSON config: ALWAYS network, no cache
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('version.json') || url.pathname === '/' || url.pathname.endsWith('/')) {
     event.respondWith(
-      caches.match(request).then(cached => cached || fetch(request).then(res => {
-        const clone = res.clone();
-        caches.open(STATIC_CACHE).then(c => c.put(request, clone));
-        return res;
-      }))
+      fetch(event.request, { cache: 'no-store' })
+        .catch(() => caches.match(event.request))
     );
     return;
   }
 
-  // Network-first for everything else
+  // Player images: cache-first (stable assets)
+  if (url.pathname.includes('/images/')) {
+    event.respondWith(
+      caches.match(event.request).then(cached => cached ||
+        fetch(event.request).then(res => {
+          if (res.ok) caches.open(CACHE).then(c => c.put(event.request, res.clone()));
+          return res;
+        })
+      )
+    );
+    return;
+  }
+
+  // Everything else (fonts, CDN libs): network first
   event.respondWith(
-    fetch(request)
-      .then(res => {
-        const clone = res.clone();
-        caches.open(CACHE_NAME).then(c => c.put(request, clone));
-        return res;
-      })
-      .catch(() => caches.match(request))
+    fetch(event.request).catch(() => caches.match(event.request))
   );
 });
 
-// Listen for update messages
-self.addEventListener('message', event => {
-  if (event.data === 'SKIP_WAITING') self.skipWaiting();
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
