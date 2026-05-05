@@ -1390,10 +1390,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <input class="input-field" v-model="settings.firebaseUrl"
+          <input class="input-field" v-model="onboardingFirebaseUrl"
             placeholder="https://progetto-default-rtdb.firebaseio.com"
             style="flex:1;min-width:0">
-          <button class="btn btn-yellow" @click="syncFromCloudAndGo" :disabled="!settings.firebaseUrl||syncLoading">
+          <button class="btn btn-yellow" @click="syncFromCloudAndGo" :disabled="!onboardingFirebaseUrl||syncLoading">
             {{ syncLoading ? '⏳' : '☁️ Connetti' }}
           </button>
         </div>
@@ -2206,7 +2206,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="input-group">
           <label class="input-label">🔗 URL Database Firebase</label>
           <input class="input-field" v-model="settings.firebaseUrl"
-            placeholder="https://tuo-progetto-rtdb.europe-west1.firebasedatabase.app">
+            placeholder="https://tuo-progetto-rtdb.europe-west1.firebasedatabase.app"
+            @change="saveSettings">
           <div style="font-size:0.7rem;color:var(--text2);margin-top:4px">
             Firebase Console → Realtime Database → copia l'URL in cima alla pagina
           </div>
@@ -2215,7 +2216,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- Web API Key - spiegazione semplice -->
         <div class="input-group">
           <label class="input-label">🔑 Chiave API Web Firebase</label>
-          <input class="input-field" v-model="settings.firebaseApiKey" placeholder="AIzaSy...">
+          <input class="input-field" v-model="settings.firebaseApiKey"
+            placeholder="AIzaSy..."
+            @change="saveSettings">
           <div style="font-size:0.7rem;color:var(--text2);margin-top:4px;line-height:1.6">
             Firebase Console → ⚙️ Impostazioni progetto → tab <strong>Generale</strong> → campo <strong>"Chiave API Web"</strong><br>
             <span style="color:var(--yellow)">⚠️ Serve solo se hai abilitato il Login (Authentication)</span>
@@ -2394,6 +2397,33 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- TEMA & FONT -->
+      <!-- METEO -->
+      <div class="card">
+        <div class="card-title">🌤️ Meteo</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:14px">
+          Il meteo viene mostrato nella Home. Di default usa la geolocalizzazione automatica. Puoi impostare una città fissa.
+        </div>
+        <div class="input-group">
+          <label class="input-label">📍 Città fissa (opzionale)</label>
+          <div style="display:flex;gap:8px">
+            <input class="input-field" v-model="settings.weatherCity"
+              placeholder="Es. Milano, Roma, Napoli..."
+              style="flex:1" @keyup.enter="applyWeatherCity">
+            <button class="btn btn-primary btn-sm" @click="applyWeatherCity">🔍</button>
+          </div>
+          <div style="font-size:0.7rem;color:var(--text2);margin-top:4px">
+            Lascia vuoto per usare la posizione GPS automatica
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-ghost btn-sm" @click="settings.weatherCity='';saveSettings();initWeather()">
+            📍 Usa GPS
+          </button>
+          <div v-if="weather.city" style="font-size:0.78rem;color:var(--lime);display:flex;align-items:center;gap:6px">
+            {{ weather.emoji }} Attuale: <strong>{{ weather.city }}</strong>
+          </div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-title">🎨 Aspetto</div>
         <div class="setting-row">
@@ -2572,16 +2602,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- Filename hint for GitHub images -->
-      <div v-if="playerForm.nome" style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <span style="color:var(--text2)">🖼️ Nome file GitHub:</span>
+      <!-- Filename hint for GitHub images — based on player UID -->
+      <div v-if="editingPlayer?.uid" style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <span style="color:var(--text2)">🖼️ Nome file foto GitHub:</span>
         <code style="color:var(--lime);font-size:0.82rem;background:var(--bg2);padding:2px 8px;border-radius:6px;font-family:monospace">
-          {{ generateImageFilename(playerForm.nome, playerForm.cognome) }}
+          {{ editingPlayer.uid }}.jpg
         </code>
         <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:0.7rem"
-          @click="playerForm.foto = generateImageFilename(playerForm.nome, playerForm.cognome)">
+          @click="playerForm.foto = editingPlayer.uid + '.jpg'">
           Usa come foto
         </button>
+      </div>
+      <div v-else-if="playerForm.nome" style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:0.78rem;color:var(--text2)">
+        🖼️ Il nome file foto (es. <code style="color:var(--lime)">uid-del-giocatore.jpg</code>) sarà visibile dopo il salvataggio
       </div>
       <div class="input-group">
         <label class="input-label">Soprannome</label>
@@ -2887,6 +2920,21 @@ db.version(2).stores({
   matches:    '++id, groupId, data',
   formations: '++id, groupId, stato, dataCreazione'
 });
+db.version(3).stores({
+  groups:     '++id, nome',
+  players:    '++id, groupId, uid, nome, cognome',   // uid = stable cross-device UUID
+  matches:    '++id, groupId, data',
+  formations: '++id, groupId, stato, dataCreazione'
+}).upgrade(async tx => {
+  // Assign uid to all existing players that don't have one
+  const uuidFn = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const players = await tx.table('players').toArray();
+  for (const p of players) {
+    if (!p.uid) {
+      await tx.table('players').update(p.id, { uid: uuidFn() });
+    }
+  }
+});
 
 // ──────────────────────────────────────
 // HELPER: UUID
@@ -2919,7 +2967,7 @@ createApp({
     const currentGroup  = ref(null);
     const groupPlayers  = ref([]);
     const groupMatches  = ref([]);
-    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false });
+    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, weatherCity: '' });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -2937,6 +2985,7 @@ createApp({
     const syncLoading       = ref(false);
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
+    const onboardingFirebaseUrl = ref(''); // separate from settings - never pre-filled
 
     // ── Test AI connection ──
     const testAI = async () => {
@@ -3017,8 +3066,8 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.029');
-    const appDate         = ref('2026-05-01');
+    const appVersion      = ref('1.032');
+    const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
     const previewPNGUrl  = ref('');
@@ -3234,8 +3283,9 @@ createApp({
         await db.players.update(editingPlayer.value.id, { ...f });
         toast('✅ Giocatore aggiornato!');
       } else {
+        const newUid = uuid();
         await db.players.add({
-          groupId: currentGroup.value.id, ...f,
+          groupId: currentGroup.value.id, uid: newUid, ...f,
           goalTotali:0, assistTotali:0, autogolTotali:0,
           puntiTotali:0, partiteTotali:0, mediaPunti:0,
           mediaVoto:0, votiTotali:0, uomoPartitaTotali:0,
@@ -4250,7 +4300,19 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       return url ? `${url}/amicifc` : null;
     };
 
-    // ── Point 5: Recompute all player stats from match history ──
+    // ── Repair malformed UIDs (uid = "Nome|Cognome" or missing) ──
+    const repairPlayerUids = async () => {
+      const allPlayers = await db.players.toArray();
+      const isRealUid = u => u && u.length > 8 && !u.includes('|') && !u.includes(' ');
+      let fixed = 0;
+      for (const p of allPlayers) {
+        if (!isRealUid(p.uid)) {
+          await db.players.update(p.id, { uid: uuid() });
+          fixed++;
+        }
+      }
+      if (fixed > 0) console.log(`[AmiciFC] Repaired ${fixed} player UIDs`);
+    };
     const recomputeStats = async () => {
       if (!currentGroup.value) return;
       const allPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
@@ -4350,58 +4412,91 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
       syncLoading.value = true;
       try {
-        const resp = await fetch(`${base}.json`);
+        const resp = await fetch(`${base}.json`, { cache: 'no-store' });
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         if (!data || !data.groups) throw new Error('Nessun dato trovato nel cloud');
 
-        let addedGroups=0, addedPlayers=0, addedMatches=0;
+        let syncedGroups=0, syncedPlayers=0, syncedMatches=0;
+
         for (const eg of data.groups) {
           const g = eg.group;
+          if (!g?.nome) continue;
+
+          // Find or create the group
           let existing = groups.value.find(x => x.nome === g.nome);
           let gid;
           if (!existing) {
             gid = await db.groups.add({ nome: g.nome });
-            addedGroups++;
           } else {
             gid = existing.id;
           }
+          syncedGroups++;
 
-          // Build ID map for this group
-          const idMap = {};
-          const currentPlayers = await db.players.where('groupId').equals(gid).toArray();
+          // ── PLAYERS: sync by uid (stable cross-device ID) ──
+          const cloudPlayers = eg.players || [];
+          const localPlayers = await db.players.where('groupId').equals(gid).toArray();
+          const idMap = {}; // cloud local-id → our local-id (for match remapping)
 
-          for (const p of (eg.players||[])) {
-            const dup = currentPlayers.find(x => x.nome===p.nome && x.cognome===p.cognome);
-            if (!dup) {
-              const { id: oldId, groupId: _g, ...rest } = p;
-              const newId = await db.players.add({ ...rest, groupId: gid });
-              if (oldId !== undefined && oldId !== null) idMap[String(oldId)] = newId;
-              addedPlayers++;
-            } else {
-              if (p.id !== undefined) idMap[String(p.id)] = dup.id;
-              await db.players.update(dup.id, {
-                goalTotali: Math.max(dup.goalTotali||0, p.goalTotali||0),
-                assistTotali: Math.max(dup.assistTotali||0, p.assistTotali||0),
-                autogolTotali: Math.max(dup.autogolTotali||0, p.autogolTotali||0),
-                uomoPartitaTotali: Math.max(dup.uomoPartitaTotali||0, p.uomoPartitaTotali||0),
-                descrizione: p.descrizione || dup.descrizione || '',
-                foto: p.foto || dup.foto || ''
+          for (const cp of cloudPlayers) {
+            // Ensure cloud player has a REAL uid (never use name as uid)
+            const isRealUid = u => u && u.length > 8 && !u.includes('|');
+            const cpUid = isRealUid(cp.uid) ? cp.uid : uuid();
+            const lp = localPlayers.find(x => x.uid === cpUid) ||
+                       localPlayers.find(x => x.nome === cp.nome && x.cognome === cp.cognome);
+
+            if (lp) {
+              // Player exists locally — update all fields from cloud (source of truth)
+              await db.players.update(lp.id, {
+                uid:         cpUid,                          // ensure uid is set
+                nome:        cp.nome        ?? lp.nome,
+                cognome:     cp.cognome     ?? lp.cognome,
+                soprannome:  cp.soprannome  ?? lp.soprannome,
+                ruolo:       cp.ruolo       ?? lp.ruolo,
+                piede:       cp.piede       ?? lp.piede,
+                descrizione: cp.descrizione ?? lp.descrizione,
+                foto:        cp.foto        || lp.foto,
+                goalTotali:        cp.goalTotali        ?? lp.goalTotali,
+                assistTotali:      cp.assistTotali      ?? lp.assistTotali,
+                autogolTotali:     cp.autogolTotali     ?? lp.autogolTotali,
+                uomoPartitaTotali: cp.uomoPartitaTotali ?? lp.uomoPartitaTotali,
+                puntiTotali:       cp.puntiTotali       ?? lp.puntiTotali,
+                partiteTotali:     cp.partiteTotali     ?? lp.partiteTotali,
+                mediaPunti:        cp.mediaPunti        ?? lp.mediaPunti,
+                mediaVoto:         cp.mediaVoto         ?? lp.mediaVoto,
+                votiTotali:        cp.votiTotali        ?? lp.votiTotali
               });
+              if (cp.id !== undefined) idMap[String(cp.id)] = lp.id;
+            } else {
+              // New player — add with uid
+              const { id: oldId, groupId: _g, ...rest } = cp;
+              const newId = await db.players.add({ ...rest, uid: cpUid, groupId: gid });
+              if (oldId !== undefined) idMap[String(oldId)] = newId;
+              syncedPlayers++;
             }
           }
+          // Map any local-only players to themselves
+          localPlayers.forEach(lp => {
+            if (!Object.values(idMap).includes(lp.id)) idMap[String(lp.id)] = lp.id;
+          });
 
-          const currentMatches = await db.matches.where('groupId').equals(gid).toArray();
-          const remapId = pid => idMap[String(pid)] ?? pid;
+          // ── MATCHES: add only truly new ones (by data+scoreA+scoreB) ──
+          const cloudMatches = eg.matches || [];
+          const localMatches = await db.matches.where('groupId').equals(gid).toArray();
+          const remapId = pid => {
+            const mapped = idMap[String(pid)];
+            return mapped !== undefined ? mapped : pid;
+          };
 
-          for (const m of (eg.matches||[])) {
-            const dup = currentMatches.find(x =>
-              x.data===m.data &&
-              x.risultato?.goalA===m.risultato?.goalA &&
-              x.risultato?.goalB===m.risultato?.goalB
+          for (const cm of cloudMatches) {
+            const isDup = localMatches.some(lm =>
+              lm.data === cm.data &&
+              lm.risultato?.goalA === cm.risultato?.goalA &&
+              lm.risultato?.goalB === cm.risultato?.goalB &&
+              JSON.stringify((lm.squadraA||[]).slice().sort()) === JSON.stringify((cm.squadraA||[]).map(remapId).slice().sort())
             );
-            if (!dup) {
-              const { id: _id, groupId: _gid, ...mRest } = m;
+            if (!isDup) {
+              const { id: _id, groupId: _gid, ...mRest } = cm;
               await db.matches.add({
                 ...mRest,
                 groupId: gid,
@@ -4411,7 +4506,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
                   ...s, playerId: remapId(s.playerId)
                 }))
               });
-              addedMatches++;
+              syncedMatches++;
             }
           }
         }
@@ -4421,9 +4516,9 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         await recomputeStats();
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
-        toast(`☁️ Sync: +${addedGroups} gruppi, +${addedPlayers} giocatori, +${addedMatches} partite`);
+        toast(`☁️ Sync completata: ${syncedPlayers} nuovi giocatori, ${syncedMatches} nuove partite`);
       } catch (e) {
-        toast('❌ Errore download: ' + e.message, 'error');
+        toast('❌ Errore sync: ' + e.message, 'error');
       }
       syncLoading.value = false;
     };
@@ -4448,14 +4543,16 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       return DAYS_IT[new Date(dateStr).getDay()];
     };
 
-    // ── Image filename helper ──
-    const normalizeForFile = s => (s || '')
-      .toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-|-$/g, '');
+    // ── Image filename helper — uses player UID for stable GitHub photo names ──
+    const generateImageFilename = (uid) => uid ? `${uid}.jpg` : '';
 
-    const generateImageFilename = (nome, cognome) => {
+    // Legacy: name-based filename (kept for backward compat)
+    const generateImageFilenameByName = (nome, cognome) => {
+      const normalizeForFile = s => (s || '')
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '');
       const parts = [nome, cognome].filter(Boolean).map(normalizeForFile);
       return parts.join('-') + '.jpg';
     };
@@ -4480,24 +4577,27 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     };
 
     const syncFromCloudAndGo = async () => {
-      // Save Firebase URL to localStorage BEFORE syncing so it persists
+      // Use onboarding input URL (never pre-filled), save it to settings
+      const url = onboardingFirebaseUrl.value.trim();
+      if (!url) { toast('Inserisci l\'URL Firebase prima!', 'error'); return; }
+      settings.value.firebaseUrl = url;
       localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
       await syncFromCloud();
       await loadGroups();
       if (groups.value.length > 0) {
         if (!currentGroup.value) await selectGroup(groups.value[0]);
-        // Also ensure sync is marked as enabled
         settings.value.syncEnabled = true;
         localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
         currentView.value = 'home';
       }
     };
 
-    // ── Image URL resolver (GitHub Pages + local base64 + full URL) ──
+    // ── Image URL resolver ──
     const getPhotoUrl = foto => {
       if (!foto) return null;
+      // Full URL or data URI
       if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./') || foto.startsWith('/')) return foto;
-      // Filename only → resolve relative to app
+      // Filename only → resolve relative to app (images/players/ folder on GitHub)
       return `./images/players/${foto}`;
     };
 
@@ -4570,7 +4670,24 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       } catch { weather.value = { ...weather.value, loading: false, error: true }; }
     };
 
+    const applyWeatherCity = () => {
+      saveSettings();
+      if (settings.value.weatherCity.trim()) {
+        weather.value.cityInput = settings.value.weatherCity.trim();
+        fetchWeatherByCity();
+      } else {
+        initWeather();
+      }
+    };
+
     const initWeather = () => {
+      // If user has a saved city, use it; otherwise GPS
+      if (settings.value.weatherCity.trim()) {
+        weather.value.loading = true; weather.value.error = false;
+        weather.value.cityInput = settings.value.weatherCity.trim();
+        fetchWeatherByCity();
+        return;
+      }
       weather.value.loading = true;
       weather.value.error   = false;
       if (navigator.geolocation) {
@@ -4851,6 +4968,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         if (!data.version) return;
+        // Always update date from version.json
+        if (data.date) appDate.value = data.date;
 
         const parseVer = v => {
           const parts = String(v).split('.');
@@ -4914,6 +5033,9 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
       // Load DB
       await loadGroups();
+
+      // Repair any malformed player UIDs (e.g. "Nome|Cognome" from old sync bug)
+      await repairPlayerUids();
 
       // Restore last group
       const lastGid = localStorage.getItem('amicifc_group');
@@ -4987,7 +5109,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, groupFormations, pngFormation, filteredPlayersForSelect,
       matchInfo, getPlayerRows,
-      weather, initWeather, fetchWeatherByCity,
+      onboardingFirebaseUrl,
+      weather, initWeather, fetchWeatherByCity, applyWeatherCity,
       updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
@@ -5005,12 +5128,11 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       saveSettings, toggleTheme, toggleFont,
-      syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats,
-      firebaseUser, fbLoginEmail, fbLoginPwd, fbAuthLoading, showFbPwd,
+      syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       firebaseLogin, firebaseLogout,
       showApiKey, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
-      generateImageFilename, getPhotoUrl,
+      generateImageFilename, generateImageFilenameByName, getPhotoUrl,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
       exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
       checkForUpdates, doUpdate
