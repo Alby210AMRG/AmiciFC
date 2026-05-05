@@ -1,54 +1,64 @@
-/* AMICI FC – Service Worker v1.020 – NUCLEAR CACHE RESET */
-const V = '1.020';
-const CACHE = `amicifc-${V}`;
+/* ================================================
+   AMICI FC Service Worker v1.027
+   Strategia:
+   - amici-fc.html → SEMPRE dalla rete (mai cache)
+   - version.json  → SEMPRE dalla rete (mai cache)  
+   - Assets CDN    → cache-first con fallback rete
+   - Immagini giocatori → cache-first
+   ================================================ */
 
-// INSTALL: skip waiting immediately, no precaching
+const CACHE_NAME = 'amicifc-v1.027';
+
+// Elimina TUTTI i vecchi cache all'attivazione
 self.addEventListener('install', event => {
-  console.log(`[SW ${V}] install`);
-  self.skipWaiting(); // Take over immediately
+  console.log('[SW 1.027] install - skipWaiting');
+  self.skipWaiting();
 });
 
-// ACTIVATE: delete ALL old caches, claim all clients
 self.addEventListener('activate', event => {
-  console.log(`[SW ${V}] activate - deleting all old caches`);
+  console.log('[SW 1.027] activate - purging old caches');
   event.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.map(k => {
-        console.log(`[SW ${V}] deleting cache: ${k}`);
+    caches.keys().then(keys =>
+      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => {
+        console.log('[SW 1.027] deleting old cache:', k);
         return caches.delete(k);
-      })))
-      .then(() => self.clients.claim())
+      }))
+    ).then(() => self.clients.claim())
   );
 });
 
-// FETCH: amici-fc.html and version.json ALWAYS from network (never cached)
-// Everything else: network first, cache fallback
 self.addEventListener('fetch', event => {
-  const url = new URL(event.request.url);
+  const { request } = event;
+  const url = new URL(request.url);
 
-  // Skip non-GET
-  if (event.request.method !== 'GET') return;
+  if (request.method !== 'GET') return;
 
-  // Skip external APIs (AI, Firebase, weather, maps)
-  const externalHosts = ['anthropic.com','openai.com','generativelanguage.googleapis.com',
-    'firebaseio.com','nominatim.openstreetmap.org','open-meteo.com'];
-  if (externalHosts.some(h => url.hostname.includes(h))) return;
+  // ── API esterne: sempre rete, niente cache ──
+  const passThrough = [
+    'anthropic.com', 'openai.com', 'generativelanguage.googleapis.com',
+    'identitytoolkit.googleapis.com', 'firebaseio.com',
+    'nominatim.openstreetmap.org', 'open-meteo.com', 'firebase.google.com'
+  ];
+  if (passThrough.some(h => url.hostname.includes(h))) return;
 
-  // HTML and JSON config: ALWAYS network, no cache
-  if (url.pathname.endsWith('.html') || url.pathname.endsWith('version.json') || url.pathname === '/' || url.pathname.endsWith('/')) {
+  // ── HTML principale e version.json → SEMPRE RETE ──
+  if (url.pathname.endsWith('.html') ||
+      url.pathname.endsWith('version.json') ||
+      url.pathname === '/' ||
+      url.pathname.endsWith('/')) {
     event.respondWith(
-      fetch(event.request, { cache: 'no-store' })
-        .catch(() => caches.match(event.request))
+      fetch(request, { cache: 'no-store' })
+        .catch(() => caches.match(request)) // fallback offline
     );
     return;
   }
 
-  // Player images: cache-first (stable assets)
+  // ── Immagini giocatori → cache-first ──
   if (url.pathname.includes('/images/')) {
     event.respondWith(
-      caches.match(event.request).then(cached => cached ||
-        fetch(event.request).then(res => {
-          if (res.ok) caches.open(CACHE).then(c => c.put(event.request, res.clone()));
+      caches.match(request).then(cached => cached ||
+        fetch(request).then(res => {
+          if (res.ok) caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
           return res;
         })
       )
@@ -56,12 +66,21 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Everything else (fonts, CDN libs): network first
+  // ── CDN (Vue, Dexie, fonts) → cache-first con aggiornamento in background ──
   event.respondWith(
-    fetch(event.request).catch(() => caches.match(event.request))
+    caches.match(request).then(cached => {
+      const fetchPromise = fetch(request).then(res => {
+        if (res.ok) caches.open(CACHE_NAME).then(c => c.put(request, res.clone()));
+        return res;
+      });
+      return cached || fetchPromise;
+    })
   );
 });
 
 self.addEventListener('message', e => {
-  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+  if (e.data === 'SKIP_WAITING') {
+    console.log('[SW 1.027] SKIP_WAITING received');
+    self.skipWaiting();
+  }
 });

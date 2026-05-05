@@ -2198,12 +2198,66 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <template v-if="currentView === 'settings'">
       <div class="card-title">⚙️ Impostazioni</div>
 
-      <!-- FIREBASE AUTH -->
+      <!-- FIREBASE (Auth + Sync unificati) -->
       <div class="card">
-        <div class="card-title">🔐 Login Firebase</div>
-        <div style="font-size:0.8rem;color:var(--text2);margin-bottom:14px;line-height:1.6">
-          Accedi con la tua email Firebase per poter <strong style="color:var(--lime)">scrivere e sincronizzare</strong> i dati.
-          Senza login puoi solo leggere.
+        <div class="card-title">☁️ Firebase — Sincronizzazione & Accesso</div>
+
+        <!-- URL Database -->
+        <div class="input-group">
+          <label class="input-label">🔗 URL Database Firebase</label>
+          <input class="input-field" v-model="settings.firebaseUrl"
+            placeholder="https://tuo-progetto-rtdb.europe-west1.firebasedatabase.app">
+          <div style="font-size:0.7rem;color:var(--text2);margin-top:4px">
+            Firebase Console → Realtime Database → copia l'URL in cima alla pagina
+          </div>
+        </div>
+
+        <!-- Web API Key - spiegazione semplice -->
+        <div class="input-group">
+          <label class="input-label">🔑 Chiave API Web Firebase</label>
+          <input class="input-field" v-model="settings.firebaseApiKey" placeholder="AIzaSy...">
+          <div style="font-size:0.7rem;color:var(--text2);margin-top:4px;line-height:1.6">
+            Firebase Console → ⚙️ Impostazioni progetto → tab <strong>Generale</strong> → campo <strong>"Chiave API Web"</strong><br>
+            <span style="color:var(--yellow)">⚠️ Serve solo se hai abilitato il Login (Authentication)</span>
+          </div>
+        </div>
+
+        <!-- Sync toggle -->
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Sync automatica</div>
+            <div class="setting-sub">Scarica aggiornamenti all'avvio</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" :checked="settings.syncEnabled"
+              @change="settings.syncEnabled=!settings.syncEnabled;saveSettings()">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Sync buttons -->
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-blue" @click="syncFromCloud" :disabled="!settings.firebaseUrl || syncLoading">
+            {{ syncLoading ? '⏳...' : '☁️ Scarica' }}
+          </button>
+          <button class="btn btn-primary" @click="syncToCloud" :disabled="!settings.firebaseUrl || syncLoading">
+            {{ firebaseUser ? '📤 Carica' : '🔒 Login per caricare' }}
+          </button>
+          <button class="btn btn-ghost" @click="recomputeStats;toast('✅ Statistiche ricalcolate!')">
+            🔄 Ricalcola Stats
+          </button>
+        </div>
+        <div v-if="lastSyncDate" style="font-size:0.72rem;color:var(--text2);margin-top:6px">
+          Ultima sync: {{ lastSyncDate }}
+        </div>
+
+        <!-- Separatore -->
+        <div style="border-top:1px solid var(--border);margin:16px 0"></div>
+
+        <!-- Login section -->
+        <div class="card-title" style="font-size:0.9rem;margin-bottom:12px">🔐 Login (per scrivere)</div>
+        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:12px;line-height:1.5">
+          Senza login puoi solo <strong>leggere</strong>. Con login puoi <strong style="color:var(--lime)">caricare e modificare</strong> i dati.
         </div>
 
         <!-- Logged out -->
@@ -2215,107 +2269,35 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="input-group">
             <label class="input-label">🔑 Password</label>
             <div style="display:flex;gap:8px">
-              <input class="input-field" :type="showFbPwd?'text':'password'" v-model="fbLoginPwd" placeholder="Password" style="flex:1"
-                @keyup.enter="firebaseLogin">
+              <input class="input-field" :type="showFbPwd?'text':'password'" v-model="fbLoginPwd"
+                placeholder="Password" style="flex:1" @keyup.enter="firebaseLogin">
               <button class="btn btn-ghost btn-sm" @click="showFbPwd=!showFbPwd">{{ showFbPwd?'🙈':'👁️' }}</button>
             </div>
           </div>
-          <button class="btn btn-primary btn-full" @click="firebaseLogin" :disabled="!fbLoginEmail||!fbLoginPwd||fbAuthLoading">
-            {{ fbAuthLoading ? '⏳ Accesso...' : '🔐 Accedi' }}
+          <button class="btn btn-primary btn-full" @click="firebaseLogin"
+            :disabled="!fbLoginEmail||!fbLoginPwd||fbAuthLoading||!settings.firebaseApiKey">
+            {{ fbAuthLoading ? '⏳ Accesso...' : (settings.firebaseApiKey ? '🔐 Accedi' : '⚠️ Inserisci prima la Chiave API') }}
           </button>
-          <div style="margin-top:10px;font-size:0.75rem;color:var(--text2);text-align:center">
-            Le credenziali sono quelle create su Firebase Console → Authentication
-          </div>
         </div>
 
         <!-- Logged in -->
-        <div v-else>
-          <div style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(166,255,77,0.08);border-radius:12px;border:1px solid rgba(166,255,77,0.2)">
-            <span style="font-size:1.8rem">✅</span>
-            <div style="flex:1">
-              <div style="font-weight:800;color:var(--lime)">Autenticato</div>
-              <div style="font-size:0.75rem;color:var(--text2)">{{ firebaseUser.email }}</div>
-            </div>
-            <button class="btn btn-ghost btn-sm" @click="firebaseLogout">Esci</button>
+        <div v-else style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(166,255,77,0.08);border-radius:12px;border:1px solid rgba(166,255,77,0.2)">
+          <span style="font-size:1.8rem">✅</span>
+          <div style="flex:1">
+            <div style="font-weight:800;color:var(--lime)">Connesso</div>
+            <div style="font-size:0.75rem;color:var(--text2)">{{ firebaseUser.email }}</div>
           </div>
-          <div style="margin-top:10px;font-size:0.75rem;color:var(--text2)">
-            ✅ Puoi scrivere, sincronizzare e caricare dati su Firebase.
-          </div>
+          <button class="btn btn-ghost btn-sm" @click="firebaseLogout">Esci</button>
         </div>
 
-        <!-- Add users info -->
-        <div class="card" style="margin-top:14px;margin-bottom:0;background:var(--bg3);padding:14px">
-          <div style="font-size:0.78rem;font-weight:800;color:var(--yellow);margin-bottom:8px">➕ Come aggiungere altri utenti scrittori</div>
-          <div style="font-size:0.75rem;color:var(--text2);line-height:1.8">
-            1. Firebase Console → <strong>Authentication</strong> → <strong>Users</strong><br>
-            2. Clicca <strong>"Add user"</strong> → inserisci email e password<br>
-            3. Nella tua regola Firebase, aggiungi la nuova email:<br>
-            <code style="background:var(--bg2);padding:4px 8px;border-radius:6px;display:block;margin-top:6px;font-size:0.68rem;line-height:1.6">
-              ".write": "auth != null && (<br>
-              &nbsp;&nbsp;auth.token.email === 'email1@gmail.com' ||<br>
-              &nbsp;&nbsp;auth.token.email === 'email2@gmail.com'<br>
-              )"
-            </code>
-          </div>
-        </div>
-      </div>
-
-      <!-- FIREBASE SYNC -->
-      <div class="card">
-        <div class="card-title">☁️ Sincronizzazione Cloud</div>
-        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;line-height:1.6">
-          Permette a più persone di condividere e aggiornare gli stessi dati in tempo reale.<br>
-          Usa <strong style="color:var(--lime)">Firebase Realtime DB</strong> (gratuito).
-          <a href="https://firebase.google.com" target="_blank" style="color:var(--blue);font-weight:700"> Come configurarlo →</a>
-        </div>
-        <div class="input-group">
-          <label class="input-label">URL Firebase Database</label>
-          <input class="input-field" v-model="settings.firebaseUrl"
-            placeholder="https://tuo-progetto-default-rtdb.firebaseio.com">
-          <div style="font-size:0.7rem;color:var(--text2);margin-top:4px">
-            Es: https://amicifc-xxxxx-default-rtdb.firebaseio.com
-          </div>
-        </div>
-        <div class="input-group">
-          <label class="input-label">🔑 Firebase Web API Key
-            <span style="font-size:0.68rem;font-weight:400;color:var(--text2)"> (Console → Impostazioni progetto → Generale)</span>
-          </label>
-          <input class="input-field" v-model="settings.firebaseApiKey" placeholder="AIzaSy...">
-        </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Sync automatica</div>
-            <div class="setting-sub">Sincronizza all'avvio e ogni 60s</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" :checked="settings.syncEnabled" @change="settings.syncEnabled=!settings.syncEnabled;saveSettings()">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn btn-blue" @click="syncFromCloud" :disabled="!settings.firebaseUrl || syncLoading">
-            {{ syncLoading ? '⏳ Sync...' : '☁️ Scarica dal Cloud' }}
-          </button>
-          <button class="btn btn-primary" @click="syncToCloud" :disabled="!settings.firebaseUrl || syncLoading">
-            📤 Carica sul Cloud
-          </button>
-          <button class="btn btn-ghost" @click="recomputeStats;toast('✅ Statistiche ricalcolate!')"
-            title="Ricalcola goal/punti/partite da zero leggendo tutte le partite salvate">
-            🔄 Ricalcola Stats
-          </button>
-        </div>
-        <div v-if="lastSyncDate" style="font-size:0.72rem;color:var(--text2);margin-top:8px">
-          Ultima sync: {{ lastSyncDate }}
-        </div>
-        <div class="card" style="margin-top:14px;margin-bottom:0;background:var(--bg3);padding:14px">
-          <div style="font-size:0.78rem;font-weight:800;margin-bottom:8px">📋 Setup rapido Firebase (gratis):</div>
-          <div style="font-size:0.75rem;color:var(--text2);line-height:1.8">
-            1. Vai su <strong style="color:var(--blue)">firebase.google.com</strong> → Console<br>
-            2. Crea progetto → Realtime Database → Crea database<br>
-            3. Regole: <code style="background:var(--bg2);padding:2px 6px;border-radius:4px">{"rules":{".read":true,".write":true}}</code><br>
-            4. Copia l'URL del database e incollalo sopra<br>
-            5. Condividi l'URL con i tuoi amici → tutti vedono gli stessi dati! 🎉
-          </div>
+        <!-- Help aggiungere utenti -->
+        <div style="margin-top:14px;background:var(--bg3);border-radius:10px;padding:12px;font-size:0.75rem;color:var(--text2);line-height:1.7">
+          <strong style="color:var(--yellow)">➕ Aggiungere altri utenti scrittori:</strong><br>
+          Firebase Console → Authentication → Users → <strong>Add user</strong><br>
+          Poi aggiorna le Regole del database aggiungendo la nuova email:<br>
+          <code style="background:var(--bg2);padding:3px 6px;border-radius:4px;font-size:0.68rem;display:block;margin-top:4px">
+            "auth.token.email === 'nuova@email.com'"
+          </code>
         </div>
       </div>
 
@@ -3035,7 +3017,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.026');
+    const appVersion      = ref('1.029');
     const appDate         = ref('2026-05-01');
 
     // PNG Preview
@@ -3597,19 +3579,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
     };
 
     const drawFormationCanvas = async (f) => {
-      const W=1080, H=1920;
+      const W=900, H=1600;
       const canvas=document.createElement('canvas');
       canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
       await document.fonts.ready;
 
-      // ── Palette ──
-      const C = {
-        orange:'#FF8C42', teal:'#00D9C0', yellow:'#FFE66D',
-        dark:'#1A1A40', white:'#F7F7F7', darkBlue:'#0D0D2B'
-      };
-
-      // ── Load image helper ──
       const loadImg = src => new Promise(res => {
         if(!src) return res(null);
         const img=new Image(); img.crossOrigin='anonymous';
@@ -3624,226 +3599,188 @@ Rispondi SOLO con questo JSON (niente altro testo):
         if(p?.foto){const url=getPhotoUrl(p.foto);if(url)photoCache[pid]=await loadImg(url);}
       }
 
-      // ── 1. Background gradient (dark blue) ──
-      const bgGrad=ctx.createLinearGradient(0,0,0,H);
-      bgGrad.addColorStop(0,C.darkBlue); bgGrad.addColorStop(1,'#0A1A2E');
-      ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
+      // ── BACKGROUND: dark + stadium lights ──
+      ctx.fillStyle='#0a0b14'; ctx.fillRect(0,0,W,H);
 
-      // ── 2. Confetti particles ──
-      const particles=[
-        [120,90,4,C.orange,0.6],[350,60,3,C.yellow,0.5],[600,110,5,C.teal,0.5],
-        [820,70,3,C.orange,0.4],[950,140,4,C.yellow,0.6],[80,200,3,C.teal,0.4],
-        [240,180,5,C.orange,0.3],[750,160,3,C.yellow,0.5],[980,220,4,C.teal,0.4],
-        [50,350,3,C.orange,0.3],[1020,300,5,C.yellow,0.4],[180,400,4,C.teal,0.3],
-        [900,380,3,C.orange,0.5],[420,450,4,C.yellow,0.3],[750,420,5,C.teal,0.4],
-        // bottom area
-        [100,1700,3,C.orange,0.4],[300,1750,4,C.yellow,0.5],[600,1680,3,C.teal,0.4],
-        [800,1730,5,C.orange,0.3],[950,1760,3,C.yellow,0.4],[200,1820,4,C.teal,0.3],
-        [700,1800,3,C.orange,0.5],[450,1850,5,C.yellow,0.3],[880,1840,4,C.teal,0.4]
-      ];
-      particles.forEach(([x,y,r,color,alpha])=>{
-        ctx.globalAlpha=alpha;
-        ctx.fillStyle=color;
-        ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill();
-        // star shape
-        ctx.save(); ctx.translate(x+15,y+15); ctx.rotate(0.5);
-        ctx.fillStyle=color; ctx.globalAlpha=alpha*0.7;
-        for(let k=0;k<4;k++){ctx.fillRect(-1.5,-4,3,8);ctx.rotate(Math.PI/4);}
-        ctx.restore();
-      });
+      // Orange glow left
+      const gL=ctx.createRadialGradient(0,0,0,0,0,W*0.9);
+      gL.addColorStop(0,'rgba(255,120,20,0.55)'); gL.addColorStop(0.6,'rgba(255,100,0,0.15)'); gL.addColorStop(1,'transparent');
+      ctx.fillStyle=gL; ctx.fillRect(0,0,W,H*0.55);
+
+      // Teal glow right
+      const gR=ctx.createRadialGradient(W,0,0,W,0,W*0.9);
+      gR.addColorStop(0,'rgba(0,200,200,0.55)'); gR.addColorStop(0.6,'rgba(0,180,180,0.15)'); gR.addColorStop(1,'transparent');
+      ctx.fillStyle=gR; ctx.fillRect(0,0,W,H*0.55);
+
+      // Bottom glow
+      const gBot=ctx.createRadialGradient(W/2,H,0,W/2,H,W*0.8);
+      gBot.addColorStop(0,'rgba(0,180,160,0.2)'); gBot.addColorStop(1,'transparent');
+      ctx.fillStyle=gBot; ctx.fillRect(0,H*0.6,W,H*0.4);
+
+      // Bokeh particles
+      const bk=[[80,60,3,'#FF8C42',0.7],[200,40,2,'#FFD93D',0.6],[350,80,2.5,'#FF8C42',0.5],
+                 [700,50,3,'#00D9C0',0.7],[820,80,2,'#00D9C0',0.5],[600,40,2.5,'#FFD93D',0.6],
+                 [50,180,2,'#FF8C42',0.4],[880,150,2,'#00D9C0',0.4],[150,120,1.5,'#FFD93D',0.5],
+                 [750,120,1.5,'#FF8C42',0.4],[450,30,2,'#FFD93D',0.5],[40,350,2,'#FF8C42',0.3],[860,300,2,'#00D9C0',0.3]];
+      bk.forEach(([x,y,r,c,a])=>{ctx.globalAlpha=a;ctx.fillStyle=c;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();});
       ctx.globalAlpha=1;
 
-      // ── 3. Stadium light beams ──
-      const addBeam=(sx,sy,ex,ey,col)=>{
-        const g=ctx.createLinearGradient(sx,sy,ex,ey);
-        g.addColorStop(0,col+'44'); g.addColorStop(1,'transparent');
-        ctx.fillStyle=g;
-        ctx.beginPath();
-        ctx.moveTo(sx-20,sy); ctx.lineTo(sx+20,sy);
-        ctx.lineTo(ex+80,ey); ctx.lineTo(ex-80,ey);
-        ctx.closePath(); ctx.fill();
-      };
-      addBeam(100,0,200,500,C.orange);
-      addBeam(980,0,880,500,C.teal);
-      addBeam(100,H,200,H-500,C.teal);
-      addBeam(980,H,880,H-500,C.orange);
-
-      // ── 4. Header ──
-      const HDR_H = 280;
+      // ── HEADER ──
       // Logo
       if(logoImg){
-        ctx.save();
-        ctx.shadowColor=C.orange+'99'; ctx.shadowBlur=30;
-        ctx.drawImage(logoImg, W/2-56, 20, 112, 112);
-        ctx.restore();
+        ctx.save();ctx.shadowColor='rgba(255,200,50,0.7)';ctx.shadowBlur=30;
+        ctx.drawImage(logoImg,W/2-60,18,120,120);ctx.restore();
       }
-      // Title
+      // "SQUADRE UFFICIALI"
       ctx.textAlign='center';
-      ctx.font='900 64px "Montserrat","Arial Black",Arial';
-      ctx.fillStyle=C.white;
-      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=12;
-      ctx.fillText('SQUADRE UFFICIALI', W/2, 158);
-      const gt=ctx.createLinearGradient(W/2-200,0,W/2+200,0);
-      gt.addColorStop(0,C.orange); gt.addColorStop(1,C.yellow);
-      ctx.fillStyle=gt;
-      ctx.font='900 italic 58px "Montserrat","Arial Black",Arial';
-      ctx.fillText('PER STASERA!', W/2, 232);
-      // Formation name pill
+      ctx.font='900 62px "Arial Black",Arial,sans-serif';
+      ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=12;
+      ctx.fillText('SQUADRE UFFICIALI',W/2,165);
+      // "PER STASERA!"
+      ctx.font='900 italic 52px "Arial Black",Arial,sans-serif';
+      const gTitle=ctx.createLinearGradient(W/2-200,0,W/2+200,0);
+      gTitle.addColorStop(0,'#FF8C42');gTitle.addColorStop(1,'#FFD93D');
+      ctx.fillStyle=gTitle;ctx.fillText('PER STASERA!',W/2,228);
       ctx.shadowBlur=0;
-      const fname=f.nome||'';
-      ctx.font='600 28px "Poppins",Arial';
-      const pillW=Math.min(ctx.measureText('⭐ '+fname+' ⭐').width+60,700);
-      ctx.fillStyle='rgba(255,255,255,0.07)';
-      ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.lineWidth=1.5;
-      const rr=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
-      rr(ctx,W/2-pillW/2,248,pillW,42,21); ctx.fill(); ctx.stroke();
-      ctx.fillStyle='rgba(255,255,255,0.55)'; ctx.textAlign='center';
-      ctx.fillText('⭐ '+fname+' ⭐', W/2, 277);
+      // Formation name with stars
+      ctx.font='700 22px Arial,sans-serif';
+      ctx.fillStyle='rgba(255,255,255,0.85)';
+      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,264);
 
-      // ── 5. Field ──
-      const FY=HDR_H, FH=H-HDR_H-280; // field top, height (footer is 280px)
-      const FW=W-40, FX=20;            // field left, width
+      // ── FIELD (trapezoid perspective) ──
+      const FY=290, FH=H-290-200;  // field area
+      // Trapezoid: narrow top, wide bottom
+      const TL=130, TR=W-130;   // top left/right x
+      const BL=10,  BR=W-10;   // bottom left/right x
+      const fy=t=>FY+t*FH;
+      const fxL=t=>TL+t*(BL-TL);
+      const fxR=t=>TR+t*(BR-TR);
+      const fcx=t=>(fxL(t)+fxR(t))/2;
 
-      // Field gradient orange→teal
-      const fgGrad=ctx.createLinearGradient(0,FY,0,FY+FH);
-      fgGrad.addColorStop(0,'#1a5c34'); fgGrad.addColorStop(0.3,'#1e7040');
-      fgGrad.addColorStop(0.5,'#1e7040'); fgGrad.addColorStop(0.7,'#1e7040');
-      fgGrad.addColorStop(1,'#1a5c34');
-      ctx.fillStyle=fgGrad;
-      ctx.beginPath(); ctx.roundRect(FX,FY,FW,FH,12); ctx.fill();
+      // Clip to field trapezoid
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(TL,FY);ctx.lineTo(TR,FY);ctx.lineTo(BR,FY+FH);ctx.lineTo(BL,FY+FH);
+      ctx.closePath();
 
-      // Stripe effect
-      for(let i=0;i<12;i++){
-        const t1=FY+i*(FH/12), t2=FY+(i+1)*(FH/12);
-        if(i%2===0){ctx.fillStyle='rgba(0,0,0,0.04)';ctx.fillRect(FX,t1,FW,t2-t1);}
+      // Green field gradient
+      const gF=ctx.createLinearGradient(W/2,FY,W/2,FY+FH);
+      gF.addColorStop(0,'#1e6b30');gF.addColorStop(0.3,'#217a35');
+      gF.addColorStop(0.5,'#22803a');gF.addColorStop(0.7,'#217a35');gF.addColorStop(1,'#1e6b30');
+      ctx.fillStyle=gF;ctx.fill();ctx.clip();
+
+      // Field stripes
+      for(let i=0;i<14;i++){
+        const t1=i/14,t2=(i+1)/14;
+        if(i%2===0){
+          ctx.fillStyle='rgba(0,0,0,0.06)';
+          ctx.beginPath();
+          ctx.moveTo(fxL(t1),fy(t1));ctx.lineTo(fxR(t1),fy(t1));
+          ctx.lineTo(fxR(t2),fy(t2));ctx.lineTo(fxL(t2),fy(t2));
+          ctx.closePath();ctx.fill();
+        }
       }
 
       // Field lines
-      ctx.strokeStyle='rgba(255,255,255,0.45)'; ctx.lineWidth=3;
-      // Outer border
-      ctx.strokeRect(FX+16,FY+16,FW-32,FH-32);
-      // Center line (y = FY + FH/2)
-      const CY=FY+FH/2;
-      ctx.beginPath(); ctx.moveTo(FX+16,CY); ctx.lineTo(FX+FW-16,CY); ctx.stroke();
+      ctx.strokeStyle='rgba(255,255,255,0.5)';ctx.lineWidth=2.5;
+      // Border
+      ctx.beginPath();ctx.moveTo(TL+10,FY+10);ctx.lineTo(TR-10,FY+10);ctx.lineTo(BR-10,FY+FH-10);ctx.lineTo(BL+10,FY+FH-10);ctx.closePath();ctx.stroke();
+      // Center line
+      const mid=0.5;
+      ctx.beginPath();ctx.moveTo(fxL(mid),fy(mid));ctx.lineTo(fxR(mid),fy(mid));ctx.stroke();
       // Center circle
-      ctx.beginPath(); ctx.arc(W/2,CY,100,0,Math.PI*2); ctx.stroke();
-      ctx.fillStyle='rgba(255,255,255,0.5)';
-      ctx.beginPath(); ctx.arc(W/2,CY,5,0,Math.PI*2); ctx.fill();
-      // VS text at center
-      ctx.font='900 52px "Montserrat","Arial Black",Arial';
-      ctx.fillStyle=C.white; ctx.textAlign='center';
-      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=10;
-      ctx.fillText('VS', W/2, CY+18); ctx.shadowBlur=0;
+      const cc=70+(fxR(mid)-fxL(mid))*0.05;
+      ctx.beginPath();ctx.arc(fcx(mid),fy(mid),cc,0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,0.5)';ctx.beginPath();ctx.arc(fcx(mid),fy(mid),4,0,Math.PI*2);ctx.fill();
+      // Top penalty box
+      const paw=(fxR(0.12)-fxL(0.12))*0.45,pah=FH*0.1;
+      ctx.strokeRect(fcx(0.06)-paw/2,fy(0.06),paw,pah);
+      const gaw=(fxR(0.06)-fxL(0.06))*0.2,gah=FH*0.04;
+      ctx.strokeRect(fcx(0.04)-gaw/2,fy(0.04),gaw,gah);
+      // Bottom penalty box
+      const paw2=(fxR(0.88)-fxL(0.88))*0.45,pah2=FH*0.1;
+      ctx.strokeRect(fcx(0.88)-paw2/2,fy(0.88),paw2,pah2);
+      const gaw2=(fxR(0.92)-fxL(0.92))*0.2,gah2=FH*0.04;
+      ctx.strokeRect(fcx(0.93)-gaw2/2,fy(0.93),gaw2,gah2);
+      ctx.restore();
 
-      // Top penalty area (Team B)
-      const PAW=320, PAH=140, GAW=120, GAH=50;
-      ctx.strokeRect(W/2-PAW/2,FY+16,PAW,PAH);           // penalty box
-      ctx.strokeRect(W/2-GAW/2,FY+16,GAW,GAH);           // goal box
-      // Semi-circle arc at top
-      ctx.beginPath(); ctx.arc(W/2,FY+16+PAH,60,0,Math.PI); ctx.stroke();
+      // ── DRAW PLAYER (silhouette or photo) ──
+      const drawPlayer = async (pid, px, py, R, isB) => {
+        const p=getPlayer(pid);if(!p)return;
+        const borderCol=isB?'#FF8C42':'#00D9C0';
 
-      // Bottom penalty area (Team A)
-      ctx.strokeRect(W/2-PAW/2,FY+FH-16-PAH,PAW,PAH);
-      ctx.strokeRect(W/2-GAW/2,FY+FH-16-GAH,GAW,GAH);
-      ctx.beginPath(); ctx.arc(W/2,FY+FH-16-PAH,60,Math.PI,0); ctx.stroke();
-
-      // Corner circles
-      [[FX+16,FY+16],[FX+FW-16,FY+16],[FX+16,FY+FH-16],[FX+FW-16,FY+FH-16]].forEach(([cx,cy])=>{
-        ctx.beginPath(); ctx.arc(cx,cy,24,0,Math.PI*2); ctx.stroke();
-      });
-
-      // Penalty spots
-      ctx.fillStyle='rgba(255,255,255,0.7)';
-      ctx.beginPath(); ctx.arc(W/2,FY+16+PAH+70,5,0,Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(W/2,FY+FH-16-PAH-70,5,0,Math.PI*2); ctx.fill();
-
-      // ── 6. Player drawing helper ──
-      const drawPlayer = async (pid, px, py, isB) => {
-        const p=getPlayer(pid); if(!p) return;
-        const R=46;
-        const jerseyCol = isB ? C.yellow : C.teal;
-        const borderCol = isB ? C.orange : C.teal;
-
-        // Circle shadow + jersey bg
-        ctx.save();
-        ctx.shadowColor='rgba(0,0,0,0.6)'; ctx.shadowBlur=18;
-        ctx.beginPath(); ctx.arc(px,py,R,0,Math.PI*2);
-        ctx.fillStyle = jerseyCol+'44'; ctx.fill();
-        ctx.strokeStyle=borderCol; ctx.lineWidth=4; ctx.stroke();
+        // Shadow
+        ctx.save();ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=10;
+        ctx.beginPath();ctx.arc(px,py,R,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();
         ctx.restore();
 
-        // Photo or silhouette
-        ctx.save();
-        ctx.beginPath(); ctx.arc(px,py,R-2,0,Math.PI*2); ctx.clip();
+        // Clip circle
+        ctx.save();ctx.beginPath();ctx.arc(px,py,R-1,0,Math.PI*2);ctx.clip();
         const ph=photoCache[pid];
         if(ph){
-          ctx.drawImage(ph,px-R+2,py-R+2,(R-2)*2,(R-2)*2);
-        } else if(logoImg){
-          ctx.fillStyle=C.dark;
-          ctx.fillRect(px-R+2,py-R+2,(R-2)*2,(R-2)*2);
-          ctx.drawImage(logoImg,px-R+12,py-R+12,(R-12)*2,(R-12)*2);
+          ctx.drawImage(ph,px-R+1,py-R+1,(R-1)*2,(R-1)*2);
         } else {
-          // Silhouette
-          ctx.fillStyle = isB ? C.orange+'88' : C.teal+'88';
-          ctx.fillRect(px-R,py-R,R*2,R*2);
-          ctx.fillStyle = isB ? C.orange : C.teal;
-          ctx.beginPath(); ctx.arc(px,py-10,14,0,Math.PI*2); ctx.fill();
-          ctx.beginPath(); ctx.arc(px,py+25,22,Math.PI,0); ctx.fill();
+          // White circle bg
+          ctx.fillStyle='#e8e8e8';ctx.fillRect(px-R,py-R,R*2,R*2);
+          // Black silhouette
+          ctx.fillStyle='#1a1a1a';
+          // Head
+          ctx.beginPath();ctx.arc(px,py-R*0.25,R*0.32,0,Math.PI*2);ctx.fill();
+          // Body
+          ctx.beginPath();ctx.arc(px,py+R*0.7,R*0.52,Math.PI,0);ctx.fill();
         }
         ctx.restore();
 
-        // Jersey light reflection
-        ctx.save();
-        ctx.globalAlpha=0.12;
-        const refl=ctx.createLinearGradient(px-R,py-R,px,py);
-        refl.addColorStop(0,C.white); refl.addColorStop(1,'transparent');
-        ctx.fillStyle=refl;
-        ctx.beginPath(); ctx.arc(px,py,R-2,0,Math.PI*2); ctx.fill();
-        ctx.restore();
+        // Colored border ring
+        ctx.beginPath();ctx.arc(px,py,R,0,Math.PI*2);
+        ctx.strokeStyle=borderCol;ctx.lineWidth=3.5;ctx.stroke();
 
-        // Role badge
-        const ri={'Portiere':'🥅','Difensore':'🛡️','Centrocampista':'🔄','Attaccante':'⚡','Jolly':'🃏'}[p.ruolo]||'';
-        if(ri){ctx.font='18px Arial'; ctx.textAlign='center'; ctx.fillText(ri,px+R*0.68,py-R*0.68);}
-
-        // Name — Poppins SemiBold, white with dark shadow
-        const ns=(p.soprannome||p.nome||'').toUpperCase().slice(0,16);
-        let fs=20;
-        ctx.font=`700 ${fs}px "Poppins","Montserrat",Arial`;
-        while(ctx.measureText(ns).width>R*2+40&&fs>13){fs--;ctx.font=`700 ${fs}px "Poppins","Montserrat",Arial`;}
+        // Name tag (black banner with white text)
+        const ns=(p.soprannome||p.nome||'').toUpperCase().slice(0,12);
+        let fs=15;
+        ctx.font=`900 ${fs}px "Arial Black",Arial`;
+        while(ctx.measureText(ns).width>R*2+10&&fs>10){fs--;ctx.font=`900 ${fs}px "Arial Black",Arial`;}
         const tw=ctx.measureText(ns).width;
-        const tagW=Math.max(tw+24,80), tagH=fs+12, tagX=px-tagW/2, tagY=py+R+8;
-        // Dark background for name
-        ctx.fillStyle='rgba(10,15,35,0.85)';
-        rr(ctx,tagX,tagY,tagW,tagH,tagH/2); ctx.fill();
-        ctx.strokeStyle=borderCol; ctx.lineWidth=1.5;
-        rr(ctx,tagX,tagY,tagW,tagH,tagH/2); ctx.stroke();
-        // Name text
-        ctx.fillStyle=C.white;
-        ctx.shadowColor='rgba(0,0,0,0.9)'; ctx.shadowBlur=6;
-        ctx.textAlign='center';
-        ctx.fillText(ns, px, tagY+tagH-5);
-        ctx.shadowBlur=0;
+        const tw2=Math.max(tw+14,R*1.2), th=fs+8;
+        const tx=px-tw2/2, ty=py+R+3;
+        // Banner with slight brush effect
+        ctx.fillStyle='rgba(10,10,15,0.92)';
+        ctx.beginPath();
+        ctx.moveTo(tx-4,ty+th/2);ctx.lineTo(tx+2,ty);ctx.lineTo(tx+tw2-2,ty);
+        ctx.lineTo(tx+tw2+4,ty+th/2);ctx.lineTo(tx+tw2-2,ty+th);ctx.lineTo(tx+2,ty+th);ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle='#ffffff';ctx.textAlign='center';
+        ctx.font=`900 ${fs}px "Arial Black",Arial`;
+        ctx.fillText(ns,px,ty+th-3);
       };
 
-      // ── 7. Team label banner ──
-      const drawBanner=(name, bx, by, bw, isB)=>{
-        const col = isB ? C.orange : C.teal;
-        const gBan=ctx.createLinearGradient(bx,0,bx+bw,0);
-        gBan.addColorStop(0,col); gBan.addColorStop(1,isB?'#FFB347':'#00A896');
+      // ── TEAM BANNER ──
+      const drawBanner = (name, cx, cy, bw, isB) => {
+        const col=isB?'#FF8C42':'#00D9C0';
+        const gBan=ctx.createLinearGradient(cx-bw/2,0,cx+bw/2,0);
+        gBan.addColorStop(0,isB?'#FF6B00':'#009B8A');
+        gBan.addColorStop(0.5,col);
+        gBan.addColorStop(1,isB?'#FF6B00':'#009B8A');
+        ctx.save();ctx.shadowColor=col+'99';ctx.shadowBlur=16;
         ctx.fillStyle=gBan;
-        ctx.save(); ctx.shadowColor=col+'88'; ctx.shadowBlur=20;
-        rr(ctx,bx,by,bw,52,26); ctx.fill();
-        ctx.restore();
-        ctx.strokeStyle='rgba(255,255,255,0.3)'; ctx.lineWidth=1.5;
-        rr(ctx,bx,by,bw,52,26); ctx.stroke();
-        ctx.fillStyle=C.dark;
-        ctx.font='900 22px "Montserrat","Arial Black",Arial';
-        ctx.textAlign='center';
-        ctx.fillText((isB?'🔴 ':'🔵 ')+name.toUpperCase(), bx+bw/2, by+35);
+        ctx.beginPath();
+        const bh=42,br=bh/2;
+        ctx.moveTo(cx-bw/2+br,cy);ctx.lineTo(cx+bw/2-br,cy);
+        ctx.quadraticCurveTo(cx+bw/2,cy,cx+bw/2,cy+br);
+        ctx.lineTo(cx+bw/2,cy+bh-br);ctx.quadraticCurveTo(cx+bw/2,cy+bh,cx+bw/2-br,cy+bh);
+        ctx.lineTo(cx-bw/2+br,cy+bh);ctx.quadraticCurveTo(cx-bw/2,cy+bh,cx-bw/2,cy+bh-br);
+        ctx.lineTo(cx-bw/2,cy+br);ctx.quadraticCurveTo(cx-bw/2,cy,cx-bw/2+br,cy);
+        ctx.closePath();ctx.fill();ctx.restore();
+        // Text
+        ctx.font='900 20px "Arial Black",Arial';
+        ctx.fillStyle='#ffffff';ctx.textAlign='center';
+        ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=4;
+        ctx.fillText(name.toUpperCase(),cx,cy+28);ctx.shadowBlur=0;
       };
 
-      // ── 8. Role-based row layout ──
-      const roleRows=(ids)=>{
+      // ── ROLE ROWS ──
+      const roleRows = (ids, reverse) => {
         const rg=[[],[],[],[]];
         ids.forEach(pid=>{
           const r=getPlayer(pid)?.ruolo;
@@ -3853,100 +3790,104 @@ Rispondi SOLO con questo JSON (niente altro testo):
           else rg[3].push(pid);
         });
         const rows=[];
-        rg.forEach(g=>{if(!g.length)return;if(g.length<=5)rows.push(g);else for(let i=0;i<g.length;i+=5)rows.push(g.slice(i,i+5));});
-        if(rows.length>4){const flat=rows.flat(),h2=Math.ceil(flat.length/4);return[flat.slice(0,h2),flat.slice(h2,h2*2),flat.slice(h2*2,h2*3),flat.slice(h2*3)].filter(r2=>r2.length);}
-        return rows.filter(r2=>r2.length);
+        rg.forEach(g=>{if(!g.length)return;if(g.length<=5)rows.push(g);else{for(let i=0;i<g.length;i+=5)rows.push(g.slice(i,i+5));}});
+        if(rows.length>4){const f2=rows.flat(),h2=Math.ceil(f2.length/4);return[f2.slice(0,h2),f2.slice(h2,h2*2),f2.slice(h2*2,h2*3),f2.slice(h2*3)].filter(r2=>r2.length);}
+        return reverse ? rows.slice().reverse() : rows;
       };
 
-      const drawTeamRows = async (ids, topY, botY, isB) => {
-        // isB=true → ATT at top, GK at bottom (toward center)
-        // isB=false → GK at top (toward center), ATT at bottom
-        const sorted_ids = isB ? ids.slice().reverse() : [...ids];
-        const rows=roleRows(sorted_ids);
-        if(!rows.length) return;
-        const availH = botY - topY;
-        const rowH = Math.min(availH / rows.length, 160);
+      // ── DRAW TEAM ──
+      const drawTeam = async (ids, topY, botY, isB) => {
+        if(!ids||!ids.length)return;
+        // Team B: ATT at top toward center line, GK far top
+        // Team A: GK far bottom, ATT toward center line
+        const rows=roleRows(ids, isB); // isB=true → reverse (GK last = nearest center)
+        if(!rows.length)return;
+        const availH=botY-topY;
+        const rowH=Math.min(availH/rows.length, 150);
         for(let ri=0;ri<rows.length;ri++){
-          const rowY = topY + ri * rowH + rowH/2;
-          const row=rows[ri]; const n=row.length;
-          const rowW = Math.min(FW-120, n*160);
+          const t=(topY+ri*rowH+rowH/2-FY)/FH; // field t parameter
+          const tClamped=Math.max(0,Math.min(1,t));
+          const rowY=topY+ri*rowH+rowH/2;
+          const rowXL=fxL(tClamped)+40, rowXR=fxR(tClamped)-40;
+          const rowW=rowXR-rowXL;
+          const row=rows[ri];const n=row.length;
+          // Circle radius scales with perspective
+          const R=Math.min(30+tClamped*14, 44);
           for(let pi=0;pi<n;pi++){
-            const px = n===1 ? W/2 : (W/2-rowW/2) + pi*(rowW/(n-1));
-            await drawPlayer(row[pi], px, rowY, isB);
+            const px=n===1?W/2:rowXL+pi*(rowW/(n-1));
+            await drawPlayer(row[pi],px,rowY,R,isB);
           }
         }
       };
 
-      // Banner B (top)
-      const BBAN_W=Math.min((f.nomeSquadraB||'Squadra B').length*24+120,560);
-      drawBanner(f.nomeSquadraB||'Squadra B', W/2-BBAN_W/2, FY+24, BBAN_W, true);
+      // Team B banner (top)
+      const bBanW=Math.min((f.nomeSquadraB||'Squadra B').length*18+100,400);
+      drawBanner(f.nomeSquadraB||'Squadra B',W/2,FY+14,bBanW,true);
+      // Team A banner (bottom)
+      const aBanW=Math.min((f.nomeSquadraA||'Squadra A').length*18+100,400);
+      drawBanner(f.nomeSquadraA||'Squadra A',W/2,FY+FH-60,aBanW,false);
 
-      // Banner A (bottom)
-      const ABAN_W=Math.min((f.nomeSquadraA||'Squadra A').length*24+120,560);
-      drawBanner(f.nomeSquadraA||'Squadra A', W/2-ABAN_W/2, FY+FH-76, ABAN_W, false);
+      // Draw players
+      const CY=FY+FH*0.5;
+      await drawTeam(f.squadraB||[], FY+60, CY-20, true);
+      await drawTeam(f.squadraA||[], CY+20, FY+FH-65, false);
 
-      // Draw team B players (top half: ATT→GK toward center)
-      await drawTeamRows(f.squadraB||[], FY+90, CY-30, true);
-      // Draw team A players (bottom half: GK toward center, ATT→bottom)
-      await drawTeamRows(f.squadraA||[], CY+30, FY+FH-90, false);
+      // ── FOOTER ──
+      const FOOT_Y=FY+FH+8;
+      ctx.fillStyle='rgba(5,6,18,0.97)';
+      ctx.fillRect(0,FOOT_Y,W,H-FOOT_Y);
 
-      // ── 9. Vignette ──
-      const vign=ctx.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H*0.85);
-      vign.addColorStop(0,'transparent'); vign.addColorStop(1,'rgba(0,0,0,0.55)');
-      ctx.fillStyle=vign; ctx.fillRect(0,0,W,H);
-
-      // ── 10. Footer ──
-      const FOOT_Y = FY+FH+8;
-      ctx.fillStyle='rgba(10,13,30,0.95)';
-      rr(ctx,0,FOOT_Y,W,H-FOOT_Y,0); ctx.fill();
-
-      // Decorative top line
-      const fLine=ctx.createLinearGradient(0,0,W,0);
-      fLine.addColorStop(0,C.orange); fLine.addColorStop(0.5,C.yellow); fLine.addColorStop(1,C.teal);
-      ctx.fillStyle=fLine; ctx.fillRect(0,FOOT_Y,W,4);
+      // Top stripe rainbow
+      const gStripe=ctx.createLinearGradient(0,0,W,0);
+      gStripe.addColorStop(0,'#FF8C42');gStripe.addColorStop(0.33,'#FFD93D');
+      gStripe.addColorStop(0.66,'#00D9C0');gStripe.addColorStop(1,'#00D9C0');
+      ctx.fillStyle=gStripe;ctx.fillRect(0,FOOT_Y,W,4);
 
       const hasInfo=f.matchData||f.matchOrario||f.matchLuogo;
       if(hasInfo){
-        const infoItems=[];
-        if(f.matchData) infoItems.push({icon:'📅',val:formatDate(f.matchData),col:C.white});
-        if(f.matchOrario) infoItems.push({icon:'⏰',val:f.matchOrario,col:C.orange});
-        if(f.matchLuogo) infoItems.push({icon:'📍',val:(f.matchLuogo||'').toUpperCase(),col:C.teal});
+        // Soccer balls on sides
+        ctx.font='48px Arial';ctx.textAlign='center';
+        ctx.fillText('⚽',55,FOOT_Y+75);ctx.fillText('⚽',W-55,FOOT_Y+75);
 
-        const colW2=(W)/Math.max(infoItems.length,1);
+        // Info row
+        const infoItems=[];
+        if(f.matchOrario)infoItems.push({icon:'📅',label:'ORA '+f.matchOrario,col:'#FF8C42',big:true});
+        if(f.matchData)infoItems.push({icon:'📅',label:formatDate(f.matchData),col:'#ffffff',big:false});
+        if(f.matchLuogo)infoItems.push({icon:'📍',label:'CAMPO '+f.matchLuogo.toUpperCase(),col:'#FFD93D',big:false});
+
+        // Divider line
+        ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(100,FOOT_Y+88,W-200,1);
+
+        const colW=(W-110)/(infoItems.length||1);
         infoItems.forEach((item,i)=>{
-          const cx2=i*colW2+colW2/2;
-          ctx.font='32px Arial'; ctx.textAlign='center'; ctx.fillStyle=C.white;
-          ctx.fillText(item.icon, cx2, FOOT_Y+55);
-          ctx.font='700 26px "Montserrat","Arial Black",Arial';
+          const cx2=55+i*colW+colW/2;
+          ctx.font='22px Arial';ctx.textAlign='center';ctx.fillStyle='#fff';
+          ctx.fillText(item.icon,cx2,FOOT_Y+55);
+          ctx.font=item.big?'900 28px "Arial Black",Arial':'700 18px Arial';
           ctx.fillStyle=item.col;
-          ctx.shadowColor='rgba(0,0,0,0.8)'; ctx.shadowBlur=8;
-          ctx.fillText(item.val, cx2, FOOT_Y+95); ctx.shadowBlur=0;
-          if(i<infoItems.length-1){
-            ctx.fillStyle='rgba(255,255,255,0.12)';
-            ctx.fillRect(i*colW2+colW2-1,FOOT_Y+20,2,90);
-          }
+          ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=6;
+          ctx.fillText(item.label,cx2,FOOT_Y+90);ctx.shadowBlur=0;
+          if(i<infoItems.length-1){ctx.fillStyle='rgba(255,255,255,0.2)';ctx.fillRect(55+(i+1)*colW-1,FOOT_Y+38,1,60);}
         });
       }
 
       // Slogan
-      const slY=hasInfo?FOOT_Y+145:FOOT_Y+60;
-      ctx.font='900 28px "Montserrat","Arial Black",Arial';
-      ctx.textAlign='center';
-      const gSlo=ctx.createLinearGradient(W/2-300,0,W/2+300,0);
-      gSlo.addColorStop(0,C.orange); gSlo.addColorStop(0.5,C.yellow); gSlo.addColorStop(1,C.teal);
-      ctx.fillStyle=gSlo;
-      ctx.shadowColor='rgba(0,0,0,0.7)'; ctx.shadowBlur=8;
-      ctx.fillText('PRONTI A DARE TUTTO! 🔥', W/2, slY);
-      ctx.font='600 22px "Poppins",Arial';
-      ctx.fillStyle='rgba(255,255,255,0.6)'; ctx.shadowBlur=0;
-      ctx.fillText('BUON DIVERTIMENTO A TUTTI!', W/2, slY+42);
+      const sY=hasInfo?FOOT_Y+120:FOOT_Y+60;
+      ctx.font='900 26px "Arial Black",Arial';ctx.textAlign='center';
+      const gS=ctx.createLinearGradient(W/2-250,0,W/2+250,0);
+      gS.addColorStop(0,'#FF8C42');gS.addColorStop(0.5,'#FFD93D');gS.addColorStop(1,'#00D9C0');
+      ctx.fillStyle=gS;ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=8;
+      ctx.fillText('PRONTI A DARE TUTTO! 🔥',W/2,sY);
+      ctx.font='600 18px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.shadowBlur=0;
+      ctx.fillText('BUON DIVERTIMENTO A TUTTI!',W/2,sY+32);
 
-      // App branding
-      ctx.font='400 18px Arial'; ctx.fillStyle='rgba(255,255,255,0.25)';
-      ctx.fillText('⚽ Amici FC · '+(currentGroup.value?.nome||''), W/2, H-18);
+      // Watermark
+      ctx.font='400 15px Arial';ctx.fillStyle='rgba(255,255,255,0.2)';
+      ctx.fillText('⚽ Amici FC · '+(currentGroup.value?.nome||''),W/2,H-14);
 
       return canvas.toDataURL('image/png');
     };
+
 
 
     const shareFormationPNG = async f => {
@@ -4659,9 +4600,9 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     const firebaseLogin = async () => {
       const email = fbLoginEmail.value.trim();
       const pwd   = fbLoginPwd.value;
-      const apiKey = getFbApiKey();
+      const apiKey = settings.value.firebaseApiKey;
       if (!email || !pwd) return toast('Inserisci email e password', 'error');
-      if (!apiKey) return toast('Inserisci la Firebase Web API Key nelle impostazioni', 'error');
+      if (!apiKey) return toast('Inserisci la Chiave API Web nelle impostazioni Firebase', 'error');
       fbAuthLoading.value = true;
       try {
         const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
@@ -4670,17 +4611,24 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
           body: JSON.stringify({ email, password: pwd, returnSecureToken: true })
         });
         const d = await r.json();
-        if (d.error) throw new Error(d.error.message === 'INVALID_PASSWORD' ? 'Password errata' :
-                                     d.error.message === 'EMAIL_NOT_FOUND' ? 'Email non trovata' :
-                                     d.error.message || 'Errore login');
+        if (d.error) {
+          const msg = d.error.message;
+          if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD') || msg.includes('EMAIL_NOT_FOUND')) {
+            throw new Error('Email o password errati. Controlla che Email/Password sia abilitato in Firebase Console → Authentication → Sign-in method');
+          }
+          if (msg.includes('TOO_MANY_ATTEMPTS')) {
+            throw new Error('Troppi tentativi. Attendi qualche minuto e riprova.');
+          }
+          throw new Error(msg);
+        }
         firebaseUser.value = { email: d.email, uid: d.localId };
         fbIdToken.value = d.idToken;
         localStorage.setItem('amicifc_fb_user',  JSON.stringify(firebaseUser.value));
         localStorage.setItem('amicifc_fb_token', d.idToken);
         fbLoginPwd.value = '';
-        toast(`✅ Bentornato, ${d.email}!`);
+        toast(`✅ Accesso effettuato come ${d.email}!`);
       } catch(e) {
-        toast('❌ ' + e.message, 'error');
+        toast('❌ ' + e.message, 'error', 7000);
       }
       fbAuthLoading.value = false;
     };
@@ -4898,47 +4846,53 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     // ── Update Check ──
     const checkForUpdates = async () => {
       try {
-        const resp = await fetch('./version.json?t=' + Date.now());
+        // Fetch sempre dalla rete, mai cache
+        const resp = await fetch('./version.json?nocache=' + Date.now(), { cache: 'no-store' });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
         const data = await resp.json();
         if (!data.version) return;
 
-        // Parse version numbers for proper comparison (e.g. 1.004 vs 1.010)
-        const parseVer = v => parseFloat(String(v).replace(/^(\d+\.\d+).*/, '$1'));
+        const parseVer = v => {
+          const parts = String(v).split('.');
+          return parseInt(parts[0]) * 1000 + (parseInt(parts[1]) || 0);
+        };
         const remoteVer  = parseVer(data.version);
         const currentVer = parseVer(appVersion.value);
 
         if (remoteVer > currentVer) {
-          // Remote is newer → show update banner
           newVersion.value      = data.version;
           updateAvailable.value = true;
-          toast(`🎉 Nuova versione ${data.version} disponibile!`, 'info', 5000);
-        } else if (remoteVer < currentVer) {
-          // Local is newer than GitHub → version.json not yet updated, no popup
-          console.log(`[AmiciFC] App v${appVersion.value} più recente del server v${data.version} — OK`);
+          toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 8000);
+        } else {
+          toast('✅ App già aggiornata (v' + appVersion.value + ')', 'info', 3000);
         }
-        // Equal → already up to date, no popup
       } catch (err) {
         console.warn('[AmiciFC] Update check failed:', err);
+        toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
       }
     };
 
     const doUpdate = async () => {
-      toast('⏳ Aggiornamento in corso...', 'info', 2000);
+      toast('⏳ Pulizia cache e ricarica...', 'info', 2000);
       try {
-        // 1. Tell waiting SW to take over
+        // 1. Svuota tutti i cache del SW
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        // 2. Attiva il nuovo SW se in attesa
         if ('serviceWorker' in navigator) {
           const reg = await navigator.serviceWorker.ready;
-          if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
+          if (reg.waiting) {
+            sessionStorage.setItem('sw-update-pending', '1');
+            reg.waiting.postMessage('SKIP_WAITING');
+          }
         }
-        // 2. Clear ALL caches so browser fetches fresh files
-        const keys = await caches.keys();
-        await Promise.all(keys.map(k => caches.delete(k)));
-        console.log('[AmiciFC] Cache cleared, reloading...');
       } catch(e) {
-        console.warn('[AmiciFC] Cache clear error:', e);
+        console.warn('[AmiciFC] doUpdate error:', e);
       }
-      // 3. Hard reload bypassing cache
-      window.location.reload(true);
+      // 3. Ricarica hard bypassando cache del browser
+      setTimeout(() => window.location.reload(true), 500);
     };
 
     // ── Logo embedded as base64 (funziona sempre, locale + GitHub Pages) ──
@@ -4976,20 +4930,40 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       // Init weather
       initWeather();
 
-      // Register SW
+      // Register SW con auto-aggiornamento
       if ('serviceWorker' in navigator) {
         try {
           const reg = await navigator.serviceWorker.register('./sw.js');
+
+          // Se c'è un SW in attesa, attivalo subito
+          if (reg.waiting) {
+            reg.waiting.postMessage('SKIP_WAITING');
+          }
+
+          // Quando viene trovato un nuovo SW
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
             nw?.addEventListener('statechange', () => {
-              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
-                // New SW installed - silently ready, user can reload
-                console.log('[AmiciFC] Nuovo Service Worker installato, ricarica per aggiornare.');
+              if (nw.state === 'installed') {
+                nw.postMessage('SKIP_WAITING');
+                newVersion.value = 'nuova';
+                updateAvailable.value = true;
+                toast('🎉 Aggiornamento disponibile! Premi Aggiorna.', 'info', 8000);
               }
             });
           });
-        } catch (e) { console.warn('SW registration failed:', e); }
+
+          // Quando il controller cambia (nuovo SW attivo), ricarica UNA VOLTA
+          let swRefreshed = false;
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!swRefreshed && sessionStorage.getItem('sw-update-pending')) {
+              swRefreshed = true;
+              sessionStorage.removeItem('sw-update-pending');
+              window.location.reload(true);
+            }
+          });
+
+        } catch (e) { console.warn('[AmiciFC] SW registration failed:', e); }
       }
 
       // If no groups at all → go to onboarding
