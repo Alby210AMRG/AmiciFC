@@ -2325,13 +2325,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="!firebaseUser">
           <div class="input-group">
             <label class="input-label">📧 Email</label>
-            <input class="input-field" type="email" v-model="fbLoginEmail" placeholder="tuaemail@gmail.com">
+            <input id="fb-email-input" class="input-field" type="email"
+              placeholder="tuaemail@gmail.com" autocomplete="email">
           </div>
           <div class="input-group">
             <label class="input-label">🔑 Password</label>
             <div style="display:flex;gap:8px">
-              <input class="input-field" :type="showFbPwd?'text':'password'" v-model="fbLoginPwd"
-                placeholder="Password" style="flex:1" @keyup.enter="firebaseLogin">
+              <input id="fb-pwd-input" class="input-field"
+                :type="showFbPwd?'text':'password'"
+                placeholder="Password" style="flex:1"
+                autocomplete="current-password"
+                @keyup.enter="firebaseLogin">
               <button class="btn btn-ghost btn-sm" @click="showFbPwd=!showFbPwd">{{ showFbPwd?'🙈':'👁️' }}</button>
             </div>
           </div>
@@ -4833,17 +4837,19 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     };
 
     const firebaseLogin = async () => {
-      const email  = (fbLoginEmail.value || '').trim();
-      const pwd    = (fbLoginPwd.value  || '').trim();
-      const apiKey = (settings.value.firebaseApiKey || '').trim();
+      // Read from DOM directly (bypasses Vue ref v-if binding issues)
+      const emailEl = document.getElementById('fb-email-input');
+      const pwdEl   = document.getElementById('fb-pwd-input');
+      const email   = ((emailEl?.value || '') + (fbLoginEmail.value || '')).trim();
+      const pwd     = ((pwdEl?.value   || '') + (fbLoginPwd.value   || '')).trim();
+      const apiKey  = (settings.value.firebaseApiKey || '').trim();
 
-      if (!email)  { toast('Inserisci la tua email', 'error'); return; }
-      if (!pwd)    { toast('Inserisci la password', 'error'); return; }
+      if (!email)  { toast('Inserisci la tua email',     'error'); return; }
+      if (!pwd)    { toast('Inserisci la password',       'error'); return; }
       if (!apiKey) { toast('Inserisci la Chiave API Web Firebase nelle impostazioni', 'error'); return; }
 
-      // file:// protocol blocks all cross-origin fetch — must use HTTPS
       if (location.protocol === 'file:') {
-        toast('⚠️ Il login non funziona aprendo il file in locale.\nCarica l\'app su GitHub Pages e prova da lì (https://...)', 'error', 8000);
+        toast('⚠️ Il login non funziona in locale (file://).\nCarica su GitHub Pages e prova da https://...', 'error', 8000);
         return;
       }
 
@@ -4860,7 +4866,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
           if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD'))
             throw new Error('Email o password errati. Controlla le credenziali in Firebase → Authentication → Users');
           if (msg.includes('EMAIL_NOT_FOUND'))
-            throw new Error('Email non trovata. Crea l\'utente in Firebase → Authentication → Users');
+            throw new Error("Email non trovata. Crea l'utente in Firebase → Authentication → Users");
           if (msg.includes('TOO_MANY_ATTEMPTS'))
             throw new Error('Troppi tentativi. Attendi qualche minuto e riprova.');
           if (msg.includes('INVALID_API_KEY'))
@@ -4871,6 +4877,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         fbIdToken.value    = d.idToken;
         localStorage.setItem('amicifc_fb_user',  JSON.stringify(firebaseUser.value));
         localStorage.setItem('amicifc_fb_token', d.idToken);
+        if (emailEl) emailEl.value = '';
+        if (pwdEl)   pwdEl.value = '';
         fbLoginPwd.value = '';
         toast(`✅ Connesso come ${d.email}!`);
       } catch(e) {
