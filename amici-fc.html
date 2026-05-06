@@ -3257,7 +3257,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.046');
+    const appVersion      = ref('1.047');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4786,6 +4786,21 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
         currentView.value = 'home';
       }
+    };
+
+    // ── Photo URL helpers (must be declared before resolvePhoto) ──
+    const getPhotoUrl = foto => {
+      if (!foto) return null;
+      if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./') || foto.startsWith('/')) return foto;
+      return `./images/players/${foto}`;
+    };
+
+    const getPhotoUrlSmart = foto => {
+      if (!foto) return null;
+      if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./') || foto.startsWith('/')) return foto;
+      const hasExt = /\.(jpg|jpeg|png|webp)$/i.test(foto);
+      if (!hasExt) return `./images/players/${foto}.png`; // default PNG
+      return `./images/players/${foto}`;
     };
 
     // ── Photo resolution: tries jpg/png by uid even if foto field is empty ──
