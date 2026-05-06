@@ -2325,14 +2325,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="!firebaseUser">
           <div class="input-group">
             <label class="input-label">📧 Email</label>
-            <input id="fb-email-input" class="input-field" type="email"
-              placeholder="tuaemail@gmail.com" autocomplete="email">
+            <input class="input-field" type="email"
+              :value="fbLoginEmail"
+              @input="fbLoginEmail = $event.target.value"
+              placeholder="tuaemail@gmail.com"
+              autocomplete="email">
           </div>
           <div class="input-group">
             <label class="input-label">🔑 Password</label>
             <div style="display:flex;gap:8px">
-              <input id="fb-pwd-input" class="input-field"
+              <input class="input-field"
                 :type="showFbPwd?'text':'password'"
+                :value="fbLoginPwd"
+                @input="fbLoginPwd = $event.target.value"
                 placeholder="Password" style="flex:1"
                 autocomplete="current-password"
                 @keyup.enter="firebaseLogin">
@@ -3153,7 +3158,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.034');
+    const appVersion      = ref('1.036');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3242,12 +3247,15 @@ createApp({
     // Overall composite score
     const overallScore = (p) => {
       const n = Math.max(p.partiteTotali||1, 1);
-      const cs = p.ruolo === 'Portiere' ? calcCleanSheets(p.id) : 0;
+      // Only count match-detail stats when we have actual match records
+      const hasMatchDetails = groupMatches.value.length > 0;
+      const cs = (hasMatchDetails && p.ruolo === 'Portiere') ? calcCleanSheets(p.id) : 0;
+      const upm = hasMatchDetails ? (p.uomoPartitaTotali||0) : 0;
       return (
         (p.mediaPunti||0) * 10 +
         (p.goalTotali||0) / n * 8 +
         (p.assistTotali||0) / n * 4 +
-        (p.uomoPartitaTotali||0) / n * 10 +
+        upm / n * 10 +
         cs / n * 8 -
         (p.autogolTotali||0) / n * 6 +
         ((p.mediaVoto||0) > 0 ? ((p.mediaVoto||0) - 6) * 2 : 0)
@@ -3629,6 +3637,63 @@ Rispondi SOLO con questo JSON (niente altro testo):
       aiLoading.value = false;
     };
 
+    // ── Balanced team builder: equal sizes, GK + ATT guaranteed ──
+    const buildBalancedTeams = (players, strategy) => {
+      const n = players.length;
+      const half = Math.floor(n / 2);  // equal halves (odd player goes to A)
+      const halfA = n - half;           // A gets extra player if odd
+      let a = [], b = [];
+
+      // Separate by role
+      const gks  = players.filter(p => p.ruolo === 'Portiere');
+      const defs = players.filter(p => p.ruolo === 'Difensore');
+      const mids = players.filter(p => p.ruolo === 'Centrocampista');
+      const atts = players.filter(p => p.ruolo === 'Attaccante');
+      const jol  = players.filter(p => p.ruolo === 'Jolly');
+      const other = [...mids, ...jol]; // midfielders + jolly
+
+      // Assign GKs first (one per team if possible)
+      if (gks.length >= 2) {
+        a.push(gks[0].id); b.push(gks[1].id);
+      } else if (gks.length === 1) {
+        a.push(gks[0].id);
+      }
+
+      // Assign ATTs (one per team if possible)
+      if (atts.length >= 2) {
+        a.push(atts[0].id); b.push(atts[1].id);
+      } else if (atts.length === 1) {
+        a.push(atts[0].id);
+      }
+
+      // Build remaining pool
+      const usedIds = new Set([...a, ...b]);
+      const remaining = players.filter(p => !usedIds.has(p.id));
+
+      // Sort remaining by strategy
+      let sortedRem;
+      if (strategy === 'score') {
+        sortedRem = remaining.sort((x,y) => statsScore(y) - statsScore(x));
+      } else if (strategy === 'role') {
+        const roleOrd = {'Portiere':0,'Difensore':1,'Centrocampista':2,'Attaccante':3,'Jolly':4};
+        sortedRem = remaining.sort((x,y) => (roleOrd[x.ruolo]??4)-(roleOrd[y.ruolo]??4) || statsScore(y)-statsScore(x));
+      } else {
+        sortedRem = [...remaining].sort(() => Math.random() - 0.5);
+      }
+
+      // Distribute remaining alternately, keeping equal sizes
+      sortedRem.forEach(p => {
+        if (a.length < halfA) a.push(p.id);
+        else b.push(p.id);
+      });
+
+      // Final balance check
+      while (a.length > halfA + 1 && b.length < half) { b.push(a.pop()); }
+      while (b.length > half + 1 && a.length < halfA) { a.push(b.pop()); }
+
+      return { a: sortByRole(a), b: sortByRole(b) };
+    };
+
     const generateFormationsAI=async()=>{
       if(selectedForMatch.value.length<2)return;
       aiLoading.value=true;
@@ -3636,19 +3701,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
       if(ex.length>=5){toast('Hai già 5 formazioni attive!','info',4000);aiLoading.value=false;return;}
       const toGen=Math.min(3,5-ex.length);
       usedFormationNames.value=ex.map(f=>f.nome);
-      const ids=selectedForMatch.value;
-      const players=ids.map(id=>getPlayer(id)).filter(Boolean);
-      const sorted=[...players].sort((a,b)=>statsScore(b)-statsScore(a));
+      const players=selectedForMatch.value.map(id=>getPlayer(id)).filter(Boolean);
+
+      const strategies = ['score','role','random'];
       for(let i=0;i<toGen;i++){
-        let a=[],b=[];
-        if(i===0){sorted.forEach((p,idx)=>idx%2===0?a.push(p.id):b.push(p.id));}
-        else if(i===1){const byR={};players.forEach(p=>{(byR[p.ruolo]||=[]).push(p);});Object.values(byR).forEach(g=>{g.sort((x,y)=>statsScore(y)-statsScore(x));g.forEach((p,idx)=>idx%2===0?a.push(p.id):b.push(p.id));});}
-        else{const sh=[...players].sort(()=>Math.random()-0.5);sh.forEach((p,idx)=>idx%2===0?a.push(p.id):b.push(p.id));}
-        splitGK(a,b,players);
+        const {a,b} = buildBalancedTeams(players, strategies[i % strategies.length]);
         const ni=i%TEAM_NAMES_A.length;
-        await db.formations.add({...buildFormationBase(),nome:getRandomFormationName(),nomeSquadraA:TEAM_NAMES_A[ni],nomeSquadraB:TEAM_NAMES_B[ni],squadraA:sortByRole(a),squadraB:sortByRole(b)});
+        await db.formations.add({...buildFormationBase(),nome:getRandomFormationName(),nomeSquadraA:TEAM_NAMES_A[ni],nomeSquadraB:TEAM_NAMES_B[ni],squadraA:a,squadraB:b});
       }
-      await loadFormations();aiLoading.value=false;toast(`🤖 Generate ${toGen} formazioni AI bilanciate!`);currentView.value='formations';
+      await loadFormations();aiLoading.value=false;
+      toast(`🤖 Generate ${toGen} formazioni bilanciate ${Math.floor(players.length/2)}v${Math.floor(players.length/2)}!`);
+      currentView.value='formations';
     };
     const generateMultipleFormations=generateFormationsAI;
     const generateFormationsRandom = generateFormationsAI; // Alias
@@ -3946,57 +4009,101 @@ Rispondi SOLO con questo JSON (niente altro testo):
       };
 
       // ── ROLE ROWS ──
-      const roleRows = (ids, reverse) => {
-        const rg=[[],[],[],[]];
-        ids.forEach(pid=>{
-          const r=getPlayer(pid)?.ruolo;
-          if(r==='Portiere')rg[0].push(pid);
-          else if(r==='Difensore')rg[1].push(pid);
-          else if(r==='Centrocampista')rg[2].push(pid);
-          else rg[3].push(pid);
+      // ── POSITIONAL LAYOUT: place each player by role on the correct line ──
+      // Returns array of {pid, px, py, R} for each player
+      const positionTeam = (ids, topY, botY, isB) => {
+        if (!ids || !ids.length) return [];
+
+        // Group by role
+        const byRole = { Portiere:[], Difensore:[], Centrocampista:[], Attaccante:[], Jolly:[] };
+        ids.forEach(pid => {
+          const r = getPlayer(pid)?.ruolo || 'Jolly';
+          (byRole[r] || byRole.Jolly).push(pid);
         });
-        const rows=[];
-        rg.forEach(g=>{if(!g.length)return;if(g.length<=5)rows.push(g);else{for(let i=0;i<g.length;i+=5)rows.push(g.slice(i,i+5));}});
-        if(rows.length>4){const f2=rows.flat(),h2=Math.ceil(f2.length/4);return[f2.slice(0,h2),f2.slice(h2,h2*2),f2.slice(h2*2,h2*3),f2.slice(h2*3)].filter(r2=>r2.length);}
-        return reverse ? rows.slice().reverse() : rows;
+        byRole.Centrocampista.push(...byRole.Jolly); // Jolly → MID line
+
+        // Merge ATT+extra into lines
+        const lines = []; // each line: [pids...]
+        if (byRole.Portiere.length) lines.push(byRole.Portiere);
+        if (byRole.Difensore.length) lines.push(byRole.Difensore);
+        if (byRole.Centrocampista.length) lines.push(byRole.Centrocampista);
+        if (byRole.Attaccante.length) lines.push(byRole.Attaccante);
+
+        // If no separation possible, just use one row
+        if (!lines.length) lines.push(ids);
+
+        // Team B (isB=true): layout top→bottom = ATT, MID, DEF, GK
+        // Team A (isB=false): layout top→bottom = GK, DEF, MID, ATT
+        const orderedLines = isB ? [...lines].reverse() : lines;
+
+        const result = [];
+        const availH = botY - topY;
+        const rowH = availH / orderedLines.length;
+
+        orderedLines.forEach((row, ri) => {
+          // y position for this line (centered in its slot)
+          const rowY = topY + ri * rowH + rowH * 0.5;
+
+          // t parameter for field perspective (0=top, 1=bottom)
+          const t = Math.max(0, Math.min(1, (rowY - FY) / FH));
+
+          // Field width at this t (trapezoid)
+          const xL = fxL(t);
+          const xR = fxR(t);
+          const fieldW = xR - xL;
+
+          // Circle radius scales with perspective
+          const R = Math.round(28 + t * 14);
+
+          const n = row.length;
+
+          // Horizontal positions — always use even spread with margins
+          // Margin = R + padding so players don't touch the sideline
+          const margin = R + 20;
+          const usableW = fieldW - margin * 2;
+
+          row.forEach((pid, pi) => {
+            let px;
+            if (n === 1) {
+              px = xL + fieldW / 2; // centered
+            } else if (n === 2) {
+              // Slightly off-center — not on the wings, like 30%/70%
+              const spread = usableW * 0.55;
+              px = xL + fieldW/2 - spread/2 + pi * spread;
+            } else {
+              // Evenly spaced
+              px = xL + margin + pi * (usableW / (n - 1));
+            }
+            result.push({ pid, px, py: rowY, R, isB });
+          });
+        });
+
+        return result;
       };
 
       // ── DRAW TEAM ──
       const drawTeam = async (ids, topY, botY, isB) => {
-        if(!ids||!ids.length)return;
-        // Team B: ATT at top toward center line, GK far top
-        // Team A: GK far bottom, ATT toward center line
-        const rows=roleRows(ids, isB); // isB=true → reverse (GK last = nearest center)
-        if(!rows.length)return;
-        const availH=botY-topY;
-        const rowH=Math.min(availH/rows.length, 150);
-        for(let ri=0;ri<rows.length;ri++){
-          const t=(topY+ri*rowH+rowH/2-FY)/FH; // field t parameter
-          const tClamped=Math.max(0,Math.min(1,t));
-          const rowY=topY+ri*rowH+rowH/2;
-          const rowXL=fxL(tClamped)+40, rowXR=fxR(tClamped)-40;
-          const rowW=rowXR-rowXL;
-          const row=rows[ri];const n=row.length;
-          // Circle radius scales with perspective
-          const R=Math.min(30+tClamped*14, 44);
-          for(let pi=0;pi<n;pi++){
-            const px=n===1?W/2:rowXL+pi*(rowW/(n-1));
-            await drawPlayer(row[pi],px,rowY,R,isB);
-          }
+        if (!ids || !ids.length) return;
+        const positions = positionTeam(ids, topY, botY, isB);
+        for (const pos of positions) {
+          await drawPlayer(pos.pid, pos.px, pos.py, pos.R, pos.isB);
         }
       };
 
-      // Team B banner (top)
-      const bBanW=Math.min((f.nomeSquadraB||'Squadra B').length*18+100,400);
-      drawBanner(f.nomeSquadraB||'Squadra B',W/2,FY+14,bBanW,true);
-      // Team A banner (bottom)
-      const aBanW=Math.min((f.nomeSquadraA||'Squadra A').length*18+100,400);
-      drawBanner(f.nomeSquadraA||'Squadra A',W/2,FY+FH-60,aBanW,false);
+      // Team B banner (top of field, near top edge)
+      const bBanW=Math.min((f.nomeSquadraB||'Squadra B').length*17+90,380);
+      drawBanner(f.nomeSquadraB||'Squadra B', W/2, FY+10, bBanW, true);
+      // Team A banner (bottom of field, near bottom edge)
+      const aBanW=Math.min((f.nomeSquadraA||'Squadra A').length*17+90,380);
+      drawBanner(f.nomeSquadraA||'Squadra A', W/2, FY+FH-58, aBanW, false);
 
-      // Draw players
-      const CY=FY+FH*0.5;
-      await drawTeam(f.squadraB||[], FY+60, CY-20, true);
-      await drawTeam(f.squadraA||[], CY+20, FY+FH-65, false);
+      // Draw players — each team in its own half with proper padding
+      const CY = FY + FH * 0.5;
+      const BANNER_H = 52; // banner height
+      // Team B: top half — from just below banner to center line
+      await drawTeam(f.squadraB||[], FY + BANNER_H + 20, CY - 10, true);
+      // Team A: bottom half — from center line to just above bottom banner
+      await drawTeam(f.squadraA||[], CY + 10, FY + FH - BANNER_H - 20, false);
 
       // ── FOOTER ──
       const FOOT_Y=FY+FH+8;
@@ -4568,9 +4675,10 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
                        localPlayers.find(x => x.nome === cp.nome && x.cognome === cp.cognome);
 
             if (lp) {
-              // Player exists locally — update all fields from cloud (source of truth)
+              // Player exists locally — cloud is source of truth for profile fields
+              // For stats: take the MAXIMUM (never downgrade)
               await db.players.update(lp.id, {
-                uid:         cpUid,                          // ensure uid is set
+                uid:         cpUid,
                 nome:        cp.nome        ?? lp.nome,
                 cognome:     cp.cognome     ?? lp.cognome,
                 soprannome:  cp.soprannome  ?? lp.soprannome,
@@ -4578,15 +4686,17 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
                 piede:       cp.piede       ?? lp.piede,
                 descrizione: cp.descrizione ?? lp.descrizione,
                 foto:        cp.foto        || lp.foto,
-                goalTotali:        cp.goalTotali        ?? lp.goalTotali,
-                assistTotali:      cp.assistTotali      ?? lp.assistTotali,
-                autogolTotali:     cp.autogolTotali     ?? lp.autogolTotali,
-                uomoPartitaTotali: cp.uomoPartitaTotali ?? lp.uomoPartitaTotali,
-                puntiTotali:       cp.puntiTotali       ?? lp.puntiTotali,
-                partiteTotali:     cp.partiteTotali     ?? lp.partiteTotali,
-                mediaPunti:        cp.mediaPunti        ?? lp.mediaPunti,
-                mediaVoto:         cp.mediaVoto         ?? lp.mediaVoto,
-                votiTotali:        cp.votiTotali        ?? lp.votiTotali
+                goalTotali:        Math.max(cp.goalTotali        ||0, lp.goalTotali        ||0),
+                assistTotali:      Math.max(cp.assistTotali      ||0, lp.assistTotali      ||0),
+                autogolTotali:     Math.max(cp.autogolTotali     ||0, lp.autogolTotali     ||0),
+                uomoPartitaTotali: Math.max(cp.uomoPartitaTotali ||0, lp.uomoPartitaTotali ||0),
+                puntiTotali:       Math.max(cp.puntiTotali       ||0, lp.puntiTotali       ||0),
+                partiteTotali:     Math.max(cp.partiteTotali     ||0, lp.partiteTotali     ||0),
+                mediaPunti:        cp.partiteTotali > 0 ? (cp.puntiTotali||0)/(cp.partiteTotali||1) :
+                                   lp.partiteTotali > 0 ? (lp.puntiTotali||0)/(lp.partiteTotali||1) : 0,
+                mediaVoto:    ((cp.mediaVoto||0) > 0 ? cp.mediaVoto : null) ??
+                              ((lp.mediaVoto||0) > 0 ? lp.mediaVoto : 0),
+                votiTotali:   Math.max(cp.votiTotali||0, lp.votiTotali||0)
               });
               if (cp.id !== undefined) idMap[String(cp.id)] = lp.id;
             } else {
@@ -4635,7 +4745,10 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
         await loadGroups();
         await loadGroupData();
-        await recomputeStats();
+        // Only recompute from matches if we actually have match data
+        // (if matches=0 we keep the stats as imported from cloud)
+        const hasMatches = await db.matches.count();
+        if (hasMatches > 0) await recomputeStats();
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
         toast(`☁️ Sync completata: ${syncedPlayers} nuovi giocatori, ${syncedMatches} nuove partite`);
@@ -4837,19 +4950,19 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     };
 
     const firebaseLogin = async () => {
-      // Read from DOM directly (bypasses Vue ref v-if binding issues)
-      const emailEl = document.getElementById('fb-email-input');
-      const pwdEl   = document.getElementById('fb-pwd-input');
-      const email   = ((emailEl?.value || '') + (fbLoginEmail.value || '')).trim();
-      const pwd     = ((pwdEl?.value   || '') + (fbLoginPwd.value   || '')).trim();
-      const apiKey  = (settings.value.firebaseApiKey || '').trim();
+      const email  = (fbLoginEmail.value  || '').trim();
+      const pwd    = (fbLoginPwd.value    || '').trim();
+      const apiKey = (settings.value.firebaseApiKey || '').trim();
 
-      if (!email)  { toast('Inserisci la tua email',     'error'); return; }
-      if (!pwd)    { toast('Inserisci la password',       'error'); return; }
+      // Debug: show what was read
+      console.log('[Login] email:', JSON.stringify(email), 'pwd length:', pwd.length, 'apiKey:', apiKey.slice(0,8)+'...');
+
+      if (!email)  { toast('Inserisci la tua email',                                  'error'); return; }
+      if (!pwd)    { toast('Inserisci la password',                                   'error'); return; }
       if (!apiKey) { toast('Inserisci la Chiave API Web Firebase nelle impostazioni', 'error'); return; }
 
       if (location.protocol === 'file:') {
-        toast('⚠️ Il login non funziona in locale (file://).\nCarica su GitHub Pages e prova da https://...', 'error', 8000);
+        toast('⚠️ Il login non funziona in locale (file://).\nUsa GitHub Pages: https://...', 'error', 8000);
         return;
       }
 
@@ -4864,23 +4977,23 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         if (d.error) {
           const msg = d.error.message || '';
           if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD'))
-            throw new Error('Email o password errati. Controlla le credenziali in Firebase → Authentication → Users');
+            throw new Error('Email o password errati');
           if (msg.includes('EMAIL_NOT_FOUND'))
-            throw new Error("Email non trovata. Crea l'utente in Firebase → Authentication → Users");
+            throw new Error("Email non trovata in Firebase Authentication");
           if (msg.includes('TOO_MANY_ATTEMPTS'))
-            throw new Error('Troppi tentativi. Attendi qualche minuto e riprova.');
+            throw new Error('Troppi tentativi. Attendi qualche minuto.');
           if (msg.includes('INVALID_API_KEY'))
-            throw new Error('Chiave API non valida. Controlla in Firebase → Impostazioni progetto → Generale');
+            throw new Error('Chiave API non valida');
           throw new Error(msg);
         }
         firebaseUser.value = { email: d.email, uid: d.localId };
         fbIdToken.value    = d.idToken;
         localStorage.setItem('amicifc_fb_user',  JSON.stringify(firebaseUser.value));
         localStorage.setItem('amicifc_fb_token', d.idToken);
-        if (emailEl) emailEl.value = '';
-        if (pwdEl)   pwdEl.value = '';
-        fbLoginPwd.value = '';
-        toast(`✅ Connesso come ${d.email}!`);
+        // Clear login fields only on success
+        fbLoginEmail.value = '';
+        fbLoginPwd.value   = '';
+        toast(`✅ Connesso come ${d.email}! Ora puoi caricare dati.`);
       } catch(e) {
         toast('❌ ' + e.message, 'error', 8000);
       }
