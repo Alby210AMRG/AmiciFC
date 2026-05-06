@@ -2,6 +2,9 @@
 <html lang="it" data-theme="dark">
 <head>
   <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -3150,6 +3153,7 @@ const hashCode = s => [...s].reduce((h,c) => (Math.imul(31,h)+c.charCodeAt(0))|0
 // ──────────────────────────────────────
 // VUE APP
 // ──────────────────────────────────────
+/* AmiciFC v1.039 - loaded: 2026-05-06 */
 const { createApp, ref, computed, onMounted, watch, nextTick } = Vue;
 
 createApp({
@@ -3261,7 +3265,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.038');
+    const appVersion      = ref('1.040');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5451,7 +5455,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       // Register SW con auto-aggiornamento
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js');
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1040');
 
           // Se c'è un SW in attesa, attivalo subito
           if (reg.waiting) {
@@ -5541,8 +5545,17 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
 // ── Register SW ──
 if ('serviceWorker' in navigator) {
+  // Unregister ALL old service workers first, then re-register fresh
+  navigator.serviceWorker.getRegistrations().then(regs => {
+    regs.forEach(r => {
+      if (!r.active?.scriptURL?.includes('v=1040')) {
+        console.log('[AmiciFC] Removing old SW:', r.active?.scriptURL);
+        r.unregister();
+      }
+    });
+  });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js').catch(console.warn);
+    navigator.serviceWorker.register('./sw.js?v=1040').catch(console.warn);
   });
 }
 </script>
