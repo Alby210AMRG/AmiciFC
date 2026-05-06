@@ -2030,12 +2030,70 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <template v-else>
         <div class="platform-tabs" style="margin-bottom:16px;flex-wrap:wrap">
-          <button class="platform-tab" :class="{active:statsTab==='overall'}"    @click="statsTab='overall'">🥇 Overall</button>
-          <button class="platform-tab" :class="{active:statsTab==='classifica'}" @click="statsTab='classifica'">🏆 Punti</button>
-          <button class="platform-tab" :class="{active:statsTab==='goal'}"       @click="statsTab='goal'">⚽ Goal</button>
-          <button class="platform-tab" :class="{active:statsTab==='altri'}"      @click="statsTab='altri'">📋 Altro</button>
-          <button class="platform-tab" :class="{active:statsTab==='voti'}"       @click="statsTab='voti'">⭐ Voti</button>
+          <button class="platform-tab" :class="{active:statsTab==='overall'}"      @click="statsTab='overall'">🥇 Overall</button>
+          <button class="platform-tab" :class="{active:statsTab==='topteam'}"      @click="statsTab='topteam'">🏆 Top Team</button>
+          <button class="platform-tab" :class="{active:statsTab==='classifica'}"   @click="statsTab='classifica'">📊 Punti</button>
+          <button class="platform-tab" :class="{active:statsTab==='goal'}"         @click="statsTab='goal'">⚽ Goal</button>
+          <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">📋 Altro</button>
+          <button class="platform-tab" :class="{active:statsTab==='voti'}"         @click="statsTab='voti'">⭐ Voti</button>
         </div>
+
+        <!-- 🏆 TOP TEAM -->
+        <template v-if="statsTab==='topteam'">
+          <div class="card">
+            <div class="card-title">🏆 Formazione TOP</div>
+            <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
+              La migliore formazione calcolata per score composito (min. 1 partita giocata)
+            </div>
+            <!-- Size selector -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
+              <button v-for="sz in [5,6,7,8,11]" :key="sz"
+                class="btn btn-sm" :class="topFormationSize===sz?'btn-primary':'btn-ghost'"
+                @click="topFormationSize=sz" style="min-width:44px">
+                {{ sz }}v{{ sz }}
+              </button>
+            </div>
+            <!-- Schema info -->
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:12px;background:var(--bg3);border-radius:8px;padding:8px 12px">
+              {{ topFormationSize }}v{{ topFormationSize }}:
+              <span v-if="topFormationSize===5">1 🥅 · 2 🛡️ · 1 🔄 · 1 ⚡</span>
+              <span v-if="topFormationSize===6">1 🥅 · 2 🛡️ · 2 🔄 · 1 ⚡</span>
+              <span v-if="topFormationSize===7">1 🥅 · 3 🛡️ · 2 🔄 · 1 ⚡</span>
+              <span v-if="topFormationSize===8">1 🥅 · 3 🛡️ · 3 🔄 · 1 ⚡</span>
+              <span v-if="topFormationSize===11">1 🥅 · 4 🛡️ · 4 🔄 · 2 ⚡</span>
+            </div>
+            <!-- Players -->
+            <div v-if="!buildTopFormation(topFormationSize).length" class="empty-state" style="padding:16px">
+              <p>Non ci sono abbastanza giocatori con partite registrate.</p>
+            </div>
+            <div v-for="p in buildTopFormation(topFormationSize)" :key="'tf-'+p.id" class="stats-row" style="gap:10px">
+              <!-- Role icon -->
+              <div style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0">{{ roleEmoji(p.ruolo) }}</div>
+              <!-- Avatar -->
+              <div class="stats-avatar">
+                <img v-if="p.foto" :src="getPhotoUrl(p.foto)" :alt="p.nome">
+                <span v-else>{{ roleEmoji(p.ruolo) }}</span>
+              </div>
+              <!-- Info -->
+              <div class="stats-info" style="flex:1">
+                <div class="stats-name">{{ p.soprannome || p.nome }}</div>
+                <div class="stats-sub" style="display:flex;gap:6px;flex-wrap:wrap">
+                  <span>{{ p.ruolo }}</span>
+                  <span>🦶{{ p.piede||'D' }}</span>
+                  <span>🏆{{ (p.mediaPunti||0).toFixed(2) }}/g</span>
+                  <span>⚽{{ p.goalTotali||0 }}</span>
+                  <span>🅰️{{ p.assistTotali||0 }}</span>
+                  <span v-if="(p.mediaVoto||0)>0">⭐{{ (p.mediaVoto||0).toFixed(1) }}</span>
+                </div>
+              </div>
+              <!-- Overall score -->
+              <div style="text-align:right;flex-shrink:0">
+                <div style="font-weight:900;color:var(--yellow);font-size:1.05rem">{{ p._score.toFixed(1) }}</div>
+                <div style="font-size:0.68rem;color:var(--text2)">score</div>
+              </div>
+            </div>
+          </div>
+        </template>
 
         <!-- OVERALL -->
         <template v-if="statsTab==='overall'">
@@ -2244,7 +2302,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             {{ syncLoading ? '⏳...' : '☁️ Scarica' }}
           </button>
           <button class="btn btn-primary" @click="syncToCloud" :disabled="!settings.firebaseUrl || syncLoading">
-            {{ firebaseUser ? '📤 Carica' : '🔒 Login per caricare' }}
+            📤 Carica sul Cloud
           </button>
           <button class="btn btn-ghost" @click="recomputeStats;toast('✅ Statistiche ricalcolate!')">
             🔄 Ricalcola Stats
@@ -2278,8 +2336,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
           <button class="btn btn-primary btn-full" @click="firebaseLogin"
-            :disabled="!fbLoginEmail||!fbLoginPwd||fbAuthLoading||!settings.firebaseApiKey">
-            {{ fbAuthLoading ? '⏳ Accesso...' : (settings.firebaseApiKey ? '🔐 Accedi' : '⚠️ Inserisci prima la Chiave API') }}
+            :disabled="fbAuthLoading">
+            {{ fbAuthLoading ? '⏳ Accesso...' : '🔐 Accedi' }}
           </button>
         </div>
 
@@ -2727,44 +2785,69 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <span class="score-sep">–</span>
         <span class="score-num score-b">{{ detailMatch.risultato.goalB }}</span>
       </div>
-      <div v-if="detailMatch.mvp" style="text-align:center;margin:8px 0">
-        <span class="badge badge-lime">⭐ Top: {{ detailMatch.mvp }}</span>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0">
+        <span v-if="detailMatch.uomoPartita" class="badge badge-yellow">🏅 {{ detailMatch.uomoPartita }}</span>
+        <span v-if="detailMatch.mvp" class="badge badge-lime">⚽ {{ detailMatch.mvp }}</span>
       </div>
-      <div v-if="detailMatch.uomoPartita" style="text-align:center;margin:4px 0">
-        <span class="badge badge-yellow">🏅 Uomo Partita: {{ detailMatch.uomoPartita }}</span>
-      </div>
-      <div v-if="detailMatch.commentoAI" class="ai-comment-box" style="margin:16px 0">
+      <div v-if="detailMatch.commentoAI" class="ai-comment-box" style="margin:12px 0;font-size:0.8rem">
         {{ detailMatch.commentoAI }}
       </div>
 
-      <!-- Squadra A -->
-      <div style="font-weight:800;color:var(--blue);margin-bottom:6px">🔵 Squadra A</div>
-      <div v-for="pid in detailMatch.squadraA" :key="'da-'+pid" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
-        <span>
-          {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}
-          <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
-        </span>
-        <span style="color:var(--text2);display:flex;gap:8px">
-          <span>⚽{{ getStatForMatch(detailMatch,pid,'goal') }}</span>
-          <span>🅰️{{ getStatForMatch(detailMatch,pid,'assist') }}</span>
+      <!-- Squadra A — sorted by role -->
+      <div style="font-weight:800;color:var(--blue);margin-bottom:8px;font-size:0.9rem">
+        🔵 Squadra A
+      </div>
+      <div v-for="pid in sortedByRole(detailMatch.squadraA)" :key="'da-'+pid"
+        style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <!-- Avatar -->
+        <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
+          <img v-if="getPlayer(pid)?.foto" :src="getPhotoUrl(getPlayer(pid).foto)" style="width:100%;height:100%;object-fit:cover">
+          <span v-else>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+        </div>
+        <!-- Name + role -->
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}
+            <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
+          </div>
+          <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo }}</div>
+        </div>
+        <!-- Stats -->
+        <div style="display:flex;gap:6px;align-items:center;font-size:0.78rem;color:var(--text2);flex-shrink:0">
+          <span v-if="getStatForMatch(detailMatch,pid,'goal')">⚽{{ getStatForMatch(detailMatch,pid,'goal') }}</span>
+          <span v-if="getStatForMatch(detailMatch,pid,'assist')">🅰️{{ getStatForMatch(detailMatch,pid,'assist') }}</span>
           <span v-if="getStatForMatch(detailMatch,pid,'autogol')" style="color:var(--red)">OG{{ getStatForMatch(detailMatch,pid,'autogol') }}</span>
-          <span v-if="getStatForMatch(detailMatch,pid,'voto')">⭐{{ getStatForMatch(detailMatch,pid,'voto') }}</span>
-        </span>
+          <span v-if="getStatForMatch(detailMatch,pid,'voto')" class="badge" :class="votoColor(getStatForMatch(detailMatch,pid,'voto'))" style="font-size:0.72rem;padding:2px 6px">
+            {{ getStatForMatch(detailMatch,pid,'voto') }}
+          </span>
+        </div>
       </div>
 
-      <!-- Squadra B -->
-      <div style="font-weight:800;color:var(--red);margin:12px 0 6px">🔴 Squadra B</div>
-      <div v-for="pid in detailMatch.squadraB" :key="'db-'+pid" style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.85rem">
-        <span>
-          {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}
-          <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
-        </span>
-        <span style="color:var(--text2);display:flex;gap:8px">
-          <span>⚽{{ getStatForMatch(detailMatch,pid,'goal') }}</span>
-          <span>🅰️{{ getStatForMatch(detailMatch,pid,'assist') }}</span>
+      <!-- Squadra B — sorted by role -->
+      <div style="font-weight:800;color:var(--red);margin:14px 0 8px;font-size:0.9rem">
+        🔴 Squadra B
+      </div>
+      <div v-for="pid in sortedByRole(detailMatch.squadraB)" :key="'db-'+pid"
+        style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+        <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
+          <img v-if="getPlayer(pid)?.foto" :src="getPhotoUrl(getPlayer(pid).foto)" style="width:100%;height:100%;object-fit:cover">
+          <span v-else>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+            {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}
+            <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
+          </div>
+          <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo }}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;font-size:0.78rem;color:var(--text2);flex-shrink:0">
+          <span v-if="getStatForMatch(detailMatch,pid,'goal')">⚽{{ getStatForMatch(detailMatch,pid,'goal') }}</span>
+          <span v-if="getStatForMatch(detailMatch,pid,'assist')">🅰️{{ getStatForMatch(detailMatch,pid,'assist') }}</span>
           <span v-if="getStatForMatch(detailMatch,pid,'autogol')" style="color:var(--red)">OG{{ getStatForMatch(detailMatch,pid,'autogol') }}</span>
-          <span v-if="getStatForMatch(detailMatch,pid,'voto')">⭐{{ getStatForMatch(detailMatch,pid,'voto') }}</span>
-        </span>
+          <span v-if="getStatForMatch(detailMatch,pid,'voto')" class="badge" :class="votoColor(getStatForMatch(detailMatch,pid,'voto'))" style="font-size:0.72rem;padding:2px 6px">
+            {{ getStatForMatch(detailMatch,pid,'voto') }}
+          </span>
+        </div>
       </div>
 
       <!-- PNG buttons -->
@@ -3066,7 +3149,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.032');
+    const appVersion      = ref('1.034');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3175,7 +3258,36 @@ createApp({
         .slice(0, 12)
     );
 
-    // Groups matches by year-month for calendar view
+    // ── Top Formation by size ──
+    const FORMATION_SCHEMAS = {
+      5:  { Portiere:1, Difensore:2, Centrocampista:1, Attaccante:1 },
+      6:  { Portiere:1, Difensore:2, Centrocampista:2, Attaccante:1 },
+      7:  { Portiere:1, Difensore:3, Centrocampista:2, Attaccante:1 },
+      8:  { Portiere:1, Difensore:3, Centrocampista:3, Attaccante:1 },
+      11: { Portiere:1, Difensore:4, Centrocampista:4, Attaccante:2 }
+    };
+
+    const buildTopFormation = (size) => {
+      const schema = FORMATION_SCHEMAS[size];
+      if (!schema) return [];
+      const players = groupPlayers.value.filter(p => (p.partiteTotali||0) >= 1);
+      // Score per player using overallScore logic
+      const scored = players.map(p => ({ ...p, _score: overallScore(p) }))
+                             .sort((a,b) => b._score - a._score);
+      const result = [];
+      const used = new Set();
+      // Pick best N players for each role slot
+      for (const [ruolo, count] of Object.entries(schema)) {
+        const candidates = scored.filter(p => p.ruolo === ruolo && !used.has(p.id));
+        // Fallback to Jolly if not enough role players
+        const jolly = scored.filter(p => p.ruolo === 'Jolly' && !used.has(p.id));
+        const pool = [...candidates, ...jolly];
+        pool.slice(0, count).forEach(p => { result.push(p); used.add(p.id); });
+      }
+      return result;
+    };
+
+    const topFormationSize = ref(5);
     const matchesByMonth = computed(() => {
       const map = {};
       for (const m of sortedMatches.value) {
@@ -4289,6 +4401,12 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
     const viewMatch = m => { detailMatch.value = m; showMatchDetail.value = true; };
 
+    const sortedByRole = (pids) => {
+      if (!pids) return [];
+      const order = { 'Portiere':0,'Difensore':1,'Centrocampista':2,'Attaccante':3,'Jolly':4 };
+      return [...pids].sort((a,b) => (order[getPlayer(a)?.ruolo]??4)-(order[getPlayer(b)?.ruolo]??4));
+    };
+
     const getStatForMatch = (m, pid, field) => {
       const s = m.statisticheGiocatori?.find(x => x.playerId === pid);
       return s?.[field] ?? (field==='voto' ? 6 : 0);
@@ -4715,37 +4833,48 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     };
 
     const firebaseLogin = async () => {
-      const email = fbLoginEmail.value.trim();
-      const pwd   = fbLoginPwd.value;
-      const apiKey = settings.value.firebaseApiKey;
-      if (!email || !pwd) return toast('Inserisci email e password', 'error');
-      if (!apiKey) return toast('Inserisci la Chiave API Web nelle impostazioni Firebase', 'error');
+      const email  = (fbLoginEmail.value || '').trim();
+      const pwd    = (fbLoginPwd.value  || '').trim();
+      const apiKey = (settings.value.firebaseApiKey || '').trim();
+
+      if (!email)  { toast('Inserisci la tua email', 'error'); return; }
+      if (!pwd)    { toast('Inserisci la password', 'error'); return; }
+      if (!apiKey) { toast('Inserisci la Chiave API Web Firebase nelle impostazioni', 'error'); return; }
+
+      // file:// protocol blocks all cross-origin fetch — must use HTTPS
+      if (location.protocol === 'file:') {
+        toast('⚠️ Il login non funziona aprendo il file in locale.\nCarica l\'app su GitHub Pages e prova da lì (https://...)', 'error', 8000);
+        return;
+      }
+
       fbAuthLoading.value = true;
       try {
-        const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password: pwd, returnSecureToken: true })
-        });
+        const r = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
+          { method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({ email, password: pwd, returnSecureToken: true }) }
+        );
         const d = await r.json();
         if (d.error) {
-          const msg = d.error.message;
-          if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD') || msg.includes('EMAIL_NOT_FOUND')) {
-            throw new Error('Email o password errati. Controlla che Email/Password sia abilitato in Firebase Console → Authentication → Sign-in method');
-          }
-          if (msg.includes('TOO_MANY_ATTEMPTS')) {
+          const msg = d.error.message || '';
+          if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD'))
+            throw new Error('Email o password errati. Controlla le credenziali in Firebase → Authentication → Users');
+          if (msg.includes('EMAIL_NOT_FOUND'))
+            throw new Error('Email non trovata. Crea l\'utente in Firebase → Authentication → Users');
+          if (msg.includes('TOO_MANY_ATTEMPTS'))
             throw new Error('Troppi tentativi. Attendi qualche minuto e riprova.');
-          }
+          if (msg.includes('INVALID_API_KEY'))
+            throw new Error('Chiave API non valida. Controlla in Firebase → Impostazioni progetto → Generale');
           throw new Error(msg);
         }
         firebaseUser.value = { email: d.email, uid: d.localId };
-        fbIdToken.value = d.idToken;
+        fbIdToken.value    = d.idToken;
         localStorage.setItem('amicifc_fb_user',  JSON.stringify(firebaseUser.value));
         localStorage.setItem('amicifc_fb_token', d.idToken);
         fbLoginPwd.value = '';
-        toast(`✅ Accesso effettuato come ${d.email}!`);
+        toast(`✅ Connesso come ${d.email}!`);
       } catch(e) {
-        toast('❌ ' + e.message, 'error', 7000);
+        toast('❌ ' + e.message, 'error', 8000);
       }
       fbAuthLoading.value = false;
     };
@@ -5114,7 +5243,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
-      formatDate, roleEmoji, groupColor, rankClass, votoColor,
+      formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
+      buildTopFormation, topFormationSize,
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup,
       groupPlayerCount, groupMatchCount,
       openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, handlePhotoUpload,
