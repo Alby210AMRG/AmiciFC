@@ -525,10 +525,12 @@ textarea.input-field { resize: vertical; min-height: 80px; }
    ═══════════════════════════════════════ */
 .hero-card {
   background: linear-gradient(135deg, #0d1b3e 0%, #1a1a2e 50%, #16213e 100%);
-  border-radius: 24px;
-  padding: 28px 24px;
-  margin-bottom: 20px;
-  text-align: center;
+  border-radius: 20px;
+  padding: 14px 20px;
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
   position: relative;
   overflow: hidden;
   border: 1px solid rgba(58,123,255,0.3);
@@ -539,18 +541,18 @@ textarea.input-field { resize: vertical; min-height: 80px; }
   background: radial-gradient(ellipse at top right, rgba(166,255,77,0.12) 0%, transparent 60%),
               radial-gradient(ellipse at bottom left, rgba(58,123,255,0.15) 0%, transparent 60%);
 }
-.hero-logo { width: 130px; height: 130px; object-fit: contain; margin: 0 auto 16px; display: block; position: relative; z-index: 1; }
+.hero-logo { width: 56px; height: 56px; object-fit: contain; flex-shrink: 0; position: relative; z-index: 1; }
 .hero-title {
   font-family: var(--font-title);
-  font-size: 1.7rem;
+  font-size: 1.25rem;
   color: var(--lime);
   position: relative; z-index: 1;
   line-height: 1.2;
 }
 .hero-sub {
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.6);
-  margin-top: 8px;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.55);
+  margin-top: 3px;
   font-style: italic;
   position: relative; z-index: 1;
 }
@@ -1234,12 +1236,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- ════ HOME ════ -->
     <template v-if="currentView === 'home'">
 
-      <!-- ── Hero card ── -->
+      <!-- ── Hero card — compact horizontal ── -->
       <div class="hero-card">
         <img v-if="logoDataUrl" :src="logoDataUrl" class="hero-logo" alt="Amici FC">
-        <div v-else style="font-size:3rem;margin-bottom:14px">⚽</div>
-        <div class="hero-title">Amici FC</div>
-        <div class="hero-sub">Dove i campioni nascono… e litigano! 😂</div>
+        <span v-else style="font-size:2rem;flex-shrink:0;position:relative;z-index:1">⚽</span>
+        <div style="flex:1;text-align:left;position:relative;z-index:1">
+          <div class="hero-title">Amici FC</div>
+          <div class="hero-sub">Dove i campioni nascono… e litigano! 😂</div>
+        </div>
+        <!-- Meteo mini badge -->
+        <div v-if="!weather.loading && !weather.error && weather.city"
+          style="flex-shrink:0;text-align:center;position:relative;z-index:1;cursor:pointer"
+          @click="currentView='settings'">
+          <div style="font-size:1.5rem">{{ weather.emoji }}</div>
+          <div style="font-size:0.65rem;color:rgba(255,255,255,0.6)">{{ weather.temp }}°</div>
+        </div>
       </div>
 
       <!-- ── Meteo ── -->
@@ -1294,9 +1305,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card">
           <div class="card-title">⚡ Azioni rapide</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-primary" @click="startNewMatch">⚽ Nuova Partita</button>
+            <button class="btn btn-yellow"  @click="currentView='stats'">📊 Statistiche</button>
             <button class="btn btn-blue"    @click="currentView='players'">👤 Giocatori</button>
-            <button class="btn btn-yellow"  @click="currentView='stats'">📊 Stats</button>
+            <button class="btn btn-ghost"   @click="currentView='history'">🕐 Storico</button>
           </div>
         </div>
 
@@ -2343,7 +2354,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="input-group">
           <label class="input-label">Servizio AI</label>
           <select class="select-field" v-model="settings.aiProvider" @change="saveSettings">
-            <option value="gemini">✨ Gemini 2.5 Flash Preview (Google) — GRATUITO</option>
+            <option value="gemini">✨ Gemini 2.0 Flash (Google) — GRATUITO — GRATUITO</option>
             <option value="claude">🟠 Claude (Anthropic)</option>
             <option value="chatgpt">🟢 ChatGPT (OpenAI)</option>
           </select>
@@ -3180,7 +3191,7 @@ createApp({
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
           // Use gemini-2.5-flash (free tier) — try latest stable name
-          const model = 'gemini-2.5-flash-preview-04-17';
+          const model = 'gemini-2.0-flash';
           const r = await fetch(
             `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
             { method:'POST', headers:{'Content-Type':'application/json'},
@@ -3273,7 +3284,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.062');
+    const appVersion      = ref('1.063');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3720,7 +3731,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         let rawJson = '';
 
         if (settings.value.aiProvider === 'gemini') {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${settings.value.apiKey}`, {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${settings.value.apiKey}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500} })
           });
@@ -4288,7 +4299,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             data = await resp.json();
             text = data.choices?.[0]?.message?.content || '';
           } else if (prov === 'gemini') {
-            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${key}`, {
+            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
               method:'POST',
               headers:{ 'Content-Type':'application/json' },
               body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
@@ -4414,7 +4425,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${key}`, {
+          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`, {
             method:'POST',
             headers:{ 'Content-Type':'application/json' },
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
