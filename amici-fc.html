@@ -80,6 +80,7 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
+html, body { scroll-snap-type: none; overscroll-behavior-y: contain; }
 
 body {
   font-family: var(--font-body);
@@ -1265,7 +1266,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div style="margin-bottom:14px;background:var(--card);border-radius:16px;border:1px solid var(--border);overflow:hidden">
         <!-- Header strip — testo bianco per entrambi i temi -->
         <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:6px 14px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">🏟️ Diretto dallo Spogliatoio</span>
+          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">🏟️ In diretta dallo spogliatoio</span>
         </div>
         <!-- Content — multiline, bigger font, fade only -->
         <div style="padding:18px 16px 16px;min-height:110px;display:flex;align-items:flex-start;gap:16px">
@@ -2083,7 +2084,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="platform-tab" :class="{active:statsTab==='topteam'}"      @click="statsTab='topteam'">🏆 Top Team</button>
           <button class="platform-tab" :class="{active:statsTab==='classifica'}"   @click="statsTab='classifica'">📊 Punti</button>
           <button class="platform-tab" :class="{active:statsTab==='goal'}"         @click="statsTab='goal'">⚽ Goal</button>
-          <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">📋 Altro</button>
+          <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">🏅 Uomo Partita</button>
           <button class="platform-tab" :class="{active:statsTab==='voti'}"         @click="statsTab='voti'">⭐ Voti</button>
         </div>
 
@@ -3291,7 +3292,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.067');
+    const appVersion      = ref('1.068');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5573,6 +5574,11 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
     // ── Lifecycle ──
     onMounted(async () => {
+      // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      document.body.scrollTop = 0;
+      document.documentElement.scrollTop = 0;
+
       // Load settings
       try {
         const s = JSON.parse(localStorage.getItem('amicifc_settings')||'{}');
@@ -5694,6 +5700,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       saveSettings, toggleTheme, toggleFont,
+      syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
