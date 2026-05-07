@@ -2642,7 +2642,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <label class="input-label">Foto Giocatore</label>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
           <div class="player-avatar" style="width:72px;height:72px;font-size:2.2rem">
-            <img :src="(editingPlayer?.uid ? getPlayerPhoto(playerForm.foto, editingPlayer.uid) : null) || AVATAR_FALLBACK" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, editingPlayer?.uid)">
+            <img :src="getPlayerPhoto(playerForm.foto, editingPlayer?.uid)" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, editingPlayer?.uid)">
             <img v-else src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
           </div>
           <div style="flex:1">
@@ -2735,7 +2735,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="modal-handle"></div>
       <div style="text-align:center;margin-bottom:20px">
         <div class="player-avatar" style="width:90px;height:90px;font-size:2.8rem;margin:0 auto 12px">
-          <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid) || AVATAR_FALLBACK" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
+          <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
         <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
         <div class="player-nick" style="font-size:1rem">"{{ detailPlayer.soprannome || 'Nessun soprannome' }}"</div>
@@ -3229,7 +3229,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.055');
+    const appVersion      = ref('1.056');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4793,21 +4793,20 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
     // ── SIMPLE PHOTO HELPER — synchronous, no async, no reactive map ──
     // Priority: foto field → uid.png → uid.jpg (via @error)
+    const SILHOUETTE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
     const getPlayerPhoto = (foto, uid) => {
       if (foto) {
         if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./')) return foto;
         return `./images/players/${foto}`;
       }
       if (uid) return `./images/players/${uid}.png`;
-      return null;
+      return SILHOUETTE; // always return something — never null
     };
-    const AVATAR_FALLBACK = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
-
     // @error handler: tries alt extension once, then shows silhouette
     const onPhotoError = (event, uid) => {
       const t = event.target;
       const s = t.src || '';
-      if (s === AVATAR_FALLBACK) return; // already showing silhouette
+      if (s && s.startsWith('data:image/svg')) return; // already showing silhouette
       if (!t.dataset.tried) {
         t.dataset.tried = '1';
         // Try the other extension
@@ -4820,11 +4819,11 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         } else if (s.endsWith('.jpg') || s.endsWith('.jpeg')) {
           t.src = s.replace(/\.jpe?g$/, '.png');
         } else {
-          t.src = AVATAR_FALLBACK; // give up
+          t.src = SILHOUETTE; // give up
         }
       } else {
         // Both extensions failed → show silhouette
-        t.src = AVATAR_FALLBACK;
+        t.src = SILHOUETTE;
         t.style.display = '';
         t.style.opacity = '0.55';
         t.dataset.tried = 'done';
@@ -5485,7 +5484,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       showApiKey, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
-      generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, AVATAR_FALLBACK,
+      generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError,
       precachePlayerPhotos,
       sharePNG,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
