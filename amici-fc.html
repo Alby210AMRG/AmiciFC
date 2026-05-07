@@ -59,22 +59,22 @@
 }
 
 [data-theme="light"] {
-  /* Verde Erba — tema chiaro calcistico */
-  --bg:     #F4F9F4;
-  --bg2:    #E4F0E4;
-  --bg3:    #D2E8D2;
+  /* Stile Turbotartaruga Light — bianco, accenti verdi/azzurri */
+  --bg:     #F7F8FA;
+  --bg2:    #ECEEF2;
+  --bg3:    #E0E3EA;
   --card:   #FFFFFF;
-  --card2:  #F0F8F0;
-  --text:   #1A3020;
-  --text2:  #3A5840;
-  --lime:   #2D9C58;
-  --blue:   #1A6CC0;
-  --yellow: #D4A017;
-  --red:    #C02010;
-  --teal:   #1A8870;
-  --border: rgba(45,156,88,0.15);
-  --shadow: 0 4px 24px rgba(26,48,32,0.12);
-  --shadow-sm: 0 2px 8px rgba(26,48,32,0.08);
+  --card2:  #F4F6FA;
+  --text:   #1A1D2E;
+  --text2:  #5A5F7A;
+  --lime:   #00C853;
+  --blue:   #1565C0;
+  --yellow: #F9A825;
+  --red:    #C62828;
+  --teal:   #00897B;
+  --border: rgba(0,0,0,0.09);
+  --shadow: 0 4px 24px rgba(0,0,0,0.10);
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.07);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1257,25 +1257,36 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- ── Meteo ── -->
-      <!-- ── News Ticker ── -->
-      <div class="card" style="margin-bottom:14px;padding:10px 14px;overflow:hidden;min-height:58px;display:flex;align-items:center;gap:10px">
-        <div style="flex-shrink:0;font-size:1.3rem">📰</div>
-        <div style="flex:1;overflow:hidden;position:relative;min-height:34px">
-          <transition name="news-fade" mode="out-in">
-            <div :key="newsIndex" style="font-size:0.82rem;line-height:1.45;color:var(--text)">
-              <span style="color:var(--lime);font-weight:800;margin-right:6px">{{ currentNews.emoji }}</span>
-              <span>{{ currentNews.text }}</span>
-            </div>
-          </transition>
+      <!-- ── News Ticker — stile TurboTartaruga ── -->
+      <div style="margin-bottom:12px;background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden">
+        <!-- Header strip -->
+        <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:4px 12px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.7rem;font-weight:800;color:#000;letter-spacing:0.5px">📰 NOTIZIE CALCETTO</span>
+          <div style="flex:1"></div>
+          <span style="font-size:0.65rem;color:rgba(0,0,0,0.6)">{{ newsIndex+1 }}/{{ newsItems.length }}</span>
         </div>
-        <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px">
-          <button @click="prevNews" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:0.9rem;line-height:1;padding:2px">‹</button>
-          <div style="display:flex;gap:3px">
-            <div v-for="(n,i) in newsItems" :key="i"
-              style="width:5px;height:5px;border-radius:50%;transition:background 0.3s"
-              :style="i===newsIndex?'background:var(--lime)':'background:var(--border)'"></div>
+        <!-- Content -->
+        <div style="padding:10px 12px;display:flex;align-items:center;gap:10px;min-height:50px">
+          <span style="font-size:1.4rem;flex-shrink:0">{{ currentNews.emoji }}</span>
+          <div style="flex:1;overflow:hidden">
+            <transition name="news-fade" mode="out-in">
+              <div :key="newsIndex" style="font-size:0.82rem;line-height:1.45;color:var(--text)">
+                {{ currentNews.text }}
+              </div>
+            </transition>
           </div>
-          <button @click="nextNews" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:0.9rem;line-height:1;padding:2px">›</button>
+          <div style="display:flex;gap:4px;flex-shrink:0">
+            <button @click="prevNews"
+              style="width:26px;height:26px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;color:var(--text2);font-size:0.85rem;display:flex;align-items:center;justify-content:center">‹</button>
+            <button @click="nextNews"
+              style="width:26px;height:26px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;color:var(--text2);font-size:0.85rem;display:flex;align-items:center;justify-content:center">›</button>
+          </div>
+        </div>
+        <!-- Progress dots -->
+        <div style="padding:0 12px 8px;display:flex;gap:4px">
+          <div v-for="(n,i) in newsItems" :key="i"
+            style="height:3px;flex:1;border-radius:2px;transition:background 0.4s"
+            :style="i===newsIndex?'background:var(--lime)':'background:var(--border)'"></div>
         </div>
       </div>
 
@@ -3278,7 +3289,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.064');
+    const appVersion      = ref('1.065');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5554,6 +5565,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       // Load settings
       try {
         const s = JSON.parse(localStorage.getItem('amicifc_settings')||'{}');
+        // darkTheme defaults to true if not set
+        if (s.darkTheme === undefined) s.darkTheme = true;
         Object.assign(settings.value, s);
         document.documentElement.setAttribute('data-theme', settings.value.darkTheme ? 'dark' : 'light');
         if (settings.value.fontLarge) {
