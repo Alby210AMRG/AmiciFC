@@ -3228,7 +3228,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.058');
+    const appVersion      = ref('1.059');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4575,32 +4575,80 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       }
       await loadGroupData();
     };
+    // ── Refresh expired Firebase ID token automatically ──
+    const refreshFirebaseToken = async () => {
+      const refreshToken = localStorage.getItem('amicifc_fb_refresh');
+      const apiKey = (settings.value.firebaseApiKey || '').trim();
+      if (!refreshToken || !apiKey) return false;
+      try {
+        const r = await fetch(
+          `https://securetoken.googleapis.com/v1/token?key=${apiKey}`,
+          { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+            body: `grant_type=refresh_token&refresh_token=${encodeURIComponent(refreshToken)}` }
+        );
+        const d = await r.json();
+        if (d.id_token) {
+          fbIdToken.value = d.id_token;
+          localStorage.setItem('amicifc_fb_token', d.id_token);
+          if (d.refresh_token) localStorage.setItem('amicifc_fb_refresh', d.refresh_token);
+          console.log('[AmiciFC] Token refreshed ✅');
+          return true;
+        }
+      } catch(e) {
+        console.warn('[AmiciFC] Token refresh failed:', e.message);
+      }
+      return false;
+    };
+
     const syncToCloud = async () => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
-      // Append auth token if logged in
-      const authSuffix = fbIdToken.value ? `?auth=${fbIdToken.value}` : '';
+      if (!fbIdToken.value && !firebaseUser.value) {
+        return toast('⚠️ Devi fare il login per caricare dati.', 'error');
+      }
       syncLoading.value = true;
       try {
-        // Build full export payload
         const allGroups = [];
         for (const g of groups.value) {
           const players = await db.players.where('groupId').equals(g.id).toArray();
-          const matches = await db.matches.where('groupId').equals(g.id).toArray();
+          const matches  = await db.matches.where('groupId').equals(g.id).toArray();
           allGroups.push({ group: g, players, matches });
         }
         const payload = { lastUpdate: new Date().toISOString(), appVersion: appVersion.value, groups: allGroups };
-        const resp = await fetch(`${base}.json${authSuffix}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        });
+
+        const doUpload = async (token) => {
+          const authSuffix = token ? `?auth=${token}` : '';
+          return fetch(`${base}.json${authSuffix}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+        };
+
+        let resp = await doUpload(fbIdToken.value);
+
+        // 401 = token expired → try refresh once
+        if (resp.status === 401) {
+          toast('⏳ Token scaduto, rinnovo automatico...', 'info', 3000);
+          const refreshed = await refreshFirebaseToken();
+          if (refreshed) {
+            resp = await doUpload(fbIdToken.value);
+          } else {
+            // Can't refresh — ask user to re-login
+            firebaseUser.value = null;
+            fbIdToken.value = '';
+            localStorage.removeItem('amicifc_fb_user');
+            localStorage.removeItem('amicifc_fb_token');
+            throw new Error('Sessione scaduta. Esegui nuovamente il login nelle impostazioni.');
+          }
+        }
+
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
         toast('✅ Dati caricati sul cloud!');
       } catch (e) {
-        toast('❌ Errore sync: ' + e.message, 'error');
+        toast('❌ ' + e.message, 'error', 8000);
       }
       syncLoading.value = false;
     };
@@ -5080,8 +5128,9 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         }
         firebaseUser.value = { email: d.email, uid: d.localId };
         fbIdToken.value    = d.idToken;
-        localStorage.setItem('amicifc_fb_user',  JSON.stringify(firebaseUser.value));
-        localStorage.setItem('amicifc_fb_token', d.idToken);
+        localStorage.setItem('amicifc_fb_user',    JSON.stringify(firebaseUser.value));
+        localStorage.setItem('amicifc_fb_token',   d.idToken);
+        localStorage.setItem('amicifc_fb_refresh', d.refreshToken || ''); // store refresh token
         if (emailEl) emailEl.value = '';
         if (pwdEl)   pwdEl.value   = '';
         showFbPwd.value = false;
@@ -5479,7 +5528,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       saveSettings, toggleTheme, toggleFont,
       syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
-      firebaseLogin, firebaseLogout,
+      firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       showApiKey, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
