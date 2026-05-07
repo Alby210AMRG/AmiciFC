@@ -1,7 +1,17 @@
-/* AmiciFC Service Worker v1.050 */
-const CACHE = 'amicifc-v1050';
+/* AmiciFC Service Worker v1.061 */
+const CACHE = 'amicifc-v1061';
 
-self.addEventListener('install', () => self.skipWaiting());
+const STATIC = [
+  './amici-fc.html',
+  'https://unpkg.com/vue@3/dist/vue.global.prod.js',
+  'https://unpkg.com/dexie@3/dist/dexie.min.js',
+];
+
+self.addEventListener('install', e => {
+  e.waitUntil(
+    caches.open(CACHE).then(c => c.addAll(STATIC)).then(() => self.skipWaiting())
+  );
+});
 
 self.addEventListener('activate', e => {
   e.waitUntil(
@@ -16,27 +26,32 @@ self.addEventListener('fetch', e => {
   const url = new URL(request.url);
   if (request.method !== 'GET') return;
 
-  // Never cache: API calls, Firebase, analytics
-  const passThrough = ['anthropic.com','openai.com','generativelanguage','googleapis.com','firebaseio.com','nominatim','open-meteo','identitytoolkit'];
-  if (passThrough.some(h => url.hostname.includes(h))) return;
+  // Never intercept: Firebase, AI APIs, analytics
+  const bypass = ['anthropic.com','openai.com','generativelanguage','googleapis.com/v1',
+                  'firebaseio.com','firebasedatabase.app','nominatim','open-meteo',
+                  'identitytoolkit','securetoken.googleapis'];
+  if (bypass.some(h => url.href.includes(h))) return;
 
-  // HTML + version.json: always network-first (never stale)
-  if (url.pathname.endsWith('.html') || url.pathname.endsWith('version.json') || url.pathname === '/') {
+  // HTML + version.json: network-first, fall back to cache
+  if (url.pathname.endsWith('.html') || url.pathname.endsWith('version.json')) {
     e.respondWith(
-      fetch(request, { cache: 'no-store' }).catch(() => caches.match(request))
+      fetch(request, { cache: 'no-store' })
+        .then(res => {
+          caches.open(CACHE).then(c => c.put(request, res.clone()));
+          return res;
+        })
+        .catch(() => caches.match(request))
     );
     return;
   }
 
-  // Player photos: cache-first (download once, available offline)
+  // Player photos: cache-first (works offline)
   if (url.pathname.includes('/images/players/')) {
     e.respondWith(
       caches.match(request).then(cached => {
         if (cached) return cached;
         return fetch(request).then(res => {
-          if (res.ok) {
-            caches.open(CACHE).then(c => c.put(request, res.clone()));
-          }
+          if (res.ok) caches.open(CACHE).then(c => c.put(request, res.clone()));
           return res;
         }).catch(() => new Response('', { status: 404 }));
       })
@@ -44,33 +59,32 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // CDN assets (Vue, Dexie, fonts): cache-first
+  // CDN assets (Vue, Dexie, fonts, icons): cache-first
   e.respondWith(
     caches.match(request).then(cached => {
       const net = fetch(request).then(res => {
         if (res.ok) caches.open(CACHE).then(c => c.put(request, res.clone()));
         return res;
-      });
+      }).catch(() => cached);
       return cached || net;
     })
   );
 });
 
-// Pre-cache player photos on demand (called from app)
+// Pre-cache player photos on demand
 self.addEventListener('message', async e => {
   if (e.data?.type === 'CACHE_PHOTOS' && e.data.urls) {
     const cache = await caches.open(CACHE);
-    const urls = e.data.urls;
-    for (const url of urls) {
+    for (const url of e.data.urls) {
       try {
         const already = await cache.match(url);
         if (!already) {
           const res = await fetch(url);
           if (res.ok) await cache.put(url, res);
         }
-      } catch(err) { /* ignore */ }
+      } catch {}
     }
-    e.source?.postMessage({ type: 'PHOTOS_CACHED', count: urls.length });
+    e.source?.postMessage({ type: 'PHOTOS_CACHED', count: e.data.urls.length });
   }
   if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
