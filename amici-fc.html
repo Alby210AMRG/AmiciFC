@@ -1257,39 +1257,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- ── Meteo ── -->
-      <!-- ── News Ticker — stile TurboTartaruga ── -->
-      <div style="margin-bottom:12px;background:var(--card);border-radius:14px;border:1px solid var(--border);overflow:hidden">
+      <!-- ── News Ticker — grande, fade, nessuna freccia ── -->
+      <div style="margin-bottom:14px;background:var(--card);border-radius:16px;border:1px solid var(--border);overflow:hidden">
         <!-- Header strip -->
-        <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:4px 12px;display:flex;align-items:center;gap:6px">
-          <span style="font-size:0.7rem;font-weight:800;color:#000;letter-spacing:0.5px">📰 NOTIZIE CALCETTO</span>
-          <div style="flex:1"></div>
-          <span style="font-size:0.65rem;color:rgba(0,0,0,0.6)">{{ newsIndex+1 }}/{{ newsItems.length }}</span>
+        <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:5px 14px;display:flex;align-items:center;gap:6px">
+          <span style="font-size:0.72rem;font-weight:800;color:#000;letter-spacing:0.6px;text-transform:uppercase">📰 Notizie dal campo</span>
         </div>
-        <!-- Content -->
-        <div style="padding:10px 12px;display:flex;align-items:center;gap:10px;min-height:50px">
-          <span style="font-size:1.4rem;flex-shrink:0">{{ currentNews.emoji }}</span>
-          <div style="flex:1;overflow:hidden">
-            <transition name="news-fade" mode="out-in">
-              <div :key="newsIndex" style="font-size:0.82rem;line-height:1.45;color:var(--text)">
-                {{ currentNews.text }}
-              </div>
-            </transition>
-          </div>
-          <div style="display:flex;gap:4px;flex-shrink:0">
-            <button @click="prevNews"
-              style="width:26px;height:26px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;color:var(--text2);font-size:0.85rem;display:flex;align-items:center;justify-content:center">‹</button>
-            <button @click="nextNews"
-              style="width:26px;height:26px;border-radius:50%;background:var(--bg2);border:none;cursor:pointer;color:var(--text2);font-size:0.85rem;display:flex;align-items:center;justify-content:center">›</button>
-          </div>
-        </div>
-        <!-- Progress dots -->
-        <div style="padding:0 12px 8px;display:flex;gap:4px">
-          <div v-for="(n,i) in newsItems" :key="i"
-            style="height:3px;flex:1;border-radius:2px;transition:background 0.4s"
-            :style="i===newsIndex?'background:var(--lime)':'background:var(--border)'"></div>
+        <!-- Content — big, fade only -->
+        <div style="padding:16px 16px 14px;min-height:80px;display:flex;align-items:center;gap:14px">
+          <transition name="news-fade" mode="out-in">
+            <div :key="newsIndex" style="display:flex;align-items:flex-start;gap:14px;width:100%">
+              <span style="font-size:2rem;flex-shrink:0;line-height:1.1">{{ currentNews.emoji }}</span>
+              <p style="font-size:0.95rem;line-height:1.55;color:var(--text);margin:0;font-weight:500">{{ currentNews.text }}</p>
+            </div>
+          </transition>
         </div>
       </div>
-
       <!-- ── Stats & Quick actions (solo se gruppo selezionato) ── -->
       <template v-if="currentGroup">
         <div class="quick-stats">
@@ -1307,12 +1290,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">⚡ Azioni rapide</div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn btn-yellow"  @click="currentView='stats'">📊 Statistiche</button>
-            <button class="btn btn-blue"    @click="currentView='players'">👤 Giocatori</button>
-            <button class="btn btn-ghost"   @click="currentView='history'">🕐 Storico</button>
+        <div class="card" style="padding:14px">
+          <div class="card-title" style="font-size:0.82rem;margin-bottom:12px">⚡ Azioni rapide</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <button @click="currentView='stats'"
+              style="background:linear-gradient(135deg,rgba(255,211,61,0.15),rgba(255,211,61,0.05));border:1.5px solid rgba(255,211,61,0.3);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s"
+              @mousedown="$event.currentTarget.style.transform='scale(0.96)'" @mouseup="$event.currentTarget.style.transform=''" @touchstart.passive="$event.currentTarget.style.transform='scale(0.96)'" @touchend.passive="$event.currentTarget.style.transform=''">
+              <span style="font-size:1.6rem">📊</span>
+              <span style="font-size:0.72rem;font-weight:700;color:var(--yellow)">Statistiche</span>
+            </button>
+            <button @click="currentView='players'"
+              style="background:linear-gradient(135deg,rgba(58,123,255,0.15),rgba(58,123,255,0.05));border:1.5px solid rgba(58,123,255,0.3);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform 0.15s"
+              @mousedown="$event.currentTarget.style.transform='scale(0.96)'" @mouseup="$event.currentTarget.style.transform=''" @touchstart.passive="$event.currentTarget.style.transform='scale(0.96)'" @touchend.passive="$event.currentTarget.style.transform=''">
+              <span style="font-size:1.6rem">👤</span>
+              <span style="font-size:0.72rem;font-weight:700;color:var(--blue)">Giocatori</span>
+            </button>
+            <button @click="currentView='history'"
+              style="background:linear-gradient(135deg,rgba(166,255,77,0.12),rgba(166,255,77,0.04));border:1.5px solid rgba(166,255,77,0.25);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform 0.15s"
+              @mousedown="$event.currentTarget.style.transform='scale(0.96)'" @mouseup="$event.currentTarget.style.transform=''" @touchstart.passive="$event.currentTarget.style.transform='scale(0.96)'" @touchend.passive="$event.currentTarget.style.transform=''">
+              <span style="font-size:1.6rem">🕐</span>
+              <span style="font-size:0.72rem;font-weight:700;color:var(--lime)">Storico</span>
+            </button>
           </div>
         </div>
 
@@ -3289,7 +3287,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.065');
+    const appVersion      = ref('1.066');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5119,6 +5117,15 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         const pick=withDesc[Math.floor(newsIndex.value/7)%withDesc.length];
         items.push({emoji:'📋',text:`${pick.soprannome||pick.nome} — ${pick.descrizione}`});
       }
+      // Best formations (one per size, rotates)
+      const formSizes = [5,6,7,8,11];
+      const fIdx = Math.floor(newsIndex.value / 4) % formSizes.length;
+      const fSize = formSizes[fIdx];
+      const topF = buildTopFormation(fSize);
+      if (topF.length >= fSize) {
+        const names = topF.map(p=>p.soprannome||p.nome).join(', ');
+        items.push({emoji:'⭐',text:`Miglior formazione ${fSize}v${fSize}: ${names}`});
+      }
       return items.length?items:[{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
     });
 
@@ -5128,7 +5135,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     });
     const nextNews = () => { newsIndex.value = (newsIndex.value+1) % Math.max(1, newsItems.value.length); };
     const prevNews = () => { newsIndex.value = (newsIndex.value-1+newsItems.value.length) % Math.max(1, newsItems.value.length); };
-    const startNewsTicker = () => { if(_newsTimer)clearInterval(_newsTimer); _newsTimer=setInterval(nextNews,5000); };
+    const startNewsTicker = () => { if(_newsTimer)clearInterval(_newsTimer); _newsTimer=setInterval(nextNews,7000); };
 
     const autoSync = async () => {
       if (settings.value.syncEnabled && settings.value.firebaseUrl) {
