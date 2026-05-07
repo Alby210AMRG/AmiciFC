@@ -2642,8 +2642,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <label class="input-label">Foto Giocatore</label>
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
           <div class="player-avatar" style="width:72px;height:72px;font-size:2.2rem">
-            <img v-if="playerForm.foto" :src="getPhotoUrl(playerForm.foto) || playerForm.foto" alt="foto" @error="playerForm.foto=''">
-            <span v-else>{{ roleEmoji(playerForm.ruolo) }}</span>
+            <img :src="(editingPlayer?.uid ? getPlayerPhoto(playerForm.foto, editingPlayer.uid) : null) || AVATAR_FALLBACK" alt="foto" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, editingPlayer?.uid)">
+            <img v-else src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
           </div>
           <div style="flex:1">
             <label class="btn btn-ghost btn-sm" style="cursor:pointer;display:inline-flex;margin-bottom:6px">
@@ -2735,8 +2735,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="modal-handle"></div>
       <div style="text-align:center;margin-bottom:20px">
         <div class="player-avatar" style="width:90px;height:90px;font-size:2.8rem;margin:0 auto 12px">
-          <img v-if="detailPlayer.foto" :src="getPlayerPhoto(detailPlayer.foto)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.foto)">
-          <span v-else>{{ roleEmoji(detailPlayer.ruolo) }}</span>
+          <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid) || AVATAR_FALLBACK" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
         <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
         <div class="player-nick" style="font-size:1rem">"{{ detailPlayer.soprannome || 'Nessun soprannome' }}"</div>
@@ -2814,7 +2813,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- Avatar -->
         <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
           <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover">
-          <span v-else>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+          <img v-else src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <!-- Name + role -->
         <div style="flex:1;min-width:0">
@@ -2843,7 +2842,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
           <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover">
-          <span v-else>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+          <img v-else src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
@@ -2896,7 +2895,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-for="pid in editingFormationData.squadraA" :key="'ea-'+pid" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center">
           <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
-          <span v-else>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+          <img v-else src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.82rem;font-weight:700">{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</div>
@@ -2909,7 +2908,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-for="pid in editingFormationData.squadraB" :key="'eb-'+pid" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center">
           <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
-          <span v-else>{{ roleEmoji(getPlayer(pid)?.ruolo) }}</span>
+          <img v-else src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.82rem;font-weight:700">{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</div>
@@ -3230,7 +3229,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.054');
+    const appVersion      = ref('1.055');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4802,21 +4801,33 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       if (uid) return `./images/players/${uid}.png`;
       return null;
     };
-    // @error handler: swaps extension once, then hides
+    const AVATAR_FALLBACK = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
+
+    // @error handler: tries alt extension once, then shows silhouette
     const onPhotoError = (event, uid) => {
       const t = event.target;
-      if (t.dataset.tried) { t.style.display = 'none'; return; }
-      t.dataset.tried = '1';
-      const s = t.src;
-      if (uid) {
-        // Always try the uid-based PNG/JPG as definitive fallback
-        t.src = s.endsWith('.png')
-          ? `./images/players/${uid}.jpg`
-          : `./images/players/${uid}.png`;
-      } else if (s.endsWith('.png')) {
-        t.src = s.replace(/\.png$/, '.jpg');
+      const s = t.src || '';
+      if (s === AVATAR_FALLBACK) return; // already showing silhouette
+      if (!t.dataset.tried) {
+        t.dataset.tried = '1';
+        // Try the other extension
+        if (uid) {
+          t.src = s.endsWith('.png')
+            ? `./images/players/${uid}.jpg`
+            : `./images/players/${uid}.png`;
+        } else if (s.endsWith('.png')) {
+          t.src = s.replace(/\.png$/, '.jpg');
+        } else if (s.endsWith('.jpg') || s.endsWith('.jpeg')) {
+          t.src = s.replace(/\.jpe?g$/, '.png');
+        } else {
+          t.src = AVATAR_FALLBACK; // give up
+        }
       } else {
-        t.style.display = 'none';
+        // Both extensions failed → show silhouette
+        t.src = AVATAR_FALLBACK;
+        t.style.display = '';
+        t.style.opacity = '0.55';
+        t.dataset.tried = 'done';
       }
     };
 
@@ -5474,7 +5485,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       showApiKey, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
-      generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError,
+      generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, AVATAR_FALLBACK,
       precachePlayerPhotos,
       sharePNG,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
