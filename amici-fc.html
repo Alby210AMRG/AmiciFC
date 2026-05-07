@@ -878,9 +878,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
    WEATHER CARD
    ═══════════════════════════════════════ */
 .weather-card { padding: 14px 18px; }
-.news-fade-enter-active, .news-fade-leave-active { transition: opacity 0.4s, transform 0.4s; }
-.news-fade-enter-from { opacity: 0; transform: translateY(8px); }
-.news-fade-leave-to   { opacity: 0; transform: translateY(-8px); }
+.news-fade-enter-active, .news-fade-leave-active { transition: opacity 0.5s, transform 0.5s; }
+.news-fade-enter-from { opacity: 0; transform: translateY(10px); }
+.news-fade-leave-to   { opacity: 0; transform: translateY(-10px); }
+@keyframes ball-roll {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
 
 /* ═══════════════════════════════════════
    FORMATION CARD
@@ -1240,9 +1244,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <template v-if="currentView === 'home'">
 
       <!-- ── Hero card — compact horizontal ── -->
+      <!-- ── Hero card ── -->
       <div class="hero-card">
-        <img v-if="logoDataUrl" :src="logoDataUrl" class="hero-logo" alt="Amici FC">
-        <span v-else style="font-size:2rem;flex-shrink:0;position:relative;z-index:1">⚽</span>
+        <!-- Pallone animato (rotazione) al posto del logo -->
+        <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.4rem;line-height:1;animation:ball-roll 3s linear infinite;display:inline-block">⚽</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
           <div class="hero-title">Amici FC</div>
           <div class="hero-sub">Dove i campioni nascono… e litigano! 😂</div>
@@ -1256,19 +1261,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- ── Meteo ── -->
-      <!-- ── News Ticker — grande, fade, nessuna freccia ── -->
+      <!-- ── News Ticker ── -->
       <div style="margin-bottom:14px;background:var(--card);border-radius:16px;border:1px solid var(--border);overflow:hidden">
-        <!-- Header strip -->
-        <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:5px 14px;display:flex;align-items:center;gap:6px">
-          <span style="font-size:0.72rem;font-weight:800;color:#000;letter-spacing:0.6px;text-transform:uppercase">📰 Notizie dal campo</span>
+        <!-- Header strip — testo bianco per entrambi i temi -->
+        <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:6px 14px;display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">🏟️ Diretto dallo Spogliatoio</span>
         </div>
-        <!-- Content — big, fade only -->
-        <div style="padding:16px 16px 14px;min-height:80px;display:flex;align-items:center;gap:14px">
+        <!-- Content — multiline, bigger font, fade only -->
+        <div style="padding:18px 16px 16px;min-height:110px;display:flex;align-items:flex-start;gap:16px">
           <transition name="news-fade" mode="out-in">
-            <div :key="newsIndex" style="display:flex;align-items:flex-start;gap:14px;width:100%">
-              <span style="font-size:2rem;flex-shrink:0;line-height:1.1">{{ currentNews.emoji }}</span>
-              <p style="font-size:0.95rem;line-height:1.55;color:var(--text);margin:0;font-weight:500">{{ currentNews.text }}</p>
+            <div :key="newsIndex" style="display:flex;align-items:flex-start;gap:16px;width:100%">
+              <span style="font-size:2.2rem;flex-shrink:0;line-height:1.1">{{ currentNews.emoji }}</span>
+              <p style="font-size:1.05rem;line-height:1.6;color:var(--text);margin:0;font-weight:500;word-break:break-word">{{ currentNews.text }}</p>
             </div>
           </transition>
         </div>
@@ -3287,7 +3291,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.066');
+    const appVersion      = ref('1.067');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
