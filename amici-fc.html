@@ -59,22 +59,22 @@
 }
 
 [data-theme="light"] {
-  /* Sporty light theme — green football feel */
-  --bg:     #eef3ea;
-  --bg2:    #e0e8da;
-  --bg3:    #d0dbc8;
-  --card:   #ffffff;
-  --card2:  #f5f9f2;
-  --text:   #0c1a08;
-  --text2:  #3a5030;
-  --lime:   #2a8000;
-  --blue:   #0a4ab8;
-  --yellow: #8a5f00;
-  --red:    #b81200;
-  --teal:   #005e50;
-  --border: rgba(20,60,10,0.13);
-  --shadow: 0 4px 24px rgba(0,0,0,0.13);
-  --shadow-sm: 0 2px 8px rgba(0,0,0,0.08);
+  /* Verde Erba — tema chiaro calcistico */
+  --bg:     #F4F9F4;
+  --bg2:    #E4F0E4;
+  --bg3:    #D2E8D2;
+  --card:   #FFFFFF;
+  --card2:  #F0F8F0;
+  --text:   #1A3020;
+  --text2:  #3A5840;
+  --lime:   #2D9C58;
+  --blue:   #1A6CC0;
+  --yellow: #D4A017;
+  --red:    #C02010;
+  --teal:   #1A8870;
+  --border: rgba(45,156,88,0.15);
+  --shadow: 0 4px 24px rgba(26,48,32,0.12);
+  --shadow-sm: 0 2px 8px rgba(26,48,32,0.08);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -878,6 +878,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
    WEATHER CARD
    ═══════════════════════════════════════ */
 .weather-card { padding: 14px 18px; }
+.news-fade-enter-active, .news-fade-leave-active { transition: opacity 0.4s, transform 0.4s; }
+.news-fade-enter-from { opacity: 0; transform: translateY(8px); }
+.news-fade-leave-to   { opacity: 0; transform: translateY(-8px); }
 
 /* ═══════════════════════════════════════
    FORMATION CARD
@@ -1254,34 +1257,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- ── Meteo ── -->
-      <div class="card weather-card" style="margin-bottom:16px">
-        <div v-if="weather.loading" style="text-align:center;padding:8px;color:var(--text2);font-size:0.85rem">
-          ⏳ Caricamento meteo...
+      <!-- ── News Ticker ── -->
+      <div class="card" style="margin-bottom:14px;padding:10px 14px;overflow:hidden;min-height:58px;display:flex;align-items:center;gap:10px">
+        <div style="flex-shrink:0;font-size:1.3rem">📰</div>
+        <div style="flex:1;overflow:hidden;position:relative;min-height:34px">
+          <transition name="news-fade" mode="out-in">
+            <div :key="newsIndex" style="font-size:0.82rem;line-height:1.45;color:var(--text)">
+              <span style="color:var(--lime);font-weight:800;margin-right:6px">{{ currentNews.emoji }}</span>
+              <span>{{ currentNews.text }}</span>
+            </div>
+          </transition>
         </div>
-        <div v-else-if="weather.error" style="display:flex;align-items:center;gap:10px">
-          <span style="font-size:1.5rem">🌍</span>
-          <div style="flex:1">
-            <input class="input-field" v-model="weather.cityInput"
-              placeholder="Inserisci città (es. Milano)..."
-              style="padding:8px 12px;font-size:0.82rem"
-              @keyup.enter="fetchWeatherByCity">
+        <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:2px">
+          <button @click="prevNews" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:0.9rem;line-height:1;padding:2px">‹</button>
+          <div style="display:flex;gap:3px">
+            <div v-for="(n,i) in newsItems" :key="i"
+              style="width:5px;height:5px;border-radius:50%;transition:background 0.3s"
+              :style="i===newsIndex?'background:var(--lime)':'background:var(--border)'"></div>
           </div>
-          <button class="btn btn-ghost btn-sm" @click="fetchWeatherByCity">🔍</button>
-        </div>
-        <div v-else style="display:flex;align-items:center;gap:14px">
-          <div style="font-size:2.8rem;line-height:1">{{ weather.emoji }}</div>
-          <div style="flex:1">
-            <div style="font-weight:800;font-size:1rem">{{ weather.city }}</div>
-            <div style="color:var(--text2);font-size:0.78rem">{{ weather.desc }}</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-family:var(--font-title);font-size:1.8rem;color:var(--lime)">{{ weather.temp }}°</div>
-            <div style="font-size:0.7rem;color:var(--text2)">💨 {{ weather.wind }} km/h</div>
-          </div>
-          <div style="display:flex;flex-direction:column;gap:4px">
-            <div class="badge" :class="weather.playCss" style="font-size:0.68rem">{{ weather.playMsg }}</div>
-            <button class="btn btn-ghost btn-sm" style="padding:3px 8px;font-size:0.7rem" @click="initWeather">🔄</button>
-          </div>
+          <button @click="nextNews" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:0.9rem;line-height:1;padding:2px">›</button>
         </div>
       </div>
 
@@ -3284,7 +3278,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.063');
+    const appVersion      = ref('1.064');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5078,6 +5072,53 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       }
     };
 
+    // ── News Ticker ──
+    const newsIndex = ref(0);
+    let _newsTimer = null;
+
+    const newsItems = computed(() => {
+      const items = [];
+      const players = groupPlayers.value;
+      const matches = groupMatches.value;
+      const group = currentGroup.value;
+      if (!players.length) { items.push({emoji:'⚽',text:'Benvenuto in Amici FC! Aggiungi i tuoi giocatori per iniziare.'}); return items; }
+      const topGoal = [...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];
+      if (topGoal?.goalTotali > 0) items.push({emoji:'🥇',text:`${topGoal.soprannome||topGoal.nome} è il capocannoniere con ${topGoal.goalTotali} goal in ${topGoal.partiteTotali||1} partite!`});
+      const topAvg = [...players].filter(p=>(p.partiteTotali||0)>=3).sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0))[0];
+      if (topAvg) items.push({emoji:'📈',text:`${topAvg.soprannome||topAvg.nome} ha la miglior media: ${(topAvg.mediaPunti||0).toFixed(2)} punti/partita`});
+      const gks = players.filter(p=>p.ruolo==='Portiere').sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0));
+      if (gks.length) items.push({emoji:'🧤',text:`${gks[0].soprannome||gks[0].nome} è il portiere titolare del gruppo con ${(gks[0].mediaPunti||0).toFixed(2)} punti/g`});
+      if (matches.length) {
+        const last=[...matches].sort((a,b)=>b.data?.localeCompare(a.data||'')||0)[0];
+        const gA=last.risultato?.goalA??0,gB=last.risultato?.goalB??0;
+        const winner=gA>gB?(last.nomeSquadraA||'Squadra A'):gA<gB?(last.nomeSquadraB||'Squadra B'):null;
+        items.push({emoji:'🕐',text:`Ultima partita (${formatDate(last.data)}): ${winner?'Ha vinto '+winner+' '+gA+'-'+gB:'Pareggio '+gA+'-'+gB}${last.uomoPartita?' · 🏅 '+last.uomoPartita:''}`});
+        const totalG=matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
+        items.push({emoji:'📊',text:`${group?.nome||'Gruppo'}: ${matches.length} partite giocate, ${totalG} goal totali`});
+      }
+      const mostG=[...players].sort((a,b)=>(b.partiteTotali||0)-(a.partiteTotali||0))[0];
+      if (mostG?.partiteTotali>0) items.push({emoji:'🏃',text:`${mostG.soprannome||mostG.nome} è il più presente: ${mostG.partiteTotali} partite giocate`});
+      const topA=[...players].sort((a,b)=>(b.assistTotali||0)-(a.assistTotali||0))[0];
+      if (topA?.assistTotali>0) items.push({emoji:'🅰️',text:`${topA.soprannome||topA.nome} guida gli assist con ${topA.assistTotali} passaggi decisivi`});
+      const topU=[...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
+      if (topU?.uomoPartitaTotali>0) items.push({emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
+      // Descrizione giocatore (1 ogni ~7 notizie, poco frequente)
+      const withDesc=players.filter(p=>p.descrizione&&p.descrizione.length>10);
+      if (withDesc.length && newsIndex.value % 7 === 3) {
+        const pick=withDesc[Math.floor(newsIndex.value/7)%withDesc.length];
+        items.push({emoji:'📋',text:`${pick.soprannome||pick.nome} — ${pick.descrizione}`});
+      }
+      return items.length?items:[{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
+    });
+
+    const currentNews = computed(() => {
+      const list = newsItems.value;
+      return list[newsIndex.value % Math.max(1, list.length)] || {emoji:'⚽',text:''};
+    });
+    const nextNews = () => { newsIndex.value = (newsIndex.value+1) % Math.max(1, newsItems.value.length); };
+    const prevNews = () => { newsIndex.value = (newsIndex.value-1+newsItems.value.length) % Math.max(1, newsItems.value.length); };
+    const startNewsTicker = () => { if(_newsTimer)clearInterval(_newsTimer); _newsTimer=setInterval(nextNews,5000); };
+
     const autoSync = async () => {
       if (settings.value.syncEnabled && settings.value.firebaseUrl) {
         await syncFromCloud();
@@ -5547,6 +5588,9 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       // Init weather
       initWeather();
 
+      // Start news ticker
+      startNewsTicker();
+
       // Register SW con auto-aggiornamento
       if ('serviceWorker' in navigator) {
         try {
@@ -5626,7 +5670,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       saveSettings, toggleTheme, toggleFont,
-      syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
+      newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       showApiKey, testAI,
