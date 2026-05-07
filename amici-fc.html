@@ -2320,47 +2320,51 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
         <!-- Login section -->
         <div class="card-title" style="font-size:0.9rem;margin-bottom:12px">🔐 Login (per scrivere)</div>
-        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:12px;line-height:1.5">
-          Senza login puoi solo <strong>leggere</strong>. Con login puoi <strong style="color:var(--lime)">caricare e modificare</strong> i dati.
+
+        <!-- Status always visible -->
+        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:12px"
+          :style="firebaseUser ? 'background:rgba(166,255,77,0.1);border:1.5px solid rgba(166,255,77,0.3)' : 'background:var(--bg3);border:1.5px solid var(--border)'">
+          <span style="font-size:1.4rem">{{ firebaseUser ? '🔓' : '🔒' }}</span>
+          <div style="flex:1">
+            <div style="font-weight:800;font-size:0.85rem" :style="firebaseUser?'color:var(--lime)':'color:var(--text2)'">
+              {{ firebaseUser ? 'Connesso' : 'Non collegato' }}
+            </div>
+            <div style="font-size:0.72rem;color:var(--text2)">
+              {{ firebaseUser ? firebaseUser.email : 'Solo lettura' }}
+            </div>
+          </div>
+          <button v-if="firebaseUser" class="btn btn-ghost btn-sm" @click="firebaseLogout" style="font-size:0.75rem">Esci</button>
         </div>
 
-        <!-- Logged out -->
+        <!-- Login form (only when not logged in) -->
         <div v-if="!firebaseUser">
+          <div style="font-size:0.78rem;color:var(--text2);margin-bottom:12px;line-height:1.5">
+            Accedi per poter <strong style="color:var(--lime)">caricare e modificare</strong> i dati su Firebase.
+          </div>
           <div class="input-group">
             <label class="input-label">📧 Email</label>
-            <input class="input-field" type="email"
-              :value="fbLoginEmail"
-              @input="fbLoginEmail = $event.target.value"
-              placeholder="tuaemail@gmail.com"
-              autocomplete="email">
+            <input id="fb-login-email" class="input-field" type="email"
+              placeholder="tuaemail@gmail.com" autocomplete="email">
           </div>
           <div class="input-group">
             <label class="input-label">🔑 Password</label>
             <div style="display:flex;gap:8px">
-              <input class="input-field"
+              <input id="fb-login-pwd" class="input-field"
                 :type="showFbPwd?'text':'password'"
-                :value="fbLoginPwd"
-                @input="fbLoginPwd = $event.target.value"
                 placeholder="Password" style="flex:1"
                 autocomplete="current-password"
                 @keyup.enter="firebaseLogin">
-              <button class="btn btn-ghost btn-sm" @click="showFbPwd=!showFbPwd">{{ showFbPwd?'🙈':'👁️' }}</button>
+              <button class="btn btn-ghost btn-sm"
+                type="button"
+                @click.prevent="showFbPwd=!showFbPwd"
+                style="flex-shrink:0;min-width:42px">
+                {{ showFbPwd?'🙈':'👁️' }}
+              </button>
             </div>
           </div>
-          <button class="btn btn-primary btn-full" @click="firebaseLogin"
-            :disabled="fbAuthLoading">
+          <button class="btn btn-primary btn-full" @click="firebaseLogin" :disabled="fbAuthLoading">
             {{ fbAuthLoading ? '⏳ Accesso...' : '🔐 Accedi' }}
           </button>
-        </div>
-
-        <!-- Logged in -->
-        <div v-else style="display:flex;align-items:center;gap:12px;padding:12px;background:rgba(166,255,77,0.08);border-radius:12px;border:1px solid rgba(166,255,77,0.2)">
-          <span style="font-size:1.8rem">✅</span>
-          <div style="flex:1">
-            <div style="font-weight:800;color:var(--lime)">Connesso</div>
-            <div style="font-size:0.75rem;color:var(--text2)">{{ firebaseUser.email }}</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" @click="firebaseLogout">Esci</button>
         </div>
 
         <!-- Help aggiungere utenti -->
@@ -3257,7 +3261,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.049');
+    const appVersion      = ref('1.050');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3346,10 +3350,10 @@ createApp({
     // Overall composite score
     const overallScore = (p) => {
       const n = Math.max(p.partiteTotali||1, 1);
-      // Only count match-detail stats when we have actual match records
-      const hasMatchDetails = groupMatches.value.length > 0;
-      const cs = (hasMatchDetails && p.ruolo === 'Portiere') ? calcCleanSheets(p.id) : 0;
-      const upm = hasMatchDetails ? (p.uomoPartitaTotali||0) : 0;
+      // Only use match-detail stats when match records actually exist
+      const hasMatches = groupMatches.value.length > 0;
+      const cs  = (hasMatches && p.ruolo === 'Portiere') ? calcCleanSheets(p.id) : 0;
+      const upm = hasMatches ? (p.uomoPartitaTotali||0) : 0; // UoM = 0 if no match details
       return (
         (p.mediaPunti||0) * 10 +
         (p.goalTotali||0) / n * 8 +
@@ -4914,7 +4918,23 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       else if (url.endsWith('.jpg') || url.endsWith('.jpeg')) event.target.src = url.replace(/\.jpe?g$/, '.png');
       else event.target.style.display = 'none';
     };
-    // ── Share PNG via Web Share API ──
+    // Pre-cache player photos in SW for offline use
+    const precachePlayerPhotos = () => {
+      if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
+      const urls = [];
+      groupPlayers.value.forEach(p => {
+        if (p.uid) {
+          urls.push(`./images/players/${p.uid}.png`);
+          urls.push(`./images/players/${p.uid}.jpg`);
+        }
+        if (p.foto && !p.foto.startsWith('data:')) {
+          urls.push(`./images/players/${p.foto}`);
+        }
+      });
+      if (urls.length) {
+        navigator.serviceWorker.controller.postMessage({ type: 'CACHE_PHOTOS', urls });
+      }
+    };
     const sharePNG = async (dataUrl, filename) => {
       if (!dataUrl) return;
       try {
@@ -5046,21 +5066,19 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     };
 
     const firebaseLogin = async () => {
-      const email  = (fbLoginEmail.value  || '').trim();
-      const pwd    = (fbLoginPwd.value    || '').trim();
-      const apiKey = (settings.value.firebaseApiKey || '').trim();
+      // Read directly from DOM by ID — 100% reliable
+      const emailEl = document.getElementById('fb-login-email');
+      const pwdEl   = document.getElementById('fb-login-pwd');
+      const email   = (emailEl?.value || '').trim();
+      const pwd     = (pwdEl?.value   || '').trim();
+      const apiKey  = (settings.value.firebaseApiKey || '').trim();
 
-      // Debug: show what was read
-      console.log('[Login] email:', JSON.stringify(email), 'pwd length:', pwd.length, 'apiKey:', apiKey.slice(0,8)+'...');
+      console.log('[Login] email:', JSON.stringify(email), 'pwd.length:', pwd.length, 'apiKey:', apiKey.slice(0,8)||'MISSING');
 
-      if (!email)  { toast('Inserisci la tua email',                                  'error'); return; }
-      if (!pwd)    { toast('Inserisci la password',                                   'error'); return; }
+      if (!email)  { toast('Inserisci la tua email', 'error'); emailEl?.focus(); return; }
+      if (!pwd)    { toast('Inserisci la password',   'error'); pwdEl?.focus();   return; }
       if (!apiKey) { toast('Inserisci la Chiave API Web Firebase nelle impostazioni', 'error'); return; }
-
-      if (location.protocol === 'file:') {
-        toast('⚠️ Il login non funziona in locale (file://).\nUsa GitHub Pages: https://...', 'error', 8000);
-        return;
-      }
+      if (location.protocol === 'file:') { toast('⚠️ Il login non funziona in locale. Usa GitHub Pages.', 'error', 6000); return; }
 
       fbAuthLoading.value = true;
       try {
@@ -5075,7 +5093,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
           if (msg.includes('INVALID_LOGIN_CREDENTIALS') || msg.includes('INVALID_PASSWORD'))
             throw new Error('Email o password errati');
           if (msg.includes('EMAIL_NOT_FOUND'))
-            throw new Error("Email non trovata in Firebase Authentication");
+            throw new Error('Email non trovata in Firebase Authentication');
           if (msg.includes('TOO_MANY_ATTEMPTS'))
             throw new Error('Troppi tentativi. Attendi qualche minuto.');
           if (msg.includes('INVALID_API_KEY'))
@@ -5086,10 +5104,10 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         fbIdToken.value    = d.idToken;
         localStorage.setItem('amicifc_fb_user',  JSON.stringify(firebaseUser.value));
         localStorage.setItem('amicifc_fb_token', d.idToken);
-        // Clear login fields only on success
-        fbLoginEmail.value = '';
-        fbLoginPwd.value   = '';
-        toast(`✅ Connesso come ${d.email}! Ora puoi caricare dati.`);
+        if (emailEl) emailEl.value = '';
+        if (pwdEl)   pwdEl.value   = '';
+        showFbPwd.value = false;
+        toast(`✅ Connesso come ${d.email}!`);
       } catch(e) {
         toast('❌ ' + e.message, 'error', 8000);
       }
@@ -5397,6 +5415,8 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
 
       // Pre-resolve player photos (try both jpg/png proactively)
       groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
+      // Pre-cache photos in SW for offline use
+      setTimeout(precachePlayerPhotos, 2000);
 
       // Init weather
       initWeather();
@@ -5485,6 +5505,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       showApiKey, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError,
+      precachePlayerPhotos,
       sharePNG,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
       exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
