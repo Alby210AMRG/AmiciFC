@@ -3173,36 +3173,59 @@ createApp({
 
     // ── Test AI connection ──
     const testAI = async () => {
-      if (!settings.value.apiKey) return;
+      if (!settings.value.apiKey) { toast('Inserisci prima la chiave API!', 'error'); return; }
       aiLoading.value = true;
       const prompt = 'Rispondi solo con: "Connessione AI funzionante! ⚽"';
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-04-17:generateContent?key=${settings.value.apiKey}`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})
-          });
+          // Use gemini-2.5-flash (free tier) — try latest stable name
+          const model = 'gemini-2.5-flash-preview-04-17';
+          const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
+            { method:'POST', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
+          );
           const d = await r.json();
-          result = d.candidates?.[0]?.content?.parts?.[0]?.text || d.error?.message || 'Errore';
+          if (d.error) {
+            const msg = d.error.message || '';
+            if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid'))
+              throw new Error('Chiave API non valida. Controlla su ai.google.dev');
+            if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED'))
+              throw new Error('Quota esaurita. Controlla i limiti su ai.google.dev');
+            if (msg.includes('not found') || msg.includes('not supported'))
+              throw new Error('Modello non disponibile. Verifica che la tua chiave AI Studio sia attiva su ai.google.dev');
+            throw new Error(msg.slice(0, 120));
+          }
+          result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
         } else if (settings.value.aiProvider === 'claude') {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
-            method:'POST', headers:{'Content-Type':'application/json','x-api-key':settings.value.apiKey,'anthropic-version':'2023-06-01'},
+            method:'POST',
+            headers:{'Content-Type':'application/json','x-api-key':settings.value.apiKey,'anthropic-version':'2023-06-01'},
             body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:50,messages:[{role:'user',content:prompt}]})
           });
           const d = await r.json();
-          result = d.content?.[0]?.text || d.error?.message || 'Errore';
+          if (d.error) {
+            if (d.error.type === 'authentication_error') throw new Error('Chiave API Claude non valida');
+            throw new Error(d.error.message?.slice(0,120)||'Errore Claude');
+          }
+          result = d.content?.[0]?.text?.trim() || 'Risposta vuota';
         } else {
           const r = await fetch('https://api.openai.com/v1/chat/completions', {
-            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey},
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey},
             body: JSON.stringify({model:'gpt-4o-mini',max_tokens:50,messages:[{role:'user',content:prompt}]})
           });
           const d = await r.json();
-          result = d.choices?.[0]?.message?.content || d.error?.message || 'Errore';
+          if (d.error) {
+            if (d.error.code === 'invalid_api_key') throw new Error('Chiave API OpenAI non valida');
+            throw new Error(d.error.message?.slice(0,120)||'Errore OpenAI');
+          }
+          result = d.choices?.[0]?.message?.content?.trim() || 'Risposta vuota';
         }
-        toast('✅ ' + result.slice(0, 80));
+        toast('✅ ' + result.slice(0, 100), 'success', 5000);
       } catch(e) {
-        toast('❌ Errore: ' + e.message, 'error');
+        toast('❌ Test AI: ' + e.message, 'error', 8000);
       }
       aiLoading.value = false;
     };
@@ -3250,7 +3273,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.061');
+    const appVersion      = ref('1.062');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
