@@ -1700,12 +1700,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Filtro ruolo -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
         <button v-for="r in ['Tutti','Portiere','Difensore','Centrocampista','Attaccante','Jolly']" :key="r"
           class="platform-tab" :class="{active: roleFilter===r}"
           @click="roleFilter=r" style="font-size:0.75rem">
           {{ r==='Tutti'?'👥':roleEmoji(r) }} {{ r }}
         </button>
+      </div>
+
+      <!-- Ricerca per nome/soprannome/cognome -->
+      <div style="position:relative;margin-bottom:12px">
+        <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--text2);font-size:1rem;pointer-events:none">🔍</span>
+        <input class="input-field"
+          v-model="playerSelectSearch"
+          placeholder="Cerca per nome, soprannome o cognome..."
+          style="padding-left:36px"
+          @keyup.escape="playerSelectSearch=''">
+        <button v-if="playerSelectSearch"
+          @click="playerSelectSearch=''"
+          style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.1rem;line-height:1">✕</button>
       </div>
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -3228,7 +3241,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.059');
+    const appVersion      = ref('1.060');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3508,9 +3521,34 @@ createApp({
       reader.readAsDataURL(file);
     };
 
+    const playerSelectSearch   = ref('');
+
     const filteredPlayersForSelect = computed(() => {
-      if (roleFilter.value === 'Tutti') return groupPlayers.value;
-      return groupPlayers.value.filter(p => p.ruolo === roleFilter.value);
+      const q = playerSelectSearch.value.trim().toLowerCase();
+      let list = roleFilter.value === 'Tutti'
+        ? [...groupPlayers.value]
+        : groupPlayers.value.filter(p => p.ruolo === roleFilter.value);
+
+      // Filter by search query (soprannome, nome, cognome)
+      if (q) {
+        list = list.filter(p =>
+          (p.soprannome||'').toLowerCase().includes(q) ||
+          (p.nome||'').toLowerCase().includes(q) ||
+          (p.cognome||'').toLowerCase().includes(q)
+        );
+      }
+
+      // Sort: soprannome (if present) → nome → cognome
+      list.sort((a, b) => {
+        const labelA = (a.soprannome || a.nome || '').toLowerCase();
+        const labelB = (b.soprannome || b.nome || '').toLowerCase();
+        if (labelA < labelB) return -1;
+        if (labelA > labelB) return 1;
+        // tie-break by cognome
+        return (a.cognome||'').toLowerCase().localeCompare((b.cognome||'').toLowerCase());
+      });
+
+      return list;
     });
 
     // ── Match / Formation Flow ──
@@ -3523,6 +3561,7 @@ createApp({
     const startPlayerSelection = () => {
       selectedForMatch.value = [];
       roleFilter.value = 'Tutti';
+      playerSelectSearch.value = '';
       matchInfo.value = { data: new Date().toISOString().slice(0,10), orario: '21:00', luogo: '' };
       currentView.value = 'playerselect';
     };
@@ -5503,7 +5542,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
       detailMatch, matchStep, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
-      activeFormation, roleFilter, groupFormations, pngFormation, filteredPlayersForSelect,
+      activeFormation, roleFilter, playerSelectSearch, groupFormations, pngFormation, filteredPlayersForSelect,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl,
       weather, initWeather, fetchWeatherByCity, applyWeatherCity,
