@@ -3240,7 +3240,7 @@ createApp({
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
           // Try gemini-1.5-flash (generous free quota) then fallback to 2.0-flash
-          const models = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+          const models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash'];
           let d = null;
           for (const model of models) {
             const r = await fetch(
@@ -3340,7 +3340,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.072');
+    const appVersion      = ref('1.073');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3791,7 +3791,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         let rawJson = '';
 
         if (settings.value.aiProvider === 'gemini') {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.value.apiKey}`, {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${settings.value.apiKey}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500} })
           });
@@ -4359,7 +4359,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             data = await resp.json();
             text = data.choices?.[0]?.message?.content || '';
           } else if (prov === 'gemini') {
-            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`, {
               method:'POST',
               headers:{ 'Content-Type':'application/json' },
               body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
@@ -4499,7 +4499,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
+          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`, {
             method:'POST',
             headers:{ 'Content-Type':'application/json' },
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
@@ -5178,6 +5178,18 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const gA=last.risultato?.goalA??0,gB=last.risultato?.goalB??0;
         const winner=gA>gB?(last.nomeSquadraA||'Squadra A'):gA<gB?(last.nomeSquadraB||'Squadra B'):null;
         items.push({emoji:'🕐',text:`Ultima partita (${formatDate(last.data)}): ${winner?'Ha vinto '+winner+' '+gA+'-'+gB:'Pareggio '+gA+'-'+gB}${last.uomoPartita?' · 🏅 '+last.uomoPartita:''}`});
+        // Top scorers of last match
+        const scorersLast=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).sort((a,b)=>(b.goal||0)-(a.goal||0));
+        if(scorersLast.length){
+          const names=scorersLast.slice(0,3).map(s=>{const p=players.find(x=>x.id===s.playerId);return `${p?.soprannome||p?.nome||'?'} ⚽${s.goal}`}).join(', ');
+          items.push({emoji:'⚽',text:`Marcatori ultima partita: ${names}`});
+        }
+        // Best rated of last match
+        const ratedLast=(last.statisticheGiocatori||[]).filter(s=>(s.voto||0)>0).sort((a,b)=>(b.voto||0)-(a.voto||0));
+        if(ratedLast.length){
+          const best=ratedLast[0];const p=players.find(x=>x.id===best.playerId);
+          if(p) items.push({emoji:'⭐',text:`Migliore in campo dell'ultima partita: ${p.soprannome||p.nome} con voto ${best.voto}`});
+        }
         const totalG=matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
         items.push({emoji:'📊',text:`${group?.nome||'Gruppo'}: ${matches.length} partite giocate, ${totalG} goal totali`});
       }
@@ -5277,7 +5289,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;}else res(null);};img.src=src;setTimeout(()=>res(null),7000);});
       const logoImg = await li(LOGO_EMBEDDED||logoDataUrl.value);
       const upPhoto = upPlayer?await li(getPlayerPhoto(upPlayer.foto,upPlayer.uid)):null;
-      const matchPhotoImg = matchPhoto.value?await li(matchPhoto.value):null;
+      const matchPhotoImg = matchPhoto.value
+        ? await li(matchPhoto.value)
+        : await li('./images/match-default.jpg','./images/match-default.png');
 
       const allSix = allPids.every(pid=>!(playerStats.value[pid]?.voto)||playerStats.value[pid].voto===6);
       const scorersA = pidsA.filter(pid=>(playerStats.value[pid]?.goal||0)>0||(playerStats.value[pid]?.assist||0)>0);
@@ -5350,7 +5364,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       ctx.font=`900 58px ${FONT_HEAD}`;ctx.fillStyle='#1a0000';ctx.textAlign='center';
       ctx.shadowColor='rgba(0,0,0,0.08)';ctx.shadowBlur=4;
       ctx.fillText('CHE PARTITA!',W/2,Y+50);ctx.shadowBlur=0;
-      Y+=62;Y=HR(Y,'#8B0000',3);
+      Y+=70; // space after big title — NO HR here, title goes directly below
 
       // ══ ARTICLE TITLE (user-defined or from AI — bigger than body text) ══
       const rawAI=aiComment.value||'';
