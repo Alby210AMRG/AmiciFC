@@ -1558,8 +1558,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="card-title">✏️ Crea Formazione Manuale</div>
       <div class="card">
         <div class="input-group">
-          <label class="input-label">🏟️ Nome Formazione *</label>
-          <input class="input-field" v-model="manualFormation.nome" placeholder="Es. La Mia Formazione Perfetta">
+          <label class="input-label">🏟️ Nome Partita *</label>
+          <input class="input-field" v-model="manualFormation.nome" placeholder="Es. Il Catenaccio Liquido">
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="input-group" style="margin:0">
@@ -1673,7 +1673,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:4px">
               <div v-for="pid in (f.squadraB||[]).slice(0,6)" :key="pid" class="mini-player red">
                 <div class="mini-avatar">
-                  <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :alt="getPlayer(pid)?.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
+                  <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :alt="getPlayer(pid)?.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, getPlayer(pid)?.uid)">
                   <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
                 </div>
                 <div style="font-size:0.55rem;text-align:center;max-width:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
@@ -1685,7 +1685,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-bottom:4px">
               <div v-for="pid in (f.squadraA||[]).slice(0,6)" :key="pid" class="mini-player blue">
                 <div class="mini-avatar">
-                  <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :alt="getPlayer(pid)?.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
+                  <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :alt="getPlayer(pid)?.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, getPlayer(pid)?.uid)">
                   <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
                 </div>
                 <div style="font-size:0.55rem;text-align:center;max-width:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
@@ -1964,12 +1964,34 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <div class="card">
-          <div class="card-title">🤖 Commento AI</div>
-          <div class="ai-comment-box">
-            <span v-if="aiLoading" class="ai-loading">Sto analizzando la partita... </span>
-            <span v-else>{{ aiComment || 'Il commento verrà generato automaticamente...' }}</span>
+          <div class="card-title">🤖 Articolo AI — Stile Giornale</div>
+          <!-- Note per l'AI -->
+          <div class="input-group">
+            <label class="input-label">📝 Note per l'AI (opzionale)</label>
+            <textarea class="input-field" v-model="matchNotes"
+              placeholder="Es. Partita intensa, molto fisica. Arbitraggio controverso nel secondo tempo..."
+              rows="2" style="resize:vertical;min-height:56px"></textarea>
           </div>
-          <button v-if="!aiLoading" class="btn btn-ghost btn-sm" style="margin-top:10px" @click="generateCommentAI">🔄 Rigenera</button>
+          <!-- Article display -->
+          <div class="ai-comment-box" style="min-height:80px">
+            <span v-if="aiLoading" class="ai-loading">✍️ Sto scrivendo l'articolo... </span>
+            <textarea v-else-if="aiComment"
+              v-model="aiComment"
+              style="width:100%;background:transparent;border:none;outline:none;color:var(--text);font-style:italic;font-size:0.88rem;line-height:1.6;resize:vertical;min-height:80px"
+              ></textarea>
+            <span v-else style="color:var(--text2);font-style:italic;font-size:0.85rem">
+              {{ settings.aiProvider && settings.apiKey ? 'Premi Genera per creare l\'articolo AI' : '⚠️ Nessuna AI configurata — scrivi il commento manualmente nelle impostazioni.' }}
+            </span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+            <button v-if="!aiLoading" class="btn btn-ghost btn-sm" @click="generateCommentAI">
+              {{ aiComment ? '🔄 Rigenera' : '✍️ Genera Articolo' }}
+            </button>
+            <button v-if="aiComment || playerStats.length" class="btn btn-yellow btn-sm"
+              @click="generateAndShareMatchPNG">
+              📰 Condividi Giornale
+            </button>
+          </div>
         </div>
 
         <div style="display:flex;gap:10px">
@@ -2906,6 +2928,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <button v-if="detailMatch.pngFormazione" class="btn btn-blue btn-sm" @click="downloadPNG(detailMatch.pngFormazione,'formazione')">📸 PNG Form.</button>
         <button v-if="detailMatch.pngRisultato" class="btn btn-yellow btn-sm" @click="downloadPNG(detailMatch.pngRisultato,'risultato')">🏆 PNG Ris.</button>
         <button v-if="detailMatch.pngPagelle" class="btn btn-primary btn-sm" @click="downloadPNG(detailMatch.pngPagelle,'pagelle')">⭐ PNG Pag.</button>
+        <button v-if="detailMatch.commentoAI" class="btn btn-ghost btn-sm" @click="shareHistoryMatchPNG(detailMatch)">📰 Giornale</button>
       </div>
 
       <button class="btn btn-ghost btn-full" style="margin-top:16px" @click="showMatchDetail=false">Chiudi</button>
@@ -3257,6 +3280,7 @@ createApp({
 
     // Match flow
     const matchStep          = ref(1);
+    const matchNotes         = ref('');
     const selectedForMatch   = ref([]);
     const teamA              = ref([]);
     const teamB              = ref([]);
@@ -3292,7 +3316,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.069');
+    const appVersion      = ref('1.070');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3748,7 +3772,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500} })
           });
           const d = await r.json();
-          if (d.error) throw new Error(d.error.message);
+          if (d.error) throw new Error(`Gemini: ${d.error.message||d.error.status||'Errore API'}`);
           rawJson = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
         } else if (settings.value.aiProvider === 'claude') {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -4392,19 +4416,33 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const stats = allPlayers.map(pid => {
         const p = getPlayer(pid);
         const s = playerStats.value[pid] || {};
-        return `${p?.soprannome||p?.nome}: voto ${s.voto||6}, goal ${s.goal||0}, assist ${s.assist||0}`;
+        const hist = `(storico: ${p?.goalTotali||0} gol, ${p?.partiteTotali||0} partite)`;
+        return `${p?.soprannome||p?.nome}: voto ${s.voto||6}, goal ${s.goal||0}, assist ${s.assist||0} ${hist}`;
       }).join('\n');
 
       const mvpName = computedMVP.value ? (getPlayer(computedMVP.value)?.soprannome || getPlayer(computedMVP.value)?.nome) : 'nessuno';
-      const prompt = `Sei un telecronista italiano comico e ironico. Commenta questa partita di calcetto:
-Gruppo: ${currentGroup.value?.nome || 'Amici FC'}
-Risultato: Squadra A ${matchGoalA.value} - ${matchGoalB.value} Squadra B
-MVP: ${mvpName}
+      const notesSection = matchNotes.value.trim() ? `\nNote aggiuntive dal campo: ${matchNotes.value.trim()}` : '';
+      const hasPagelle = allPlayers.some(pid => (playerStats.value[pid]?.voto||0) !== 6 && (playerStats.value[pid]?.voto||0) > 0);
 
-Statistiche giocatori:
+      const prompt = `Sei un giornalista sportivo italiano. Scrivi un ARTICOLO DI GIORNALE (stile "La Gazzetta dello Sport") su questa partita di calcetto tra amici.
+
+Gruppo: ${currentGroup.value?.nome || 'Amici FC'}
+Data: ${matchInfo.value.data || 'oggi'}
+Risultato: Squadra A ${matchGoalA.value} - ${matchGoalB.value} Squadra B
+Uomo Partita / MVP: ${mvpName}
+${notesSection}
+
+Statistiche e storico giocatori:
 ${stats}
 
-Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista italiano anni '90. Usa i soprannomi dei giocatori. Sii creativo!`;
+ISTRUZIONI:
+- Scrivi un titolo giornalistico accattivante in MAIUSCOLO
+- Poi scrivi l'articolo di 4-6 frasi: racconta la partita con emozione, usa i soprannomi, cita i momenti chiave
+${hasPagelle ? '- Aggiungi una frase sulle pagelle menzionando i migliori e i peggiori\n' : ''}- Tono: appassionato ma ironico, da amici che si prendono in giro con affetto
+- Usa esclamazioni italiane tipo "Mamma mia!", "Incredibile!", "Che serata!"
+- Lunghezza totale: max 150 parole
+
+Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente altro.`;
 
       try {
         const prov = settings.value.aiProvider;
@@ -5175,6 +5213,174 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
     const prevNews = () => { newsIndex.value = (newsIndex.value-1+newsItems.value.length) % Math.max(1, newsItems.value.length); };
     const startNewsTicker = () => { if(_newsTimer)clearInterval(_newsTimer); _newsTimer=setInterval(nextNews,7000); };
 
+    // ── Newspaper-style match report PNG (like reference image) ──
+    const generateAndShareMatchPNG = async () => {
+      const W=900, H=1400;
+      const canvas=document.createElement('canvas');
+      canvas.width=W; canvas.height=H;
+      const ctx=canvas.getContext('2d');
+      await document.fonts.ready;
+
+      const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>alt?li(alt,null).then(res):res(null);img.src=src;setTimeout(()=>res(null),6000);});
+      const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
+
+      // Load MVP photo
+      const mvpPlayer = computedMVP.value ? getPlayer(computedMVP.value) : null;
+      const mvpPhoto = mvpPlayer ? await li(getPlayerPhoto(mvpPlayer.foto, mvpPlayer.uid)) : null;
+      const logoImg = await li(logoDataUrl.value);
+
+      // --- BG: paper texture light ---
+      ctx.fillStyle='#F5F0E8'; ctx.fillRect(0,0,W,H);
+      // Subtle paper lines
+      ctx.strokeStyle='rgba(0,0,0,0.04)'; ctx.lineWidth=1;
+      for(let y=0;y<H;y+=28){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+      let Y=0; // running Y position
+
+      // === HEADER ===
+      // Top blue stripe
+      ctx.fillStyle='#0D3B8C'; ctx.fillRect(0,0,W,60);
+      ctx.fillStyle='#FFD700'; ctx.fillRect(0,58,W,5);
+      // Big title
+      ctx.font='900 72px "Arial Black",Arial'; ctx.fillStyle='#0D3B8C'; ctx.textAlign='center';
+      ctx.shadowColor='rgba(0,0,0,0.2)'; ctx.shadowBlur=6;
+      ctx.fillText('RISULTATO UFFICIALE',W/2,136); ctx.shadowBlur=0;
+      // Subtitle dividers
+      ctx.fillStyle='#0D3B8C'; ctx.fillRect(24,148,W-48,3);
+      ctx.fillStyle='#0D3B8C'; ctx.fillRect(24,155,W-48,1);
+      Y=168;
+
+      // Teams vs
+      const teamAName = matchInfo.value.nomeSquadraA || currentGroup.value?.nome || 'Amici FC';
+      const teamBName = matchInfo.value.nomeSquadraB || 'Avversari';
+      ctx.font='900 italic 40px "Arial Black",Arial';
+      // Team A orange
+      const gA=ctx.createLinearGradient(0,0,W/2-60,0); gA.addColorStop(0,'#FF6B00'); gA.addColorStop(1,'#FF9A00');
+      ctx.fillStyle=gA; ctx.textAlign='right';
+      ctx.fillText(teamAName.toUpperCase(), W/2-70, Y+36);
+      // VS
+      ctx.fillStyle='#333'; ctx.font='700 28px Arial'; ctx.textAlign='center';
+      ctx.fillText('vs',W/2,Y+32);
+      // Team B blue
+      const gB=ctx.createLinearGradient(W/2+60,0,W,0); gB.addColorStop(0,'#0D3B8C'); gB.addColorStop(1,'#1565C0');
+      ctx.fillStyle=gB; ctx.font='900 italic 40px "Arial Black",Arial'; ctx.textAlign='left';
+      ctx.fillText(teamBName.toUpperCase(),W/2+70,Y+36);
+      Y+=52;
+
+      // Date/group
+      ctx.fillStyle='#0D3B8C'; rr(W/2-200,Y,400,32,16); ctx.fill();
+      ctx.font='700 18px Arial'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+      const dateStr = matchInfo.value.data ? new Date(matchInfo.value.data).toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}).toUpperCase() : '';
+      ctx.fillText(`${currentGroup.value?.nome||''} – ${dateStr}`,W/2,Y+21);
+      Y+=52;
+
+      // Score box
+      ctx.fillStyle='#fff';
+      ctx.shadowColor='rgba(0,0,0,0.15)'; ctx.shadowBlur=20;
+      rr(W/2-200,Y,400,100,12); ctx.fill(); ctx.shadowBlur=0;
+      // Team A pill
+      ctx.fillStyle='#FF6B00'; rr(W/2-200,Y,180,100,12); ctx.fill();
+      ctx.font='900 22px "Arial Black",Arial'; ctx.fillStyle='#fff'; ctx.textAlign='center';
+      ctx.fillText(teamAName.toUpperCase(), W/2-110, Y+40);
+      // Score
+      ctx.font='900 72px "Arial Black",Arial'; ctx.fillStyle='#0D3B8C';
+      ctx.fillText(`${matchGoalA.value} - ${matchGoalB.value}`,W/2,Y+78);
+      // Team B pill
+      ctx.fillStyle='#0D3B8C'; rr(W/2+20,Y,180,100,12); ctx.fill();
+      ctx.font='900 22px "Arial Black",Arial'; ctx.fillStyle='#fff';
+      ctx.fillText(teamBName.toUpperCase(), W/2+110, Y+40);
+      Y+=124;
+
+      const HR=()=>{ctx.fillStyle='#0D3B8C';ctx.fillRect(24,Y,W-48,3);ctx.fillRect(24,Y+5,W-48,1);Y+=20;};
+      const sectionTitle=(t)=>{ctx.font='900 24px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='center';ctx.fillText(t,W/2,Y+24);Y+=36;HR();};
+
+      // === SCORERS ===
+      const allPids = [...teamA.value,...teamB.value];
+      const scorers = allPids.filter(pid=>(playerStats.value[pid]?.goal||0)>0 || (playerStats.value[pid]?.assist||0)>0);
+      if(scorers.length){
+        sectionTitle('MARCATORI');
+        ctx.font='700 20px Arial'; ctx.fillStyle='#333'; ctx.textAlign='left';
+        const scLine = scorers.map(pid=>{
+          const p=getPlayer(pid); const s=playerStats.value[pid]||{};
+          const name=p?.soprannome||p?.nome||'';
+          const icons=(s.goal>0?'⚽'.repeat(s.goal):'')+((s.autogol||0)>0?'❌'.repeat(s.autogol||0):'')+((s.assist||0)>0?'🅰️'.repeat(s.assist):'' );
+          return `${name} ${icons}`;
+        }).join('  /  ');
+        ctx.fillText('•', 36, Y+4);
+        // Wrap long text
+        const words=scLine.split('  /  ');
+        let line='', lineY=Y;
+        words.forEach((w,i)=>{const t=line+(i>0?'  /  ':'')+w;if(ctx.measureText('• '+t).width>W-80&&line){ctx.fillText('• '+line,36,lineY+4);lineY+=28;line=w;}else line=t;});
+        ctx.fillText('• '+line,36,lineY+4);Y=lineY+36;
+      }
+
+      // === PAGELLE ===
+      const hasPagelle=allPids.some(pid=>(playerStats.value[pid]?.voto||0)>0&&playerStats.value[pid]?.voto!==6);
+      if(hasPagelle){
+        sectionTitle('PAGELLE');
+        const colW=(W-48)/2;
+        let col=0, rowY=Y;
+        allPids.forEach(pid=>{
+          const p=getPlayer(pid);const s=playerStats.value[pid]||{};
+          if(!(s.voto>0)) return;
+          const name=(p?.soprannome||p?.nome||'').toUpperCase();
+          const voto=s.voto||6;
+          const x=col===0?24:24+colW+4, cy=rowY;
+          ctx.font=`900 20px "Arial Black",Arial`;
+          ctx.fillStyle=voto>=8?'#1a7a20':voto>=7?'#0D3B8C':voto<6?'#c00':'#333';
+          ctx.textAlign='left'; ctx.fillText(`• ${name} ${voto}`,x,cy+4);
+          col=(col+1)%2; if(col===0) rowY+=28;
+        });
+        if(col===1) rowY+=28;
+        Y=rowY+20;
+      }
+
+      // === MVP CARD (right side) + ARTICOLO AI ===
+      sectionTitle('COMMENTO');
+      const articleText = aiComment.value || '— Partita intensa! —';
+      // MVP photo card
+      if(mvpPlayer){
+        const CARD_W=200, CARD_H=240, CARD_X=W-CARD_W-24, CARD_Y=Y;
+        ctx.fillStyle='#FFD700'; ctx.shadowColor='rgba(0,0,0,0.3)'; ctx.shadowBlur=16;
+        rr(CARD_X-4,CARD_Y-4,CARD_W+8,CARD_H+8,12); ctx.fill(); ctx.shadowBlur=0;
+        ctx.fillStyle='#0D3B8C'; rr(CARD_X,CARD_Y,CARD_W,CARD_H,10); ctx.fill();
+        if(mvpPhoto){
+          ctx.save();rr(CARD_X+8,CARD_Y+8,CARD_W-16,CARD_H-70,8);ctx.clip();
+          const iw=mvpPhoto.naturalWidth||100,ih=mvpPhoto.naturalHeight||100,s2=Math.min(iw,ih),sx=(iw-s2)/2,sy=(ih-s2)/2;
+          ctx.drawImage(mvpPhoto,sx,sy,s2,s2,CARD_X+8,CARD_Y+8,CARD_W-16,CARD_H-70);
+          ctx.restore();
+        }
+        ctx.font='900 22px "Arial Black",Arial'; ctx.fillStyle='#FFD700'; ctx.textAlign='center';
+        ctx.fillText((mvpPlayer.soprannome||mvpPlayer.nome||'').toUpperCase(), CARD_X+CARD_W/2, CARD_Y+CARD_H-40);
+        ctx.font='700 15px Arial'; ctx.fillStyle='#fff';
+        ctx.fillText('MIGLIORE IN CAMPO!', CARD_X+CARD_W/2, CARD_Y+CARD_H-18);
+      }
+
+      // Article text (left of MVP card)
+      const artMaxW = mvpPlayer ? W-24-200-24-20 : W-48;
+      ctx.font='italic 22px Georgia,serif'; ctx.fillStyle='#222'; ctx.textAlign='left';
+      const words2=articleText.split(' '); let line2='', artY=Y+8;
+      words2.forEach(w=>{
+        const t=line2+w+' ';
+        if(ctx.measureText(t).width>artMaxW&&line2){ctx.fillText(line2.trim(),36,artY);artY+=32;line2=w+' ';}
+        else line2=t;
+      });
+      if(line2.trim())ctx.fillText(line2.trim(),36,artY);
+      Y=Math.max(artY+32,(mvpPlayer?Y+252:Y+40));
+
+      // === FOOTER ===
+      HR();
+      if(logoImg){ctx.drawImage(logoImg,28,Y,70,70);}
+      ctx.font='italic 28px Georgia,serif'; ctx.fillStyle='#333'; ctx.textAlign='right';
+      ctx.fillText('Creato e sviluppato da Alby',W-28,Y+44);
+      ctx.font='700 16px Arial'; ctx.fillStyle='#0D3B8C';
+      ctx.fillText('⚽ Amici FC — '+currentGroup.value?.nome,W-28,Y+70);
+
+      // Share
+      const dataUrl=canvas.toDataURL('image/png');
+      await sharePNG(dataUrl,`amicifc-partita-${matchInfo.value.data||'oggi'}.png`);
+    };
+
     const autoSync = async () => {
       if (settings.value.syncEnabled && settings.value.firebaseUrl) {
         await syncFromCloud();
@@ -5732,6 +5938,7 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
+      matchNotes, generateAndShareMatchPNG,
       saveSettings, toggleTheme, toggleFont,
       syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
