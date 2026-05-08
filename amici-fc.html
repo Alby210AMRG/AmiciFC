@@ -159,7 +159,13 @@ textarea{resize:vertical;min-height:80px;}
 <div v-if="dbError" class="page" style="padding-bottom:12px;">
   <div class="errbanner">
     ⚠️ Errore database: {{ dbError }}<br>
-    <button class="btn bg sm" style="margin-top:8px;" @click="retryLoad">🔄 Riprova</button>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn bg sm" @click="retryLoad">🔄 Riprova</button>
+      <button class="btn br sm" @click="hardReload">🚨 Svuota cache e ricarica</button>
+    </div>
+    <div style="font-size:.72rem;color:#ff9090;margin-top:8px;">
+      Se il problema persiste: apri le Impostazioni → Svuota cache (in alto a destra ⚙️) poi ricarica la pagina.
+    </div>
   </div>
 </div>
 
@@ -838,27 +844,28 @@ const uid=()=>typeof crypto.randomUUID==='function'?crypto.randomUUID():Math.ran
 // ─── IndexedDB (using version 1 to keep compatibility) ───
 const DB='amicifc_db';
 let _db=null;
-// Opens DB at current version (no downgrade risk), then ensures our stores exist
+// Bulletproof: probe without version first, then reuse or upgrade
 const idb=()=>new Promise((ok,ko)=>{
   if(_db)return ok(_db);
-  // Step 1: probe to get current version without specifying one
-  const probe=indexedDB.open(DB);
-  probe.onerror=e=>ko(e.target.error?.message||'DB error');
+  const probe=indexedDB.open(DB); // no version = always opens at current version
+  probe.onerror=()=>{
+    // DB doesn't exist yet, create fresh
+    const r=indexedDB.open(DB,1);
+    r.onupgradeneeded=e=>{const d=e.target.result;d.createObjectStore('groups',{keyPath:'id'});d.createObjectStore('settings',{keyPath:'key'});};
+    r.onsuccess=e=>{_db=e.target.result;ok(_db);};
+    r.onerror=e=>ko(e.target.error?.message||'Errore DB');
+  };
   probe.onsuccess=e=>{
-    const curVer=e.target.result.version;
-    e.target.result.close();
-    // Step 2: open with current version (or +1 if we need to create stores)
-    const needsStores=!e.target.result.objectStoreNames.contains('groups');
-    const targetVer=needsStores?curVer+1:curVer;
-    const r=indexedDB.open(DB,targetVer);
-    r.onupgradeneeded=ev=>{
-      const d=ev.target.result;
-      if(!d.objectStoreNames.contains('groups'))d.createObjectStore('groups',{keyPath:'id'});
-      if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});
-    };
+    const cur=e.target.result;
+    const v=cur.version;
+    const hasG=cur.objectStoreNames.contains('groups');
+    const hasS=cur.objectStoreNames.contains('settings');
+    if(hasG&&hasS){_db=cur;ok(_db);return;} // all good, reuse connection
+    cur.close(); // need upgrade
+    const r=indexedDB.open(DB,v+1);
+    r.onupgradeneeded=ev=>{const d=ev.target.result;if(!d.objectStoreNames.contains('groups'))d.createObjectStore('groups',{keyPath:'id'});if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});};
     r.onsuccess=ev=>{_db=ev.target.result;ok(_db);};
-    r.onerror=ev=>ko(ev.target.error?.message||'DB error');
-    r.onblocked=()=>ko("DB bloccato: chiudi le altre schede e ricarica");
+    r.onerror=ev=>ko(ev.target.error?.message||'Errore DB upgrade');
   };
 });
 const dbGet=(st,k)=>idb().then(d=>new Promise((ok,ko)=>{const r=d.transaction(st,'readonly').objectStore(st).get(k);r.onsuccess=()=>ok(r.result);r.onerror=e=>ko(e);}));
@@ -879,7 +886,7 @@ const rrect=(ctx,x,y,w,h,r)=>{
 
 createApp({
 setup(){
-const VER='1.082';
+const VER='1.083';
 // ─── State ───
 const loading=ref(true);const dbError=ref('');
 const view=ref('home');const fullscreen=ref(null);
@@ -1009,7 +1016,21 @@ function migrateGroup(g){
 }
 
 onMounted(loadDB);
-async function retryLoad(){await loadDB();}
+async function retryLoad(){_db=null;await loadDB();}
+function hardReload(){
+  // Unregister SW, clear caches, reload
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.getRegistrations().then(regs=>{
+      Promise.all(regs.map(r=>r.unregister())).then(()=>{
+        caches.keys().then(keys=>Promise.all(keys.map(k=>caches.delete(k)))).then(()=>{
+          location.reload(true);
+        });
+      });
+    });
+  } else {
+    location.reload(true);
+  }
+}
 
 async function saveCG(){
   if(!currentGroup.value)return;
