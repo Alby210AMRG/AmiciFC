@@ -836,19 +836,30 @@ const{createApp,ref,computed,reactive,onMounted,watch}=Vue;
 const uid=()=>typeof crypto.randomUUID==='function'?crypto.randomUUID():Math.random().toString(36).slice(2)+Date.now().toString(36);
 
 // ─── IndexedDB (using version 1 to keep compatibility) ───
-const DB='amicifc_db'; const DBV=3;
+const DB='amicifc_db';
 let _db=null;
+// Opens DB at current version (no downgrade risk), then ensures our stores exist
 const idb=()=>new Promise((ok,ko)=>{
   if(_db)return ok(_db);
-  const r=indexedDB.open(DB,DBV);
-  r.onupgradeneeded=e=>{
-    const d=e.target.result;
-    if(!d.objectStoreNames.contains('groups'))d.createObjectStore('groups',{keyPath:'id'});
-    if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});
+  // Step 1: probe to get current version without specifying one
+  const probe=indexedDB.open(DB);
+  probe.onerror=e=>ko(e.target.error?.message||'DB error');
+  probe.onsuccess=e=>{
+    const curVer=e.target.result.version;
+    e.target.result.close();
+    // Step 2: open with current version (or +1 if we need to create stores)
+    const needsStores=!e.target.result.objectStoreNames.contains('groups');
+    const targetVer=needsStores?curVer+1:curVer;
+    const r=indexedDB.open(DB,targetVer);
+    r.onupgradeneeded=ev=>{
+      const d=ev.target.result;
+      if(!d.objectStoreNames.contains('groups'))d.createObjectStore('groups',{keyPath:'id'});
+      if(!d.objectStoreNames.contains('settings'))d.createObjectStore('settings',{keyPath:'key'});
+    };
+    r.onsuccess=ev=>{_db=ev.target.result;ok(_db);};
+    r.onerror=ev=>ko(ev.target.error?.message||'DB error');
+    r.onblocked=()=>ko("DB bloccato: chiudi le altre schede e ricarica");
   };
-  r.onsuccess=e=>{_db=e.target.result;ok(_db);};
-  r.onerror=e=>ko(e.target.error?.message||'DB error');
-  r.onblocked=()=>ko('DB bloccato – chiudi altre schede');
 });
 const dbGet=(st,k)=>idb().then(d=>new Promise((ok,ko)=>{const r=d.transaction(st,'readonly').objectStore(st).get(k);r.onsuccess=()=>ok(r.result);r.onerror=e=>ko(e);}));
 const dbPut=(st,v)=>idb().then(d=>new Promise((ok,ko)=>{const tx=d.transaction(st,'readwrite');tx.objectStore(st).put(v);tx.oncomplete=ok;tx.onerror=e=>ko(e);}));
@@ -868,7 +879,7 @@ const rrect=(ctx,x,y,w,h,r)=>{
 
 createApp({
 setup(){
-const VER='1.081';
+const VER='1.082';
 // ─── State ───
 const loading=ref(true);const dbError=ref('');
 const view=ref('home');const fullscreen=ref(null);
