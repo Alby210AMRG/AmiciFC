@@ -1978,6 +1978,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <img v-if="matchPhoto" :src="matchPhoto" style="margin-top:8px;width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--border)">
           </div>
+          <!-- Titolo articolo -->
+          <div class="input-group">
+            <label class="input-label">📰 Titolo dell'articolo (opzionale)</label>
+            <input class="input-field" v-model="articleTitle"
+              placeholder="Es. RIMONTA EPICA! Gli eroi della serata…">
+          </div>
           <!-- Note per l'AI -->
           <div class="input-group">
             <label class="input-label">📝 Note per l'AI (opzionale)</label>
@@ -3233,22 +3239,26 @@ createApp({
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          // Use gemini-2.5-flash (free tier) — try latest stable name
-          const model = 'gemini-2.0-flash';
-          const r = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
-            { method:'POST', headers:{'Content-Type':'application/json'},
-              body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
-          );
-          const d = await r.json();
+          // Try gemini-1.5-flash (generous free quota) then fallback to 2.0-flash
+          const models = ['gemini-1.5-flash', 'gemini-2.0-flash'];
+          let d = null;
+          for (const model of models) {
+            const r = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
+              { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
+            );
+            d = await r.json();
+            if (!d.error || !d.error.message?.includes('not found')) break;
+          }
           if (d.error) {
             const msg = d.error.message || '';
             if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid'))
               throw new Error('Chiave API non valida. Controlla su ai.google.dev');
             if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED'))
-              throw new Error('Quota esaurita. Controlla i limiti su ai.google.dev');
+              throw new Error('Quota momentaneamente esaurita. Riprova tra un minuto.');
             if (msg.includes('not found') || msg.includes('not supported'))
-              throw new Error('Modello non disponibile. Verifica che la tua chiave AI Studio sia attiva su ai.google.dev');
+              throw new Error('Modello non disponibile. Verifica su ai.google.dev');
             throw new Error(msg.slice(0, 120));
           }
           result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
@@ -3294,6 +3304,7 @@ createApp({
     const matchStep          = ref(1);
     const matchNotes         = ref('');
     const matchPhoto         = ref('');
+    const articleTitle       = ref('');
     const selectedForMatch   = ref([]);
     const teamA              = ref([]);
     const teamB              = ref([]);
@@ -3329,7 +3340,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.071');
+    const appVersion      = ref('1.072');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3780,7 +3791,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         let rawJson = '';
 
         if (settings.value.aiProvider === 'gemini') {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${settings.value.apiKey}`, {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${settings.value.apiKey}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500} })
           });
@@ -4348,7 +4359,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             data = await resp.json();
             text = data.choices?.[0]?.message?.content || '';
           } else if (prov === 'gemini') {
-            resp = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${key}`, {
+            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
               method:'POST',
               headers:{ 'Content-Type':'application/json' },
               body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
@@ -4488,7 +4499,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          resp = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-2.0-flash:generateContent?key=${key}`, {
+          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
             method:'POST',
             headers:{ 'Content-Type':'application/json' },
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
@@ -5250,252 +5261,259 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
     };
     const generateAndShareMatchPNG = async () => {
-      const W=900, PADDING=32;
+      const W=900, PAD=36;
 
-      // Collect match data
+      // Data
       const tAN = activeFormation.value?.nomeSquadraA || matchInfo.value?.nomeSquadraA || 'Squadra A';
       const tBN = activeFormation.value?.nomeSquadraB || matchInfo.value?.nomeSquadraB || 'Squadra B';
-      const goalA = matchGoalA.value || 0, goalB = matchGoalB.value || 0;
-      const luogo = matchInfo.value?.luogo || '';
-      const data  = matchInfo.value?.data  || new Date().toISOString().slice(0,10);
-      const pidsA = teamA.value || [], pidsB = teamB.value || [];
-      const allPids = [...pidsA, ...pidsB];
-      const upId = computedUomoPartita.value || computedMVP.value;
-      const upPlayer = upId ? getPlayer(upId) : null;
-      const upName = upPlayer ? (upPlayer.soprannome||upPlayer.nome) : '';
+      const goalA = matchGoalA.value||0, goalB = matchGoalB.value||0;
+      const luogo = matchInfo.value?.luogo||'', data2 = matchInfo.value?.data||new Date().toISOString().slice(0,10);
+      const pidsA = teamA.value||[], pidsB = teamB.value||[];
+      const allPids = [...pidsA,...pidsB];
+      const upId = computedUomoPartita.value||computedMVP.value;
+      const upPlayer = upId?getPlayer(upId):null;
+      const upName = upPlayer?(upPlayer.soprannome||upPlayer.nome):'';
 
-      // Load images
       const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;}else res(null);};img.src=src;setTimeout(()=>res(null),7000);});
       const logoImg = await li(LOGO_EMBEDDED||logoDataUrl.value);
-      const upPhoto = upPlayer ? await li(getPlayerPhoto(upPlayer.foto, upPlayer.uid)) : null;
-      const matchPhotoImg = matchPhoto.value ? await li(matchPhoto.value) : null;
+      const upPhoto = upPlayer?await li(getPlayerPhoto(upPlayer.foto,upPlayer.uid)):null;
+      const matchPhotoImg = matchPhoto.value?await li(matchPhoto.value):null;
 
-      // --- Measure height first ---
-      const hasPagelle = allPids.some(pid=>(playerStats.value[pid]?.voto||0)>0);
-      const allSix = allPids.every(pid=>!playerStats.value[pid]?.voto || playerStats.value[pid].voto===6);
+      const allSix = allPids.every(pid=>!(playerStats.value[pid]?.voto)||playerStats.value[pid].voto===6);
       const scorersA = pidsA.filter(pid=>(playerStats.value[pid]?.goal||0)>0||(playerStats.value[pid]?.assist||0)>0);
       const scorersB = pidsB.filter(pid=>(playerStats.value[pid]?.goal||0)>0||(playerStats.value[pid]?.assist||0)>0);
-      const articleLines = aiComment.value ? Math.ceil(aiComment.value.split('\n')[0].length/40)+Math.ceil((aiComment.value.split('\n').slice(1).join(' ').length)/55)+2 : 3;
 
-      // Calculate approximate height
-      let H = 200; // header
-      H += matchPhotoImg ? 220 : 0;
-      H += 120; // teams + score
-      if(luogo) H += 36;
-      H += 60; // marcatori header
-      H += Math.max(scorersA.length, scorersB.length)*28+40;
-      H += hasPagelle ? Math.ceil(allPids.length/2)*30+80 : 0;
-      H += articleLines*34+120; // commento + title
-      H += 100; // footer
-      H = Math.max(H, 900);
+      // Fonts: serif for body (Georgia), slab-serif for headers (Impact fallback)
+      const FONT_HEAD = '"Impact","Arial Black",Arial';
+      const FONT_BODY = 'Georgia,"Times New Roman",serif';
+      const FONT_SANS = '"Arial Black",Arial';
+
+      // Pre-measure height
+      let H = 90+60+70; // header+title
+      if(articleTitle.value||true) H+=60;
+      if(matchPhotoImg) H+=220;
+      H+=100; // teams+score
+      if(luogo) H+=36;
+      H+=Math.max(scorersA.length,scorersB.length)*28+70;
+      H+=allPids.length*30+80; // pagelle
+      H+=220; // commento+mvp
+      H+=90;  // footer
+      H=Math.max(H,1100);
 
       const canvas=document.createElement('canvas');
-      canvas.width=W; canvas.height=H;
+      canvas.width=W;canvas.height=H;
       const ctx=canvas.getContext('2d');
       await document.fonts.ready;
 
       const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
-      const HR=(y,col='#0D3B8C',thick=3)=>{ctx.fillStyle=col;ctx.fillRect(PADDING,y,W-PADDING*2,thick);if(thick>1){ctx.fillStyle=col+'44';ctx.fillRect(PADDING,y+thick,W-PADDING*2,1);}};
-      const wrapText=(text,x,y,maxW,lineH,maxLines=99)=>{const words=text.split(' ');let line='',lines=0;for(const w of words){const t=line+w+' ';if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),x,y+lines*lineH);lines++;if(lines>=maxLines)return y+lines*lineH;line=w+' ';}else line=t;}if(line.trim()){ctx.fillText(line.trim(),x,y+lines*lineH);lines++;}return y+lines*lineH;};
 
-      // ══ BACKGROUND ══
-      ctx.fillStyle='#F5F0E6'; ctx.fillRect(0,0,W,H);
-      // Faint paper lines
-      ctx.strokeStyle='rgba(0,0,0,0.035)';ctx.lineWidth=1;
-      for(let py=0;py<H;py+=24){ctx.beginPath();ctx.moveTo(0,py);ctx.lineTo(W,py);ctx.stroke();}
-      // Decorative corners
-      const cornerSize=60;
-      [[0,0],[W-cornerSize,0],[0,H-cornerSize],[W-cornerSize,H-cornerSize]].forEach(([cx,cy])=>{
-        ctx.strokeStyle='rgba(13,59,140,0.15)';ctx.lineWidth=2;
-        ctx.strokeRect(cx+4,cy+4,cornerSize-8,cornerSize-8);
-      });
+      // ══ BACKGROUND: aged newspaper effect ══
+      // Base cream
+      ctx.fillStyle='#F2ECD8';ctx.fillRect(0,0,W,H);
+      // Grain texture (many tiny dots)
+      for(let i=0;i<8000;i++){
+        const gx=Math.random()*W,gy=Math.random()*H,ga=Math.random()*0.06;
+        ctx.fillStyle=`rgba(${Math.random()>0.5?120:80},${Math.random()>0.5?90:60},40,${ga})`;
+        ctx.fillRect(gx,gy,1,1);
+      }
+      // Faint horizontal lines (newspaper grid)
+      ctx.strokeStyle='rgba(100,80,40,0.07)';ctx.lineWidth=1;
+      for(let ly=0;ly<H;ly+=22){ctx.beginPath();ctx.moveTo(0,ly);ctx.lineTo(W,ly);ctx.stroke();}
+      // Slight vignette
+      const vig=ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.8);
+      vig.addColorStop(0,'transparent');vig.addColorStop(1,'rgba(60,40,10,0.10)');
+      ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+
+      const HR=(y,col='#8B0000',thick=2)=>{ctx.fillStyle=col;ctx.fillRect(PAD,y,W-PAD*2,thick);return y+thick+6;};
+      const wrapText=(text,x,y,maxW,font,size,col,lineH,align='left',maxLines=999)=>{
+        ctx.font=`${size}px ${font}`;ctx.fillStyle=col;ctx.textAlign=align;
+        const words=text.split(' ');let line='',lines=0,lastY=y;
+        const cx=align==='center'?x+maxW/2:align==='right'?x+maxW:x;
+        for(const w of words){const t=line+w+' ';if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),cx,lastY);lines++;lastY+=lineH;if(lines>=maxLines){ctx.fillText('…',cx,lastY);return lastY+lineH;}line=w+' ';}else line=t;}
+        if(line.trim()){ctx.fillText(line.trim(),cx,lastY);lastY+=lineH;}
+        return lastY;
+      };
 
       let Y=0;
 
-      // ══ HEADER STRIP (blue) ══
-      ctx.fillStyle='#0D3B8C';ctx.fillRect(0,0,W,56);
-      ctx.fillStyle='#FFD700';ctx.fillRect(0,54,W,6);
-      // Newspaper name
-      ctx.font='900 italic 26px "Arial Black",Arial';ctx.fillStyle='#FFD700';ctx.textAlign='left';
-      ctx.fillText('⚽ GAZZETTA DEL CALCETTO',PADDING,37);
-      // Date right
-      ctx.font='700 16px Arial';ctx.fillStyle='rgba(255,255,255,0.8)';ctx.textAlign='right';
-      const d=new Date(data); const dateStr=isNaN(d)?data:d.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
-      ctx.fillText(dateStr,W-PADDING,36);
-      Y=80;
+      // ══ HEADER ══
+      ctx.fillStyle='#8B0000';ctx.fillRect(0,0,W,58); // Gazzetta red
+      ctx.fillStyle='#FFD700';ctx.fillRect(0,56,W,4);
+      // Masthead
+      ctx.font=`900 italic 30px ${FONT_HEAD}`;ctx.fillStyle='#FFD700';ctx.textAlign='left';
+      ctx.fillText('⚽ GAZZETTA DEL CALCETTO',PAD,40);
+      const d2=new Date(data2);const ds=isNaN(d2.getTime())?data2:d2.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+      ctx.font=`14px ${FONT_BODY}`;ctx.fillStyle='rgba(255,255,255,0.8)';ctx.textAlign='right';ctx.fillText(ds,W-PAD,37);
+      Y=72;
 
-      // ══ MATCH TITLE ══
-      ctx.font='900 62px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='center';
-      ctx.shadowColor='rgba(0,0,0,0.12)';ctx.shadowBlur=8;
-      ctx.fillText('CHE PARTITA!',W/2,Y+54);ctx.shadowBlur=0;
-      Y+=72;
+      // ══ NEWSPAPER TITLE (big bold Impact-style) ══
+      ctx.font=`900 58px ${FONT_HEAD}`;ctx.fillStyle='#1a0000';ctx.textAlign='center';
+      ctx.shadowColor='rgba(0,0,0,0.08)';ctx.shadowBlur=4;
+      ctx.fillText('CHE PARTITA!',W/2,Y+50);ctx.shadowBlur=0;
+      Y+=62;Y=HR(Y,'#8B0000',3);
 
-      // ══ ARTICLE HEADLINE (from AI or generated) ══
-      const rawAI = aiComment.value||'';
-      const aiLines = rawAI.split('\n').filter(l=>l.trim());
-      const headline = aiLines[0]?.trim() || `${tAN} VS ${tBN}: UNA SERATA INDIMENTICABILE!`;
-      const articleBody = aiLines.slice(1).join(' ').trim() || rawAI;
+      // ══ ARTICLE TITLE (user-defined or from AI — bigger than body text) ══
+      const rawAI=aiComment.value||'';
+      const aiLines=rawAI.split('\n').filter(l=>l.trim());
+      const userTitle=articleTitle.value.trim();
+      const autoTitle=aiLines[0]?.trim()||`${tAN.toUpperCase()} VS ${tBN.toUpperCase()}: UNA SERATA INDIMENTICABILE!`;
+      const displayTitle=userTitle||autoTitle;
+      const articleBody=userTitle?rawAI:(aiLines.slice(1).join(' ').trim()||rawAI);
 
-      ctx.font='700 italic 26px Georgia,serif';ctx.fillStyle='#333';ctx.textAlign='center';
-      const headY = wrapText(headline,PADDING,Y,W-PADDING*2,34,2);
-      Y=headY+16;
-      HR(Y,'#0D3B8C',2);Y+=16;
+      ctx.font=`700 italic 28px ${FONT_BODY}`;ctx.fillStyle='#1a1a1a';ctx.textAlign='center';
+      const titleEndY=wrapText(displayTitle,PAD,Y,W-PAD*2,`italic 700 28px ${FONT_BODY}`,28,'#1a1a1a',36,'center',2);
+      Y=titleEndY+12;Y=HR(Y,'#8B0000',2);
 
-      // ══ MATCH PHOTO (if present) ══
+      // ══ MATCH PHOTO ══
       if(matchPhotoImg){
-        const ph=200, pw=W-PADDING*2;
+        const ph=200,pw=W-PAD*2;
         const scale=Math.min(pw/matchPhotoImg.naturalWidth,ph/matchPhotoImg.naturalHeight);
         const dw=matchPhotoImg.naturalWidth*scale,dh=matchPhotoImg.naturalHeight*scale;
-        ctx.save();rr(PADDING,Y,pw,ph,10);ctx.clip();
-        ctx.drawImage(matchPhotoImg,(pw-dw)/2+PADDING,(ph-dh)/2+Y,dw,dh);
+        ctx.save();rr(PAD,Y,pw,ph,8);ctx.clip();
+        ctx.fillStyle='#ddd';ctx.fillRect(PAD,Y,pw,ph);
+        ctx.drawImage(matchPhotoImg,(pw-dw)/2+PAD,(ph-dh)/2+Y,dw,dh);
         ctx.restore();
-        Y+=ph+16;HR(Y);Y+=12;
+        Y+=ph+14;Y=HR(Y,'#8B0000',1);
       }
 
-      // ══ TEAMS + SCORE ══
-      // Location
+      // ══ LOCATION ══
       if(luogo){
-        ctx.font='600 18px Arial';ctx.fillStyle='#555';ctx.textAlign='center';
-        ctx.fillText('📍 '+luogo.toUpperCase(),W/2,Y+20);Y+=32;
+        ctx.font=`italic 17px ${FONT_BODY}`;ctx.fillStyle='#555';ctx.textAlign='center';
+        ctx.fillText('📍 '+luogo,W/2,Y+20);Y+=32;
       }
-      // Score box
-      const SBW=600,SBH=90,SBX=(W-SBW)/2;
-      ctx.fillStyle='#fff';ctx.shadowColor='rgba(0,0,0,0.1)';ctx.shadowBlur=12;
-      rr(SBX,Y,SBW,SBH,14);ctx.fill();ctx.shadowBlur=0;
+
+      // ══ SCORE ══
+      const SBW=580,SBH=90,SBX=(W-SBW)/2;
+      ctx.fillStyle='rgba(255,255,255,0.7)';ctx.shadowColor='rgba(0,0,0,0.1)';ctx.shadowBlur=10;
+      rr(SBX,Y,SBW,SBH,12);ctx.fill();ctx.shadowBlur=0;
       // Team A (blue, left)
-      ctx.fillStyle='#0D3B8C';rr(SBX,Y,200,SBH,14);ctx.fill();
-      ctx.font='900 17px "Arial Black",Arial';ctx.fillStyle='#fff';ctx.textAlign='center';
-      ctx.fillText(tAN.toUpperCase(),SBX+100,Y+35);
-      // Team A goals
-      ctx.font='900 28px "Arial Black",Arial';ctx.fillStyle='#FFD700';
-      ctx.fillText(String(goalA),SBX+100,Y+68);
-      // Score divider
-      ctx.font='900 36px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='center';
-      ctx.fillText('-',W/2,Y+62);
-      // Team B (red/orange, right)
-      ctx.fillStyle='#C0392B';rr(SBX+SBW-200,Y,200,SBH,14);ctx.fill();
-      ctx.font='900 17px "Arial Black",Arial';ctx.fillStyle='#fff';
-      ctx.fillText(tBN.toUpperCase(),SBX+SBW-100,Y+35);
-      ctx.font='900 28px "Arial Black",Arial';ctx.fillStyle='#FFD700';
-      ctx.fillText(String(goalB),SBX+SBW-100,Y+68);
-      Y+=SBH+28;HR(Y);Y+=16;
+      ctx.fillStyle='#0D3B8C';rr(SBX,Y,185,SBH,12);ctx.fill();
+      ctx.font=`900 16px ${FONT_SANS}`;ctx.fillStyle='#fff';ctx.textAlign='center';
+      ctx.fillText(tAN.toUpperCase(),SBX+92,Y+30);
+      ctx.font=`900 34px ${FONT_SANS}`;ctx.fillStyle='#FFD700';
+      ctx.fillText(String(goalA),SBX+92,Y+70);
+      // Divider dash
+      ctx.font=`900 40px ${FONT_SANS}`;ctx.fillStyle='#1a0000';ctx.textAlign='center';
+      ctx.fillText('—',W/2,Y+58);
+      // Team B (red, right)
+      ctx.fillStyle='#8B0000';rr(SBX+SBW-185,Y,185,SBH,12);ctx.fill();
+      ctx.font=`900 16px ${FONT_SANS}`;ctx.fillStyle='#fff';ctx.textAlign='center';
+      ctx.fillText(tBN.toUpperCase(),SBX+SBW-92,Y+30);
+      ctx.font=`900 34px ${FONT_SANS}`;ctx.fillStyle='#FFD700';
+      ctx.fillText(String(goalB),SBX+SBW-92,Y+70);
+      Y+=SBH+20;Y=HR(Y,'#8B0000',2);
 
-      // ══ MARCATORI (split by team) ══
-      ctx.font='900 22px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='center';
-      ctx.fillText('MARCATORI',W/2,Y+20);Y+=36;
-      const colW2=(W-PADDING*2-20)/2;
-      // Left: team A
-      ctx.font='700 20px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='left';
-      ctx.fillText(tAN.toUpperCase(),PADDING,Y+20);
-      ctx.font='700 20px "Arial Black",Arial';ctx.fillStyle='#C0392B';ctx.textAlign='right';
-      ctx.fillText(tBN.toUpperCase(),W-PADDING,Y+20);Y+=28;
-      const maxSc=Math.max(scorersA.length,scorersB.length,1);
-      for(let i=0;i<maxSc;i++){
+      // ══ MARCATORI (two columns) ══
+      ctx.font=`900 20px ${FONT_SANS}`;ctx.fillStyle='#8B0000';ctx.textAlign='center';
+      ctx.fillText('MARCATORI',W/2,Y+22);Y+=36;
+      const colW=(W-PAD*2-16)/2;
+      ctx.font=`700 17px ${FONT_SANS}`;ctx.fillStyle='#0D3B8C';ctx.textAlign='left';
+      ctx.fillText(tAN.toUpperCase(),PAD,Y+18);
+      ctx.fillStyle='#8B0000';ctx.textAlign='right';
+      ctx.fillText(tBN.toUpperCase(),W-PAD,Y+18);Y+=24;
+      const mxS=Math.max(scorersA.length,scorersB.length,0);
+      if(mxS===0){ctx.font=`italic 16px ${FONT_BODY}`;ctx.fillStyle='#888';ctx.textAlign='center';ctx.fillText('Nessun marcatore registrato',W/2,Y+18);Y+=28;}
+      for(let i=0;i<mxS;i++){
         const pA=scorersA[i],pB=scorersB[i];
-        if(pA){
-          const p=getPlayer(pA),s=playerStats.value[pA]||{};
-          const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'');
-          ctx.font='600 18px Arial';ctx.fillStyle='#222';ctx.textAlign='left';
-          ctx.fillText(`${p?.soprannome||p?.nome} ${icons}`,PADDING,Y+22);
-        }
-        if(pB){
-          const p=getPlayer(pB),s=playerStats.value[pB]||{};
-          const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'');
-          ctx.font='600 18px Arial';ctx.fillStyle='#222';ctx.textAlign='right';
-          ctx.fillText(`${icons} ${p?.soprannome||p?.nome}`,W-PADDING,Y+22);
-        }
+        if(pA){const p=getPlayer(pA),s=playerStats.value[pA]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='left';ctx.fillText(`${p?.soprannome||p?.nome} ${icons}`,PAD,Y+18);}
+        if(pB){const p=getPlayer(pB),s=playerStats.value[pB]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='right';ctx.fillText(`${icons} ${p?.soprannome||p?.nome}`,W-PAD,Y+18);}
         Y+=26;
       }
-      Y+=16;HR(Y);Y+=16;
+      Y+=10;Y=HR(Y,'#8B0000',2);
 
-      // ══ PAGELLE ══
-      ctx.font='900 22px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='center';
-      ctx.fillText('PAGELLE',W/2,Y+20);Y+=36;
-      if(allSix){
-        ctx.font='italic 18px Georgia,serif';ctx.fillStyle='#777';ctx.textAlign='center';
-        ctx.fillText('"Il pagellista era in vacanza questa volta..."',W/2,Y+20);Y+=40;
-      }
-      // Always show pagelle split by team
-      const maxPl=Math.max(pidsA.length,pidsB.length);
-      for(let i=0;i<maxPl;i++){
+      // ══ PAGELLE (split by team, voto colored) ══
+      ctx.font=`900 20px ${FONT_SANS}`;ctx.fillStyle='#8B0000';ctx.textAlign='center';
+      ctx.fillText('PAGELLE',W/2,Y+22);Y+=36;
+      if(allSix){ctx.font=`italic 15px ${FONT_BODY}`;ctx.fillStyle='#888';ctx.textAlign='center';ctx.fillText('"Il pagellista era in vacanza questa volta..."',W/2,Y+16);Y+=28;}
+      // Two columns A | B
+      ctx.font=`700 16px ${FONT_SANS}`;ctx.fillStyle='#0D3B8C';ctx.textAlign='left';ctx.fillText(tAN.toUpperCase(),PAD,Y+16);
+      ctx.fillStyle='#8B0000';ctx.textAlign='right';ctx.fillText(tBN.toUpperCase(),W-PAD,Y+16);Y+=22;
+      const mxP=Math.max(pidsA.length,pidsB.length);
+      for(let i=0;i<mxP;i++){
         const pA2=pidsA[i],pB2=pidsB[i];
-        if(pA2){
-          const p=getPlayer(pA2),s=playerStats.value[pA2]||{};
-          const v=s.voto||6;
-          ctx.font=`${v>=8?'900':'600'} 18px ${v>=8?'"Arial Black",':''}Arial`;
-          ctx.fillStyle=v>=8?'#0D3B8C':v<5?'#c00':'#333';ctx.textAlign='left';
-          ctx.fillText(`${(p?.soprannome||p?.nome||'').toUpperCase()} ${v}`,PADDING,Y+20);
-        }
-        if(pB2){
-          const p=getPlayer(pB2),s=playerStats.value[pB2]||{};
-          const v=s.voto||6;
-          ctx.font=`${v>=8?'900':'600'} 18px ${v>=8?'"Arial Black",':''}Arial`;
-          ctx.fillStyle=v>=8?'#C0392B':v<5?'#660':'#333';ctx.textAlign='right';
-          ctx.fillText(`${v} ${(p?.soprannome||p?.nome||'').toUpperCase()}`,W-PADDING,Y+20);
-        }
+        const drawP=(pid,align)=>{
+          if(!pid)return;
+          const p=getPlayer(pid),s=playerStats.value[pid]||{},v=s.voto||6;
+          const n=(p?.soprannome||p?.nome||'').toUpperCase();
+          const vc=v>=8?'#006600':v>=7?'#0D3B8C':v<=5?'#8B0000':'#555';
+          const bx=align==='left'?PAD:W-PAD-colW;
+          // Name
+          ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign=align;
+          const nameX=align==='left'?PAD:W-PAD;
+          // voto at the right of name
+          if(align==='left'){
+            ctx.fillText(n,PAD,Y+18);
+            const nw=ctx.measureText(n).width;
+            ctx.font=`900 18px ${FONT_SANS}`;ctx.fillStyle=vc;
+            ctx.fillText(` ${v}`,PAD+nw+4,Y+18);
+          }else{
+            ctx.fillText(n,W-PAD,Y+18);
+            const nw=ctx.measureText(n).width;
+            ctx.font=`900 18px ${FONT_SANS}`;ctx.fillStyle=vc;
+            ctx.fillText(`${v} `,W-PAD-nw-4-ctx.measureText(String(v)).width,Y+18);
+          }
+        };
+        drawP(pA2,'left');drawP(pB2,'right');
         Y+=26;
       }
-      Y+=12;HR(Y);Y+=16;
+      Y+=14;Y=HR(Y,'#8B0000',2);
 
-      // ══ COMMENTO + MVP ══
-      ctx.font='900 22px "Arial Black",Arial';ctx.fillStyle='#0D3B8C';ctx.textAlign='center';
-      ctx.fillText('IL COMMENTO',W/2,Y+20);Y+=36;
+      // ══ COMMENTO + MVP CARD ══
+      ctx.font=`900 20px ${FONT_SANS}`;ctx.fillStyle='#8B0000';ctx.textAlign='center';
+      ctx.fillText('IL COMMENTO',W/2,Y+22);Y+=36;
 
-      const MVP_CARD_W=180,MVP_CARD_H=220;
-      const mvpX=W-PADDING-MVP_CARD_W;
-      const articleMaxW=upPlayer?mvpX-PADDING-20:W-PADDING*2;
+      const MVP_W=175,MVP_H=220,mvpX=W-PAD-MVP_W,mvpY=Y;
+      const artMaxW=upPlayer?mvpX-PAD-16:W-PAD*2;
 
-      // MVP card
       if(upPlayer){
-        ctx.fillStyle='#FFD700';ctx.shadowColor='rgba(0,0,0,0.25)';ctx.shadowBlur=14;
-        rr(mvpX-4,Y-4,MVP_CARD_W+8,MVP_CARD_H+8,14);ctx.fill();ctx.shadowBlur=0;
-        ctx.fillStyle='#0D3B8C';rr(mvpX,Y,MVP_CARD_W,MVP_CARD_H,12);ctx.fill();
-        // Photo or silhouette
-        ctx.save();rr(mvpX+6,Y+6,MVP_CARD_W-12,MVP_CARD_H-60,10);ctx.clip();
-        if(upPhoto){
-          const iw=upPhoto.naturalWidth||100,ih=upPhoto.naturalHeight||100,s2=Math.min(iw,ih),sx=(iw-s2)/2,sy=(ih-s2)/2;
-          ctx.drawImage(upPhoto,sx,sy,s2,s2,mvpX+6,Y+6,MVP_CARD_W-12,MVP_CARD_H-60);
-        }else{
-          // Silhouette
-          ctx.fillStyle='#1a2a50';ctx.fillRect(mvpX+6,Y+6,MVP_CARD_W-12,MVP_CARD_H-60);
-          ctx.fillStyle='rgba(255,255,255,0.25)';
-          ctx.beginPath();ctx.arc(mvpX+MVP_CARD_W/2,Y+55,28,0,Math.PI*2);ctx.fill();
-          ctx.beginPath();ctx.ellipse(mvpX+MVP_CARD_W/2,Y+110,36,30,0,Math.PI,0);ctx.fill();
-        }
+        // Gold frame
+        ctx.fillStyle='#FFD700';ctx.shadowColor='rgba(0,0,0,0.2)';ctx.shadowBlur=12;
+        rr(mvpX-4,mvpY-4,MVP_W+8,MVP_H+8,12);ctx.fill();ctx.shadowBlur=0;
+        ctx.fillStyle='#0D3B8C';rr(mvpX,mvpY,MVP_W,MVP_H,10);ctx.fill();
+        // Photo/silhouette
+        ctx.save();rr(mvpX+6,mvpY+6,MVP_W-12,MVP_H-58,8);ctx.clip();
+        if(upPhoto){const iw=upPhoto.naturalWidth||100,ih=upPhoto.naturalHeight||100,s2=Math.min(iw,ih),sx=(iw-s2)/2,sy=(ih-s2)/2;ctx.drawImage(upPhoto,sx,sy,s2,s2,mvpX+6,mvpY+6,MVP_W-12,MVP_H-58);}
+        else{ctx.fillStyle='#1a2a50';ctx.fillRect(mvpX+6,mvpY+6,MVP_W-12,MVP_H-58);ctx.fillStyle='rgba(255,255,255,0.22)';ctx.beginPath();ctx.arc(mvpX+MVP_W/2,mvpY+50,26,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(mvpX+MVP_W/2,mvpY+100,34,28,0,Math.PI,0);ctx.fill();}
         ctx.restore();
-        ctx.font='900 18px "Arial Black",Arial';ctx.fillStyle='#FFD700';ctx.textAlign='center';
-        ctx.fillText(upName.toUpperCase(),mvpX+MVP_CARD_W/2,Y+MVP_CARD_H-32);
-        ctx.font='600 13px Arial';ctx.fillStyle='#fff';
-        ctx.fillText('MIGLIORE IN CAMPO!',mvpX+MVP_CARD_W/2,Y+MVP_CARD_H-12);
+        ctx.font=`900 17px ${FONT_SANS}`;ctx.fillStyle='#FFD700';ctx.textAlign='center';
+        ctx.fillText(upName.toUpperCase(),mvpX+MVP_W/2,mvpY+MVP_H-30);
+        ctx.font=`600 12px ${FONT_SANS}`;ctx.fillStyle='#fff';
+        ctx.fillText('MIGLIORE IN CAMPO!',mvpX+MVP_W/2,mvpY+MVP_H-12);
       }
 
-      // Article body text
-      ctx.font='italic 21px Georgia,serif';ctx.fillStyle='#222';ctx.textAlign='left';
-      const bodyText=articleBody||aiComment.value||'Una serata da ricordare!';
-      const endY=wrapText(bodyText,PADDING,Y+4,articleMaxW,32);
-      Y=Math.max(endY+24,Y+MVP_CARD_H+20);
+      // Article body
+      const bodyText=articleBody||rawAI||'Una serata che rimarrà nei ricordi!';
+      ctx.font=`italic 20px ${FONT_BODY}`;ctx.fillStyle='#1a1a1a';ctx.textAlign='left';
+      const artEndY=wrapText(bodyText,PAD,Y+4,artMaxW,`italic 20px ${FONT_BODY}`,20,'#1a1a1a',30,'left');
+      Y=Math.max(artEndY+20,mvpY+MVP_H+20);
+      Y=HR(Y,'#8B0000',2);
 
-      // ══ FOOTER ══
-      HR(Y,'#0D3B8C',2);Y+=18;
-      if(logoImg){ctx.drawImage(logoImg,W-PADDING-56,Y,56,56);}
-      ctx.font='700 italic 22px Georgia,serif';ctx.fillStyle='#0D3B8C';ctx.textAlign='right';
-      ctx.fillText('⚽ Amici FC',W-PADDING,Y+30);
-      ctx.font='600 15px Arial';ctx.fillStyle='#888';
-      ctx.fillText(currentGroup.value?.nome||'',W-PADDING,Y+50);
-      Y+=80;
+      // ══ FOOTER (logo right, text left) ══
+      const FOOT_H=70;
+      // Logo bottom-right
+      if(logoImg){
+        ctx.shadowColor='rgba(0,0,0,0.15)';ctx.shadowBlur=6;
+        ctx.drawImage(logoImg,W-PAD-60,Y+5,60,60);
+        ctx.shadowBlur=0;
+      }
+      ctx.font=`900 italic 22px ${FONT_HEAD}`;ctx.fillStyle='#8B0000';ctx.textAlign='right';
+      ctx.fillText('⚽ Amici FC',W-PAD-68,Y+28);
+      ctx.font=`italic 14px ${FONT_BODY}`;ctx.fillStyle='#666';
+      ctx.fillText(currentGroup.value?.nome||'',W-PAD-68,Y+48);
+      ctx.font=`italic 13px ${FONT_BODY}`;ctx.fillStyle='#aaa';ctx.textAlign='left';
+      ctx.fillText('"Dove i campioni nascono… e litigano!"',PAD,Y+38);
+      Y+=FOOT_H;
 
-      // Resize canvas to actual content
+      // Trim canvas
       const finalCanvas=document.createElement('canvas');
-      finalCanvas.width=W;finalCanvas.height=Y+10;
-      const fc=finalCanvas.getContext('2d');
-      fc.drawImage(canvas,0,0);
+      finalCanvas.width=W;finalCanvas.height=Y;
+      finalCanvas.getContext('2d').drawImage(canvas,0,0);
       const dataUrl=finalCanvas.toDataURL('image/png');
-
-      // Show preview modal
       previewPNGUrl.value=dataUrl;
-      previewPNGName.value=`amicifc-giornale-${data}.png`;
+      previewPNGName.value=`amicifc-giornale-${data2}.png`;
       showPNGPreview.value=true;
     };
+
 
 
     const autoSync = async () => {
@@ -6055,7 +6073,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
-      matchNotes, matchPhoto, handleMatchPhoto, generateAndShareMatchPNG, shareHistoryMatchPNG,
+      matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, toggleFont,
       syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
