@@ -3292,7 +3292,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion      = ref('1.068');
+    const appVersion      = ref('1.069');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3606,12 +3606,16 @@ createApp({
     // Manual formation — sorted players with search
     const sortedManualPlayers = computed(() => {
       const q = manualSearch.value.trim().toLowerCase();
-      let list = q
-        ? groupPlayers.value.filter(p =>
-            (p.soprannome||'').toLowerCase().includes(q) ||
-            (p.nome||'').toLowerCase().includes(q) ||
-            (p.cognome||'').toLowerCase().includes(q))
+      // Only show players that were selected in the player-select screen
+      let list = selectedForMatch.value.length
+        ? groupPlayers.value.filter(p => selectedForMatch.value.includes(p.id))
         : [...groupPlayers.value];
+      if (q) {
+        list = list.filter(p =>
+          (p.soprannome||'').toLowerCase().includes(q) ||
+          (p.nome||'').toLowerCase().includes(q) ||
+          (p.cognome||'').toLowerCase().includes(q));
+      }
       list.sort((a, b) => {
         const la = (a.soprannome || a.nome || '').toLowerCase();
         const lb = (b.soprannome || b.nome || '').toLowerCase();
@@ -5131,6 +5135,35 @@ Scrivi un commento divertente, ironico, di 3-4 frasi max, stile telecronista ita
         const names = topF.map(p=>p.soprannome||p.nome).join(', ');
         items.push({emoji:'⭐',text:`Miglior formazione ${fSize}v${fSize}: ${names}`});
       }
+      // ── Frasi simpatiche tra amici (appaiono ogni ~4 notizie) ──
+      const funnyPhrases = [
+        { emoji:'😂', text:'Non importa il risultato: l\'importante è avere qualcuno da insultare con affetto.' },
+        { emoji:'🤌', text:'Se non si litiga almeno una volta, non è una partita seria.' },
+        { emoji:'😎', text:'Siamo scarsi… ma con stile.' },
+        { emoji:'🍺', text:'Squadra che litiga… poi va a bere insieme.' },
+        { emoji:'💪', text:'Non serve essere fenomeni: basta essere presenti.' },
+        { emoji:'⚽', text:'Il calcetto non è uno sport: è una terapia di gruppo.' },
+        { emoji:'😅', text:'Tattica? Noi usiamo il cuore. E ogni tanto la pancia.' },
+        { emoji:'🕐', text:'Cinque minuti di ritardo sono la nostra formazione base.' },
+        { emoji:'🎩', text:'Siamo professionisti... nel trovare scuse.' },
+        { emoji:'🦵', text:'Ogni fallo è un\'incomprensione. Ogni gol, un miracolo.' },
+        { emoji:'📞', text:'Il gruppo WhatsApp è più attivo della partita stessa.' },
+        { emoji:'🧠', text:'La nostra tattica: correre tanto e sperare nel meglio.' },
+        { emoji:'🌧️', text:'Neanche la pioggia ci ferma. Ma il traffico sì.' },
+        { emoji:'🏃', text:'Pressing alto? Sì, ma solo per i primi 3 minuti.' },
+        { emoji:'👴', text:'Gli anni passano, i dolori aumentano, ma la voglia di giocare no.' },
+        { emoji:'🥅', text:'Il portiere incolpevole è il nostro MVP di ogni settimana.' },
+        { emoji:'📣', text:'Fuori campo siamo amici. In campo... dipende dal risultato.' },
+        { emoji:'💬', text:'Analisi post-partita: tutti allenatori, nessun giocatore.' },
+        { emoji:'🦸', text:'C\'è sempre quel uno che si crede Ronaldo. Ed è il motivo per cui perdiamo.' },
+        { emoji:'🤝', text:'Vince la squadra che sbaglia meno. Di solito non siamo noi.' },
+      ];
+      // Show a funny phrase roughly every 4 items (not too often, not too rare)
+      if (newsIndex.value % 4 === 2) {
+        const pick = funnyPhrases[Math.floor(newsIndex.value / 4) % funnyPhrases.length];
+        items.push(pick);
+      }
+
       return items.length?items:[{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
     });
 
