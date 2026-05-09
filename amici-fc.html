@@ -1708,6 +1708,30 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- 🎯 PREDIZIONE RISULTATO -->
+        <div v-if="f.stato!=='giocata'" style="margin-top:10px;background:linear-gradient(135deg,rgba(166,255,77,0.06),rgba(58,123,255,0.06));border:1px solid rgba(166,255,77,0.2);border-radius:12px;padding:12px">
+          <div style="font-size:0.72rem;font-weight:800;color:var(--lime);margin-bottom:8px;letter-spacing:0.5px">🎯 PREDIZIONE AI · QUOTE</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <div style="flex:1;text-align:center">
+              <div style="font-size:0.72rem;color:#7ab0ff;font-weight:700">{{ f.nomeSquadraA||'Squadra A' }}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ computeFormationPrediction(f).quoteA }}</div>
+              <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
+            </div>
+            <div style="text-align:center;padding:0 4px">
+              <div style="font-size:0.75rem;font-weight:900;color:var(--yellow)">{{ computeFormationPrediction(f).quoteX }}</div>
+              <div style="font-size:0.6rem;color:var(--text2)">pareggio</div>
+            </div>
+            <div style="flex:1;text-align:center">
+              <div style="font-size:0.72rem;color:#ff9090;font-weight:700">{{ f.nomeSquadraB||'Squadra B' }}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ computeFormationPrediction(f).quoteB }}</div>
+              <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
+            </div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text2);text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
+            {{ computeFormationPrediction(f).verdict }}
+          </div>
+        </div>
+
         <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
           <button class="btn btn-blue btn-sm" @click="shareFormationPNG(f)">📱 Condividi</button>
           <button class="btn btn-primary btn-sm" @click="playFormation(f)" :disabled="f.stato==='giocata'">
@@ -3847,7 +3871,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.095');
+    const appVersion = ref('1.096');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4471,6 +4495,71 @@ Rispondi SOLO con questo JSON (niente altro testo):
       if(!mf.squadraA.length||!mf.squadraB.length){toast('Almeno 1 giocatore per squadra!','error');return;}
       await db.formations.add({...buildFormationBase(),nome:mf.nome.trim(),nomeSquadraA:mf.nomeSquadraA||'Squadra A',nomeSquadraB:mf.nomeSquadraB||'Squadra B',squadraA:sortByRole(mf.squadraA),squadraB:sortByRole(mf.squadraB),matchData:mf.matchData,matchOrario:mf.matchOrario,matchLuogo:mf.matchLuogo});
       await loadFormations();toast('✅ Formazione manuale salvata!');currentView.value='formations';
+    };
+
+    // ── PREDIZIONE RISULTATO FORMAZIONE ──
+    const computeFormationPrediction = (f) => {
+      const getAvg = (pids) => {
+        if (!pids?.length) return 6;
+        const ps = pids.map(pid => groupPlayers.value.find(p=>p.id===pid)).filter(Boolean);
+        if (!ps.length) return 6;
+        // Composite score: mediaPunti * 40 + mediaVoto * 10 + goalPerGame * 20
+        const scores = ps.map(p => {
+          const mp = p.mediaPunti||0;
+          const mv = p.mediaVoto||0;
+          const gpg = p.partiteTotali>0?(p.goalTotali||0)/p.partiteTotali:0;
+          const upp = p.partiteTotali>0?(p.uomoPartitaTotali||0)/p.partiteTotali:0;
+          return mp*40 + mv*10 + gpg*20 + upp*30;
+        });
+        return scores.reduce((a,b)=>a+b,0)/scores.length;
+      };
+
+      const scoreA = getAvg(f.squadraA);
+      const scoreB = getAvg(f.squadraB);
+      const total = scoreA + scoreB;
+      if (total === 0) return {quoteA:'2.00',quoteX:'3.00',quoteB:'2.00',verdict:'Squadre equivalenti — tutto aperto!'};
+
+      const probA = scoreA/total;
+      const probB = scoreB/total;
+      const probX = 0.25; // draw probability buffer
+      const adjA = probA*(1-probX);
+      const adjB = probB*(1-probX);
+
+      // Convert to odds (European format), with bookmaker margin ~10%
+      const margin = 1.10;
+      const oddA = Math.max(1.20, Math.round((1/adjA)*margin*100)/100);
+      const oddX = Math.max(2.50, Math.round((1/probX)*margin*100)/100);
+      const oddB = Math.max(1.20, Math.round((1/adjB)*margin*100)/100);
+
+      const diff = Math.abs(scoreA - scoreB);
+      const favA = scoreA > scoreB;
+      const nA = f.nomeSquadraA || 'Squadra A';
+      const nB = f.nomeSquadraB || 'Squadra B';
+
+      let verdict = '';
+      if (diff < 5) {
+        verdict = `⚖️ Equilibrio totale! Potrebbe vincere chiunque. Atteso un risultato combattuto.`;
+      } else if (diff < 15) {
+        const fav = favA ? nA : nB;
+        verdict = `📊 ${fav} parte favorita ma non di molto. Aspettatevi gol da entrambe le parti.`;
+      } else {
+        const fav = favA ? nA : nB;
+        const under = favA ? nB : nA;
+        verdict = `⚡ ${fav} nettamente favorita per forma e statistiche. ${under} dovrà fare l'impresa!`;
+      }
+
+      // Score prediction
+      const totalGoalsExpected = 5 + Math.floor(Math.random()*3);
+      const goalsA = Math.round(totalGoalsExpected*(adjA/(adjA+adjB)));
+      const goalsB = totalGoalsExpected - goalsA;
+      verdict += ` Risultato probabile: ${goalsA}-${goalsB}.`;
+
+      return {
+        quoteA: oddA.toFixed(2),
+        quoteX: oddX.toFixed(2),
+        quoteB: oddB.toFixed(2),
+        verdict
+      };
     };
 
     const generateTeamsRandom = () => {
@@ -6015,6 +6104,78 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         { emoji:'🎲', text:'Il calcetto è imprevedibile: oggi segna chi non tira mai. Domani parerà chi non aveva mai parato.' },
         { emoji:'🌈', text:'Le statistiche sono belle, ma non dicono chi ha fatto ridere tutta la partita. E conta.' },
       ];
+
+      // ── 🔥 FORMA DEL MOMENTO (ultime 3-5 partite) ──
+      if (matches.length >= 3) {
+        const last5 = [...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
+        const formMap = {}; // pid → {vinte, perse, pari, gol, voti}
+        for (const m of last5) {
+          const gA=m.risultato?.goalA||0, gB=m.risultato?.goalB||0;
+          const isDraw=gA===gB, aWon=gA>gB;
+          const sqA=new Set(m.squadraA||[]);
+          for (const s of m.statisticheGiocatori||[]) {
+            const pid=s.playerId;
+            if (!formMap[pid]) formMap[pid]={v:0,p:0,x:0,gol:0,voti:0,nv:0};
+            const inA=sqA.has(pid);
+            const won=(inA&&aWon)||(!inA&&!aWon);
+            if (isDraw) formMap[pid].x++; else if (won) formMap[pid].v++; else formMap[pid].p++;
+            formMap[pid].gol+=s.goal||0;
+            if ((s.voto||0)>0){formMap[pid].voti+=s.voto;formMap[pid].nv++;}
+          }
+        }
+        // Find hottest player (most wins + gol in last 5)
+        let hotPid=null,hotScore=-1,coldPid=null,coldScore=999;
+        for (const [pid,f] of Object.entries(formMap)) {
+          const score=f.v*3+f.x+f.gol*2+(f.nv?f.voti/f.nv:0);
+          if (score>hotScore){hotScore=score;hotPid=pid;}
+          const negScore=f.p*3-f.gol;
+          if (negScore>coldScore&&f.p>=2){coldScore=negScore;coldPid=pid;}
+        }
+        if (hotPid) {
+          const p=players.find(x=>x.id==hotPid);
+          const f=formMap[hotPid];
+          const nome=p?.soprannome||p?.nome||'?';
+          const winStr=f.v>0?`${f.v}V`:f.x>0?`${f.x}P`:'';
+          items.push({emoji:'🔥',text:`FORMA DEL MOMENTO: ${nome} è INFUOCATO! ${winStr} nelle ultime partite con ${f.gol} gol. Chi lo ferma?`});
+        }
+        if (coldPid&&coldPid!==hotPid) {
+          const p=players.find(x=>x.id==coldPid);
+          const f=formMap[coldPid];
+          const nome=p?.soprannome||p?.nome||'?';
+          items.push({emoji:'🧊',text:`MOMENTO NO: ${nome} sta attraversando un periodo difficile (${f.p} sconfitte nelle ultime partite). La rivincita è vicina!`});
+        }
+      }
+
+      // ── 🎲 FRASI MOTIVAZIONALI PERSONALIZZATE ──
+      if (players.length > 0 && matches.length > 0) {
+        // Pick a random player each news cycle and generate a personalized phrase
+        const idx = newsIndex.value % players.length;
+        const p = players[idx];
+        const pts = p.puntiTotali||0, gol = p.goalTotali||0, par = p.partiteTotali||0;
+        const media = par>0?pts/par:0;
+        const voto = p.mediaVoto||0;
+        const nome = p.soprannome||p.nome||'?';
+        
+        // Determine player archetype and generate phrase
+        let frase = '';
+        if (gol>0 && par>0 && gol/par>=1) {
+          frase = `⚡ ${nome} è una macchina da gol! ${gol} reti in ${par} partite. Ogni volta che tocca palla tremate!`;
+        } else if (media>=2.5) {
+          frase = `👑 ${nome} non perde mai! Media di ${media.toFixed(1)} punti a partita. Il trascinatore silenzioso.`;
+        } else if (voto>=7.5) {
+          frase = `⭐ ${nome} fa sempre la sua partita. Voto medio ${voto.toFixed(1)}: professionale, costante, affidabile.`;
+        } else if (par>=10 && gol===0) {
+          frase = `🛡️ ${nome} — ${par} presenze e zero gol. Ma chi ha bisogno dei gol quando difendi così?`;
+        } else if (par>=1 && gol===0 && media<1) {
+          frase = `💪 ${nome}, la stagione deve ancora decollare. Ma la presenza vale oro quanto i gol. Forza!`;
+        } else if (par>=5 && media>=1.5) {
+          frase = `🚀 ${nome} è in salita! ${pts} punti in ${par} partite. Il meglio deve ancora venire.`;
+        } else if (par>=3) {
+          frase = `🎯 ${nome}: ${gol} gol, ${pts} punti, ${par} partite. Ogni giovedì lascia tutto in campo.`;
+        }
+        if (frase) items.push({emoji:'🎲', text:frase});
+      }
+
       // Inserisci frasi simpatiche ogni 3 elementi (sempre visibili nella rotazione)
       const finalItems = [];
       let phraseIdx = 0;
@@ -6934,7 +7095,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
-      showInstallGuide
+      showInstallGuide,
+      computeFormationPrediction
     };
   }
 }).mount('#app');
