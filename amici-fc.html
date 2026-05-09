@@ -2122,6 +2122,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="platform-tab" :class="{active:statsTab==='topteam'}"      @click="statsTab='topteam'">🏆 Top Team</button>
           <button class="platform-tab" :class="{active:statsTab==='classifica'}"   @click="statsTab='classifica'">📊 Punti</button>
           <button class="platform-tab" :class="{active:statsTab==='goal'}"         @click="statsTab='goal'">⚽ Goal</button>
+          <button class="platform-tab" :class="{active:statsTab==='assist'}"       @click="statsTab='assist'">🅰️ Assist</button>
           <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">🏅 Uomo Partita</button>
           <button class="platform-tab" :class="{active:statsTab==='mediapunti'}"   @click="statsTab='mediapunti'">📈 Media Punti</button>
           <button class="platform-tab" :class="{active:statsTab==='voti'}"         @click="statsTab='voti'">⭐ Voti</button>
@@ -2253,15 +2254,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="stats-val">{{p.goalTotali}}</div>
             </div>
           </div>
-          <div class="card">
-            <div class="card-title">🅰️ Classifica Assist</div>
-            <div v-for="(p,i) in topAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row">
-              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
-              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
-              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.assistTotali}} assist</div></div>
-              <div class="stats-val" style="color:var(--blue)">{{p.assistTotali}}</div>
-            </div>
-          </div>
         </template>
 
         <!-- ALTRO -->
@@ -2301,6 +2293,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div class="stats-sub">{{ p.partiteTotali }} partite · {{ p.puntiTotali }} punti totali</div>
               </div>
               <div class="stats-value">{{ (p.mediaPunti||0).toFixed(2) }}<span style="font-size:0.65rem;color:var(--text2)">/g</span></div>
+            </div>
+          </div>
+        </template>
+
+        <template v-if="statsTab==='assist'">
+          <div class="card">
+            <div class="card-title">🅰️ Classifica Assist</div>
+            <div v-if="!topAssists.filter(x=>x.assistTotali>0).length" class="empty-state" style="padding:16px"><p>Nessun assist registrato.</p></div>
+            <div v-for="(p,i) in topAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row">
+              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
+              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
+              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
+              <div class="stats-val" style="color:var(--blue)">{{p.assistTotali}}</div>
             </div>
           </div>
         </template>
@@ -3444,7 +3449,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.081');
+    const appVersion = ref('1.082');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4612,13 +4617,19 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`, {
-            method:'POST',
-            headers:{ 'Content-Type':'application/json' },
-            body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
-          });
-          const data = await resp.json();
-          aiComment.value = data.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
+          // FIX: usa gemini-1.5-flash (quota gratuita stabile) con fallback
+          const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest'];
+          let data = null;
+          for (const model of geminiModels) {
+            const r = await fetch(
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+              { method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
+            );
+            data = await r.json();
+            if (!data.error) break;
+          }
+          aiComment.value = data?.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
         }
       } catch (err) {
         console.error('AI Error:', err);
@@ -6043,6 +6054,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         if (importedGroup) await selectGroup(importedGroup);
         else await loadGroupData();
 
+        // FIX: Ricalcola statistiche da tutti i match importati
+        if (importedGroup || groups.value.length > 0) {
+          await recomputeStats();
+        }
+
         toast(`✅ Importati: ${newGroups} gruppi, ${totalPlayers} giocatori, ${totalMatches} partite!`);
         return true; // success flag for importDataAndGo
       } catch (err) {
@@ -6188,6 +6204,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Load logo
       loadLogo();
 
+      // If no groups → go to onboarding IMMEDIATELY before anything else
+      if (groups.value.length === 0) {
+        currentView.value = 'onboarding';
+      }
+
       // Pre-resolve player photos (try both jpg/png proactively)
       groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
       // Pre-cache photos in SW for offline use
@@ -6233,11 +6254,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           });
 
         } catch (e) { console.warn('[AmiciFC] SW registration failed:', e); }
-      }
-
-      // If no groups at all → go to onboarding
-      if (groups.value.length === 0) {
-        currentView.value = 'onboarding';
       }
 
       // Check updates after 2s
