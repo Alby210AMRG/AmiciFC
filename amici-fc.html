@@ -2063,6 +2063,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m)">👁️ Dettaglio</button>
+            <button class="btn btn-ghost btn-sm" @click.stop="openEditMatch(m)">✏️ Modifica</button>
             <button class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
             <button class="btn btn-red btn-sm" @click.stop="askDeleteMatch(m)" style="margin-left:auto">🗑️</button>
           </div>
@@ -2124,6 +2125,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="platform-tab" :class="{active:statsTab==='classifica'}"   @click="statsTab='classifica'">📊 Punti</button>
           <button class="platform-tab" :class="{active:statsTab==='goal'}"         @click="statsTab='goal'">⚽ Goal</button>
           <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">🏅 Uomo Partita</button>
+          <button class="platform-tab" :class="{active:statsTab==='mediapunti'}"   @click="statsTab='mediapunti'">📈 Media Punti</button>
           <button class="platform-tab" :class="{active:statsTab==='voti'}"         @click="statsTab='voti'">⭐ Voti</button>
         </div>
 
@@ -2132,19 +2134,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div class="card-title">🏆 Formazione TOP</div>
             <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
-              La migliore formazione calcolata per score composito (min. 1 partita giocata)
+              La migliore formazione calcolata per score composito (min. 5 partite totali + almeno 1 presenza nelle ultime 10 partite)
             </div>
             <!-- Size selector -->
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
               <button v-for="sz in [5,6,7,8,11]" :key="sz"
                 class="btn btn-sm" :class="topFormationSize===sz?'btn-primary':'btn-ghost'"
                 @click="topFormationSize=sz" style="min-width:44px">
-                {{ sz }}v{{ sz }}
+                {{ sz }}vs{{ sz }}
               </button>
             </div>
             <!-- Schema info -->
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:12px;background:var(--bg3);border-radius:8px;padding:8px 12px">
-              {{ topFormationSize }}v{{ topFormationSize }}:
+              {{ topFormationSize }}vs{{ topFormationSize }}:
               <span v-if="topFormationSize===5">1 🥅 · 2 🛡️ · 1 🔄 · 1 ⚡</span>
               <span v-if="topFormationSize===6">1 🥅 · 2 🛡️ · 2 🔄 · 1 ⚡</span>
               <span v-if="topFormationSize===7">1 🥅 · 3 🛡️ · 2 🔄 · 1 ⚡</span>
@@ -2288,6 +2290,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </template>
 
         <!-- VOTI -->
+        <template v-if="statsTab==='mediapunti'">
+          <div class="card">
+            <div class="card-title">📈 Media Punti a Partita</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Punti medi per partita (min. 3 partite). 3=V · 1=P · 0=S</div>
+            <div v-if="!topAvgPoints.length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite.</p></div>
+            <div v-for="(p,i) in topAvgPoints" :key="p.id" class="stats-row">
+              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
+              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
+              <div class="stats-info">
+                <div class="stats-name">{{ p.soprannome||p.nome }}</div>
+                <div class="stats-sub">{{ p.partiteTotali }} partite · {{ p.puntiTotali }} punti totali</div>
+              </div>
+              <div class="stats-value">{{ (p.mediaPunti||0).toFixed(2) }}<span style="font-size:0.65rem;color:var(--text2)">/g</span></div>
+            </div>
+          </div>
+        </template>
+
         <template v-if="statsTab==='voti'">
           <div class="card">
             <div class="card-title">⭐ Media Voto</div>
@@ -2949,6 +2968,81 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </div>
 
+  <!-- ════ EDIT MATCH MODAL (FIX1) ════ -->
+  <div v-if="showEditMatch && editingMatch" class="modal-overlay" @click.self="showEditMatch=false">
+    <div class="modal-sheet" style="max-height:90vh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <div class="modal-title">✏️ Modifica Partita</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div><label class="input-label">Data</label><input class="input-field" type="date" v-model="editingMatch.data"></div>
+        <div><label class="input-label">Luogo</label><input class="input-field" type="text" v-model="editingMatch.luogo" placeholder="Campo..."></div>
+        <div><label class="input-label" style="color:#7ab0ff">Squadra A</label><input class="input-field" type="text" v-model="editingMatch.nomeSquadraA"></div>
+        <div><label class="input-label" style="color:#ff9090">Squadra B</label><input class="input-field" type="text" v-model="editingMatch.nomeSquadraB"></div>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:center;gap:20px;margin-bottom:16px;padding:14px;background:var(--bg3);border-radius:12px">
+        <div style="text-align:center">
+          <div style="font-size:0.78rem;color:#7ab0ff;margin-bottom:4px">{{ editingMatch.nomeSquadraA||'A' }}</div>
+          <input type="number" min="0" v-model.number="editingMatch.risultato.goalA" style="width:64px;text-align:center;font-size:1.6rem;font-weight:900;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;color:var(--lime);padding:6px">
+        </div>
+        <div style="font-size:1.2rem;font-weight:900;color:var(--text2)">VS</div>
+        <div style="text-align:center">
+          <div style="font-size:0.78rem;color:#ff9090;margin-bottom:4px">{{ editingMatch.nomeSquadraB||'B' }}</div>
+          <input type="number" min="0" v-model.number="editingMatch.risultato.goalB" style="width:64px;text-align:center;font-size:1.6rem;font-weight:900;background:var(--bg2);border:1.5px solid var(--border);border-radius:8px;color:var(--lime);padding:6px">
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:8px">👥 Formazioni — clicca freccia per spostare giocatore</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:0.75rem;font-weight:700;color:#7ab0ff;margin-bottom:6px">🔵 {{ editingMatch.nomeSquadraA||'Squadra A' }}</div>
+            <div v-for="pid in editingMatch.squadraA||[]" :key="pid"
+              style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--bg3);border-radius:8px;margin-bottom:4px;font-size:0.8rem">
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome||pid }}</span>
+              <button style="background:none;border:none;cursor:pointer;color:var(--red);font-size:0.85rem;font-weight:700" @click="movePlayerInEdit(pid,'A','B')">→B</button>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:0.75rem;font-weight:700;color:#ff9090;margin-bottom:6px">🔴 {{ editingMatch.nomeSquadraB||'Squadra B' }}</div>
+            <div v-for="pid in editingMatch.squadraB||[]" :key="pid"
+              style="display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:var(--bg3);border-radius:8px;margin-bottom:4px;font-size:0.8rem">
+              <button style="background:none;border:none;cursor:pointer;color:var(--blue);font-size:0.85rem;font-weight:700" @click="movePlayerInEdit(pid,'B','A')">A←</button>
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome||pid }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-title" style="margin-bottom:8px">📊 Statistiche Giocatori</div>
+      <div style="overflow-x:auto;margin-bottom:14px">
+        <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+          <thead><tr style="color:var(--text2);border-bottom:1px solid var(--border)">
+            <th style="text-align:left;padding:4px 6px">Giocatore</th>
+            <th style="text-align:center;padding:4px">⚽</th>
+            <th style="text-align:center;padding:4px">🅰️</th>
+            <th style="text-align:center;padding:4px">⭐ Voto</th>
+            <th style="text-align:center;padding:4px">Punti</th>
+          </tr></thead>
+          <tbody>
+            <tr v-for="s in editingMatch.statisticheGiocatori||[]" :key="s.playerId" style="border-bottom:1px solid var(--border)">
+              <td style="padding:5px 6px;font-weight:600">{{ getPlayer(s.playerId)?.soprannome||getPlayer(s.playerId)?.nome||s.playerId }}</td>
+              <td style="text-align:center;padding:3px"><input type="number" min="0" v-model.number="s.goal" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
+              <td style="text-align:center;padding:3px"><input type="number" min="0" v-model.number="s.assist" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
+              <td style="text-align:center;padding:3px"><input type="number" min="1" max="10" step="0.5" v-model.number="s.voto" style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
+              <td style="text-align:center;padding:3px"><input type="number" min="0" max="3" v-model.number="s.punti" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="input-label">📝 Note partita</label>
+        <textarea class="input-field" v-model="editingMatch.notePartita" rows="2" style="resize:none"></textarea>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:4px">
+        <button class="btn btn-ghost" style="flex:1" @click="showEditMatch=false">Annulla</button>
+        <button class="btn btn-primary" style="flex:2" @click="saveEditMatch">💾 Salva Modifiche</button>
+      </div>
+    </div>
+  </div>
+
   <!-- ════ CONFIRM DELETE MODAL (FIX5) ════ -->
   <div v-if="confirmDeleteModal.show" class="modal-overlay" @click.self="confirmDeleteModal.show=false">
     <div class="modal-sheet" style="max-width:400px;text-align:center;padding:28px 24px;">
@@ -3474,7 +3568,16 @@ createApp({
     const buildTopFormation = (size) => {
       const schema = FORMATION_SCHEMAS[size];
       if (!schema) return [];
-      const players = groupPlayers.value.filter(p => (p.partiteTotali||0) >= 1);
+      // FIX3: min 5 partite totali + almeno 1 presenza nelle ultime 10 partite
+      const last10Matches = [...groupMatches.value]
+        .sort((a,b) => b.data.localeCompare(a.data))
+        .slice(0, 10);
+      const last10Pids = new Set(
+        last10Matches.flatMap(m => [...(m.squadraA||[]), ...(m.squadraB||[])])
+      );
+      const players = groupPlayers.value.filter(p =>
+        (p.partiteTotali||0) >= 5 && last10Pids.has(p.id)
+      );
       // Score per player using overallScore logic
       const scored = players.map(p => ({ ...p, _score: overallScore(p) }))
                              .sort((a,b) => b._score - a._score);
@@ -4666,6 +4769,42 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     const confirmDeleteModal = reactive({ show: false, matchId: null, matchInfo: '' });
+    // FIX1: Edit match
+    const showEditMatch  = ref(false);
+    const editingMatch   = ref(null);
+    const openEditMatch  = (m) => { editingMatch.value = JSON.parse(JSON.stringify(m)); showEditMatch.value = true; };
+    const movePlayerInEdit = (pid, from, to) => {
+      if (!editingMatch.value) return;
+      if (from === 'A') {
+        editingMatch.value.squadraA = editingMatch.value.squadraA.filter(x => x !== pid);
+        if (!editingMatch.value.squadraB) editingMatch.value.squadraB = [];
+        editingMatch.value.squadraB.push(pid);
+      } else {
+        editingMatch.value.squadraB = editingMatch.value.squadraB.filter(x => x !== pid);
+        if (!editingMatch.value.squadraA) editingMatch.value.squadraA = [];
+        editingMatch.value.squadraA.push(pid);
+      }
+    };
+    const saveEditMatch = async () => {
+      if (!editingMatch.value) return;
+      const m = editingMatch.value;
+      await db.matches.update(m.id, {
+        data:                   m.data,
+        luogo:                  m.luogo,
+        nomeSquadraA:           m.nomeSquadraA,
+        nomeSquadraB:           m.nomeSquadraB,
+        squadraA:               m.squadraA,
+        squadraB:               m.squadraB,
+        risultato:              m.risultato,
+        statisticheGiocatori:   m.statisticheGiocatori,
+        notePartita:            m.notePartita,
+      });
+      await recomputeStats();
+      await loadGroupData();
+      showEditMatch.value = false;
+      editingMatch.value  = null;
+      toast('✅ Partita aggiornata');
+    };
     const askDeleteMatch = (m) => {
       confirmDeleteModal.matchId = m.id;
       confirmDeleteModal.matchInfo = `${m.data || ''} · ${m.nomeSquadraA||'A'} ${m.risultato?.goalA||0} - ${m.risultato?.goalB||0} ${m.nomeSquadraB||'B'}`;
@@ -6152,7 +6291,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
       exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
       checkForUpdates, doUpdate,
-      confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper
+      confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
+      showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch
     };
   }
 }).mount('#app');
