@@ -1374,7 +1374,88 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         Come vuoi iniziare?
       </div>
 
-      <!-- ── OPZIONE 1: Crea Gruppo ── -->
+            <!-- ── ISTRUZIONI COLLASSABILI (in cima) ── -->
+      <div class="card" style="margin-bottom:16px;border-color:rgba(200,255,0,0.2)">
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer"
+             @click="showInstallGuide=!showInstallGuide">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem">📖</span>
+            <span style="font-weight:800;font-size:0.95rem">Guida all'installazione e configurazione</span>
+          </div>
+          <span style="font-size:1.2rem;transition:transform 0.2s"
+                :style="showInstallGuide?'transform:rotate(180deg)':''">▾</span>
+        </div>
+        <div v-show="showInstallGuide" style="margin-top:14px">
+        <div class="platform-tabs">
+          <button class="platform-tab" :class="{active:installTab==='app'}"      @click="installTab='app'">📲 Installa App</button>
+          <button class="platform-tab" :class="{active:installTab==='firebase'}" @click="installTab='firebase'">☁️ Firebase</button>
+        </div>
+
+        <!-- Installa App -->
+        <template v-if="installTab==='app'">
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+            <button class="platform-tab" :class="{active:installSubTab==='android'}" @click="installSubTab='android'" style="font-size:0.75rem">🤖 Android</button>
+            <button class="platform-tab" :class="{active:installSubTab==='ios'}"     @click="installSubTab='ios'"     style="font-size:0.75rem">🍎 iPhone</button>
+            <button class="platform-tab" :class="{active:installSubTab==='pc'}"      @click="installSubTab='pc'"      style="font-size:0.75rem">💻 PC/Mac</button>
+          </div>
+          <template v-if="installSubTab==='android'">
+            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri questa pagina in <strong>Google Chrome</strong> su Android</div></div>
+            <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca il menu <strong>⋮ tre puntini</strong> in alto a destra</div></div>
+            <div class="install-step"><div class="install-num">3</div><div class="install-text">Seleziona <strong>"Aggiungi alla schermata Home"</strong> o <strong>"Installa app"</strong></div></div>
+            <div class="install-step"><div class="install-num">4</div><div class="install-text">Conferma → l'icona <strong>Amici FC ⚽</strong> appare nella home!</div></div>
+          </template>
+          <template v-if="installSubTab==='ios'">
+            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri in <strong>Safari</strong> (obbligatorio su iPhone/iPad)</div></div>
+            <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca il pulsante <strong>📤 Condividi</strong> in basso</div></div>
+            <div class="install-step"><div class="install-num">3</div><div class="install-text">Seleziona <strong>"Aggiungi a Home"</strong></div></div>
+            <div class="install-step"><div class="install-num">4</div><div class="install-text">Conferma → Amici FC si apre come app nativa!</div></div>
+          </template>
+          <template v-if="installSubTab==='pc'">
+            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri in <strong>Chrome o Edge</strong> sul tuo PC</div></div>
+            <div class="install-step"><div class="install-num">2</div><div class="install-text">Clicca l'icona <strong>📥 Installa</strong> nella barra degli indirizzi (a destra)</div></div>
+            <div class="install-step"><div class="install-num">3</div><div class="install-text">Conferma → Amici FC si apre come app desktop!</div></div>
+          </template>
+        </template>
+
+        <!-- Firebase -->
+        <template v-if="installTab==='firebase'">
+          <div style="font-size:0.83rem;color:var(--text2);line-height:1.8;margin-bottom:12px">
+            Firebase permette a più persone di condividere gli stessi dati in tempo reale, <strong>gratuitamente</strong>.
+          </div>
+          <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:var(--yellow)">firebase.google.com</strong> → Accedi con Google → Console</div></div>
+          <div class="install-step"><div class="install-num">2</div><div class="install-text">Clicca <strong>"Aggiungi progetto"</strong> → dai un nome (es. amicifc) → Crea</div></div>
+          <div class="install-step"><div class="install-num">3</div><div class="install-text">Menu sinistra: <strong>Crea → Realtime Database</strong> → Crea database → <strong>"Modalità test"</strong></div></div>
+          <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia l'<strong>URL del database</strong> (es: https://amicifc-rtdb.firebaseio.com) e incollalo nelle Impostazioni</div></div>
+          <div class="install-step"><div class="install-num">5</div><div class="install-text">Condividi lo <strong>stesso URL</strong> con tutti gli amici → vedono tutti gli stessi dati 🎉</div></div>
+
+          <div style="margin-top:16px;padding:12px;background:rgba(58,123,255,0.08);border:1px solid rgba(58,123,255,0.25);border-radius:10px">
+            <div style="font-weight:800;font-size:0.85rem;color:var(--blue);margin-bottom:8px">👥 Aggiungere utenti con accesso in scrittura</div>
+            <div style="font-size:0.78rem;color:var(--text2);line-height:1.7">
+              <div style="margin-bottom:6px">Firebase Realtime Database usa le <strong>Regole</strong> per controllare chi può leggere e scrivere. Di default (modalità test) tutti possono fare tutto per 30 giorni.</div>
+              <div style="font-weight:700;color:var(--text);margin-bottom:4px">Per uso permanente e sicuro:</div>
+              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">1</div><div class="install-text">Console Firebase → <strong>Realtime Database → Regole</strong></div></div>
+              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">2</div><div class="install-text">Sostituisci le regole con questa configurazione che richiede il login:</div></div>
+              <pre style="background:var(--bg2);border-radius:8px;padding:10px;font-size:0.72rem;color:var(--lime);overflow-x:auto;margin:6px 0">{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null"
+  }
+}</pre>
+              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">3</div><div class="install-text">Vai su <strong>Authentication → Inizia → Email/Password → Abilita</strong></div></div>
+              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">4</div><div class="install-text">Clicca <strong>"Aggiungi utente"</strong> → inserisci email e password per ogni amico che deve avere accesso in scrittura</div></div>
+              <div class="install-step"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">5</div><div class="install-text">Condividi le credenziali (email + password) con ogni amico → si logga dall'app in Impostazioni → Firebase</div></div>
+              <div style="margin-top:8px;padding:8px;background:rgba(166,255,77,0.08);border-radius:6px;font-size:0.74rem;color:var(--text2)">
+                💡 Chi <strong>non è loggato</strong> può solo leggere i dati (vede tutto) ma non può modificare. Solo gli utenti registrati possono aggiungere partite e modificare statistiche.
+              </div>
+            </div>
+          </div>
+
+          <div style="margin-top:10px;padding:10px;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.2);border-radius:8px;font-size:0.75rem;color:var(--text2)">
+            ⚠️ Hai bisogno anche dell'<strong>API Key Firebase</strong> per l'autenticazione: Console → Impostazioni progetto → Generali → App web → copia <code style="background:var(--bg2);padding:2px 4px;border-radius:3px">apiKey</code>
+          </div>
+        </template>
+        </div>
+      </div><!-- ── OPZIONE 1: Crea Gruppo ── -->
       <div class="onboard-card" style="--accent:#A6FF4D">
         <div class="onboard-header">
           <div class="onboard-icon" style="background:rgba(166,255,77,0.15);color:var(--lime)">➕</div>
@@ -1429,75 +1510,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- ── ISTRUZIONI ── -->
       <div class="card" style="margin-top:4px">
-        <div class="card-title">📖 Istruzioni</div>
-        <div class="platform-tabs">
-          <button class="platform-tab" :class="{active:installTab==='app'}"      @click="installTab='app'">📲 Installa App</button>
-          <button class="platform-tab" :class="{active:installTab==='firebase'}" @click="installTab='firebase'">☁️ Firebase</button>
-          <button class="platform-tab" :class="{active:installTab==='images'}"   @click="installTab='images'">🖼️ Immagini</button>
-        </div>
-
-        <!-- Installa App -->
-        <template v-if="installTab==='app'">
-          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-            <button class="platform-tab" :class="{active:installSubTab==='android'}" @click="installSubTab='android'" style="font-size:0.75rem">🤖 Android</button>
-            <button class="platform-tab" :class="{active:installSubTab==='ios'}"     @click="installSubTab='ios'"     style="font-size:0.75rem">🍎 iPhone</button>
-            <button class="platform-tab" :class="{active:installSubTab==='pc'}"      @click="installSubTab='pc'"      style="font-size:0.75rem">💻 PC/Mac</button>
-          </div>
-          <template v-if="installSubTab==='android'">
-            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri questa pagina in <strong>Google Chrome</strong> su Android</div></div>
-            <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca il menu <strong>⋮ tre puntini</strong> in alto a destra</div></div>
-            <div class="install-step"><div class="install-num">3</div><div class="install-text">Seleziona <strong>"Aggiungi alla schermata Home"</strong> o <strong>"Installa app"</strong></div></div>
-            <div class="install-step"><div class="install-num">4</div><div class="install-text">Conferma → l'icona <strong>Amici FC</strong> appare nella home!</div></div>
-          </template>
-          <template v-if="installSubTab==='ios'">
-            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri in <strong>Safari</strong> (obbligatorio su iPhone/iPad)</div></div>
-            <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca l'icona <strong>Condividi</strong> ↑ in basso al centro</div></div>
-            <div class="install-step"><div class="install-num">3</div><div class="install-text">Scorri e tocca <strong>"Aggiungi a schermata Home"</strong></div></div>
-            <div class="install-step"><div class="install-num">4</div><div class="install-text">Tocca <strong>"Aggiungi"</strong> → Amici FC è installata! 🎉</div></div>
-          </template>
-          <template v-if="installSubTab==='pc'">
-            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri in <strong>Chrome</strong> o <strong>Microsoft Edge</strong></div></div>
-            <div class="install-step"><div class="install-num">2</div><div class="install-text">Clicca l'icona <strong>➕ Installa</strong> nella barra degli indirizzi (a destra)</div></div>
-            <div class="install-step"><div class="install-num">3</div><div class="install-text">Oppure: menu <strong>⋮ → Salva e condividi → Installa come app</strong></div></div>
-            <div class="install-step"><div class="install-num">4</div><div class="install-text">Clicca <strong>"Installa"</strong> → si apre come app nativa!</div></div>
-          </template>
-        </template>
-
-        <!-- Firebase -->
-        <template v-if="installTab==='firebase'">
-          <div style="font-size:0.83rem;color:var(--text2);line-height:1.8;margin-bottom:12px">
-            Firebase permette a più persone di condividere gli stessi dati in tempo reale, gratuitamente.
-          </div>
-          <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:var(--yellow)">firebase.google.com</strong> → Accedi con Google → Console</div></div>
-          <div class="install-step"><div class="install-num">2</div><div class="install-text">Clicca <strong>"Aggiungi progetto"</strong> → dai un nome (es. amicifc) → Crea</div></div>
-          <div class="install-step"><div class="install-num">3</div><div class="install-text">Nel menu a sinistra: <strong>Crea → Realtime Database</strong> → Crea database</div></div>
-          <div class="install-step"><div class="install-num">4</div><div class="install-text">Scegli <strong>"Inizia in modalità test"</strong> (permette lettura/scrittura per 30gg)</div></div>
-          <div class="install-step"><div class="install-num">5</div><div class="install-text">Copia l'<strong>URL del database</strong> (es: https://mio-progetto-rtdb.firebaseio.com)</div></div>
-          <div class="install-step"><div class="install-num">6</div><div class="install-text">Incolla l'URL qui sopra → <strong>Connetti</strong> → i dati si sincronizzano!</div></div>
-          <div class="install-step"><div class="install-num">7</div><div class="install-text">Condividi lo <strong>stesso URL</strong> con tutti gli amici → vedono tutti gli stessi dati 🎉</div></div>
-          <div style="margin-top:12px;padding:10px;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.2);border-radius:8px;font-size:0.75rem;color:var(--text2)">
-            ⚠️ La modalità test scade dopo 30 giorni. Per uso permanente: <strong>Regole → modifica</strong> con <code style="background:var(--bg2);padding:2px 4px;border-radius:3px">{".read":true,".write":true}</code>
-          </div>
-        </template>
-
-        <!-- Immagini -->
-        <template v-if="installTab==='images'">
-          <div style="font-size:0.83rem;color:var(--text2);line-height:1.8;margin-bottom:12px">
-            Le foto dei giocatori vengono caricate su <strong style="color:var(--lime)">GitHub Pages</strong> dall'amministratore e scaricate automaticamente da tutti gli utenti ad ogni aggiornamento.
-          </div>
-          <div class="install-step"><div class="install-num">1</div><div class="install-text">Crea una cartella <strong>images/players/</strong> nel repository GitHub</div></div>
-          <div class="install-step"><div class="install-num">2</div><div class="install-text">Carica le foto dei giocatori (es: <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">mario-rossi.jpg</code>)</div></div>
-          <div class="install-step"><div class="install-num">3</div><div class="install-text">Nel profilo giocatore inserisci il <strong>nome file</strong> (es: <code style="background:var(--bg3);padding:1px 5px;border-radius:3px">mario-rossi.jpg</code>)</div></div>
-          <div class="install-step"><div class="install-num">4</div><div class="install-text">Aggiorna <strong>version.json</strong> con la nuova versione → tutti scaricano le immagini!</div></div>
-          <div style="margin-top:12px;padding:10px;background:rgba(166,255,77,0.08);border:1px solid rgba(166,255,77,0.2);border-radius:8px;font-size:0.75rem;color:var(--text2)">
-            💡 Puoi anche usare un <strong>URL completo</strong> nel campo foto (es. link da Google Drive o Discord) senza caricare su GitHub.
-          </div>
-        </template>
-      </div>
-
-    </template>
-
-    <!-- ════ GIOCATORI ════ -->
+        <div<!-- ════ GIOCATORI ════ -->
     <template v-if="currentView === 'players'">
       <div class="card-title">👤 Giocatori
         <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
@@ -2423,7 +2436,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="input-group">
           <label class="input-label">Servizio AI</label>
           <select class="select-field" v-model="settings.aiProvider" @change="saveSettings">
-            <option value="gemini">✨ Gemini 2.0 Flash (Google) — GRATUITO — GRATUITO</option>
+            <option value="gemini">✨ Gemini 2.5 Flash (Google) — Gratuito 🟢</option>
             <option value="claude">🟠 Claude (Anthropic)</option>
             <option value="chatgpt">🟢 ChatGPT (OpenAI)</option>
           </select>
@@ -3694,6 +3707,7 @@ createApp({
     const showMatchDetail   = ref(false);
     const showPNGPreview    = ref(false);
     const showMoreMenu      = ref(false);
+    const showInstallGuide  = ref(false);
     const showExportModal   = ref(false);
     const exportGroupIds    = ref([]);
     const installTab        = ref('app');
@@ -3833,7 +3847,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.094');
+    const appVersion = ref('1.095');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -6919,7 +6933,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       shareStatsPNG,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
-      exportExcel, totalReset, autoSyncToCloud
+      exportExcel, totalReset, autoSyncToCloud,
+      showInstallGuide
     };
   }
 }).mount('#app');
