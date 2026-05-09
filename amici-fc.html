@@ -3440,10 +3440,20 @@ createApp({
       if (!currentGroup.value) return;
       toast('⏳ Generazione Excel...','info',3000);
       try {
-        // xlsx-js-style: free SheetJS fork that supports cell styles
-        const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js').catch(async () => {
-          // fallback to standard SheetJS if js-style fails
-          return await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+   // Carica xlsx-js-style via script tag (supporta cellStyles)
+        const XLSX = await new Promise((resolve, reject) => {
+          if (window.XLSX) return resolve(window.XLSX);
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+          s.onload = () => resolve(window.XLSX);
+          s.onerror = () => {
+            const s2 = document.createElement('script');
+            s2.src = 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js';
+            s2.onload = () => resolve(window.XLSX);
+            s2.onerror = reject;
+            document.head.appendChild(s2);
+          };
+          document.head.appendChild(s);
         });
         const wb = XLSX.utils.book_new();
         const g = currentGroup.value;
@@ -3704,7 +3714,7 @@ createApp({
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
           // Modelli in ordine: prima quelli più stabili per free tier
-          const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b'];
+          const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
           let lastError = null;
           let success = false;
           for (const model of models) {
@@ -3823,7 +3833,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.093');
+    const appVersion = ref('1.094');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5112,7 +5122,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b'];
+          const geminiModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
           let data = null;
           for (const model of geminiModels) {
             const r = await fetch(
