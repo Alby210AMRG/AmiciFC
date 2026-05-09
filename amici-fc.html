@@ -2063,9 +2063,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
             <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m)">👁️ Dettaglio</button>
-            <button class="btn btn-ghost btn-sm" @click.stop="openEditMatch(m)">✏️ Modifica</button>
             <button class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
-            <button class="btn btn-red btn-sm" @click.stop="askDeleteMatch(m)" style="margin-left:auto">🗑️</button>
           </div>
         </div>
 
@@ -2910,7 +2908,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <!-- Avatar -->
         <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
-          <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover">
+          <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
           <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <!-- Name + role -->
@@ -2939,7 +2937,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-for="pid in sortedByRole(detailMatch.squadraB)" :key="'db-'+pid"
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
-          <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover">
+          <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
           <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <div style="flex:1;min-width:0">
@@ -2959,12 +2957,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- PNG buttons (FIX4: rimossi PNG Form/Ris/Pag, Giornale rigenera sempre) -->
+      <!-- PNG buttons + Modifica + Elimina nel dettaglio -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
         <button class="btn btn-ghost btn-sm" @click="regenerateNewspaper(detailMatch)">📰 Giornale</button>
+        <button class="btn btn-ghost btn-sm" @click="()=>{ showMatchDetail=false; openEditMatch(detailMatch) }">✏️ Modifica</button>
+        <button class="btn btn-red btn-sm" style="margin-left:auto" @click="()=>{ showMatchDetail=false; askDeleteMatch(detailMatch) }">🗑️ Elimina</button>
       </div>
 
-      <button class="btn btn-ghost btn-full" style="margin-top:16px" @click="showMatchDetail=false">Chiudi</button>
+      <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showMatchDetail=false">Chiudi</button>
     </div>
   </div>
 
@@ -3444,7 +3444,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.080');
+    const appVersion = ref('1.081');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
