@@ -3466,7 +3466,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.085');
+    const appVersion = ref('1.086');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5136,11 +5136,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           };
 
           for (const cm of cloudMatches) {
+            // Dedup by data + risultato (senza confrontare squadre che hanno ID diversi)
             const isDup = localMatches.some(lm =>
               lm.data === cm.data &&
               lm.risultato?.goalA === cm.risultato?.goalA &&
-              lm.risultato?.goalB === cm.risultato?.goalB &&
-              JSON.stringify((lm.squadraA||[]).slice().sort()) === JSON.stringify((cm.squadraA||[]).map(remapId).slice().sort())
+              lm.risultato?.goalB === cm.risultato?.goalB
             );
             if (!isDup) {
               const { id: _id, groupId: _gid, ...mRest } = cm;
@@ -5160,10 +5160,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
         await loadGroups();
         await loadGroupData();
-        // Only recompute from matches if we actually have match data
-        // (if matches=0 we keep the stats as imported from cloud)
-        const hasMatches = await db.matches.count();
-        if (hasMatches > 0) await recomputeStats();
+        // Ricalcola sempre le statistiche dai match dopo il sync
+        await recomputeStats();
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
         toast(`☁️ Sync completata: ${syncedPlayers} nuovi giocatori, ${syncedMatches} nuove partite`);
