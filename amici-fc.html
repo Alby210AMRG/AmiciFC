@@ -3449,7 +3449,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.082');
+    const appVersion = ref('1.083');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5184,6 +5184,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const generateImageFilename = (uid, ext) => uid ? `${uid}.${ext||'jpg'}` : '';
 
     // ── Point 4: Scroll to top on every view change ──
+    // Ogni volta che groups cambia: se vuoto → onboarding (sopravvive ai reload del SW)
+    watch(groups, (newGroups) => {
+      if (newGroups.length === 0) {
+        currentView.value = 'onboarding';
+      }
+    }, { immediate: true });
+
     watch(currentView, () => {
       window.scrollTo({ top: 0, behavior: 'instant' });
       const main = document.querySelector('.main-content');
@@ -6203,11 +6210,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
       // Load logo
       loadLogo();
-
-      // If no groups → go to onboarding IMMEDIATELY before anything else
-      if (groups.value.length === 0) {
-        currentView.value = 'onboarding';
-      }
 
       // Pre-resolve player photos (try both jpg/png proactively)
       groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
