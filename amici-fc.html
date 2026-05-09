@@ -3502,9 +3502,48 @@ createApp({
         const wsStats=XLSX.utils.aoa_to_sheet(statsData);
         XLSX.utils.book_append_sheet(wb, wsStats, 'Stats Partita x Partita');
 
+        // ── Foglio 5: Formazioni per Giornata ──
+        const formData=[['Data','Risultato','Squadra A','Formazione Squadra A','Squadra B','Formazione Squadra B','Marcatori A','Marcatori B','MVP/Uomo Partita']];
+        for(const m of matches){
+          const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;
+          const sqAnames=(m.squadraA||[]).map(pid=>{const p=players.find(x=>x.id===pid);return p?.soprannome||p?.nome||'?';}).join(', ');
+          const sqBnames=(m.squadraB||[]).map(pid=>{const p=players.find(x=>x.id===pid);return p?.soprannome||p?.nome||'?';}).join(', ');
+          const nA=m.nomeSquadraA||'Squadra A',nB=m.nomeSquadraB||'Squadra B';
+          const marA=(m.statisticheGiocatori||[]).filter(s=>s.goal>0&&(m.squadraA||[]).includes(s.playerId))
+            .map(s=>{const p=players.find(x=>x.id===s.playerId);return `${p?.soprannome||p?.nome||'?'}(${s.goal})`;}).join(', ');
+          const marB=(m.statisticheGiocatori||[]).filter(s=>s.goal>0&&(m.squadraB||[]).includes(s.playerId))
+            .map(s=>{const p=players.find(x=>x.id===s.playerId);return `${p?.soprannome||p?.nome||'?'}(${s.goal})`;}).join(', ');
+          formData.push([m.data,`${gA}-${gB}`,nA,sqAnames,nB,sqBnames,marA,marB,m.uomoPartita||m.mvp||'']);
+        }
+        const wsForm=XLSX.utils.aoa_to_sheet(formData);
+        wsForm['!cols']=[{wch:12},{wch:8},{wch:14},{wch:40},{wch:14},{wch:40},{wch:30},{wch:30},{wch:18}];
+        XLSX.utils.book_append_sheet(wb, wsForm, 'Formazioni');
+
+        // ── Colora le righe header (prima riga) di tutti i fogli ──
+        const headerStyle = {
+          fill:{fgColor:{rgb:'1A3A5C'}},
+          font:{bold:true,color:{rgb:'C8FF00'},sz:11},
+          alignment:{horizontal:'center',vertical:'center'},
+          border:{bottom:{style:'medium',color:{rgb:'C8FF00'}}}
+        };
+        for(const sheetName of wb.SheetNames){
+          const ws=wb.Sheets[sheetName];
+          const range=XLSX.utils.decode_range(ws['!ref']||'A1');
+          for(let c=range.s.c;c<=range.e.c;c++){
+            const cellRef=XLSX.utils.encode_cell({r:0,c});
+            if(ws[cellRef]){
+              if(!ws[cellRef].s)ws[cellRef].s={};
+              ws[cellRef].s=headerStyle;
+            }
+          }
+          // Row height for header
+          if(!ws['!rows'])ws['!rows']=[];
+          ws['!rows'][0]={hpt:22};
+        }
+
         // Download
         const fname=`AmiciFC-${g.nome.replace(/\s+/g,'-')}-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.xlsx`;
-        XLSX.writeFile(wb, fname);
+        XLSX.writeFile(wb, fname, {cellStyles:true});
         toast('✅ Excel scaricato!','success');
       } catch(e) { console.error(e); toast('❌ Errore Excel: '+e.message,'error'); }
     };
@@ -3777,7 +3816,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.090');
+    const appVersion = ref('1.091');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5253,9 +5292,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
     const saveEditMatch = async () => {
       if (!editingMatch.value) return;
-      const m = editingMatch.value;
+      // Deep-deproxy: Vue reactive Proxy objects cannot be cloned by IndexedDB
+      // JSON round-trip strips all Proxy wrappers
+      const m = JSON.parse(JSON.stringify(editingMatch.value));
       try {
-        // Dexie update needs the exact stored key - use put to be safe
         const updated = await db.matches.update(m.id, {
           data:                   m.data,
           luogo:                  m.luogo,
@@ -5270,7 +5310,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           commentoAI:             m.commentoAI,
         });
         if (!updated) {
-          // update returned 0 (ID mismatch) — try put instead
           await db.matches.put({ ...m });
         }
         await recomputeStats();
@@ -5930,13 +5969,22 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         { emoji:'🎲', text:'Il calcetto è imprevedibile: oggi segna chi non tira mai. Domani parerà chi non aveva mai parato.' },
         { emoji:'🌈', text:'Le statistiche sono belle, ma non dicono chi ha fatto ridere tutta la partita. E conta.' },
       ];
-      // Frasi simpatiche ogni ~3 notizie per renderle più visibili
-      if (newsIndex.value % 3 === 1) {
-        const pick = funnyPhrases[Math.floor(newsIndex.value / 3) % funnyPhrases.length];
-        items.push(pick);
+      // Inserisci frasi simpatiche ogni 3 elementi (sempre visibili nella rotazione)
+      const finalItems = [];
+      let phraseIdx = 0;
+      for (let i = 0; i < items.length; i++) {
+        finalItems.push(items[i]);
+        if ((i + 1) % 3 === 0 && phraseIdx < funnyPhrases.length) {
+          finalItems.push(funnyPhrases[phraseIdx % funnyPhrases.length]);
+          phraseIdx++;
+        }
+      }
+      // Se ci sono poche notizie, aggiungi comunque una frase
+      if (items.length > 0 && phraseIdx === 0) {
+        finalItems.push(funnyPhrases[Math.floor(Math.random() * funnyPhrases.length)]);
       }
 
-      return items.length?items:[{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
+      return finalItems.length ? finalItems : [{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
     });
 
     const currentNews = computed(() => {
