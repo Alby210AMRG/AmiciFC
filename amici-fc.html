@@ -3440,7 +3440,11 @@ createApp({
       if (!currentGroup.value) return;
       toast('⏳ Generazione Excel...','info',3000);
       try {
-        const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+        // xlsx-js-style: free SheetJS fork that supports cell styles
+        const XLSX = await import('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js').catch(async () => {
+          // fallback to standard SheetJS if js-style fails
+          return await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+        });
         const wb = XLSX.utils.book_new();
         const g = currentGroup.value;
         const players = groupPlayers.value;
@@ -3699,14 +3703,14 @@ createApp({
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          // Modelli Gemini (endpoint v1 stabile)
-          const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+          // Modelli in ordine: prima quelli più stabili per free tier
+          const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b'];
           let lastError = null;
           let success = false;
           for (const model of models) {
             try {
               const r = await fetch(
-                `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${settings.value.apiKey}`,
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
                 { method:'POST', headers:{'Content-Type':'application/json'},
                   body: JSON.stringify({
                     contents:[{parts:[{text:prompt}]}],
@@ -3717,16 +3721,20 @@ createApp({
               if (d.error) {
                 const msg = d.error.message || '';
                 const code = d.error.code || 0;
-                if (code === 404 || msg.toLowerCase().includes('not found')) {
+                // Modello non trovato → prova il prossimo
+                if (code === 404 || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not supported')) {
                   lastError = `Modello ${model} non disponibile`; continue;
                 }
+                // Quota 429 → prova il prossimo modello (potrebbe avere quota diversa)
+                if (code === 429 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota')) {
+                  lastError = `${model}: quota esaurita (429)`; continue;
+                }
+                // Chiave non valida → stop subito
                 if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || code === 400)
                   throw new Error(`❌ Chiave API non valida. Vai su ai.google.dev e controlla la chiave.`);
-                if (code === 429 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota'))
-                  throw new Error(`❌ Quota 429.\n\n⚠️ CAUSA PROBABILE: la tua API key ha restrizioni di dominio in Google Cloud Console. Vai su console.cloud.google.com → API & Services → Credentials → modifica la chiave → rimuovi le restrizioni HTTP referrer (o aggiungi il dominio GitHub Pages).`);
                 if (code === 403 || msg.includes('PERMISSION_DENIED'))
-                  throw new Error(`❌ Permesso negato (403).\n\n⚠️ La chiave potrebbe essere ristretta a certi domini. Controlla su console.cloud.google.com → API & Services → Credentials.`);
-                throw new Error(`❌ Errore Google API (${code}): ${msg.slice(0,150)}`);
+                  throw new Error(`❌ Permesso negato (403).\n\nVerifica che "Generative Language API" sia abilitata su console.cloud.google.com → API & Services → Library.`);
+                lastError = `${model}: errore ${code} - ${msg.slice(0,80)}`; continue;
               }
               result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
               toast(`✅ Gemini OK (${model}): ${result}`, 'success', 5000);
@@ -3736,8 +3744,7 @@ createApp({
               lastError = innerErr.message; continue;
             }
           }
-          if (!success && lastError) throw new Error(lastError);
-          aiLoading.value = false; return;
+          if (!success) throw new Error(lastError || '❌ Nessun modello Gemini disponibile con questa chiave.');
         } else if (settings.value.aiProvider === 'claude') {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method:'POST',
@@ -3816,7 +3823,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.091');
+    const appVersion = ref('1.093');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4903,7 +4910,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       ctx.fillStyle='rgba(255,255,255,0.03)';ctx.fillRect(0,fY,W,FOOTER_H);
       ctx.fillStyle=acG;ctx.fillRect(0,fY,W,2);
       ctx.font='700 italic 15px "Arial Black",Arial';ctx.fillStyle='rgba(200,255,0,0.5)';ctx.textAlign='center';
-      ctx.fillText(`\u26BD Amici FC \u00B7 ${grp} \u00B7 Creato da Alby`,W/2,fY+33);
+      ctx.fillText('\u26BD Amici FC \u00B7 Dove i campioni nascono\u2026 e litigano!',W/2,fY+33);
       return canvas.toDataURL('image/png');
     };
 
@@ -5105,12 +5112,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          // Gemini: endpoint v1 (stabile) con generationConfig
-          const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
+          const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-flash-8b'];
           let data = null;
           for (const model of geminiModels) {
             const r = await fetch(
-              `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`,
+              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
               { method:'POST', headers:{'Content-Type':'application/json'},
                 body: JSON.stringify({
                   contents:[{parts:[{text:prompt}]}],
@@ -5120,8 +5126,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             );
             data = await r.json();
             if (!data.error) break;
-            // solo su 404 (modello non trovato) prova il prossimo
-            if (data.error?.code !== 404) break;
+            // continue on 404 (model not found) or 429 (quota) — try next model
+            const code = data.error?.code || 0;
+            if (code !== 404 && code !== 429) break;
           }
           aiComment.value = data?.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
         }
@@ -5271,6 +5278,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       await loadGroupData();
       toast('🏆 Partita salvata!');
       currentView.value = 'history';
+      // Auto-sync se Firebase è configurato e loggato
+      autoSyncToCloud();
     };
 
     const confirmDeleteModal = reactive({ show: false, matchId: null, matchInfo: '' });
@@ -5317,6 +5326,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         showEditMatch.value = false;
         editingMatch.value  = null;
         toast('✅ Partita aggiornata', 'success');
+        autoSyncToCloud();
       } catch(e) {
         console.error('saveEditMatch error:', e);
         toast('❌ Errore salvataggio: ' + e.message, 'error');
@@ -5485,6 +5495,18 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         console.warn('[AmiciFC] Token refresh failed:', e.message);
       }
       return false;
+    };
+
+    // ── AUTO-SYNC: chiamato dopo ogni salvataggio se Firebase è attivo ──
+    const autoSyncToCloud = async () => {
+      // Solo se Firebase configurato E utente loggato
+      if (!settings.value.firebaseUrl || !fbIdToken.value) return;
+      try {
+        await syncToCloud();
+        // Sync silenzioso: nessun toast (l'utente non deve essere disturbato)
+      } catch(e) {
+        console.warn('[AutoSync] Errore sync Firebase:', e.message);
+      }
     };
 
     const syncToCloud = async () => {
@@ -6887,7 +6909,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       shareStatsPNG,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
-      exportExcel, totalReset
+      exportExcel, totalReset, autoSyncToCloud
     };
   }
 }).mount('#app');
