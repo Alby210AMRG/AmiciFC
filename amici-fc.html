@@ -2131,7 +2131,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- 🏆 TOP TEAM -->
         <template v-if="statsTab==='topteam'">
           <div class="card">
-            <div class="card-title">🏆 Formazione TOP</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🏆 Formazione TOP</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('topteam')">📤 Condividi</button></div>
             <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
               La migliore formazione calcolata per score composito (min. 5 partite totali + almeno 1 presenza nelle ultime 10 partite)
             </div>
@@ -2188,7 +2188,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- OVERALL -->
         <template v-if="statsTab==='overall'">
           <div class="card" style="background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(58,123,255,0.03))">
-            <div class="card-title">🥇 Migliori in Campo</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🥇 Migliori in Campo</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
               MediaPunti×10 + Goal/g×8 + Assist/g×4 + UoM/g×10 − OG/g×6 + CS/g×8(GK) + Voto×2 · min.2P
             </div>
@@ -2228,7 +2228,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- CLASSIFICA PUNTI -->
         <template v-if="statsTab==='classifica'">
           <div class="card">
-            <div class="card-title">🏆 Classifica Punti</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🏆 Classifica Punti</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('classifica')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">3=V · 1=P · 0=S</div>
             <div v-for="(p,i) in topPoints" :key="p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
@@ -2246,7 +2246,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- GOAL -->
         <template v-if="statsTab==='goal'">
           <div class="card">
-            <div class="card-title">⚽ Classifica Marcatori</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⚽ Classifica Marcatori</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('goal')">📤 Condividi</button></div>
             <div v-for="(p,i) in topScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
@@ -2259,7 +2259,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- ALTRO -->
         <template v-if="statsTab==='altri'">
           <div class="card">
-            <div class="card-title">🏅 Uomo Partita</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🏅 Uomo Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('altri')">📤 Condividi</button></div>
             <div v-if="!topUomoPartita.length" class="empty-state" style="padding:16px"><p>Nessun dato.</p></div>
             <div v-for="(p,i) in topUomoPartita" :key="p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
@@ -2282,7 +2282,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- VOTI -->
         <template v-if="statsTab==='mediapunti'">
           <div class="card">
-            <div class="card-title">📈 Media Punti a Partita</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">📈 Media Punti a Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('mediapunti')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Punti medi per partita (min. 3 partite). 3=V · 1=P · 0=S</div>
             <div v-if="!topAvgPoints.length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite.</p></div>
             <div v-for="(p,i) in topAvgPoints" :key="p.id" class="stats-row">
@@ -2299,7 +2299,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
         <template v-if="statsTab==='assist'">
           <div class="card">
-            <div class="card-title">🅰️ Classifica Assist</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🅰️ Classifica Assist</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('assist')">📤 Condividi</button></div>
             <div v-if="!topAssists.filter(x=>x.assistTotali>0).length" class="empty-state" style="padding:16px"><p>Nessun assist registrato.</p></div>
             <div v-for="(p,i) in topAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
@@ -2312,7 +2312,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
         <template v-if="statsTab==='voti'">
           <div class="card">
-            <div class="card-title">⭐ Media Voto</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⭐ Media Voto</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button></div>
             <div v-if="!topRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
             <div v-for="(p,i) in topRated" :key="p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
@@ -3466,7 +3466,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.086');
+    const appVersion = ref('1.087');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4434,6 +4434,120 @@ Rispondi SOLO con questo JSON (niente altro testo):
         previewPNGName.value=`amicifc-${(f.nome||'formazione').replace(/[^a-z0-9]/gi,'-').toLowerCase()}.png`;
         showPNGPreview.value=true;
       }catch(e){console.error(e);toast('❌ Errore PNG: '+e.message,'error');}
+    };
+
+    // ── STATS PNG GENERATOR ──
+    const shareStatsPNG = async (tipo) => {
+      toast('⏳ Generando grafica...','info',3000);
+      try {
+        const dataUrl = await drawStatsCanvas(tipo);
+        const labels = {goal:'marcatori',assist:'assist',overall:'overall',classifica:'classifica',
+                        mediapunti:'media-punti',voti:'voti',altri:'uomo-partita',topteam:'top-team'};
+        previewPNGUrl.value = dataUrl;
+        previewPNGName.value = `amicifc-stats-${labels[tipo]||tipo}-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.png`;
+        showPNGPreview.value = true;
+      } catch(e) { console.error(e); toast('❌ Errore PNG: '+e.message,'error'); }
+    };
+
+    const drawStatsCanvas = async (tipo) => {
+      const W=900;
+      const rrect=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
+      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
+      const loadPhoto=(foto,uid)=>{if(foto&&(foto.startsWith('data:')||foto.startsWith('http')||foto.startsWith('.')))return li(foto);if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
+      const statConfigs = {
+        goal:       {label:'CLASSIFICA MARCATORI', icon:'\u26BD', color:'#C8FF00', data:()=>topScorers.value.filter(x=>x.goalTotali>0).slice(0,10),   val:p=>`${p.goalTotali} gol`},
+        assist:     {label:'CLASSIFICA ASSIST',    icon:'\uD83C\uDD70\uFE0F', color:'#5599FF', data:()=>topAssists.value.filter(x=>x.assistTotali>0).slice(0,10), val:p=>`${p.assistTotali} ass.`},
+        classifica: {label:'CLASSIFICA PUNTI',     icon:'\uD83C\uDFC6', color:'#FFD700', data:()=>topPoints.value.slice(0,10),           val:p=>`${p.puntiTotali} pt`},
+        mediapunti: {label:'MEDIA PUNTI / PARTITA',icon:'\uD83D\uDCC8', color:'#FF9900', data:()=>topAvgPoints.value.slice(0,10),        val:p=>`${(p.mediaPunti||0).toFixed(2)}/g`},
+        voti:       {label:'MEDIA VOTO',           icon:'\u2B50', color:'#FFDD00', data:()=>topRated.value.slice(0,10),              val:p=>`${(p.mediaVoto||0).toFixed(1)}`},
+        altri:      {label:'UOMO PARTITA',         icon:'\uD83C\uDF96\uFE0F', color:'#FF6600', data:()=>topUomoPartita.value.slice(0,10),  val:p=>`${p.uomoPartitaTotali} volte`},
+        overall:    {label:'OVERALL - TOP PLAYER', icon:'\uD83E\uDD47', color:'#C8FF00', data:()=>topOverall.value.slice(0,10),    val:p=>`${p._score?.toFixed(1)||0} pts`},
+        topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'\uD83C\uDFDF\uFE0F', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value).slice(0,12), val:p=>p.ruolo||''},
+      };
+      const cfg = statConfigs[tipo] || statConfigs.goal;
+      const rows = cfg.data();
+      if(!rows.length) throw new Error('Nessun dato disponibile');
+      const PAD=40, ROW_H=70, HEADER_H=210, FOOTER_H=56;
+      const H = HEADER_H + rows.length*ROW_H + 16 + FOOTER_H;
+      const canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
+      const ctx=canvas.getContext('2d');
+      await document.fonts.ready;
+      // Background
+      const bgG=ctx.createLinearGradient(0,0,0,H);
+      bgG.addColorStop(0,'#020408');bgG.addColorStop(0.5,'#050c18');bgG.addColorStop(1,'#081420');
+      ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
+      // Grid
+      ctx.strokeStyle='rgba(200,255,0,0.04)';ctx.lineWidth=1;
+      for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+      // Top accent
+      const acG=ctx.createLinearGradient(0,0,W,0);
+      acG.addColorStop(0,'rgba(0,0,0,0)');acG.addColorStop(0.3,cfg.color);acG.addColorStop(0.7,cfg.color);acG.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=acG;ctx.fillRect(0,0,W,4);
+      // Logo (tiny, top left)
+      const logoB64='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAABuElEQVR4nO2Xv0oDQRDGv7u7V5JCEMEnUERBUAQRBEEQBEEQRAQRFMFCUCiIoCCIgiBYiIiIiIiIiIiIiHiHnpvZ3Xu5JCRe8mdhYGCY3Zn9dmZ3FiGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgj5f/wCeANwBeABwDuAbQDrAN4A7AG4B7APYA/ADoAtAGcAzgGcADgGsA9gD8AegF0AOwC2AJwBOAdwAOAQwCGAQwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAQB+ATwBWACwBWADwBqAJQBLABYBLABYALAAYB7APPkHHbUAAAAASUVORK5CYII=';
+      const logoImg=await li(logoB64).catch(()=>null);
+      let logoY=16;
+      if(logoImg){ctx.drawImage(logoImg,(W-72)/2,logoY,72,72);logoY+=80;}else logoY+=24;
+      // Title
+      ctx.textAlign='center';
+      ctx.font='900 italic 24px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+      ctx.fillText('AMICI FC',W/2,logoY);
+      ctx.font='900 36px "Arial Black",Arial';
+      ctx.fillStyle=cfg.color;ctx.shadowColor=cfg.color;ctx.shadowBlur=18;
+      ctx.fillText(`${cfg.icon}  ${cfg.label}`,W/2,logoY+44);ctx.shadowBlur=0;
+      const grp=(currentGroup.value?.nome||'').toUpperCase();
+      ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.4)';
+      ctx.fillText(grp,W/2,logoY+70);
+      const now=new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      ctx.font='400 14px Arial';ctx.fillStyle='rgba(255,255,255,0.28)';ctx.fillText(now,W/2,logoY+90);
+      // Separator
+      ctx.fillStyle=acG;ctx.fillRect(PAD,HEADER_H-6,W-PAD*2,2);
+      // Rows
+      const avR=24;
+      for(let i=0;i<rows.length;i++){
+        const p=rows[i]; const rowY=HEADER_H+i*ROW_H; const top3=i<3;
+        // Row bg
+        const rbg=ctx.createLinearGradient(0,rowY,W,rowY);
+        rbg.addColorStop(0,'rgba(0,0,0,0)');rbg.addColorStop(0.5,top3?'rgba(200,255,0,0.07)':'rgba(255,255,255,0.02)');rbg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=rbg;rrect(ctx,PAD,rowY+4,W-PAD*2,ROW_H-8,10);ctx.fill();
+        if(i>0){ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(PAD+40,rowY,W-PAD*2-40,1);}
+        // Rank
+        const rX=PAD+20,rY=rowY+ROW_H/2;
+        ctx.beginPath();ctx.arc(rX,rY,17,0,Math.PI*2);
+        ctx.fillStyle=top3?['#FFD700','#C0C0C0','#CD7F32'][i]:'rgba(255,255,255,0.07)';ctx.fill();
+        ctx.font=`900 ${top3?'16':'14'}px "Arial Black",Arial`;ctx.fillStyle=top3?'#111':'rgba(255,255,255,0.4)';ctx.textAlign='center';
+        ctx.fillText(String(i+1),rX,rY+6);
+        // Avatar
+        const avX=PAD+60,avY=rowY+ROW_H/2;
+        ctx.beginPath();ctx.arc(avX,avY,avR,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fill();
+        ctx.strokeStyle=top3?cfg.color:'rgba(255,255,255,0.12)';ctx.lineWidth=2;ctx.stroke();
+        ctx.save();ctx.beginPath();ctx.arc(avX,avY,avR-1,0,Math.PI*2);ctx.clip();
+        const ph=await loadPhoto(p.foto,p.uid).catch(()=>null);
+        if(ph){ctx.drawImage(ph,avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);}
+        else{ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);ctx.font='20px Arial';ctx.fillStyle='rgba(255,255,255,0.4)';ctx.textAlign='center';ctx.fillText('👤',avX,avY+7);}
+        ctx.restore();
+        // Name
+        ctx.textAlign='left';ctx.font=`900 ${top3?'22':'18'}px "Arial Black",Arial`;
+        ctx.fillStyle=top3?'#fff':'rgba(255,255,255,0.82)';
+        ctx.shadowColor=top3?cfg.color:'transparent';ctx.shadowBlur=top3?8:0;
+        let nameStr=(p.soprannome||p.nome||'').toUpperCase();
+        while(ctx.measureText(nameStr).width>W-PAD*2-210&&nameStr.length>3)nameStr=nameStr.slice(0,-1);
+        if(nameStr!==(p.soprannome||p.nome||'').toUpperCase())nameStr+='…';
+        ctx.fillText(nameStr,PAD+96,rowY+ROW_H/2+8);ctx.shadowBlur=0;
+        // Value
+        const valStr=cfg.val(p);
+        ctx.textAlign='right';ctx.font=`900 ${top3?'26':'22'}px "Arial Black",Arial`;
+        ctx.fillStyle=top3?cfg.color:'rgba(200,255,0,0.65)';
+        ctx.shadowColor=cfg.color;ctx.shadowBlur=top3?10:3;
+        ctx.fillText(valStr,W-PAD-6,rowY+ROW_H/2+9);ctx.shadowBlur=0;
+      }
+      // Footer
+      const fY=H-FOOTER_H;
+      ctx.fillStyle='rgba(255,255,255,0.03)';ctx.fillRect(0,fY,W,FOOTER_H);
+      ctx.fillStyle=acG;ctx.fillRect(0,fY,W,2);
+      ctx.font='700 italic 15px "Arial Black",Arial';ctx.fillStyle='rgba(200,255,0,0.5)';ctx.textAlign='center';
+      ctx.fillText(`\u26BD Amici FC \u00B7 ${grp} \u00B7 Creato da Alby`,W/2,fY+33);
+      return canvas.toDataURL('image/png');
     };
 
 
@@ -6332,7 +6446,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
       checkForUpdates, doUpdate,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
-      showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch
+      showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch,
+      shareStatsPNG
     };
   }
 }).mount('#app');
