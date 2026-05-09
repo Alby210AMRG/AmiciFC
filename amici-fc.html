@@ -3348,29 +3348,45 @@ createApp({
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          // Try gemini-1.5-flash (generous free quota) then fallback to 2.0-flash
-          const models = ['gemini-2.0-flash-lite', 'gemini-1.5-flash', 'gemini-2.0-flash'];
-          let d = null;
+          // Modelli free tier certificati Google AI Studio (in ordine di preferenza)
+          const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+          let lastError = null;
+          let success = false;
           for (const model of models) {
-            const r = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
-              { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
-            );
-            d = await r.json();
-            if (!d.error || !d.error.message?.includes('not found')) break;
+            try {
+              const r = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
+                { method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
+              );
+              const d = await r.json();
+              if (d.error) {
+                const msg = d.error.message || '';
+                const code = d.error.code || 0;
+                // Solo se il modello non esiste → prova il prossimo
+                if (code === 404 || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not supported')) {
+                  lastError = `Modello ${model} non disponibile`; continue;
+                }
+                // Qualsiasi altro errore → mostra subito il messaggio reale
+                if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || code === 400)
+                  throw new Error(`❌ Chiave API non valida. Vai su ai.google.dev e controlla la chiave.`);
+                if (code === 429 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota'))
+                  throw new Error(`❌ Troppe richieste (429). Attendi 1 minuto e riprova.\nErrore Google: ${msg.slice(0,100)}`);
+                if (code === 403 || msg.includes('PERMISSION_DENIED'))
+                  throw new Error(`❌ Permesso negato (403). La chiave non ha accesso a Gemini.\nErrore: ${msg.slice(0,100)}`);
+                throw new Error(`❌ Errore Google API (${code}): ${msg.slice(0,150)}`);
+              }
+              result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
+              toast(`✅ Gemini OK (${model}): ${result}`, 'success', 5000);
+              success = true; break;
+            } catch(innerErr) {
+              // Se è un errore che abbiamo lanciato noi, non riprovare
+              if (innerErr.message.startsWith('❌')) throw innerErr;
+              lastError = innerErr.message; continue;
+            }
           }
-          if (d.error) {
-            const msg = d.error.message || '';
-            if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid'))
-              throw new Error('Chiave API non valida. Controlla su ai.google.dev');
-            if (msg.includes('quota') || msg.includes('RESOURCE_EXHAUSTED'))
-              throw new Error('Quota momentaneamente esaurita. Riprova tra un minuto.');
-            if (msg.includes('not found') || msg.includes('not supported'))
-              throw new Error('Modello non disponibile. Verifica su ai.google.dev');
-            throw new Error(msg.slice(0, 120));
-          }
-          result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
+          if (!success && lastError) throw new Error(lastError);
+          aiLoading.value = false; return;
         } else if (settings.value.aiProvider === 'claude') {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method:'POST',
@@ -3449,7 +3465,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.083');
+    const appVersion = ref('1.084');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
