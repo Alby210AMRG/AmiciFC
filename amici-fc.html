@@ -2660,7 +2660,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <div class="card">
         <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
-        <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
+          <button class="btn btn-full" style="background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
+            ☢️ Reset Totale (come nuova installazione)
+          </button>
+          <div style="font-size:0.72rem;color:var(--text2);line-height:1.4">
+            ⚠️ Reset Totale cancella tutto localmente (gruppi, giocatori, partite, impostazioni). I dati su Firebase <strong>non</strong> vengono toccati.
+          </div>
+        </div>
       </div>
 
       <div class="card">
@@ -3090,7 +3098,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
       <div style="display:flex;gap:10px">
         <button class="btn btn-ghost" style="flex:1" @click="showNewSeasonModal=false">Annulla</button>
-        <button class="btn btn-yellow" style="flex:2;color:#111" @click="startNewSeason">🚀 Inizia Nuova Stagione</button>
+        <button class="btn btn-yellow" style="flex:2;color:#111" @click="confirmStartNewSeason">🚀 Inizia Nuova Stagione</button>
       </div>
     </div>
   </div>
@@ -3502,6 +3510,26 @@ createApp({
     };
 
     // ── SEASON MANAGEMENT ──
+    const confirmStartNewSeason = () => {
+      const name = newSeasonName.value.trim() || 'nuova stagione';
+      const gName = currentGroup.value?.stagione || 'Stagione 1';
+      if (!confirm(
+        `⚠️ OPERAZIONE IRREVERSIBILE\n\n` +
+        `Stai per archiviare "${gName}" e iniziare "${name}".\n\n` +
+        `• Le ${groupMatches.value.length} partite vengono archiviate\n` +
+        `• Le statistiche di ${groupPlayers.value.length} giocatori vengono azzerate a ZERO\n` +
+        `• I dati della stagione corrente NON POSSONO essere ripristinati\n\n` +
+        `Sei assolutamente sicuro di voler continuare?`
+      )) return;
+      // Second confirmation
+      if (!confirm(
+        `✋ ULTIMA CONFERMA\n\n` +
+        `Confermi di voler archiviare "${gName}" e azzerare tutte le statistiche?\n\n` +
+        `Questa azione non può essere annullata.`
+      )) return;
+      startNewSeason();
+    };
+
     const startNewSeason = async () => {
       if (!currentGroup.value) return;
       const name = newSeasonName.value.trim() || `Stagione ${(currentGroup.value.archivioStagioni?.length||0)+2}`;
@@ -3749,7 +3777,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.089');
+    const appVersion = ref('1.090');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5226,22 +5254,34 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const saveEditMatch = async () => {
       if (!editingMatch.value) return;
       const m = editingMatch.value;
-      await db.matches.update(m.id, {
-        data:                   m.data,
-        luogo:                  m.luogo,
-        nomeSquadraA:           m.nomeSquadraA,
-        nomeSquadraB:           m.nomeSquadraB,
-        squadraA:               m.squadraA,
-        squadraB:               m.squadraB,
-        risultato:              m.risultato,
-        statisticheGiocatori:   m.statisticheGiocatori,
-        notePartita:            m.notePartita,
-      });
-      await recomputeStats();
-      await loadGroupData();
-      showEditMatch.value = false;
-      editingMatch.value  = null;
-      toast('✅ Partita aggiornata');
+      try {
+        // Dexie update needs the exact stored key - use put to be safe
+        const updated = await db.matches.update(m.id, {
+          data:                   m.data,
+          luogo:                  m.luogo,
+          nomeSquadraA:           m.nomeSquadraA,
+          nomeSquadraB:           m.nomeSquadraB,
+          squadraA:               m.squadraA,
+          squadraB:               m.squadraB,
+          risultato:              m.risultato,
+          statisticheGiocatori:   m.statisticheGiocatori,
+          notePartita:            m.notePartita,
+          titoloGiornale:         m.titoloGiornale,
+          commentoAI:             m.commentoAI,
+        });
+        if (!updated) {
+          // update returned 0 (ID mismatch) — try put instead
+          await db.matches.put({ ...m });
+        }
+        await recomputeStats();
+        await loadGroupData();
+        showEditMatch.value = false;
+        editingMatch.value  = null;
+        toast('✅ Partita aggiornata', 'success');
+      } catch(e) {
+        console.error('saveEditMatch error:', e);
+        toast('❌ Errore salvataggio: ' + e.message, 'error');
+      }
     };
     const askDeleteMatch = (m) => {
       confirmDeleteModal.matchId = m.id;
@@ -5817,7 +5857,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         // Top scorers of last match
         const scorersLast=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).sort((a,b)=>(b.goal||0)-(a.goal||0));
         if(scorersLast.length){
-          const names=scorersLast.slice(0,3).map(s=>{const p=players.find(x=>x.id===s.playerId);return `${p?.soprannome||p?.nome||'?'} ⚽${s.goal}`}).join(', ');
+          const names=scorersLast.slice(0,5).map(s=>{
+            const p=players.find(x=>x.id===s.playerId);
+            return `${p?.soprannome||p?.nome||'?'} ⚽×${s.goal}`;
+          }).join(', ');
           items.push({emoji:'⚽',text:`Marcatori ultima partita: ${names}`});
         }
         // Best rated of last match
@@ -5887,9 +5930,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         { emoji:'🎲', text:'Il calcetto è imprevedibile: oggi segna chi non tira mai. Domani parerà chi non aveva mai parato.' },
         { emoji:'🌈', text:'Le statistiche sono belle, ma non dicono chi ha fatto ridere tutta la partita. E conta.' },
       ];
-      // Show a funny phrase roughly every 4 items (not too often, not too rare)
-      if (newsIndex.value % 4 === 2) {
-        const pick = funnyPhrases[Math.floor(newsIndex.value / 4) % funnyPhrases.length];
+      // Frasi simpatiche ogni ~3 notizie per renderle più visibili
+      if (newsIndex.value % 3 === 1) {
+        const pick = funnyPhrases[Math.floor(newsIndex.value / 3) % funnyPhrases.length];
         items.push(pick);
       }
 
@@ -6546,6 +6589,42 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // ── UI Helpers ──
+    // ── TOTAL RESET (tutto: DB locale + settings + localStorage) ──
+    const totalReset = async () => {
+      if (!confirm(
+        '🚨 RESET TOTALE\n\n' +
+        'Questa operazione cancella TUTTO localmente:\n' +
+        '• Tutti i gruppi e giocatori\n' +
+        '• Tutte le partite e statistiche\n' +
+        '• API key e URL Firebase\n' +
+        '• Impostazioni\n\n' +
+        'I dati su Firebase NON vengono toccati.\n' +
+        'Sei sicuro di voler azzerare tutto?'
+      )) return;
+      if (!confirm('✋ CONFERMA FINALE: cancellare tutto il database locale?')) return;
+      try {
+        // Clear IndexedDB completely
+        await db.groups.clear();
+        await db.players.clear();
+        await db.matches.clear();
+        if (db.formations) await db.formations.clear();
+        // Clear localStorage
+        localStorage.clear();
+        // Reset in-memory state
+        groups.value = [];
+        currentGroup.value = null;
+        groupPlayers.value = [];
+        groupMatches.value = [];
+        settings.value = { darkTheme:true, fontLarge:false, aiProvider:'claude', apiKey:'', firebaseUrl:'', firebaseApiKey:'', syncEnabled:false, weatherCity:'' };
+        applyTheme();
+        currentView.value = 'onboarding';
+        toast('🗑️ Reset totale completato', 'success', 3000);
+      } catch(e) {
+        toast('❌ Errore reset: ' + e.message, 'error');
+      }
+    };
+
+
     const rankClass = i => i===0?'gold': i===1?'silver': i===2?'bronze':'';
 
     const votoColor = v => {
@@ -6759,8 +6838,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch,
       shareStatsPNG,
       showChangelog, changelogEntries,
-      showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason,
-      exportExcel
+      showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
+      exportExcel, totalReset
     };
   }
 }).mount('#app');
