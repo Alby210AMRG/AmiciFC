@@ -1263,7 +1263,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- ── News Ticker ── -->
-      <div style="margin-bottom:14px;background:var(--card);border-radius:16px;border:1px solid var(--border);overflow:hidden">
+      <div style="margin-bottom:14px;background:var(--card);border-radius:16px;border:2px solid var(--lime);overflow:hidden;box-shadow:0 0 20px rgba(166,255,77,0.2)">
         <!-- Header strip — testo bianco per entrambi i temi -->
         <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:6px 14px;display:flex;align-items:center;gap:8px">
           <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">🏟️ In diretta dallo spogliatoio</span>
@@ -3871,7 +3871,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.098');
+    const appVersion = ref('1.099');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4213,7 +4213,7 @@ createApp({
       return list;
     });
     const startNewMatch = () => {
-      if (!currentGroup.value) { toast('Seleziona un gruppo prima!', 'error'); currentView.value = 'settings'; return; }
+      if (!currentGroup.value) { toast('Seleziona o crea un gruppo prima!', 'info'); return; }
       if (groupPlayers.value.length < 2) { toast('Aggiungi almeno 2 giocatori!', 'error'); return; }
       currentView.value = 'formations';
     };
@@ -6871,7 +6871,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         groupPlayers.value = [];
         groupMatches.value = [];
         settings.value = { darkTheme:true, fontLarge:false, aiProvider:'claude', apiKey:'', firebaseUrl:'', firebaseApiKey:'', syncEnabled:false, weatherCity:'' };
-        applyTheme();
+        // Apply default dark theme
+        document.documentElement.setAttribute('data-theme', 'dark');
+        document.documentElement.style.removeProperty('--font-scale');
         currentView.value = 'onboarding';
         toast('🗑️ Reset totale completato', 'success', 3000);
       } catch(e) {
