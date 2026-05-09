@@ -2652,7 +2652,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
           <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
         </div>
-        <button class="btn btn-ghost btn-sm" style="margin-top:12px" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
+        </div>
       </div>
 <!-- CREDITI -->
       <div class="card credits-card">
@@ -3048,6 +3051,30 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </div>
 
+  <!-- ════ CHANGELOG MODAL (FIX2) ════ -->
+  <div v-if="showChangelog" class="modal-overlay" @click.self="showChangelog=false">
+    <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📋 Novità &amp; Modifiche</div>
+      <div style="margin-bottom:16px">
+        <div style="display:inline-block;background:var(--lime);color:#111;padding:4px 12px;border-radius:20px;font-size:0.78rem;font-weight:700;">
+          v{{ appVersion }} — Versione attuale
+        </div>
+      </div>
+      <div v-for="(entry,i) in changelogEntries" :key="i" style="margin-bottom:16px">
+        <div style="font-weight:800;font-size:0.9rem;color:var(--lime);margin-bottom:6px;display:flex;align-items:center;gap:8px">
+          <span style="background:rgba(200,255,0,0.12);padding:2px 10px;border-radius:20px">{{ entry.version }}</span>
+          <span style="font-size:0.72rem;color:var(--text2);font-weight:400">{{ entry.date }}</span>
+        </div>
+        <div v-for="(line,j) in entry.items" :key="j"
+          style="font-size:0.83rem;color:var(--text2);padding:5px 0 5px 12px;border-left:2px solid rgba(200,255,0,0.25);margin-bottom:4px;line-height:1.4">
+          {{ line }}
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" style="margin-top:8px" @click="showChangelog=false">Chiudi</button>
+    </div>
+  </div>
+
   <!-- ════ CONFIRM DELETE MODAL (FIX5) ════ -->
   <div v-if="confirmDeleteModal.show" class="modal-overlay" @click.self="confirmDeleteModal.show=false">
     <div class="modal-sheet" style="max-width:400px;text-align:center;padding:28px 24px;">
@@ -3319,6 +3346,57 @@ createApp({
     const groupPlayers  = ref([]);
     const groupMatches  = ref([]);
     const dbLoaded      = ref(false); // true dopo il primo caricamento DB
+    const showChangelog = ref(false);
+    // Changelog entries — aggiornare ad ogni versione
+    const changelogEntries = [
+      { version:'v1.088', date:'2026-05-09', items:[
+        '🆕 Grafiche condivisibili per ogni statistica con pulsante Condividi',
+        '🆕 Log modifiche accessibile da Impostazioni → Cosa è cambiato?',
+        '🆕 Nuove frasi spogliatoio: i numeri non sono tutto!',
+        '🔧 Fix silhouette giocatori nelle grafiche statistiche',
+      ]},
+      { version:'v1.087', date:'2026-05-09', items:[
+        '🆕 Grafiche PNG condivisibili per ogni tab statistiche',
+        '🔧 Fix sincronizzazione Firebase: statistiche corrette su tutti i dispositivi',
+        '🔧 Fix onboarding: aggiornamento app non azzera più i dati',
+      ]},
+      { version:'v1.086', date:'2026-05-09', items:[
+        '🔧 Fix sync Firebase: dedup partite migliorato',
+        '🔧 recomputeStats sempre chiamata dopo syncFromCloud',
+      ]},
+      { version:'v1.085', date:'2026-05-09', items:[
+        '🔧 Fix definitivo onboarding: aggiornamento non manda più alla schermata iniziale',
+        '🔧 watch(groups) con dbLoaded flag',
+      ]},
+      { version:'v1.084', date:'2026-05-09', items:[
+        '🔧 Fix Gemini: modelli corretti (gemini-1.5-flash con fallback)',
+        '🔧 Errori Gemini mostrano messaggio reale invece di generico',
+      ]},
+      { version:'v1.083', date:'2026-05-09', items:[
+        '🔧 Fix definitivo schermata iniziale nuovo dispositivo',
+        '🆕 Modifica partita con spostamento giocatori tra squadre',
+        '🆕 Tab Assist separato nelle statistiche',
+        '🆕 Tab Media Punti dedicato',
+        '🔧 Import JSON ricalcola statistiche da storico partite',
+      ]},
+      { version:'v1.082', date:'2026-05-08', items:[
+        '🔧 Fix Gemini API (gemini-1.5-flash)',
+        '🔧 Fix schermata iniziale nuovo dispositivo',
+        '🆕 Tab Assist separato',
+      ]},
+      { version:'v1.081', date:'2026-05-08', items:[
+        '🔧 Modifica/Elimina partita spostati nel dettaglio (accessibili per tutte le partite)',
+        '🔧 Silhouette in dettaglio partita per giocatori senza foto',
+      ]},
+      { version:'v1.080', date:'2026-05-08', items:[
+        '🔧 VS al posto del trattino nel giornale',
+        '🔧 Rimosso "CHE PARTITA!" dal giornale',
+        '🔧 Titolo articolo AI più grande e auto-ridimensionato',
+        '🔧 Statistiche sempre ricalcolate dallo storico partite',
+        '🔧 Eliminazione partita con conferma obbligatoria',
+        '🔧 JSON salva titolo e commento AI per ogni partita',
+      ]},
+    ];
     const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, weatherCity: '' });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
@@ -3466,7 +3544,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.087');
+    const appVersion = ref('1.088');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4524,7 +4602,14 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.save();ctx.beginPath();ctx.arc(avX,avY,avR-1,0,Math.PI*2);ctx.clip();
         const ph=await loadPhoto(p.foto,p.uid).catch(()=>null);
         if(ph){ctx.drawImage(ph,avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);}
-        else{ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);ctx.font='20px Arial';ctx.fillStyle='rgba(255,255,255,0.4)';ctx.textAlign='center';ctx.fillText('👤',avX,avY+7);}
+        else{
+          // Draw silhouette
+          ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);
+          // Head circle
+          ctx.beginPath();ctx.arc(avX,avY-avR*0.22,avR*0.42,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fill();
+          // Body arc
+          ctx.beginPath();ctx.arc(avX,avY+avR*0.7,avR*0.65,Math.PI,0);ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fill();
+        }
         ctx.restore();
         // Name
         ctx.textAlign='left';ctx.font=`900 ${top3?'22':'18'}px "Arial Black",Arial`;
@@ -5576,6 +5661,20 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         { emoji:'💬', text:'Analisi post-partita: tutti allenatori, nessun giocatore.' },
         { emoji:'🦸', text:'C\'è sempre quel uno che si crede Ronaldo. Ed è il motivo per cui perdiamo.' },
         { emoji:'🤝', text:'Vince la squadra che sbaglia meno. Di solito non siamo noi.' },
+        { emoji:'🌟', text:'Le statistiche contano i gol, non i dribbling geniali che finiscono a vuoto. Ma erano belli lo stesso.' },
+        { emoji:'💛', text:'Chi non segna difende. Chi non difende corre. Chi non corre esiste lo stesso e ci fa ridere.' },
+        { emoji:'🧩', text:'Una squadra non la fanno solo i gol: la fanno quelli che sudano senza che nessuno li veda.' },
+        { emoji:'🎯', text:'I numeri raccontano una storia. Ma non tutta: il dribbling di Nino nel secondo tempo era poesia.' },
+        { emoji:'🏅', text:'Non serve essere capocannoniere per fare la differenza. Basta esserci ogni giovedì.' },
+        { emoji:'📏', text:'La classifica marcatori misura i gol, non il cuore. E qui di cuore ce n\'è da vendere.' },
+        { emoji:'🦾', text:'Chi non segna: dà assist. Chi non dà assist: copre. Chi non copre: tifa forte. Tutti utili.' },
+        { emoji:'👑', text:'Il vero MVP è chi manda il messaggio "ci sono" sul gruppo WhatsApp alle 20:30.' },
+        { emoji:'🔥', text:'Zero gol non significa zero valore. Significa che tutti i tuoi gol erano di testa... e il portiere era alto.' },
+        { emoji:'✨', text:'Ogni partita ha un eroe diverso. Anche se le statistiche non lo sanno ancora.' },
+        { emoji:'🤗', text:'Non siamo avversari, siamo amici che fingono di esserlo per 60 minuti.' },
+        { emoji:'💪', text:'La forza di un gruppo non si misura in gol. Si misura in chi rimane anche quando perde.' },
+        { emoji:'🎲', text:'Il calcetto è imprevedibile: oggi segna chi non tira mai. Domani parerà chi non aveva mai parato.' },
+        { emoji:'🌈', text:'Le statistiche sono belle, ma non dicono chi ha fatto ridere tutta la partita. E conta.' },
       ];
       // Show a funny phrase roughly every 4 items (not too often, not too rare)
       if (newsIndex.value % 4 === 2) {
@@ -6447,7 +6546,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       checkForUpdates, doUpdate,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch,
-      shareStatsPNG
+      shareStatsPNG,
+      showChangelog, changelogEntries
     };
   }
 }).mount('#app');
