@@ -3318,6 +3318,7 @@ createApp({
     const currentGroup  = ref(null);
     const groupPlayers  = ref([]);
     const groupMatches  = ref([]);
+    const dbLoaded      = ref(false); // true dopo il primo caricamento DB
     const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, weatherCity: '' });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
@@ -3465,7 +3466,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.084');
+    const appVersion = ref('1.085');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5200,12 +5201,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const generateImageFilename = (uid, ext) => uid ? `${uid}.${ext||'jpg'}` : '';
 
     // ── Point 4: Scroll to top on every view change ──
-    // Ogni volta che groups cambia: se vuoto → onboarding (sopravvive ai reload del SW)
+    // Se i gruppi vengono svuotati DOPO il caricamento DB → onboarding
+    // { immediate: false } evita il redirect durante il reload del SW
     watch(groups, (newGroups) => {
-      if (newGroups.length === 0) {
+      if (dbLoaded.value && newGroups.length === 0) {
         currentView.value = 'onboarding';
       }
-    }, { immediate: true });
+    }, { immediate: false });
 
     watch(currentView, () => {
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -6222,6 +6224,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         if (g) await selectGroup(g);
       } else if (groups.value.length > 0) {
         await selectGroup(groups.value[0]);
+      }
+
+      // DB caricato: attiva il watch e controlla se serve onboarding
+      dbLoaded.value = true;
+      if (groups.value.length === 0) {
+        currentView.value = 'onboarding';
       }
 
       // Load logo
