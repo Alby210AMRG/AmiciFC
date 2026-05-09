@@ -2520,7 +2520,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             📥 Importa JSON
             <input type="file" accept=".json" style="display:none" @change="importData">
           </label>
+          <button class="btn btn-ghost" style="color:var(--lime)" @click="exportExcel" v-if="currentGroup">📊 Esporta Excel</button>
         </div>
+      </div>
+
+      <div class="card" v-if="currentGroup">
+        <div class="card-title">🏆 Gestione Stagione</div>
+        <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px;line-height:1.5">
+          Archivia la stagione corrente e inizia da zero. Giocatori e impostazioni rimangono, statistiche azzerate. Lo storico è sempre consultabile.
+        </div>
+        <div style="font-size:0.82rem;margin-bottom:12px">
+          Stagione attiva: <strong style="color:var(--lime)">{{ currentGroup.stagione || 'Stagione 1' }}</strong>
+        </div>
+        <button class="btn btn-ghost" style="color:var(--yellow);border-color:rgba(255,215,0,0.3)" @click="showNewSeasonModal=true">
+          🏆 Archivia e Nuova Stagione
+        </button>
+        <button class="btn btn-ghost" style="margin-top:8px" @click="showSeasonArchive=true" v-if="currentGroup?.archivioStagioni?.length">
+          📚 Vedi Archivio Stagioni ({{ currentGroup.archivioStagioni?.length||0 }})
+        </button>
       </div>
 
       <div class="card">
@@ -3051,6 +3068,65 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </div>
 
+  <!-- ════ NEW SEASON MODAL ════ -->
+  <div v-if="showNewSeasonModal" class="modal-overlay" @click.self="showNewSeasonModal=false">
+    <div class="modal-sheet mc" style="max-width:460px">
+      <div class="modal-handle"></div>
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:2.5rem;margin-bottom:8px">🏆</div>
+        <div class="modal-title" style="justify-content:center">Nuova Stagione</div>
+      </div>
+      <div style="background:rgba(255,215,0,0.08);border:1px solid rgba(255,215,0,0.25);border-radius:12px;padding:14px;margin-bottom:16px;font-size:0.83rem;color:var(--text2);line-height:1.6">
+        <div style="font-weight:700;color:var(--yellow);margin-bottom:6px">Cosa succederà:</div>
+        <div>✅ Lo storico della <strong>{{ currentGroup?.stagione || 'Stagione 1' }}</strong> viene archiviato</div>
+        <div>✅ I giocatori rimangono con ruoli e foto</div>
+        <div>✅ Le statistiche vengono azzerate a zero</div>
+        <div>✅ Le partite vengono archiviate (non cancellate)</div>
+        <div>⚠️ Puoi sempre consultare le stagioni precedenti</div>
+      </div>
+      <div class="input-group" style="margin-bottom:16px">
+        <label class="input-label">Nome nuova stagione</label>
+        <input class="input-field" v-model="newSeasonName" placeholder="es. Stagione 2026-2027">
+      </div>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" style="flex:1" @click="showNewSeasonModal=false">Annulla</button>
+        <button class="btn btn-yellow" style="flex:2;color:#111" @click="startNewSeason">🚀 Inizia Nuova Stagione</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════ SEASON ARCHIVE VIEWER ════ -->
+  <div v-if="showSeasonArchive" class="modal-overlay" @click.self="showSeasonArchive=false">
+    <div class="modal-sheet" style="max-height:90vh;overflow-y:auto">
+      <div class="modal-handle"></div>
+      <div class="modal-title">📚 Archivio Stagioni</div>
+      <div v-if="!currentGroup?.archivioStagioni?.length" style="color:var(--text2);text-align:center;padding:20px">
+        Nessuna stagione archiviata ancora.
+      </div>
+      <div v-for="(stagione,si) in (currentGroup?.archivioStagioni||[])" :key="si"
+        style="background:var(--bg3);border-radius:12px;border:1px solid var(--border);padding:14px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <div style="font-weight:800;color:var(--yellow)">{{ stagione.nome }}</div>
+          <div style="font-size:0.72rem;color:var(--text2)">{{ stagione.dataFine }}</div>
+        </div>
+        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">
+          {{ stagione.partite?.length||0 }} partite · {{ stagione.totaleGol||0 }} gol totali
+        </div>
+        <!-- Top 3 marcatori della stagione -->
+        <div v-if="stagione.topMarcatori?.length" style="margin-bottom:8px">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text2);margin-bottom:4px">🥇 TOP MARCATORI</div>
+          <div v-for="(p,pi) in stagione.topMarcatori.slice(0,3)" :key="pi"
+            style="display:flex;align-items:center;gap:8px;padding:4px 0;font-size:0.82rem">
+            <span style="font-weight:700;color:var(--lime)">{{ pi+1 }}.</span>
+            <span style="flex:1">{{ p.nome }}</span>
+            <span style="color:var(--lime);font-weight:700">{{ p.gol }} ⚽</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" @click="showSeasonArchive=false">Chiudi</button>
+    </div>
+  </div>
+
   <!-- ════ CHANGELOG MODAL (FIX2) ════ -->
   <div v-if="showChangelog" class="modal-overlay" @click.self="showChangelog=false">
     <div class="modal-sheet" style="max-height:85vh;overflow-y:auto">
@@ -3347,8 +3423,137 @@ createApp({
     const groupMatches  = ref([]);
     const dbLoaded      = ref(false); // true dopo il primo caricamento DB
     const showChangelog = ref(false);
+    const showNewSeasonModal = ref(false);
+    const showSeasonArchive  = ref(false);
+    const newSeasonName      = ref('');
+
+    // ── EXCEL EXPORT ──
+    const exportExcel = async () => {
+      if (!currentGroup.value) return;
+      toast('⏳ Generazione Excel...','info',3000);
+      try {
+        const XLSX = await import('https://cdn.sheetjs.com/xlsx-0.20.1/package/xlsx.mjs');
+        const wb = XLSX.utils.book_new();
+        const g = currentGroup.value;
+        const players = groupPlayers.value;
+        const matches = [...groupMatches.value].sort((a,b)=>a.data?.localeCompare(b.data||'')||0);
+
+        // ── Foglio 1: Classifica ──
+        const clData = [
+          ['#','Giocatore','Ruolo','Partite','Punti','Media Pt/g','Gol','Assist','Autogol','Uomo Partita','Media Voto']
+        ];
+        [...players].sort((a,b)=>(b.puntiTotali||0)-(a.puntiTotali||0)).forEach((p,i)=>{
+          clData.push([i+1,p.soprannome||p.nome,p.ruolo||'',p.partiteTotali||0,p.puntiTotali||0,
+            Number((p.mediaPunti||0).toFixed(3)),p.goalTotali||0,p.assistTotali||0,
+            p.autogolTotali||0,p.uomoPartitaTotali||0,
+            Number((p.mediaVoto||0).toFixed(2))]);
+        });
+        const wsClass = XLSX.utils.aoa_to_sheet(clData);
+        wsClass['!cols']=[{wch:4},{wch:18},{wch:14},{wch:8},{wch:7},{wch:10},{wch:6},{wch:7},{wch:8},{wch:12},{wch:10}];
+        XLSX.utils.book_append_sheet(wb, wsClass, 'Classifica');
+
+        // ── Foglio 2: Marcatori ──
+        const golData=[['#','Giocatore','Ruolo','Gol','Partite','Gol/partita']];
+        [...players].filter(p=>(p.goalTotali||0)>0).sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0)).forEach((p,i)=>{
+          golData.push([i+1,p.soprannome||p.nome,p.ruolo||'',p.goalTotali||0,p.partiteTotali||0,
+            Number(((p.goalTotali||0)/(p.partiteTotali||1)).toFixed(3))]);
+        });
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(golData), 'Marcatori');
+
+        // ── Foglio 3: Storico Partite ──
+        const matchData=[['Data','Squadra A','Gol A','Gol B','Squadra B','Risultato','MVP','Gol Partita']];
+        for(const m of matches){
+          const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;
+          const res=gA>gB?'Vince A':gA<gB?'Vince B':'Pareggio';
+          const scorers=(m.statisticheGiocatori||[]).filter(s=>s.goal>0)
+            .map(s=>{const p=players.find(x=>x.id===s.playerId);return `${p?.soprannome||p?.nome||'?'}(${s.goal})`;}).join(', ');
+          matchData.push([m.data,m.nomeSquadraA||'Squadra A',gA,gB,m.nomeSquadraB||'Squadra B',res,m.uomoPartita||'',scorers]);
+        }
+        const wsMatch=XLSX.utils.aoa_to_sheet(matchData);
+        wsMatch['!cols']=[{wch:12},{wch:14},{wch:7},{wch:7},{wch:14},{wch:10},{wch:16},{wch:40}];
+        XLSX.utils.book_append_sheet(wb, wsMatch, 'Storico Partite');
+
+        // ── Foglio 4: Statistiche Complete ──
+        // Matrice giocatori × partite con punti per ogni partita
+        const headers=['Giocatore',...matches.map(m=>m.data),'TOTALE','MEDIA','GOL'];
+        const statsData=[headers];
+        for(const p of [...players].sort((a,b)=>(b.puntiTotali||0)-(a.puntiTotali||0))){
+          const row=[p.soprannome||p.nome];
+          let tot=0;
+          for(const m of matches){
+            const s=(m.statisticheGiocatori||[]).find(s=>s.playerId===p.id);
+            const pts=s?.punti??'';
+            row.push(pts===''?'':Number(pts));
+            if(typeof pts==='number'||typeof pts==='string'&&pts!=='')tot+=Number(pts);
+          }
+          row.push(p.puntiTotali||0);
+          row.push(Number((p.mediaPunti||0).toFixed(3)));
+          row.push(p.goalTotali||0);
+          statsData.push(row);
+        }
+        const wsStats=XLSX.utils.aoa_to_sheet(statsData);
+        XLSX.utils.book_append_sheet(wb, wsStats, 'Stats Partita x Partita');
+
+        // Download
+        const fname=`AmiciFC-${g.nome.replace(/\s+/g,'-')}-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.xlsx`;
+        XLSX.writeFile(wb, fname);
+        toast('✅ Excel scaricato!','success');
+      } catch(e) { console.error(e); toast('❌ Errore Excel: '+e.message,'error'); }
+    };
+
+    // ── SEASON MANAGEMENT ──
+    const startNewSeason = async () => {
+      if (!currentGroup.value) return;
+      const name = newSeasonName.value.trim() || `Stagione ${(currentGroup.value.archivioStagioni?.length||0)+2}`;
+      const g = currentGroup.value;
+      const matches = [...groupMatches.value];
+      const players = [...groupPlayers.value];
+
+      // Build archive entry
+      const topMarcatori = [...players].filter(p=>(p.goalTotali||0)>0)
+        .sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0)).slice(0,5)
+        .map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,partite:p.partiteTotali||0}));
+      const totGol = matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
+
+      const archiveEntry = {
+        nome: g.stagione || 'Stagione 1',
+        dataFine: new Date().toLocaleDateString('it-IT'),
+        partite: matches,
+        totaleGol: totGol,
+        topMarcatori,
+        topPunti: [...players].sort((a,b)=>(b.puntiTotali||0)-(a.puntiTotali||0)).slice(0,3)
+          .map(p=>({nome:p.soprannome||p.nome,punti:p.puntiTotali||0})),
+      };
+
+      // Update group: archive season, reset stats, delete matches
+      const archivioStagioni = [...(g.archivioStagioni||[]), archiveEntry];
+      await db.groups.update(g.id, { stagione: name, archivioStagioni });
+
+      // Reset player stats
+      for(const p of players){
+        await db.players.update(p.id,{
+          goalTotali:0,assistTotali:0,autogolTotali:0,uomoPartitaTotali:0,
+          puntiTotali:0,partiteTotali:0,mediaPunti:0,mediaVoto:0,votiTotali:0
+        });
+      }
+
+      // Delete all matches of this group
+      for(const m of matches){ await db.matches.delete(m.id); }
+
+      await loadGroups();
+      await loadGroupData();
+      showNewSeasonModal.value=false;
+      newSeasonName.value='';
+      toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
+    };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.089', date:'2026-05-09', items:[
+        '🆕 Export Excel con 4 fogli: Classifica, Marcatori, Storico, Stats dettaglio',
+        '🆕 Gestione Stagioni: archivia e nuova stagione con storico consultabile',
+        '🔧 Gemini: endpoint v1 stabile + istruzioni per restrizioni API key',
+        '🔧 Gemini generateCommentAI: v1 endpoint + generationConfig',
+      ]},
       { version:'v1.088', date:'2026-05-09', items:[
         '🆕 Grafiche condivisibili per ogni statistica con pulsante Condividi',
         '🆕 Log modifiche accessibile da Impostazioni → Cosa è cambiato?',
@@ -3427,39 +3632,39 @@ createApp({
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          // Modelli free tier certificati Google AI Studio (in ordine di preferenza)
-          const models = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-8b'];
+          // Modelli Gemini (endpoint v1 stabile)
+          const models = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
           let lastError = null;
           let success = false;
           for (const model of models) {
             try {
               const r = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`,
+                `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${settings.value.apiKey}`,
                 { method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
+                  body: JSON.stringify({
+                    contents:[{parts:[{text:prompt}]}],
+                    generationConfig:{maxOutputTokens:50,temperature:0.5}
+                  }) }
               );
               const d = await r.json();
               if (d.error) {
                 const msg = d.error.message || '';
                 const code = d.error.code || 0;
-                // Solo se il modello non esiste → prova il prossimo
-                if (code === 404 || msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('not supported')) {
+                if (code === 404 || msg.toLowerCase().includes('not found')) {
                   lastError = `Modello ${model} non disponibile`; continue;
                 }
-                // Qualsiasi altro errore → mostra subito il messaggio reale
                 if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || code === 400)
                   throw new Error(`❌ Chiave API non valida. Vai su ai.google.dev e controlla la chiave.`);
                 if (code === 429 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota'))
-                  throw new Error(`❌ Troppe richieste (429). Attendi 1 minuto e riprova.\nErrore Google: ${msg.slice(0,100)}`);
+                  throw new Error(`❌ Quota 429.\n\n⚠️ CAUSA PROBABILE: la tua API key ha restrizioni di dominio in Google Cloud Console. Vai su console.cloud.google.com → API & Services → Credentials → modifica la chiave → rimuovi le restrizioni HTTP referrer (o aggiungi il dominio GitHub Pages).`);
                 if (code === 403 || msg.includes('PERMISSION_DENIED'))
-                  throw new Error(`❌ Permesso negato (403). La chiave non ha accesso a Gemini.\nErrore: ${msg.slice(0,100)}`);
+                  throw new Error(`❌ Permesso negato (403).\n\n⚠️ La chiave potrebbe essere ristretta a certi domini. Controlla su console.cloud.google.com → API & Services → Credentials.`);
                 throw new Error(`❌ Errore Google API (${code}): ${msg.slice(0,150)}`);
               }
               result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
               toast(`✅ Gemini OK (${model}): ${result}`, 'success', 5000);
               success = true; break;
             } catch(innerErr) {
-              // Se è un errore che abbiamo lanciato noi, non riprovare
               if (innerErr.message.startsWith('❌')) throw innerErr;
               lastError = innerErr.message; continue;
             }
@@ -3544,7 +3749,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.088');
+    const appVersion = ref('1.089');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4833,17 +5038,23 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           aiComment.value = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
 
         } else if (prov === 'gemini') {
-          // FIX: usa gemini-1.5-flash (quota gratuita stabile) con fallback
-          const geminiModels = ['gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash-latest'];
+          // Gemini: endpoint v1 (stabile) con generationConfig
+          const geminiModels = ['gemini-2.0-flash', 'gemini-1.5-flash', 'gemini-1.5-flash-8b'];
           let data = null;
           for (const model of geminiModels) {
             const r = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+              `https://generativelanguage.googleapis.com/v1/models/${model}:generateContent?key=${key}`,
               { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({contents:[{parts:[{text:prompt}]}]}) }
+                body: JSON.stringify({
+                  contents:[{parts:[{text:prompt}]}],
+                  generationConfig:{maxOutputTokens:600,temperature:0.92,topP:0.95}
+                })
+              }
             );
             data = await r.json();
             if (!data.error) break;
+            // solo su 404 (modello non trovato) prova il prossimo
+            if (data.error?.code !== 404) break;
           }
           aiComment.value = data?.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
         }
@@ -6547,7 +6758,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch,
       shareStatsPNG,
-      showChangelog, changelogEntries
+      showChangelog, changelogEntries,
+      showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason,
+      exportExcel
     };
   }
 }).mount('#app');
