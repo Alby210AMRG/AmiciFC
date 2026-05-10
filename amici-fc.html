@@ -2161,6 +2161,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="platform-tab" :class="{active:statsTab==='goal'}"         @click="statsTab='goal'">⚽ Goal</button>
           <button class="platform-tab" :class="{active:statsTab==='assist'}"       @click="statsTab='assist'">🅰️ Assist</button>
           <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">🏅 Uomo Partita</button>
+          <button class="platform-tab" :class="{active:statsTab==='autogol'}"      @click="statsTab='autogol'">❌ Autogol</button>
           <button class="platform-tab" :class="{active:statsTab==='mediapunti'}"   @click="statsTab='mediapunti'">📈 Media Punti</button>
           <button class="platform-tab" :class="{active:statsTab==='voti'}"         @click="statsTab='voti'">⭐ Voti</button>
         </div>
@@ -2228,7 +2229,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🥇 Migliori in Campo</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
               Come si calcola l'<strong style="color:var(--lime)">Overall</strong>? Punteggio composito per partita (min. 2 presenze):<br>
-              🏆 <strong>Media punti ×10</strong> · ⚽ <strong>Gol/partita ×8</strong> · 🅰️ <strong>Assist/partita ×4</strong> · 🏅 <strong>Uomo partita/g ×10</strong> · 🧤 <strong>Clean Sheet/g ×8</strong> (solo portieri) · ⭐ <strong>Voto medio ×2</strong> · ❌ <strong>Autogol/g −6</strong>
+              🏆 <strong>Media punti ×10</strong> · ⚽ <strong>Gol/partita ×8</strong> · 🅰️ <strong>Assist/partita ×4</strong> · 🏅 <strong>Uomo partita/g ×10</strong> · 🧤 <strong>Clean Sheet/g ×8</strong> (solo portieri) · ⭐ <strong>Voto medio ×2</strong> · ❌ <strong>Autogol/g −6</strong> · 📅 <strong>Costanza +max5</strong> (bonus presenze sul totale partite, min. 3 giocate)
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
             <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row">
@@ -2343,6 +2344,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
               <div class="stats-val" style="color:var(--blue)">{{p.assistTotali}}</div>
+            </div>
+          </div>
+        </template>
+
+        <template v-if="statsTab==='autogol'">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div class="card-title" style="margin-bottom:0">❌ Classifica Autogol</div>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Meno è meglio. Il meno peggio vince comunque! 😅</div>
+            <div v-if="!groupPlayers.filter(p=>(p.autogolTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Nessun autogol. Ottimo! 🎉</p></div>
+            <div v-for="(p,i) in [...groupPlayers].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0))" :key="p.id" class="stats-row">
+              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
+              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
+              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
+              <div class="stats-val" style="color:var(--red)">{{p.autogolTotali}} OG</div>
             </div>
           </div>
         </template>
@@ -3089,6 +3106,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <th style="text-align:center;padding:4px">⚽</th>
             <th style="text-align:center;padding:4px">🅰️</th>
             <th style="text-align:center;padding:4px">⭐ Voto</th>
+            <th style="text-align:center;padding:4px;color:var(--red)">OG</th>
             <th style="text-align:center;padding:4px">Punti</th>
           </tr></thead>
           <tbody>
@@ -3097,6 +3115,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <td style="text-align:center;padding:3px"><input type="number" min="0" v-model.number="s.goal" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
               <td style="text-align:center;padding:3px"><input type="number" min="0" v-model.number="s.assist" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
               <td style="text-align:center;padding:3px"><input type="number" min="1" max="10" step="0.5" v-model.number="s.voto" style="width:48px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
+              <td style="text-align:center;padding:3px"><input type="number" min="0" v-model.number="s.autogol" style="width:40px;text-align:center;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.3);border-radius:6px;color:var(--red);padding:2px 4px"></td>
               <td style="text-align:center;padding:3px"><input type="number" min="0" max="3" v-model.number="s.punti" style="width:40px;text-align:center;background:var(--bg3);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:2px 4px"></td>
             </tr>
           </tbody>
@@ -3871,7 +3890,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.100');
+    const appVersion = ref('1.101');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -3960,10 +3979,15 @@ createApp({
     // Overall composite score
     const overallScore = (p) => {
       const n = Math.max(p.partiteTotali||1, 1);
-      // Only use match-detail stats when match records actually exist
       const hasMatches = groupMatches.value.length > 0;
       const cs  = (hasMatches && p.ruolo === 'Portiere') ? calcCleanSheets(p.id) : 0;
-      const upm = hasMatches ? (p.uomoPartitaTotali||0) : 0; // UoM = 0 if no match details
+      const upm = hasMatches ? (p.uomoPartitaTotali||0) : 0;
+      const totalMatches = groupMatches.value.length || 1;
+      // Costanza: bonus proporzionale alle presenze sul totale partite del gruppo
+      // Max +5 punti per chi ha giocato tutte le partite, scalato linearmente
+      // Min 3 partite per ricevere bonus costanza
+      const presenzaRatio = n / totalMatches;
+      const costanzaBonus = n >= 3 ? presenzaRatio * 5 : 0;
       return (
         (p.mediaPunti||0) * 10 +
         (p.goalTotali||0) / n * 8 +
@@ -3971,7 +3995,8 @@ createApp({
         upm / n * 10 +
         cs / n * 8 -
         (p.autogolTotali||0) / n * 6 +
-        ((p.mediaVoto||0) > 0 ? ((p.mediaVoto||0) - 6) * 2 : 0)
+        ((p.mediaVoto||0) > 0 ? ((p.mediaVoto||0) - 6) * 2 : 0) +
+        costanzaBonus
       );
     };
 
@@ -4871,45 +4896,52 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.fillText(f.matchLuogo.toUpperCase(),W/2+106,iPillY+66);
       }
 
-      // ═══ 5. SLOGAN + BALLS ═══
+      // ═══ 5. QUOTE SCOMMESSA (al posto del slogan) ═══
       const SLOG_Y=FOOT_Y+iPillH+20;
-      ctx.font='52px Arial';ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=8;
-      ctx.fillText('⚽',60,SLOG_Y+58);ctx.fillText('⚽',W-60,SLOG_Y+58);
-      ctx.font='900 italic 48px "Arial Black",Arial';
-      const gSlo=ctx.createLinearGradient(0,0,W,0);gSlo.addColorStop(0,'#ffffff');gSlo.addColorStop(0.5,bCol);gSlo.addColorStop(1,'#ffffff');
-      ctx.fillStyle=gSlo;ctx.fillText('PRONTI A DARE TUTTO!',W/2,SLOG_Y+54);
-      ctx.font='700 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
-      ctx.fillText('★  BUON DIVERTIMENTO A TUTTI!  ★',W/2,SLOG_Y+90);ctx.shadowBlur=0;
-
-      // ── QUOTE SCOMMESSE ──
       const pred = computeFormationPrediction(f);
       if (pred) {
-        const qY = H - 80;
-        // Background bar
-        const qGrad = ctx.createLinearGradient(0, qY, W, qY);
-        qGrad.addColorStop(0,'rgba(58,123,255,0)');
-        qGrad.addColorStop(0.2,'rgba(58,123,255,0.18)');
-        qGrad.addColorStop(0.8,'rgba(58,123,255,0.18)');
-        qGrad.addColorStop(1,'rgba(58,123,255,0)');
-        ctx.fillStyle = qGrad; ctx.fillRect(0, qY-4, W, 54);
+        // Section title
+        ctx.font='700 italic 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';ctx.shadowBlur=0;
+        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,SLOG_Y+28);
 
-        ctx.font = '700 11px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.45)';
-        ctx.textAlign = 'center';
-        ctx.fillText('🎯 QUOTE SCOMMESSA', W/2, qY+12);
-
-        // Quote boxes
-        const boxes = [
-          { label: f.nomeSquadraA||'Sqd A', odd: pred.quoteA, x: W*0.18, color:'#7ab0ff' },
-          { label: 'Pareggio',              odd: pred.quoteX, x: W*0.50, color:'#FFD700' },
-          { label: f.nomeSquadraB||'Sqd B', odd: pred.quoteB, x: W*0.82, color:'#ff9090' },
+        // Three odds boxes
+        const qBoxes=[
+          {label:f.nomeSquadraA||'Squadra A',odd:pred.quoteA,x:W*0.20,col:bCol},
+          {label:'Pareggio',                  odd:pred.quoteX,x:W*0.50,col:'#FFD700'},
+          {label:f.nomeSquadraB||'Squadra B', odd:pred.quoteB,x:W*0.80,col:aCol},
         ];
-        for (const b of boxes) {
-          ctx.font = '900 22px Arial Black,Arial'; ctx.fillStyle = b.color;
-          ctx.textAlign = 'center';
-          ctx.fillText(b.odd, b.x, qY+40);
-          ctx.font = '400 10px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
-          ctx.fillText(b.label, b.x, qY+52);
+        for(const b of qBoxes){
+          // Box background
+          ctx.save();
+          ctx.shadowColor=b.col;ctx.shadowBlur=18;
+          ctx.fillStyle=b.col+'33'; // 20% opacity
+          const bw=180,bh=90,bx=b.x-bw/2,by=SLOG_Y+40;
+          ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,bw,bh,14):ctx.rect(bx,by,bw,bh);ctx.fill();
+          ctx.restore();
+          // Odd value - big
+          ctx.font='900 56px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
+          ctx.shadowColor=b.col;ctx.shadowBlur=12;
+          ctx.fillText(b.odd,b.x,SLOG_Y+106);ctx.shadowBlur=0;
+          // Label
+          ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+          // Truncate label
+          let lbl=b.label.toUpperCase();
+          while(ctx.measureText(lbl).width>170&&lbl.length>3)lbl=lbl.slice(0,-1);
+          ctx.fillText(lbl,b.x,SLOG_Y+130);
         }
+        // Verdict
+        ctx.font='italic 18px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.textAlign='center';
+        const verd=pred.verdict.length>80?pred.verdict.slice(0,78)+'\u2026':pred.verdict;
+        ctx.fillText(verd,W/2,SLOG_Y+158);
+        ctx.font='700 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
+        ctx.fillText('\u2605  BUON DIVERTIMENTO A TUTTI!  \u2605',W/2,SLOG_Y+192);
+      } else {
+        ctx.font='900 italic 48px "Arial Black",Arial';
+        const gSlo=ctx.createLinearGradient(0,0,W,0);gSlo.addColorStop(0,'#ffffff');gSlo.addColorStop(0.5,bCol);gSlo.addColorStop(1,'#ffffff');
+        ctx.fillStyle=gSlo;ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=8;
+        ctx.fillText('PRONTI A DARE TUTTO!',W/2,SLOG_Y+54);
+        ctx.font='700 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
+        ctx.fillText('\u2605  BUON DIVERTIMENTO A TUTTI!  \u2605',W/2,SLOG_Y+90);ctx.shadowBlur=0;
       }
 
       // Watermark
@@ -6414,8 +6446,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if(mxS===0){ctx.font=`italic 16px ${FONT_BODY}`;ctx.fillStyle='#888';ctx.textAlign='center';ctx.fillText('Nessun marcatore registrato',W/2,Y+18);Y+=28;}
       for(let i=0;i<mxS;i++){
         const pA=scorersA[i],pB=scorersB[i];
-        if(pA){const p=getPlayer(pA),s=playerStats.value[pA]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='left';ctx.fillText(`${p?.soprannome||p?.nome} ${icons}`,PAD,Y+18);}
-        if(pB){const p=getPlayer(pB),s=playerStats.value[pB]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='right';ctx.fillText(`${icons} ${p?.soprannome||p?.nome}`,W-PAD,Y+18);}
+        if(pA){const p=getPlayer(pA),s=playerStats.value[pA]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'')+(s.autogol?(' OG×'+(s.autogol)):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='left';ctx.fillText(`${p?.soprannome||p?.nome} ${icons}`,PAD,Y+18);}
+        if(pB){const p=getPlayer(pB),s=playerStats.value[pB]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'')+(s.autogol?(' OG×'+(s.autogol)):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='right';ctx.fillText(`${icons} ${p?.soprannome||p?.nome}`,W-PAD,Y+18);}
         Y+=26;
       }
       Y+=10;Y=HR(Y,'#8B0000',2);
