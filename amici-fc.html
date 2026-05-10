@@ -3890,7 +3890,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.101');
+    const appVersion = ref('1.102');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4721,7 +4721,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
     const drawFormationCanvas = async (f) => {
       // ── Reference layout: stadium bg + two side-by-side panels ──
-      const W=900, H=1500;
+      const W=900, H=1650;
       const canvas=document.createElement('canvas');
       canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
@@ -4896,53 +4896,63 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.fillText(f.matchLuogo.toUpperCase(),W/2+106,iPillY+66);
       }
 
-      // ═══ 5. QUOTE SCOMMESSA (al posto del slogan) ═══
-      const SLOG_Y=FOOT_Y+iPillH+20;
+      // ═══ 5. QUOTE SCOMMESSA + RISULTATO PREVISTO ═══
+      const SLOG_Y=FOOT_Y+iPillH+24;
       const pred = computeFormationPrediction(f);
       if (pred) {
-        // Section title
-        ctx.font='700 italic 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';ctx.shadowBlur=0;
-        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,SLOG_Y+28);
+        // Header
+        ctx.font='700 italic 17px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.textAlign='center';ctx.shadowBlur=0;
+        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,SLOG_Y+20);
 
-        // Three odds boxes
+        // LEFT=squadraB(bCol=green), CENTER=pareggio, RIGHT=squadraA(aCol=blue)
         const qBoxes=[
-          {label:f.nomeSquadraA||'Squadra A',odd:pred.quoteA,x:W*0.20,col:bCol},
-          {label:'Pareggio',                  odd:pred.quoteX,x:W*0.50,col:'#FFD700'},
-          {label:f.nomeSquadraB||'Squadra B', odd:pred.quoteB,x:W*0.80,col:aCol},
+          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(), odd:pred.quoteB, x:W*0.20, col:bCol},
+          {label:'PAREGGIO',                                   odd:pred.quoteX, x:W*0.50, col:'#FFD700'},
+          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.80, col:aCol},
         ];
         for(const b of qBoxes){
-          // Box background
-          ctx.save();
-          ctx.shadowColor=b.col;ctx.shadowBlur=18;
-          ctx.fillStyle=b.col+'33'; // 20% opacity
-          const bw=180,bh=90,bx=b.x-bw/2,by=SLOG_Y+40;
-          ctx.beginPath();ctx.roundRect?ctx.roundRect(bx,by,bw,bh,14):ctx.rect(bx,by,bw,bh);ctx.fill();
-          ctx.restore();
-          // Odd value - big
-          ctx.font='900 56px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
-          ctx.shadowColor=b.col;ctx.shadowBlur=12;
-          ctx.fillText(b.odd,b.x,SLOG_Y+106);ctx.shadowBlur=0;
-          // Label
-          ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
-          // Truncate label
-          let lbl=b.label.toUpperCase();
-          while(ctx.measureText(lbl).width>170&&lbl.length>3)lbl=lbl.slice(0,-1);
-          ctx.fillText(lbl,b.x,SLOG_Y+130);
+          // Box bg
+          ctx.fillStyle=b.col+'1A';
+          ctx.strokeStyle=b.col+'99';ctx.lineWidth=1.5;
+          const bw=162,bh=68,bx=b.x-bw/2,by=SLOG_Y+28;
+          ctx.beginPath();ctx.rect(bx,by,bw,bh);ctx.fill();ctx.stroke();
+          // Odd value 40px
+          ctx.font='900 40px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
+          ctx.shadowColor=b.col;ctx.shadowBlur=8;
+          ctx.fillText(b.odd,b.x,SLOG_Y+80);ctx.shadowBlur=0;
+          // Team label small
+          let lbl=b.label;while(ctx.measureText(lbl).width>155&&lbl.length>3)lbl=lbl.slice(0,-1);
+          ctx.font='600 12px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';
+          ctx.fillText(lbl,b.x,SLOG_Y+100);
+        }
+
+        // Predicted score
+        ctx.font='700 13px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.45)';ctx.textAlign='center';
+        ctx.fillText('RISULTATO PREVISTO',W/2,SLOG_Y+122);
+        const scoreMatch=pred.verdict.match(/(\d+)-(\d+)/);
+        if(scoreMatch){
+          // B is left, A is right — swap score display accordingly
+          const sc=`${(f.nomeSquadraB||'B').substring(0,12).toUpperCase()}  ${scoreMatch[2]} - ${scoreMatch[1]}  ${(f.nomeSquadraA||'A').substring(0,12).toUpperCase()}`;
+          ctx.font='900 24px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+          ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=5;
+          ctx.fillText(sc,W/2,SLOG_Y+148);ctx.shadowBlur=0;
         }
         // Verdict
-        ctx.font='italic 18px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.textAlign='center';
-        const verd=pred.verdict.length>80?pred.verdict.slice(0,78)+'\u2026':pred.verdict;
-        ctx.fillText(verd,W/2,SLOG_Y+158);
-        ctx.font='700 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
+        const vshort=pred.verdict.replace(/Risultato probabile:.*$/,'').trim().slice(0,72);
+        ctx.font='italic 13px Arial';ctx.fillStyle='rgba(255,255,255,0.38)';ctx.textAlign='center';
+        ctx.fillText(vshort,W/2,SLOG_Y+166);
+        ctx.font='700 19px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.65)';
         ctx.fillText('\u2605  BUON DIVERTIMENTO A TUTTI!  \u2605',W/2,SLOG_Y+192);
       } else {
         ctx.font='900 italic 48px "Arial Black",Arial';
-        const gSlo=ctx.createLinearGradient(0,0,W,0);gSlo.addColorStop(0,'#ffffff');gSlo.addColorStop(0.5,bCol);gSlo.addColorStop(1,'#ffffff');
-        ctx.fillStyle=gSlo;ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=8;
+        const gSlo=ctx.createLinearGradient(0,0,W,0);
+        gSlo.addColorStop(0,'#ffffff');gSlo.addColorStop(0.5,bCol);gSlo.addColorStop(1,'#ffffff');
+        ctx.fillStyle=gSlo;ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=8;ctx.textAlign='center';
         ctx.fillText('PRONTI A DARE TUTTO!',W/2,SLOG_Y+54);
         ctx.font='700 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
         ctx.fillText('\u2605  BUON DIVERTIMENTO A TUTTI!  \u2605',W/2,SLOG_Y+90);ctx.shadowBlur=0;
       }
+
 
       // Watermark
       ctx.font='400 13px Arial';ctx.fillStyle='rgba(255,255,255,0.18)';
@@ -5935,11 +5945,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const SILHOUETTE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
     const getPlayerPhoto = (foto, uid) => {
       if (foto) {
+        // Auto-convert Google Drive share URL to direct image URL
+        const driveMatch = foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
+        if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
         if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./')) return foto;
         return `./images/players/${foto}`;
       }
       if (uid) return `./images/players/${uid}.png`;
-      return SILHOUETTE; // always return something — never null
+      return SILHOUETTE;
     };
     // @error handler: tries alt extension once, then shows silhouette
     const onPhotoError = (event, uid) => {
