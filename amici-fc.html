@@ -2227,7 +2227,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card" style="background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(58,123,255,0.03))">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🥇 Migliori in Campo</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
-              MediaPunti×10 + Goal/g×8 + Assist/g×4 + UoM/g×10 − OG/g×6 + CS/g×8(GK) + Voto×2 · min.2P
+              Come si calcola l'<strong style="color:var(--lime)">Overall</strong>? Punteggio composito per partita (min. 2 presenze):<br>
+              🏆 <strong>Media punti ×10</strong> · ⚽ <strong>Gol/partita ×8</strong> · 🅰️ <strong>Assist/partita ×4</strong> · 🏅 <strong>Uomo partita/g ×10</strong> · 🧤 <strong>Clean Sheet/g ×8</strong> (solo portieri) · ⭐ <strong>Voto medio ×2</strong> · ❌ <strong>Autogol/g −6</strong>
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
             <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row">
@@ -2236,7 +2237,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="stats-info">
                 <div class="stats-name">{{p.soprannome||p.nome}}</div>
                 <div class="stats-sub" style="display:flex;gap:5px;flex-wrap:wrap">
-                  <span>🏆{{(p.mediaPunti||0).toFixed(2)}}/g</span>
                   <span>⚽{{p.goalTotali||0}}</span>
                   <span v-if="p.uomoPartitaTotali">🏅{{p.uomoPartitaTotali}}</span>
                   <span v-if="p._cs&&p.ruolo==='Portiere'">🧤{{p._cs}}CS</span>
@@ -3871,7 +3871,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.099');
+    const appVersion = ref('1.100');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4331,7 +4331,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         let rawJson = '';
 
         if (settings.value.aiProvider === 'gemini') {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${settings.value.apiKey}`, {
+          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${settings.value.apiKey}`, {
             method:'POST', headers:{'Content-Type':'application/json'},
             body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500} })
           });
@@ -4881,8 +4881,40 @@ Rispondi SOLO con questo JSON (niente altro testo):
       ctx.font='700 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
       ctx.fillText('★  BUON DIVERTIMENTO A TUTTI!  ★',W/2,SLOG_Y+90);ctx.shadowBlur=0;
 
+      // ── QUOTE SCOMMESSE ──
+      const pred = computeFormationPrediction(f);
+      if (pred) {
+        const qY = H - 80;
+        // Background bar
+        const qGrad = ctx.createLinearGradient(0, qY, W, qY);
+        qGrad.addColorStop(0,'rgba(58,123,255,0)');
+        qGrad.addColorStop(0.2,'rgba(58,123,255,0.18)');
+        qGrad.addColorStop(0.8,'rgba(58,123,255,0.18)');
+        qGrad.addColorStop(1,'rgba(58,123,255,0)');
+        ctx.fillStyle = qGrad; ctx.fillRect(0, qY-4, W, 54);
+
+        ctx.font = '700 11px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.45)';
+        ctx.textAlign = 'center';
+        ctx.fillText('🎯 QUOTE SCOMMESSA', W/2, qY+12);
+
+        // Quote boxes
+        const boxes = [
+          { label: f.nomeSquadraA||'Sqd A', odd: pred.quoteA, x: W*0.18, color:'#7ab0ff' },
+          { label: 'Pareggio',              odd: pred.quoteX, x: W*0.50, color:'#FFD700' },
+          { label: f.nomeSquadraB||'Sqd B', odd: pred.quoteB, x: W*0.82, color:'#ff9090' },
+        ];
+        for (const b of boxes) {
+          ctx.font = '900 22px Arial Black,Arial'; ctx.fillStyle = b.color;
+          ctx.textAlign = 'center';
+          ctx.fillText(b.odd, b.x, qY+40);
+          ctx.font = '400 10px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.4)';
+          ctx.fillText(b.label, b.x, qY+52);
+        }
+      }
+
       // Watermark
       ctx.font='400 13px Arial';ctx.fillStyle='rgba(255,255,255,0.18)';
+      ctx.textAlign='center';
       ctx.fillText('⚽ Amici FC · '+(currentGroup.value?.nome||''),W/2,H-10);
 
       return canvas.toDataURL('image/png');
@@ -5085,7 +5117,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             data = await resp.json();
             text = data.choices?.[0]?.message?.content || '';
           } else if (prov === 'gemini') {
-            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${key}`, {
+            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
               method:'POST',
               headers:{ 'Content-Type':'application/json' },
               body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
@@ -6103,6 +6135,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         { emoji:'💪', text:'La forza di un gruppo non si misura in gol. Si misura in chi rimane anche quando perde.' },
         { emoji:'🎲', text:'Il calcetto è imprevedibile: oggi segna chi non tira mai. Domani parerà chi non aveva mai parato.' },
         { emoji:'🌈', text:'Le statistiche sono belle, ma non dicono chi ha fatto ridere tutta la partita. E conta.' },
+        { emoji:'🎩', text:'Antonio Di Natale: capocannoniere della Serie A, mai campione. Eppure tutti i difensori che lo han marcato ancora ci pensano la notte. I numeri non dicono tutto.' },
+        { emoji:'\uD83E\uDD85', text:'Giuseppe Signori: 4 titoli di capocannoniere, nessuno scudetto. Ma ogni suo gol era un opera d arte. Le vittorie si dimenticano, i campioni no.' },
+        { emoji:'\uD83C\uDFAD', text:'Matt Le Tissier: poteva andare ovunque, resto al Southampton. Segno gol impossibili per anni. Fedelta e talento puro, senza trofei. Vale piu di mille coppe.' },
+        { emoji:'\uD83C\uDF39', text:'Leighton Baines: terzino sinistro tra i migliori al mondo per anni, non ha mai vinto un titolo. Ma ogni cross, ogni punizione era lezione di calcio.' },
+        { emoji:'\u26A1', text:'Jay-Jay Okocha: So good they named him twice! Dribbling da altro pianeta, zero trofei importanti. Alcuni giocatori non si valutano con i titoli.' },
+        { emoji:'\uD83D\uDCA1', text:'La storia del calcio e piena di geni senza trofei. Forse anche qui in campo ce qualcuno che vale piu delle sue statistiche.' },
+        { emoji:'\uD83C\uDFC5', text:'Non serve vincere tutto per essere leggenda. Di Natale, Signori, Le Tissier: nomi immortali senza coppe. Le classifiche passano, i campioni restano.' },
       ];
 
       // ── 🔥 FORMA DEL MOMENTO (ultime 3-5 partite) ──
