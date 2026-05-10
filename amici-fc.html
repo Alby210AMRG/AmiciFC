@@ -3890,7 +3890,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.103');
+    const appVersion = ref('1.104');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4728,7 +4728,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
     const drawFormationCanvas = async (f) => {
       // ── Reference layout: stadium bg + two side-by-side panels ──
-      const W=900, H=1780;
+      const W=1080, H=1920;
       const canvas=document.createElement('canvas');
       canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
@@ -4773,20 +4773,23 @@ Rispondi SOLO con questo JSON (niente altro testo):
       // ═══ 2. HEADER ═══
       ctx.textAlign='center';
       // SQUADRE UFFICIALI
-      ctx.font='900 66px "Arial Black",Arial';ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=18;ctx.fillText('SQUADRE UFFICIALI',W/2,94);
+      ctx.font='900 80px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=18;ctx.fillText('SQUADRE UFFICIALI',W/2,110);
       // PER STASERA! - lime green italic
-      ctx.font='900 italic 76px "Arial Black",Arial';
+      ctx.font='900 italic 90px "Arial Black",Arial';
       const gPS=ctx.createLinearGradient(0,0,W,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(0.5,'#C8FF00');gPS.addColorStop(1,'#8FE600');
-      ctx.fillStyle=gPS;ctx.fillText('PER STASERA!',W/2,182);ctx.shadowBlur=0;
+      ctx.fillStyle=gPS;ctx.fillText('PER STASERA!',W/2,212);ctx.shadowBlur=0;
       // Formation name
-      ctx.font='700 26px "Arial Black",Arial';ctx.fillStyle='#ffffff';
-      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,232);
+      ctx.font='700 28px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,262);
 
       // ═══ 3. PANELS ═══
       const PAD=18, GAP=16;
       const PW=(W-PAD*2-GAP)/2;  // panel width
-      const PY=250, PH=H-PY-450; // 450px reserved for info pill + quotes section // panel area
+      const PY=300; // header area
+      const nTeam=Math.max((f.squadraA||[]).length,(f.squadraB||[]).length)||6;
+      const nRows=Math.ceil(nTeam/2);
+      const PH=H-PY-420; // fill most of canvas, leaving 420px for info+quotes // panel area
       const PLX=PAD, PRX=PAD+PW+GAP; // panel left x, right x
 
       // LEFT PANEL (Team B - lime green)
@@ -4829,7 +4832,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         const PLAYER_Y_START=panelY+80; // below pill
         const PLAYER_AREA=panelH-110;
         // 2-column grid
-        const COLS=2, R=42;
+        const COLS=2, R=50;
         const colW=panelW/COLS;
         const nRows=Math.ceil(ids.length/COLS);
         const rowH=Math.min(PLAYER_AREA/nRows, R*2+52);
