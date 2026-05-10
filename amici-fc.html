@@ -3890,7 +3890,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.102');
+    const appVersion = ref('1.103');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4152,6 +4152,13 @@ createApp({
 
       if (editingPlayer.value) {
         await db.players.update(editingPlayer.value.id, { ...f });
+        // Clear photo cache so new foto loads immediately
+        const oldKey = f.foto || editingPlayer.value?.uid;
+        if (oldKey) {
+          const newCache = { ...resolvedPhotoUrls.value };
+          Object.keys(newCache).forEach(k => { if (k.includes(oldKey) || (f.uid && k.includes(f.uid))) delete newCache[k]; });
+          resolvedPhotoUrls.value = newCache;
+        }
         toast('✅ Giocatore aggiornato!');
       } else {
         const newUid = uuid();
@@ -4721,7 +4728,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
     const drawFormationCanvas = async (f) => {
       // ── Reference layout: stadium bg + two side-by-side panels ──
-      const W=900, H=1650;
+      const W=900, H=1780;
       const canvas=document.createElement('canvas');
       canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
@@ -4766,20 +4773,20 @@ Rispondi SOLO con questo JSON (niente altro testo):
       // ═══ 2. HEADER ═══
       ctx.textAlign='center';
       // SQUADRE UFFICIALI
-      ctx.font='900 78px "Arial Black",Arial';ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=18;ctx.fillText('SQUADRE UFFICIALI',W/2,108);
+      ctx.font='900 66px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=18;ctx.fillText('SQUADRE UFFICIALI',W/2,94);
       // PER STASERA! - lime green italic
-      ctx.font='900 italic 88px "Arial Black",Arial';
+      ctx.font='900 italic 76px "Arial Black",Arial';
       const gPS=ctx.createLinearGradient(0,0,W,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(0.5,'#C8FF00');gPS.addColorStop(1,'#8FE600');
-      ctx.fillStyle=gPS;ctx.fillText('PER STASERA!',W/2,206);ctx.shadowBlur=0;
+      ctx.fillStyle=gPS;ctx.fillText('PER STASERA!',W/2,182);ctx.shadowBlur=0;
       // Formation name
-      ctx.font='700 28px "Arial Black",Arial';ctx.fillStyle='#ffffff';
-      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,252);
+      ctx.font='700 26px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,232);
 
       // ═══ 3. PANELS ═══
       const PAD=18, GAP=16;
       const PW=(W-PAD*2-GAP)/2;  // panel width
-      const PY=272, PH=H-PY-230; // panel area
+      const PY=250, PH=H-PY-450; // 450px reserved for info pill + quotes section // panel area
       const PLX=PAD, PRX=PAD+PW+GAP; // panel left x, right x
 
       // LEFT PANEL (Team B - lime green)
@@ -5945,9 +5952,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const SILHOUETTE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
     const getPlayerPhoto = (foto, uid) => {
       if (foto) {
-        // Auto-convert Google Drive share URL to direct image URL
+        // Auto-convert Google Drive share URL → thumbnail URL (CORS-friendly)
         const driveMatch = foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
-        if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+        if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
         if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./')) return foto;
         return `./images/players/${foto}`;
       }
@@ -5991,6 +5998,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     const getPhotoUrlSmart = foto => {
       if (!foto) return null;
+      // Auto-convert Google Drive share URL → lh3 direct (CORS-friendly, no redirect)
+      const driveMatch = foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
+      if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
       if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./') || foto.startsWith('/')) return foto;
       const hasExt = /\.(jpg|jpeg|png|webp)$/i.test(foto);
       if (!hasExt) return `./images/players/${foto}.png`; // default PNG
