@@ -3866,7 +3866,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.109');
+    const appVersion = ref('1.110');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4059,8 +4059,10 @@ createApp({
       groupMatches.value  = await db.matches.where('groupId').equals(gid).toArray();
       groupFormations.value = await db.formations.where('groupId').equals(gid).reverse().sortBy('dataCreazione');
       await loadAllGroupsCache();
-      // Ricalcola stats dai match ogni volta che si carica il gruppo (garantisce coerenza)
-      if (groupMatches.value.length > 0) await recomputeStats();
+      // Ricalcola stats dai match ogni volta (garantisce coerenza)
+      if (groupMatches.value.length > 0) {
+        try { await recomputeStats(); } catch(e) { console.warn('recomputeStats error:', e); }
+      }
     };
 
     const selectGroup = async g => {
@@ -5899,6 +5901,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const generateImageFilename = (uid, ext) => uid ? `${uid}.${ext||'jpg'}` : '';
 
     // ── Point 4: Scroll to top on every view change ──
+    // Riavvia il ticker quando i dati del gruppo cambiano
+    watch(groupPlayers, (newP) => {
+      if (newP.length > 0) {
+        newsIndex.value = 0;
+        startNewsTicker();
+      }
+    }, { immediate: false });
+
     // Se i gruppi vengono svuotati DOPO il caricamento DB → onboarding
     // { immediate: false } evita il redirect durante il reload del SW
     watch(groups, (newGroups) => {
@@ -7096,7 +7106,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Register SW inline (blob URL) — funziona anche senza sw.js separato
       if ('serviceWorker' in navigator) {
         try {
-          const CACHE_NAME = 'amicifc-v1108';
+          const CACHE_NAME = 'amicifc-v1109';
           const swCode = `
 const CACHE='${CACHE_NAME}';
 const ASSETS=['./','./amici-fc.html','./version.json'];
