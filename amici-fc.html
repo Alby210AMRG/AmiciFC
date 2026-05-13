@@ -3866,7 +3866,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.110');
+    const appVersion = ref('1.111');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5902,10 +5902,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── Point 4: Scroll to top on every view change ──
     // Riavvia il ticker quando i dati del gruppo cambiano
-    watch(groupPlayers, (newP) => {
+    watch([groupPlayers, groupMatches], ([newP]) => {
       if (newP.length > 0) {
-        newsIndex.value = 0;
-        startNewsTicker();
+        setTimeout(() => {
+          newsIndex.value = 0;
+          startNewsTicker();
+        }, 300); // piccolo delay per permettere al computed newsItems di aggiornarsi
       }
     }, { immediate: false });
 
@@ -7106,7 +7108,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Register SW inline (blob URL) — funziona anche senza sw.js separato
       if ('serviceWorker' in navigator) {
         try {
-          const CACHE_NAME = 'amicifc-v1109';
+          const CACHE_NAME = 'amicifc-v1110';
           const swCode = `
 const CACHE='${CACHE_NAME}';
 const ASSETS=['./','./amici-fc.html','./version.json'];
@@ -7240,7 +7242,7 @@ if ('serviceWorker' in navigator) {
     });
   });
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=1040').catch(console.warn);
+    navigator.serviceWorker.register('./sw.js?v=1110').catch(console.warn);
   });
 }
 </script>
