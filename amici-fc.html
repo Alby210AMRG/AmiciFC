@@ -3880,7 +3880,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.113');
+    const appVersion = ref('1.114');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -6162,12 +6162,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if (topU?.uomoPartitaTotali>0) items.push({emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
       // Descrizione giocatore (1 ogni ~7 notizie, poco frequente)
       const withDesc=players.filter(p=>p.descrizione&&p.descrizione.length>10);
-      if (withDesc.length) { const pick=withDesc[Math.floor(Math.random()*withDesc.length)];
+      if (withDesc.length) { const _di=Math.floor(Date.now()/60000)%Math.max(withDesc.length,1); const pick=withDesc[_di];
         items.push({emoji:'📋',text:`${pick.soprannome||pick.nome} — ${pick.descrizione}`});
       }
       // Best formations (one per size, rotates)
       const formSizes = [5,6,7,8,11];
-      const fIdx = Math.floor(Math.random() * formSizes.length);
+      const fIdx = Math.floor(Date.now()/600000) % formSizes.length;
       const fSize = formSizes[fIdx];
       const topF = buildTopFormation(fSize);
       if (topF.length >= fSize) {
@@ -6304,7 +6304,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
       // Se ci sono poche notizie, aggiungi comunque una frase
       if (items.length > 0 && phraseIdx === 0) {
-        finalItems.push(funnyPhrases[Math.floor(Math.random() * funnyPhrases.length)]);
+        const _fi=Math.floor(Date.now()/300000); finalItems.push(funnyPhrases[_fi % funnyPhrases.length]);
       }
 
       return finalItems.length ? finalItems : [{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
