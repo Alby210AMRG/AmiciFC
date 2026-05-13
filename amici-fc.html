@@ -2244,6 +2244,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </template>
 
         <!-- GOAL -->
+                <!-- CLASSIFICA PUNTI -->
+        <template v-if="statsTab==='classifica'">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div class="card-title" style="margin-bottom:0">🏆 Classifica Punti</div>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('classifica')">📤 Condividi</button>
+            </div>
+            <div v-if="!topPoints.length" class="empty-state" style="padding:16px"><p>Nessuna partita ancora.</p></div>
+            <div v-for="(p,i) in topPoints" :key="p.id" class="stats-row">
+              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
+              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
+              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
+              <div class="stats-val">{{p.puntiTotali||0}} pt</div>
+            </div>
+          </div>
+        </template>
+
         <template v-if="statsTab==='goal'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⚽ Classifica Marcatori</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('goal')">📤 Condividi</button></div>
@@ -2889,8 +2906,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="stat-label">🏅 UpM</div>
         </div>
         <div class="quick-stat-card">
-          <div class="stat-big" style="color:var(--text2)">{{ detailPlayer.votiTotali||0 }}</div>
-          <div class="stat-label">📊 Votazioni</div>
+          <div class="stat-big" style="color:var(--text2)">{{ detailPlayer.partiteTotali||0 }}</div>
+          <div class="stat-label">🏟️ Partite</div>
         </div>
       </div>
 
@@ -3622,58 +3639,80 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.109', date:'2026-05-13', items:[
+        '🔧 FIX: App funziona offline (SW cacha HTML+version.json)',
+        '🔧 FIX: Statistiche ricalcolate automaticamente al caricamento gruppo',
+        '🔧 FIX: Auto-sync Firebase anche dopo modifica/aggiunta giocatore',
+        '🔧 FIX: Log versioni aggiornato fino alla v1.109',
+      ]},
+      { version:'v1.108', date:'2026-05-10', items:[
+        '🔧 FIX CRITICO: layout home riparato (hero-card non chiusa)',
+        '🔧 Meteo rimosso temporaneamente dall\u2019interfaccia',
+      ]},
+      { version:'v1.106', date:'2026-05-10', items:[
+        '🔧 FIX: Foto Google Drive visibili nelle grafiche statistiche',
+        '🔧 FIX: Media Punti rimossa dalla tab Overall',
+      ]},
+      { version:'v1.105', date:'2026-05-10', items:[
+        '🔧 FIX PNG: box quote più larghi (nomi completi), Risultato Previsto più grande',
+        '🔧 FIX PNG: foto Google Drive caricate nel canvas formazione',
+        '🆕 PNG: giocatori più grandi (R=58), nomi 20-26px bold',
+      ]},
+      { version:'v1.104', date:'2026-05-10', items:[
+        '🆕 PNG formazione: formato 1080×1920px ufficiale WhatsApp',
+        '🆕 PNG formazione: pannelli altezza dinamica, no spazio vuoto',
+      ]},
+      { version:'v1.103', date:'2026-05-10', items:[
+        '🔧 FIX PNG: quote e risultato sempre visibili (H=1780)',
+        '🆕 Foto Google Drive: incolla link Drive nel profilo giocatore',
+      ]},
+      { version:'v1.102', date:'2026-05-10', items:[
+        '🔧 FIX PNG: quote allineate alla squadra corretta (sinistra=B, destra=A)',
+        '🆕 PNG: risultato previsto sotto le quote scommessa',
+      ]},
+      { version:'v1.101', date:'2026-05-09', items:[
+        '🔧 FIX CRITICO: Salva Modifiche partita (DataCloneError Vue Proxy risolto)',
+        '🆕 Autogol in modifica partita, giornale e tab statistiche dedicato',
+        '🆕 Overall: bonus Costanza (max +5 punti)',
+      ]},
+      { version:'v1.100', date:'2026-05-09', items:[
+        '🆕 Quote scommessa nel PNG formazione',
+        '🔧 FIX: AI formazione usa gemini-2.5-flash',
+        '🆕 Frasi campioni senza trofei nello spogliatoio',
+      ]},
+      { version:'v1.099', date:'2026-05-09', items:[
+        '🔧 FIX: Reset Totale funzionante',
+        '🆕 Blocco notizie con bordo verde lime evidenziato',
+      ]},
+      { version:'v1.096', date:'2026-05-09', items:[
+        '🆕 🔥 Forma del Momento + 🎲 Frasi motivazionali nelle notizie',
+        '🆕 🎯 Predizione risultato + quote per ogni formazione generata',
+      ]},
+      { version:'v1.095', date:'2026-05-09', items:[
+        '🆕 Guida installazione collassabile in cima all’onboarding',
+        '🆕 Istruzioni Firebase con sezione aggiunta utenti e regole sicurezza',
+        '🔧 FIX: Gemini selector mostra Gemini 2.5 Flash',
+      ]},
+      { version:'v1.093', date:'2026-05-09', items:[
+        '🆕 Auto-sync Firebase dopo ogni salvataggio partita',
+        '🔧 FIX Gemini: gemini-2.5-flash (stesso di TurboTartaruga)',
+      ]},
+      { version:'v1.092', date:'2026-05-09', items:[
+        '🆕 Export Excel: foglio Formazioni, intestazioni colorate',
+        '🆕 Gestione Stagioni: archivia e nuova stagione',
+      ]},
+      { version:'v1.091', date:'2026-05-09', items:[
+        '🔧 FIX: Frasi inclusive spogliatoio sempre visibili',
+        '🔧 FIX: Excel con intestazioni colorate e foglio formazioni',
+      ]},
+      { version:'v1.090', date:'2026-05-09', items:[
+        '🔧 FIX: Salva Modifiche partita',
+        '🔧 FIX: Marcatori mostra tutti i gol inclusi quelli singoli',
+        '🆕 Reset Totale in Zona Pericolo (Firebase non toccato)',
+      ]},
       { version:'v1.089', date:'2026-05-09', items:[
-        '🆕 Export Excel con 4 fogli: Classifica, Marcatori, Storico, Stats dettaglio',
-        '🆕 Gestione Stagioni: archivia e nuova stagione con storico consultabile',
-        '🔧 Gemini: endpoint v1 stabile + istruzioni per restrizioni API key',
-        '🔧 Gemini generateCommentAI: v1 endpoint + generationConfig',
-      ]},
-      { version:'v1.088', date:'2026-05-09', items:[
-        '🆕 Grafiche condivisibili per ogni statistica con pulsante Condividi',
-        '🆕 Log modifiche accessibile da Impostazioni → Cosa è cambiato?',
-        '🆕 Nuove frasi spogliatoio: i numeri non sono tutto!',
-        '🔧 Fix silhouette giocatori nelle grafiche statistiche',
-      ]},
-      { version:'v1.087', date:'2026-05-09', items:[
-        '🆕 Grafiche PNG condivisibili per ogni tab statistiche',
-        '🔧 Fix sincronizzazione Firebase: statistiche corrette su tutti i dispositivi',
-        '🔧 Fix onboarding: aggiornamento app non azzera più i dati',
-      ]},
-      { version:'v1.086', date:'2026-05-09', items:[
-        '🔧 Fix sync Firebase: dedup partite migliorato',
-        '🔧 recomputeStats sempre chiamata dopo syncFromCloud',
-      ]},
-      { version:'v1.085', date:'2026-05-09', items:[
-        '🔧 Fix definitivo onboarding: aggiornamento non manda più alla schermata iniziale',
-        '🔧 watch(groups) con dbLoaded flag',
-      ]},
-      { version:'v1.084', date:'2026-05-09', items:[
-        '🔧 Fix Gemini: modelli corretti (gemini-1.5-flash con fallback)',
-        '🔧 Errori Gemini mostrano messaggio reale invece di generico',
-      ]},
-      { version:'v1.083', date:'2026-05-09', items:[
-        '🔧 Fix definitivo schermata iniziale nuovo dispositivo',
-        '🆕 Modifica partita con spostamento giocatori tra squadre',
-        '🆕 Tab Assist separato nelle statistiche',
-        '🆕 Tab Media Punti dedicato',
-        '🔧 Import JSON ricalcola statistiche da storico partite',
-      ]},
-      { version:'v1.082', date:'2026-05-08', items:[
-        '🔧 Fix Gemini API (gemini-1.5-flash)',
-        '🔧 Fix schermata iniziale nuovo dispositivo',
-        '🆕 Tab Assist separato',
-      ]},
-      { version:'v1.081', date:'2026-05-08', items:[
-        '🔧 Modifica/Elimina partita spostati nel dettaglio (accessibili per tutte le partite)',
-        '🔧 Silhouette in dettaglio partita per giocatori senza foto',
-      ]},
-      { version:'v1.080', date:'2026-05-08', items:[
-        '🔧 VS al posto del trattino nel giornale',
-        '🔧 Rimosso "CHE PARTITA!" dal giornale',
-        '🔧 Titolo articolo AI più grande e auto-ridimensionato',
-        '🔧 Statistiche sempre ricalcolate dallo storico partite',
-        '🔧 Eliminazione partita con conferma obbligatoria',
-        '🔧 JSON salva titolo e commento AI per ogni partita',
+        '🆕 Export Excel (4 fogli: Classifica, Marcatori, Storico, Stats)',
+        '🆕 Gestione Stagioni - archivia e inizia da zero',
       ]},
     ];
     const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, weatherCity: '' });
@@ -3827,7 +3866,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.108');
+    const appVersion = ref('1.109');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -4020,6 +4059,8 @@ createApp({
       groupMatches.value  = await db.matches.where('groupId').equals(gid).toArray();
       groupFormations.value = await db.formations.where('groupId').equals(gid).reverse().sortBy('dataCreazione');
       await loadAllGroupsCache();
+      // Ricalcola stats dai match ogni volta che si carica il gruppo (garantisce coerenza)
+      if (groupMatches.value.length > 0) await recomputeStats();
     };
 
     const selectGroup = async g => {
@@ -4097,6 +4138,7 @@ createApp({
           resolvedPhotoUrls.value = newCache;
         }
         toast('✅ Giocatore aggiornato!');
+        autoSyncToCloud();
       } else {
         const newUid = uuid();
         await db.players.add({
@@ -4107,6 +4149,7 @@ createApp({
           piede: f.piede||'Destro', descrizione: f.descrizione||'', storicoPartite:[]
         });
         toast('✅ Giocatore aggiunto!');
+        autoSyncToCloud();
       }
       showPlayerForm.value = false;
       await loadGroupData();
@@ -7050,17 +7093,44 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Start news ticker
       startNewsTicker();
 
-      // Register SW con auto-aggiornamento
+      // Register SW inline (blob URL) — funziona anche senza sw.js separato
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js?v=1040');
+          const CACHE_NAME = 'amicifc-v1108';
+          const swCode = `
+const CACHE='${CACHE_NAME}';
+const ASSETS=['./','./amici-fc.html','./version.json'];
+self.addEventListener('install',e=>{
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+});
+self.addEventListener('activate',e=>{
+  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
+});
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  const url=new URL(e.request.url);
+  // Network-first per version.json (aggiornamenti)
+  if(url.pathname.endsWith('version.json')){
+    e.respondWith(fetch(e.request).then(r=>{const rc=r.clone();caches.open(CACHE).then(c=>c.put(e.request,rc));return r;}).catch(()=>caches.match(e.request)));
+    return;
+  }
+  // Cache-first per tutto il resto
+  e.respondWith(caches.match(e.request).then(cached=>{
+    if(cached)return cached;
+    return fetch(e.request).then(r=>{
+      if(r&&r.status===200&&r.type!=='opaque'){const rc=r.clone();caches.open(CACHE).then(c=>c.put(e.request,rc));}
+      return r;
+    }).catch(()=>cached||new Response('Offline',{status:503}));
+  }));
+});
+self.addEventListener('message',e=>{if(e.data==='SKIP_WAITING')self.skipWaiting();});
+`;
+          const swBlob = new Blob([swCode], { type: 'application/javascript' });
+          const swUrl = URL.createObjectURL(swBlob);
+          const reg = await navigator.serviceWorker.register(swUrl, { scope: './' });
 
-          // Se c'è un SW in attesa, attivalo subito
-          if (reg.waiting) {
-            reg.waiting.postMessage('SKIP_WAITING');
-          }
+          if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
 
-          // Quando viene trovato un nuovo SW
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
             nw?.addEventListener('statechange', () => {
@@ -7073,7 +7143,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             });
           });
 
-          // Quando il controller cambia (nuovo SW attivo), ricarica UNA VOLTA
           let swRefreshed = false;
           navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!swRefreshed && sessionStorage.getItem('sw-update-pending')) {
@@ -7083,7 +7152,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             }
           });
 
-        } catch (e) { console.warn('[AmiciFC] SW registration failed:', e); }
+                } catch (e) { console.warn('[AmiciFC] SW registration failed:', e); }
       }
 
       // Check updates after 2s
