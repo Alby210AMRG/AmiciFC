@@ -3866,7 +3866,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.111');
+    const appVersion = ref('1.112');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -5901,13 +5901,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const generateImageFilename = (uid, ext) => uid ? `${uid}.${ext||'jpg'}` : '';
 
     // ── Point 4: Scroll to top on every view change ──
-    // Riavvia il ticker quando i dati del gruppo cambiano
-    watch([groupPlayers, groupMatches], ([newP]) => {
-      if (newP.length > 0) {
-        setTimeout(() => {
-          newsIndex.value = 0;
-          startNewsTicker();
-        }, 300); // piccolo delay per permettere al computed newsItems di aggiornarsi
+    // Avvia il ticker una volta sola dopo il primo caricamento dati
+    let _tickerStarted = false;
+    watch(groupPlayers, (newP) => {
+      if (newP.length > 0 && !_tickerStarted) {
+        _tickerStarted = true;
+        newsIndex.value = 0;
+        setTimeout(startNewsTicker, 500);
       }
     }, { immediate: false });
 
@@ -6148,13 +6148,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if (topU?.uomoPartitaTotali>0) items.push({emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
       // Descrizione giocatore (1 ogni ~7 notizie, poco frequente)
       const withDesc=players.filter(p=>p.descrizione&&p.descrizione.length>10);
-      if (withDesc.length && newsIndex.value % 7 === 3) {
-        const pick=withDesc[Math.floor(newsIndex.value/7)%withDesc.length];
+      if (withDesc.length) { const pick=withDesc[Math.floor(Math.random()*withDesc.length)];
         items.push({emoji:'📋',text:`${pick.soprannome||pick.nome} — ${pick.descrizione}`});
       }
       // Best formations (one per size, rotates)
       const formSizes = [5,6,7,8,11];
-      const fIdx = Math.floor(newsIndex.value / 4) % formSizes.length;
+      const fIdx = Math.floor(Math.random() * formSizes.length);
       const fSize = formSizes[fIdx];
       const topF = buildTopFormation(fSize);
       if (topF.length >= fSize) {
@@ -6250,7 +6249,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // ── 🎲 FRASI MOTIVAZIONALI PERSONALIZZATE ──
       if (players.length > 0 && matches.length > 0) {
         // Pick a random player each news cycle and generate a personalized phrase
-        const idx = newsIndex.value % players.length;
+        // Rotate through players using a stable index based on date+hour
+        const stableIdx = (new Date().getHours() + new Date().getDate()) % Math.max(players.length, 1);
+        const idx = stableIdx;
         const p = players[idx];
         const pts = p.puntiTotali||0, gol = p.goalTotali||0, par = p.partiteTotali||0;
         const media = par>0?pts/par:0;
@@ -7113,7 +7114,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 const CACHE='${CACHE_NAME}';
 const ASSETS=['./','./amici-fc.html','./version.json'];
 self.addEventListener('install',e=>{
-  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting()));
+  e.waitUntil(
+    caches.open(CACHE).then(async c=>{
+      // Cache each asset individually - don't fail if CDN is unavailable
+      for(const url of ASSETS){
+        try{ await c.add(url); }catch(err){ console.warn('[SW] Could not cache:',url,err.message); }
+      }
+    }).then(()=>self.skipWaiting())
+  );
 });
 self.addEventListener('activate',e=>{
   e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
