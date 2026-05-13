@@ -3880,7 +3880,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.114');
+    const appVersion = ref('1.115');
     const appDate         = ref('2026-05-02'); // updated from version.json at runtime
 
     // PNG Preview
@@ -6292,7 +6292,103 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         if (frase) items.push({emoji:'🎲', text:frase});
       }
 
-      // Inserisci frasi simpatiche ogni 3 elementi (sempre visibili nella rotazione)
+
+      // ── 🔥 STREAK VITTORIE ──
+      if (matches.length >= 3) {
+        const sorted = [...matches].sort((a,b) => b.data.localeCompare(a.data));
+        // Find player with most recent consecutive wins
+        for (const p of players.slice(0,8)) {
+          let streak = 0;
+          for (const m of sorted) {
+            const inA = (m.squadraA||[]).includes(p.id);
+            const inB = (m.squadraB||[]).includes(p.id);
+            if (!inA && !inB) break;
+            const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;
+            const won=(inA&&gA>gB)||(inB&&gB>gA);
+            if(won) streak++; else break;
+          }
+          if (streak >= 3) {
+            const nome = p.soprannome||p.nome;
+            items.push({emoji:'🔥',text:`STREAK! ${nome} è imbattuto da ${streak} partite consecutive. Qualcuno riesce a fermarlo?`});
+          }
+        }
+      }
+
+      // ── 📰 TITOLO GIORNALE ULTIMA PARTITA ──
+      if (matches.length > 0) {
+        const last = [...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];
+        if (last.titoloGiornale) {
+          items.push({emoji:'📰', text:`Titolo dell'ultima partita: "${last.titoloGiornale}"`});
+        }
+        // ── 💬 CITAZIONE AI ──
+        if (last.commentoAI && last.commentoAI.length > 20) {
+          const snippet = last.commentoAI.slice(0, 120).trim();
+          items.push({emoji:'💬', text:`Il telecronista dell'ultima partita: "${snippet}…"`});
+        }
+      }
+
+      // ── 🆚 RIVALITÀ ──
+      if (players.length >= 2 && matches.length >= 5) {
+        // Find the pair with most matches together
+        let bestPair = null, bestCount = 0;
+        for (let i = 0; i < Math.min(players.length,8); i++) {
+          for (let j = i+1; j < Math.min(players.length,8); j++) {
+            const pA = players[i], pB = players[j];
+            let sameTeam = 0, opposedCount = 0;
+            for (const m of matches) {
+              const aInA = (m.squadraA||[]).includes(pA.id);
+              const bInA = (m.squadraA||[]).includes(pB.id);
+              const aInB = (m.squadraB||[]).includes(pA.id);
+              const bInB = (m.squadraB||[]).includes(pB.id);
+              if ((aInA&&bInA)||(aInB&&bInB)) sameTeam++;
+              else if ((aInA&&bInB)||(aInB&&bInA)) opposedCount++;
+            }
+            if (opposedCount > bestCount) { bestCount=opposedCount; bestPair={pA,pB,sameTeam,opposedCount}; }
+          }
+        }
+        if (bestPair && bestPair.opposedCount >= 3) {
+          const nA=bestPair.pA.soprannome||bestPair.pA.nome;
+          const nB=bestPair.pB.soprannome||bestPair.pB.nome;
+          items.push({emoji:'🆚',text:`Rivalità storica: ${nA} vs ${nB} si sono trovati in squadre opposte ${bestPair.opposedCount} volte! Insieme ${bestPair.sameTeam} volte.`});
+        }
+      }
+
+      // ── 🎯 RECORD PERSONALE ──
+      if (matches.length > 0) {
+        let bestSingleGame = null, bestScore = 0;
+        for (const m of matches) {
+          for (const s of (m.statisticheGiocatori||[])) {
+            const g = (s.goal||0) + (s.assist||0)*0.5;
+            if (g > bestScore) {
+              const p = players.find(x=>x.id===s.playerId);
+              if (p) { bestScore=g; bestSingleGame={p, goal:s.goal||0, assist:s.assist||0, data:m.data}; }
+            }
+          }
+        }
+        if (bestSingleGame && bestSingleGame.goal >= 2) {
+          const nome = bestSingleGame.p.soprannome||bestSingleGame.p.nome;
+          const d = bestSingleGame.data ? new Date(bestSingleGame.data).toLocaleDateString('it-IT') : '';
+          items.push({emoji:'🎯',text:`Record: ${nome} ha segnato ${bestSingleGame.goal} gol in una sola partita il ${d}. Irripetibile!`});
+        }
+      }
+
+      // ── 🎪 CHI MANCA ──
+      if (matches.length >= 3 && players.length > 5) {
+        const last3dates = [...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3).map(m=>m.id);
+        const absent = players.filter(p => {
+          return !last3dates.some(mid => {
+            const m = matches.find(x=>x.id===mid);
+            return (m?.squadraA||[]).includes(p.id)||(m?.squadraB||[]).includes(p.id);
+          });
+        });
+        if (absent.length > 0) {
+          const pick = absent[Math.floor(Date.now()/3600000) % absent.length];
+          const nome = pick.soprannome||pick.nome;
+          items.push({emoji:'🎪',text:`${nome} manca da almeno 3 partite. Tutto bene? Il gruppo ha bisogno di te!`});
+        }
+      }
+
+                  // Inserisci frasi simpatiche ogni 3 elementi (sempre visibili nella rotazione)
       const finalItems = [];
       let phraseIdx = 0;
       for (let i = 0; i < items.length; i++) {
@@ -7120,63 +7216,21 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Start news ticker
       startNewsTicker();
 
-      // Register SW inline (blob URL) — funziona anche senza sw.js separato
+      // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
         try {
-          const CACHE_NAME = 'amicifc-v1110';
-          const swCode = `
-const CACHE='${CACHE_NAME}';
-const ASSETS=['./','./amici-fc.html','./version.json'];
-self.addEventListener('install',e=>{
-  e.waitUntil(
-    caches.open(CACHE).then(async c=>{
-      // Cache each asset individually - don't fail if CDN is unavailable
-      for(const url of ASSETS){
-        try{ await c.add(url); }catch(err){ console.warn('[SW] Could not cache:',url,err.message); }
-      }
-    }).then(()=>self.skipWaiting())
-  );
-});
-self.addEventListener('activate',e=>{
-  e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));
-});
-self.addEventListener('fetch',e=>{
-  if(e.request.method!=='GET')return;
-  const url=new URL(e.request.url);
-  // Network-first per version.json (aggiornamenti)
-  if(url.pathname.endsWith('version.json')){
-    e.respondWith(fetch(e.request).then(r=>{const rc=r.clone();caches.open(CACHE).then(c=>c.put(e.request,rc));return r;}).catch(()=>caches.match(e.request)));
-    return;
-  }
-  // Cache-first per tutto il resto
-  e.respondWith(caches.match(e.request).then(cached=>{
-    if(cached)return cached;
-    return fetch(e.request).then(r=>{
-      if(r&&r.status===200&&r.type!=='opaque'){const rc=r.clone();caches.open(CACHE).then(c=>c.put(e.request,rc));}
-      return r;
-    }).catch(()=>cached||new Response('Offline',{status:503}));
-  }));
-});
-self.addEventListener('message',e=>{if(e.data==='SKIP_WAITING')self.skipWaiting();});
-`;
-          const swBlob = new Blob([swCode], { type: 'application/javascript' });
-          const swUrl = URL.createObjectURL(swBlob);
-          const reg = await navigator.serviceWorker.register(swUrl, { scope: './' });
-
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1114', { scope: './' });
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
-
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
             nw?.addEventListener('statechange', () => {
-              if (nw.state === 'installed') {
-                nw.postMessage('SKIP_WAITING');
+              if (nw.state === 'installed' && navigator.serviceWorker.controller) {
                 newVersion.value = 'nuova';
                 updateAvailable.value = true;
-                toast('🎉 Aggiornamento disponibile! Premi Aggiorna.', 'info', 8000);
+                toast('🎉 Aggiornamento disponibile!', 'info', 8000);
               }
             });
           });
-
           let swRefreshed = false;
           navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (!swRefreshed && sessionStorage.getItem('sw-update-pending')) {
@@ -7185,11 +7239,10 @@ self.addEventListener('message',e=>{if(e.data==='SKIP_WAITING')self.skipWaiting(
               window.location.reload(true);
             }
           });
-
-                } catch (e) { console.warn('[AmiciFC] SW registration failed:', e); }
+        } catch(e) { console.warn('[AmiciFC] SW failed:', e); }
       }
 
-      // Check updates after 2s
+            // Check updates after 2s
       setTimeout(checkForUpdates, 2000);
       // Auto-sync after 3s if configured
       setTimeout(autoSync, 3000);
@@ -7252,21 +7305,7 @@ self.addEventListener('message',e=>{if(e.data==='SKIP_WAITING')self.skipWaiting(
   }
 }).mount('#app');
 
-// ── Register SW ──
-if ('serviceWorker' in navigator) {
-  // Unregister ALL old service workers first, then re-register fresh
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    regs.forEach(r => {
-      if (!r.active?.scriptURL?.includes('v=1040')) {
-        console.log('[AmiciFC] Removing old SW:', r.active?.scriptURL);
-        r.unregister();
-      }
-    });
-  });
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('./sw.js?v=1110').catch(console.warn);
-  });
-}
+// SW registered in onMounted above
 </script>
 </body>
 </html>
