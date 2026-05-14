@@ -3854,7 +3854,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.126');
+    const appVersion = ref('1.127');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5983,21 +5983,57 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     const syncFromCloudAndGo = async () => {
-      // Use onboarding input URL — save it to the newly created group, NOT global settings
       const url = onboardingFirebaseUrl.value.trim();
       if (!url) { toast('Inserisci l\'URL Firebase prima!', 'error'); return; }
-      await syncFromCloud();
-      await loadGroups();
-      if (groups.value.length > 0) {
-        if (!currentGroup.value) await selectGroup(groups.value[0]);
-        // Save Firebase URL to the group (not global settings)
-        if (currentGroup.value) {
-          await db.groups.update(currentGroup.value.id, { firebaseUrl: url });
-          await loadGroups();
+
+      // Sync directly using the provided URL (no group needed yet)
+      const base = url.replace(/\/$/, '') + '/amicifc';
+      syncLoading.value = true;
+      toast('⏳ Connessione a Firebase...', 'info', 5000);
+      try {
+        const resp = await fetch(`${base}.json`, { cache: 'no-store' });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        const data = await resp.json();
+        if (!data || !data.groups) throw new Error('Nessun dato trovato nel cloud');
+
+        let syncedGroups=0, syncedPlayers=0, syncedMatches=0;
+        for (const eg of data.groups) {
+          const g = eg.group;
+          if (!g?.nome) continue;
+          let existing = groups.value.find(x => x.nome === g.nome);
+          let gid;
+          if (!existing) {
+            gid = await db.groups.add({ nome: g.nome, firebaseUrl: url, firebaseApiKey: g.firebaseApiKey||'', stagione: g.stagione||'Stagione 1', archivioStagioni: g.archivioStagioni||[] });
+          } else {
+            gid = existing.id;
+            await db.groups.update(gid, { firebaseUrl: url, firebaseApiKey: g.firebaseApiKey||'' });
+          }
+          for (const p of (eg.players||[])) {
+            const ex = await db.players.where('groupId').equals(gid).and(x=>x.uid===p.uid||x.nome===p.nome).first();
+            if (ex) await db.players.update(ex.id, {...p, groupId: gid});
+            else await db.players.add({...p, groupId: gid, id: undefined});
+            syncedPlayers++;
+          }
+          for (const m of (eg.matches||[])) {
+            const ex = await db.matches.where('groupId').equals(gid).and(x=>x.data===m.data).first();
+            if (!ex) { await db.matches.add({...m, groupId: gid, id: undefined}); syncedMatches++; }
+          }
+          syncedGroups++;
         }
-        settings.value.syncEnabled = true;
-        localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
-        currentView.value = 'home';
+
+        await loadGroups();
+        if (groups.value.length > 0) {
+          if (!currentGroup.value) await selectGroup(groups.value[0]);
+          await recomputeStats();
+          settings.value.syncEnabled = true;
+          localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
+          toast(`✅ Sincronizzato! ${syncedGroups} gruppi, ${syncedPlayers} giocatori, ${syncedMatches} partite`, 'success', 5000);
+          currentView.value = 'home';
+        }
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error', 5000);
+      } finally {
+        syncLoading.value = false;
       }
     };
 
