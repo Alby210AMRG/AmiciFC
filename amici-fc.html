@@ -3875,7 +3875,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.133');
+    const appVersion = ref('1.134');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5982,10 +5982,15 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     // Se i gruppi vengono svuotati DOPO il caricamento DB → onboarding
     // { immediate: false } evita il redirect durante il reload del SW
     watch(groups, (newGroups) => {
-      if (dbLoaded.value && newGroups.length === 0) {
+      if (!dbLoaded.value) return;
+      if (newGroups.length === 0 && !_syncNavigated) {
+        // No groups and sync didn't navigate → show onboarding
         currentView.value = 'onboarding';
+      } else if (newGroups.length > 0 && currentView.value === 'onboarding' && !_syncNavigated) {
+        // Groups appeared (e.g. after import) but still on onboarding → go home
+        currentView.value = 'home';
       }
-    }, { immediate: false });
+    }, { immediate: true });
 
     watch(currentView, () => {
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -6043,37 +6048,21 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             gid = existing.id;
             await db.groups.update(gid, { firebaseUrl: url, firebaseApiKey: g.firebaseApiKey||'' });
           }
-          // Build old→new player ID map to remap match references
-          const idMap = {};
+          // Use put() to PRESERVE original player IDs from Firebase
+          // This ensures matches continue to reference the correct player IDs
           for (const p of (eg.players||[])) {
-            const oldId = p.id;
-            const ex = await db.players.where('groupId').equals(gid).and(x=>x.uid===p.uid||x.nome===p.nome).first();
-            let newId;
-            if (ex) {
-              await db.players.update(ex.id, {...p, groupId: gid});
-              newId = ex.id;
+            if (!p.id) continue; // skip players without ID
+            const existing = await db.players.get(p.id);
+            if (existing) {
+              await db.players.update(p.id, {...p, groupId: gid});
             } else {
-              newId = await db.players.add({...p, groupId: gid, id: undefined});
+              await db.players.put({...p, groupId: gid});
             }
-            if (oldId !== undefined) idMap[oldId] = newId;
             syncedPlayers++;
           }
-          // Helper: remap player IDs in a list
-          const remap = arr => (arr||[]).map(id => idMap[id] ?? id);
           for (const m of (eg.matches||[])) {
-            // Remap squadraA/B and statisticheGiocatori to new IDs
-            const remapped = {
-              ...m,
-              groupId: gid,
-              id: undefined,
-              squadraA: remap(m.squadraA),
-              squadraB: remap(m.squadraB),
-              statisticheGiocatori: (m.statisticheGiocatori||[]).map(s => ({
-                ...s,
-                playerId: idMap[s.playerId] ?? s.playerId
-              }))
-            };
-            const ex = await db.matches.where('groupId').equals(gid).and(x=>x.data===remapped.data).first();
+            const remapped = {...m, groupId: gid, id: undefined};
+            const ex = await db.matches.where('groupId').equals(gid).and(x=>x.data===m.data).first();
             if (!ex) { await db.matches.add(remapped); syncedMatches++; }
             else { await db.matches.update(ex.id, {...remapped, id:ex.id}); }
           }
@@ -7421,10 +7410,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
             // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
-      // Only go to onboarding if no groups AND sync hasn't already navigated away
-      if (groups.value.length === 0 && !_syncNavigated) {
-        currentView.value = 'onboarding';
-      }
+      // Navigation handled by watch(groups) below - don't override sync navigation
 
       // Load logo
       loadLogo();
