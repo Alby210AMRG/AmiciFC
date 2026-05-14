@@ -3874,7 +3874,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.130');
+    const appVersion = ref('1.131');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6041,15 +6041,39 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             gid = existing.id;
             await db.groups.update(gid, { firebaseUrl: url, firebaseApiKey: g.firebaseApiKey||'' });
           }
+          // Build old→new player ID map to remap match references
+          const idMap = {};
           for (const p of (eg.players||[])) {
+            const oldId = p.id;
             const ex = await db.players.where('groupId').equals(gid).and(x=>x.uid===p.uid||x.nome===p.nome).first();
-            if (ex) await db.players.update(ex.id, {...p, groupId: gid});
-            else await db.players.add({...p, groupId: gid, id: undefined});
+            let newId;
+            if (ex) {
+              await db.players.update(ex.id, {...p, groupId: gid});
+              newId = ex.id;
+            } else {
+              newId = await db.players.add({...p, groupId: gid, id: undefined});
+            }
+            if (oldId !== undefined) idMap[oldId] = newId;
             syncedPlayers++;
           }
+          // Helper: remap player IDs in a list
+          const remap = arr => (arr||[]).map(id => idMap[id] ?? id);
           for (const m of (eg.matches||[])) {
-            const ex = await db.matches.where('groupId').equals(gid).and(x=>x.data===m.data).first();
-            if (!ex) { await db.matches.add({...m, groupId: gid, id: undefined}); syncedMatches++; }
+            // Remap squadraA/B and statisticheGiocatori to new IDs
+            const remapped = {
+              ...m,
+              groupId: gid,
+              id: undefined,
+              squadraA: remap(m.squadraA),
+              squadraB: remap(m.squadraB),
+              statisticheGiocatori: (m.statisticheGiocatori||[]).map(s => ({
+                ...s,
+                playerId: idMap[s.playerId] ?? s.playerId
+              }))
+            };
+            const ex = await db.matches.where('groupId').equals(gid).and(x=>x.data===remapped.data).first();
+            if (!ex) { await db.matches.add(remapped); syncedMatches++; }
+            else { await db.matches.update(ex.id, {...remapped, id:ex.id}); }
           }
           syncedGroups++;
         }
@@ -7360,7 +7384,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
             // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
-      if (groups.value.length === 0) {
+      // Only redirect to onboarding if no groups AND not already navigated away
+      if (groups.value.length === 0 && currentView.value !== 'home') {
         currentView.value = 'onboarding';
       }
 
