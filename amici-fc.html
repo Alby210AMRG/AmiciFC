@@ -163,7 +163,7 @@ body {
 .main-content {
   flex: 1;
   padding-top: calc(var(--top-h) + 8px);
-  padding-bottom: calc(var(--nav-h) + 8px);
+  padding-bottom: calc(var(--nav-h) + 32px);
   padding-left: 16px;
   padding-right: 16px;
   max-width: 600px;
@@ -3644,80 +3644,54 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.124', date:'2026-05-14', items:[
+        '🔧 FIX: Foto Drive visibili nelle grafiche statistiche (crossOrigin corretto)',
+        '🔧 FIX: Jolly ora competono per punteggio su qualsiasi slot di formazione',
+        '🔧 FIX: Condivisione statistiche genera immagine anche con foto esterne',
+      ]},
+      { version:'v1.122', date:'2026-05-14', items:[
+        '🔧 FIX CRITICO: App non partiva (li() aveva il codice commentato per errore)',
+        '🔧 FIX: Sezioni Versione, Zona Pericolo, Crediti ripristinate in Impostazioni',
+        '🔧 FIX: Sezione Firebase login rimossa dalle Impostazioni (ora nel pulsante ☁️)',
+        '🔧 FIX: Data aggiornamento ora mostra data reale',
+      ]},
+      { version:'v1.120', date:'2026-05-14', items:[
+        '🆕 Firebase per gruppo: ogni gruppo ha il suo DB indipendente',
+        '🆕 Pulsante ☁️ in topbar con login Firebase integrato',
+        '🆕 Guida Firebase nel modal ☁️ (setup, regole, API key, utenti)',
+        '🔧 FIX: Migrazione automatica URL Firebase globale → gruppo',
+        '🔧 FIX: Validazione: stesso URL non usabile da due gruppi diversi',
+      ]},
+      { version:'v1.119', date:'2026-05-13', items:[
+        '🔧 FIX: Foto Drive nelle grafiche statistiche (crossOrigin rimosso dal canvas)',
+        '🔧 FIX: Tab Overall stesso sfondo degli altri tab',
+        '🔧 FIX: Testo leader nelle card stats visibile in dark mode',
+      ]},
+      { version:'v1.116', date:'2026-05-13', items:[
+        '🆕 Statistiche: navigazione a card 3×3 con icona, nome e leader attuale',
+        '🔧 FIX: Top formazione PNG senza medaglie/evidenziazione (tutti uniformi)',
+      ]},
+      { version:'v1.115', date:'2026-05-13', items:[
+        '🔧 FIX DEFINITIVO offline: sw.js esterno, nessun blob URL',
+        '🆕 Notizie: Streak vittorie, Titolo giornale, Citazione AI, Rivalità, Record, Chi manca',
+      ]},
+      { version:'v1.113', date:'2026-05-13', items:[
+        '🔧 FIX DEFINITIVO offline: Vue 3.4.21 e Dexie 3.2.4 integrati nell’HTML',
+        '🔧 FIX DEFINITIVO news: newsItems non dipende più da newsIndex',
+      ]},
+      { version:'v1.112', date:'2026-05-13', items:[
+        '🔧 FIX: Ticker notizie scorre correttamente (rimossa dipendenza da newsIndex)',
+        '🔧 FIX: SW installa ogni asset singolarmente senza bloccare su errore',
+      ]},
+      { version:'v1.110', date:'2026-05-13', items:[
+        '🔧 FIX: recomputeStats con try/catch non blocca il caricamento offline',
+        '🔧 FIX: Ticker notizie riavvia quando i dati del gruppo vengono caricati',
+      ]},
       { version:'v1.109', date:'2026-05-13', items:[
-        '🔧 FIX: App funziona offline (SW cacha HTML+version.json)',
-        '🔧 FIX: Statistiche ricalcolate automaticamente al caricamento gruppo',
-        '🔧 FIX: Auto-sync Firebase anche dopo modifica/aggiunta giocatore',
-        '🔧 FIX: Log versioni aggiornato fino alla v1.109',
-      ]},
-      { version:'v1.108', date:'2026-05-10', items:[
-        '🔧 FIX CRITICO: layout home riparato (hero-card non chiusa)',
-        '🔧 Meteo rimosso temporaneamente dall\u2019interfaccia',
-      ]},
-      { version:'v1.106', date:'2026-05-10', items:[
-        '🔧 FIX: Foto Google Drive visibili nelle grafiche statistiche',
-        '🔧 FIX: Media Punti rimossa dalla tab Overall',
-      ]},
-      { version:'v1.105', date:'2026-05-10', items:[
-        '🔧 FIX PNG: box quote più larghi (nomi completi), Risultato Previsto più grande',
-        '🔧 FIX PNG: foto Google Drive caricate nel canvas formazione',
-        '🆕 PNG: giocatori più grandi (R=58), nomi 20-26px bold',
-      ]},
-      { version:'v1.104', date:'2026-05-10', items:[
-        '🆕 PNG formazione: formato 1080×1920px ufficiale WhatsApp',
-        '🆕 PNG formazione: pannelli altezza dinamica, no spazio vuoto',
-      ]},
-      { version:'v1.103', date:'2026-05-10', items:[
-        '🔧 FIX PNG: quote e risultato sempre visibili (H=1780)',
-        '🆕 Foto Google Drive: incolla link Drive nel profilo giocatore',
-      ]},
-      { version:'v1.102', date:'2026-05-10', items:[
-        '🔧 FIX PNG: quote allineate alla squadra corretta (sinistra=B, destra=A)',
-        '🆕 PNG: risultato previsto sotto le quote scommessa',
-      ]},
-      { version:'v1.101', date:'2026-05-09', items:[
-        '🔧 FIX CRITICO: Salva Modifiche partita (DataCloneError Vue Proxy risolto)',
-        '🆕 Autogol in modifica partita, giornale e tab statistiche dedicato',
-        '🆕 Overall: bonus Costanza (max +5 punti)',
-      ]},
-      { version:'v1.100', date:'2026-05-09', items:[
-        '🆕 Quote scommessa nel PNG formazione',
-        '🔧 FIX: AI formazione usa gemini-2.5-flash',
-        '🆕 Frasi campioni senza trofei nello spogliatoio',
-      ]},
-      { version:'v1.099', date:'2026-05-09', items:[
-        '🔧 FIX: Reset Totale funzionante',
-        '🆕 Blocco notizie con bordo verde lime evidenziato',
-      ]},
-      { version:'v1.096', date:'2026-05-09', items:[
-        '🆕 🔥 Forma del Momento + 🎲 Frasi motivazionali nelle notizie',
-        '🆕 🎯 Predizione risultato + quote per ogni formazione generata',
-      ]},
-      { version:'v1.095', date:'2026-05-09', items:[
-        '🆕 Guida installazione collassabile in cima all’onboarding',
-        '🆕 Istruzioni Firebase con sezione aggiunta utenti e regole sicurezza',
-        '🔧 FIX: Gemini selector mostra Gemini 2.5 Flash',
-      ]},
-      { version:'v1.093', date:'2026-05-09', items:[
-        '🆕 Auto-sync Firebase dopo ogni salvataggio partita',
-        '🔧 FIX Gemini: gemini-2.5-flash (stesso di TurboTartaruga)',
-      ]},
-      { version:'v1.092', date:'2026-05-09', items:[
-        '🆕 Export Excel: foglio Formazioni, intestazioni colorate',
-        '🆕 Gestione Stagioni: archivia e nuova stagione',
-      ]},
-      { version:'v1.091', date:'2026-05-09', items:[
-        '🔧 FIX: Frasi inclusive spogliatoio sempre visibili',
-        '🔧 FIX: Excel con intestazioni colorate e foglio formazioni',
-      ]},
-      { version:'v1.090', date:'2026-05-09', items:[
-        '🔧 FIX: Salva Modifiche partita',
-        '🔧 FIX: Marcatori mostra tutti i gol inclusi quelli singoli',
-        '🆕 Reset Totale in Zona Pericolo (Firebase non toccato)',
-      ]},
-      { version:'v1.089', date:'2026-05-09', items:[
-        '🆕 Export Excel (4 fogli: Classifica, Marcatori, Storico, Stats)',
-        '🆕 Gestione Stagioni - archivia e inizia da zero',
+        '🔧 FIX: SW cacha amici-fc.html per funzionamento offline',
+        '🔧 FIX: Statistiche ricalcolate al caricamento gruppo (Classifica sempre visibile)',
+        '🔧 FIX: Auto-sync Firebase anche dopo aggiunta/modifica giocatore',
+        '🔧 FIX: Log versioni aggiornato dalla v1.089 alla v1.109',
       ]},
     ];
     const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, weatherCity: '' });
@@ -3875,7 +3849,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.124');
+    const appVersion = ref('1.125');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4023,10 +3997,16 @@ createApp({
       // Pick best N players for each role slot
       for (const [ruolo, count] of Object.entries(schema)) {
         const candidates = scored.filter(p => p.ruolo === ruolo && !used.has(p.id));
-        // Fallback to Jolly if not enough role players
         const jolly = scored.filter(p => p.ruolo === 'Jolly' && !used.has(p.id));
-        const pool = [...candidates, ...jolly];
+        // Merge and sort by score so best Jolly can outperform weaker role-specific players
+        const pool = [...candidates, ...jolly].sort((a,b) => b._score - a._score);
         pool.slice(0, count).forEach(p => { result.push(p); used.add(p.id); });
+      }
+      // Second pass: fill any remaining empty slots with best unused players (any role)
+      const needed = Object.values(schema).reduce((a,b)=>a+b,0);
+      if (result.length < needed) {
+        const remaining = scored.filter(p => !used.has(p.id));
+        remaining.slice(0, needed - result.length).forEach(p => { result.push(p); used.add(p.id); });
       }
       return result;
     };
@@ -5008,7 +4988,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const drawStatsCanvas = async (tipo, skipPhotos=false) => {
       const W=900;
       const rrect=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
-      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
+      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();if(src.startsWith('http'))img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
       const statConfigs = {
