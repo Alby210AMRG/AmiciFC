@@ -1239,10 +1239,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <text x="20" y="26" text-anchor="middle" font-size="18" fill="#A6FF4D" font-family="Fredoka One">⚽</text>
     </svg>
     <span class="topbar-title">Amici FC</span>
-    <button class="topbar-group-btn" @click="showGroupSelector = true">
-      <span class="dot"></span>
-      <span>{{ currentGroup ? currentGroup.nome : 'Gruppo' }}</span>
-    </button>
+    <div style="display:flex;align-items:center;gap:6px">
+      <button class="topbar-group-btn" @click="showGroupSelector = true">
+        <span class="dot"></span>
+        <span>{{ currentGroup ? currentGroup.nome : 'Gruppo' }}</span>
+      </button>
+      <button v-if="currentGroup" @click="openGroupCloud"
+        style="background:rgba(58,123,255,0.15);border:1px solid rgba(58,123,255,0.4);border-radius:20px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#7ab0ff"
+        :style="currentGroup.firebaseUrl?'color:var(--lime);border-color:rgba(200,255,0,0.4);background:rgba(200,255,0,0.1)':''"
+        title="Firebase gruppo">
+        {{ currentGroup.firebaseUrl ? '☁️✅' : '☁️' }}
+      </button>
+    </div>
   </header>
 
   <!-- ── UPDATE BANNER ── -->
@@ -2161,16 +2169,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <template v-else>
-        <div class="platform-tabs" style="margin-bottom:16px;flex-wrap:wrap">
-          <button class="platform-tab" :class="{active:statsTab==='overall'}"      @click="statsTab='overall'">🥇 Overall</button>
-          <button class="platform-tab" :class="{active:statsTab==='topteam'}"      @click="statsTab='topteam'">🏆 Top Team</button>
-          <button class="platform-tab" :class="{active:statsTab==='classifica'}"   @click="statsTab='classifica'">📊 Punti</button>
-          <button class="platform-tab" :class="{active:statsTab==='goal'}"         @click="statsTab='goal'">⚽ Goal</button>
-          <button class="platform-tab" :class="{active:statsTab==='assist'}"       @click="statsTab='assist'">🅰️ Assist</button>
-          <button class="platform-tab" :class="{active:statsTab==='altri'}"        @click="statsTab='altri'">🏅 Uomo Partita</button>
-          <button class="platform-tab" :class="{active:statsTab==='autogol'}"      @click="statsTab='autogol'">❌ Autogol</button>
-          <button class="platform-tab" :class="{active:statsTab==='mediapunti'}"   @click="statsTab='mediapunti'">📈 Media Punti</button>
-          <button class="platform-tab" :class="{active:statsTab==='voti'}"         @click="statsTab='voti'">⭐ Voti</button>
+        <!-- ★ STATS NAV CARDS ★ -->
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+          <button v-for="tab in [{id:'overall',icon:'🥇',label:'Overall',sub:topOverall[0]?(topOverall[0].soprannome||topOverall[0].nome):'—'},{id:'topteam',icon:'🏟️',label:'Top Team',sub:topFormationSize+'v'+topFormationSize},{id:'classifica',icon:'📊',label:'Punti',sub:topPoints[0]?(topPoints[0].soprannome||topPoints[0].nome)+' '+topPoints[0].puntiTotali+'pt':'—'},{id:'goal',icon:'⚽',label:'Gol',sub:topScorers[0]?.goalTotali>0?(topScorers[0].soprannome||topScorers[0].nome)+' '+topScorers[0].goalTotali+'⚽':'—'},{id:'assist',icon:'🅰️',label:'Assist',sub:topAssists[0]?.assistTotali>0?(topAssists[0].soprannome||topAssists[0].nome)+' '+topAssists[0].assistTotali:'—'},{id:'mediapunti',icon:'📈',label:'Media Pt',sub:topAvgPoints[0]?(topAvgPoints[0].soprannome||topAvgPoints[0].nome)+' '+(topAvgPoints[0].mediaPunti||0).toFixed(2):'—'},{id:'altri',icon:'🏅',label:'Uomo Partita',sub:topUomoPartita[0]?.uomoPartitaTotali>0?(topUomoPartita[0].soprannome||topUomoPartita[0].nome):'—'},{id:'voti',icon:'⭐',label:'Voto Medio',sub:topRated[0]?(topRated[0].soprannome||topRated[0].nome)+' '+(topRated[0].mediaVoto||0).toFixed(1):'—'},{id:'autogol',icon:'❌',label:'Autogol',sub:groupPlayers.filter(p=>p.autogolTotali>0).length>0?groupPlayers.filter(p=>p.autogolTotali>0).length+' giocatori':'Nessuno 🎉'}]"
+            :key="tab.id"
+            @click="statsTab=tab.id"
+            style="display:flex;flex-direction:column;align-items:center;padding:10px 4px;border-radius:14px;border:1.5px solid;cursor:pointer;transition:all .18s;min-height:70px;text-align:center;gap:2px"
+            :style="statsTab===tab.id?'border-color:var(--lime);background:rgba(200,255,0,0.1);box-shadow:0 0 12px rgba(200,255,0,0.15)':'border-color:var(--border);background:var(--bg3)'"
+          >
+            <span style="font-size:1.4rem;line-height:1">{{tab.icon}}</span>
+            <span style="font-size:0.68rem;font-weight:800;margin-top:2px;line-height:1.2" :style="statsTab===tab.id?'color:var(--lime)':'color:var(--text)'">{{tab.label}}</span>
+            <span style="font-size:0.6rem;color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px">{{tab.sub}}</span>
+          </button>
         </div>
 
         <!-- 🏆 TOP TEAM -->
@@ -2232,7 +2242,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
         <!-- OVERALL -->
         <template v-if="statsTab==='overall'">
-          <div class="card" style="background:linear-gradient(135deg,rgba(255,215,0,0.05),rgba(58,123,255,0.03))">
+          <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🥇 Migliori in Campo</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
               Come si calcola l'<strong style="color:var(--lime)">Overall</strong>? Punteggio composito per partita (min. 2 presenze):<br>
@@ -2562,148 +2572,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </button>
       </div>
 
-      <div class="card">
-        <div class="card-title">☁️ Firebase — Sincronizzazione & Accesso</div>
+      
 
-        <!-- URL Database -->
-        <div class="input-group">
-          <label class="input-label">🔗 URL Database Firebase</label>
-          <input class="input-field" v-model="settings.firebaseUrl"
-            placeholder="https://tuo-progetto-rtdb.europe-west1.firebasedatabase.app"
-            @change="saveSettings">
-          <div style="font-size:0.7rem;color:var(--text2);margin-top:4px">
-            Firebase Console → Realtime Database → copia l'URL in cima alla pagina
-          </div>
+        <!-- Firebase moved to per-group cloud config -->
+        <div style="font-size:0.8rem;color:var(--text2);padding:10px 0">
+          ☁️ La configurazione Firebase è ora per ogni gruppo.<br>
+          Usa il pulsante <strong style="color:var(--lime)">☁️</strong> accanto al nome del gruppo in cima all'app.
         </div>
-
-        <!-- Web API Key - spiegazione semplice -->
-        <div class="input-group">
-          <label class="input-label">🔑 Chiave API Web Firebase</label>
-          <input class="input-field" v-model="settings.firebaseApiKey"
-            placeholder="AIzaSy..."
-            @change="saveSettings">
-          <div style="font-size:0.7rem;color:var(--text2);margin-top:4px;line-height:1.6">
-            Firebase Console → ⚙️ Impostazioni progetto → tab <strong>Generale</strong> → campo <strong>"Chiave API Web"</strong><br>
-            <span style="color:var(--yellow)">⚠️ Serve solo se hai abilitato il Login (Authentication)</span>
-          </div>
-        </div>
-
-        <!-- Sync toggle -->
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Sync automatica</div>
-            <div class="setting-sub">Scarica aggiornamenti all'avvio</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" :checked="settings.syncEnabled"
-              @change="settings.syncEnabled=!settings.syncEnabled;saveSettings()">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-
-        <!-- Sync buttons -->
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn btn-blue" @click="syncFromCloud" :disabled="!settings.firebaseUrl || syncLoading">
-            {{ syncLoading ? '⏳...' : '☁️ Scarica' }}
-          </button>
-          <button class="btn btn-primary" @click="syncToCloud" :disabled="!settings.firebaseUrl || syncLoading">
-            📤 Carica sul Cloud
-          </button>
-          <button class="btn btn-ghost" @click="recomputeStats;toast('✅ Statistiche ricalcolate!')">
-            🔄 Ricalcola Stats
-          </button>
-        </div>
-        <div v-if="lastSyncDate" style="font-size:0.72rem;color:var(--text2);margin-top:6px">
-          Ultima sync: {{ lastSyncDate }}
-        </div>
-
-        <!-- Separatore -->
-        <div style="border-top:1px solid var(--border);margin:16px 0"></div>
-
-        <!-- Login section -->
-        <div class="card-title" style="font-size:0.9rem;margin-bottom:12px">🔐 Login (per scrivere)</div>
-
-        <!-- Status always visible -->
-        <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;margin-bottom:12px"
-          :style="firebaseUser ? 'background:rgba(166,255,77,0.1);border:1.5px solid rgba(166,255,77,0.3)' : 'background:var(--bg3);border:1.5px solid var(--border)'">
-          <span style="font-size:1.4rem">{{ firebaseUser ? '🔓' : '🔒' }}</span>
-          <div style="flex:1">
-            <div style="font-weight:800;font-size:0.85rem" :style="firebaseUser?'color:var(--lime)':'color:var(--text2)'">
-              {{ firebaseUser ? 'Connesso' : 'Non collegato' }}
-            </div>
-            <div style="font-size:0.72rem;color:var(--text2)">
-              {{ firebaseUser ? firebaseUser.email : 'Solo lettura' }}
-            </div>
-          </div>
-          <button v-if="firebaseUser" class="btn btn-ghost btn-sm" @click="firebaseLogout" style="font-size:0.75rem">Esci</button>
-        </div>
-
-        <!-- Login form (only when not logged in) -->
-        <div v-if="!firebaseUser">
-          <div style="font-size:0.78rem;color:var(--text2);margin-bottom:12px;line-height:1.5">
-            Accedi per poter <strong style="color:var(--lime)">caricare e modificare</strong> i dati su Firebase.
-          </div>
-          <div class="input-group">
-            <label class="input-label">📧 Email</label>
-            <input id="fb-login-email" class="input-field" type="email"
-              placeholder="tuaemail@gmail.com" autocomplete="email">
-          </div>
-          <div class="input-group">
-            <label class="input-label">🔑 Password</label>
-            <div style="display:flex;gap:8px">
-              <input id="fb-login-pwd" class="input-field"
-                :type="showFbPwd?'text':'password'"
-                placeholder="Password" style="flex:1"
-                autocomplete="current-password"
-                @keyup.enter="firebaseLogin">
-              <button class="btn btn-ghost btn-sm"
-                type="button"
-                @click.prevent="showFbPwd=!showFbPwd"
-                style="flex-shrink:0;min-width:42px">
-                {{ showFbPwd?'🙈':'👁️' }}
-              </button>
-            </div>
-          </div>
-          <button class="btn btn-primary btn-full" @click="firebaseLogin" :disabled="fbAuthLoading">
-            {{ fbAuthLoading ? '⏳ Accesso...' : '🔐 Accedi' }}
-          </button>
-        </div>
-
-        <!-- Help aggiungere utenti -->
-        <div style="margin-top:14px;background:var(--bg3);border-radius:10px;padding:12px;font-size:0.75rem;color:var(--text2);line-height:1.7">
-          <strong style="color:var(--yellow)">➕ Aggiungere altri utenti scrittori:</strong><br>
-          Firebase Console → Authentication → Users → <strong>Add user</strong><br>
-          Poi aggiorna le Regole del database aggiungendo la nuova email:<br>
-          <code style="background:var(--bg2);padding:3px 6px;border-radius:4px;font-size:0.68rem;display:block;margin-top:4px">
-            "auth.token.email === 'nuova@email.com'"
-          </code>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
-          <button class="btn btn-full" style="background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
-            ☢️ Reset Totale (come nuova installazione)
-          </button>
-          <div style="font-size:0.72rem;color:var(--text2);line-height:1.4">
-            ⚠️ Reset Totale cancella tutto localmente (gruppi, giocatori, partite, impostazioni). I dati su Firebase <strong>non</strong> vengono toccati.
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="card-title">ℹ️ Versione App</div>
-        <div style="font-size:0.85rem;color:var(--text2)">
-          <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
-          <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
-        </div>
-      </div>
 <!-- CREDITI -->
       <div class="card credits-card">
         <span class="credits-ball">⚽</span>
@@ -3156,6 +3031,85 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
       <button class="btn btn-ghost btn-full" @click="showSeasonArchive=false">Chiudi</button>
+    </div>
+  </div>
+
+  <!-- ════ GROUP CLOUD MODAL ════ -->
+  <div v-if="showGroupCloud && currentGroup" class="modal-overlay" @click.self="showGroupCloud=false">
+    <div class="modal-sheet mc" style="max-width:480px">
+      <div class="modal-handle"></div>
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:2rem;margin-bottom:6px">☁️</div>
+        <div class="modal-title" style="justify-content:center">Firebase — {{ currentGroup.nome }}</div>
+        <div style="font-size:0.78rem;color:var(--text2)">Ogni gruppo ha il suo Firebase dedicato e indipendente</div>
+      </div>
+      <!-- Help button -->
+      <div style="margin-bottom:14px;text-align:center">
+        <button class="btn btn-ghost btn-sm" @click="showFbHelp=!showFbHelp" style="font-size:0.78rem">
+          {{ showFbHelp ? '▲ Nascondi guida' : '❓ Come configurare Firebase?' }}
+        </button>
+      </div>
+      <!-- Firebase setup guide -->
+      <div v-show="showFbHelp" style="background:rgba(58,123,255,0.06);border:1px solid rgba(58,123,255,0.2);border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.78rem;color:var(--text2);line-height:1.7">
+        <div style="font-weight:800;color:var(--blue);margin-bottom:8px">📋 Guida rapida Firebase</div>
+        <div><strong style="color:var(--text)">1. Crea il progetto</strong><br>Vai su <span style="color:var(--lime)">firebase.google.com</span> → Nuovo progetto → dai un nome (es. calcetto-giovedi)</div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">2. Crea il Database</strong><br>Menu sinistra → Realtime Database → Crea database → Modalità test → scegli la regione più vicina</div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">3. URL Database</strong><br>Copia l'URL che appare (es. https://calcetto-giovedi-rtdb.europe-west1.firebasedatabase.app) e incollalo sopra</div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">4. Abilita autenticazione</strong><br>Authentication → Inizia → Email/Password → Abilita → Aggiungi utenti con email e password</div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">5. API Key</strong><br>Impostazioni progetto (⚙️) → Generali → La tua app web → copia <code style="background:var(--bg2);padding:1px 4px;border-radius:3px">apiKey</code></div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">6. Regole Database</strong><br>Realtime Database → Regole → incolla questo:</div>
+        <pre v-pre style="background:var(--bg2);border-radius:6px;padding:8px;font-size:0.7rem;color:var(--lime);overflow-x:auto;margin:4px 0">{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null"
+  }
+}</pre>
+        <div style="margin-top:6px"><strong style="color:var(--text)">7. Aggiungere altri utenti scrittori</strong><br>Authentication → Users → Aggiungi utente → inserisci email e password dell'amico che può modificare</div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">URL Realtime Database Firebase</label>
+        <input class="input-field" v-model="groupCloudUrl" placeholder="https://progetto-rtdb.firebaseio.com">
+      </div>
+      <div class="input-group" style="margin-top:10px">
+        <label class="input-label">API Key Firebase (per login)</label>
+        <input class="input-field" v-model="groupCloudApiKey" placeholder="AIzaSy...">
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">Console Firebase → Impostazioni progetto → Generali → Web API Key</div>
+      </div>
+      <div v-if="currentGroup.firebaseUrl" style="margin:12px 0;padding:10px;background:rgba(166,255,77,0.08);border:1px solid rgba(166,255,77,0.2);border-radius:10px;font-size:0.78rem;color:var(--text2)">
+        ✅ DB configurato: <span style="color:var(--lime);font-weight:700">{{ currentGroup.firebaseUrl }}</span>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn btn-ghost" style="flex:1" @click="showGroupCloud=false">Annulla</button>
+        <button class="btn btn-primary" style="flex:2" @click="saveGroupCloud">💾 Salva Configurazione</button>
+      </div>
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:8px">🔑 Accesso Firebase</div>
+        <div v-if="!firebaseUser" style="display:flex;flex-direction:column;gap:8px">
+          <input class="input-field" v-model="fbLoginEmail" placeholder="Email Firebase" type="email" style="font-size:0.82rem">
+          <div style="position:relative">
+            <input class="input-field" v-model="fbLoginPwd" :type="showFbPwd?'text':'password'" placeholder="Password" style="font-size:0.82rem;padding-right:44px">
+            <button @click="showFbPwd=!showFbPwd" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2)">
+              {{ showFbPwd ? '🙈' : '👁️' }}
+            </button>
+          </div>
+          <button class="btn btn-primary" @click="firebaseLogin" :disabled="fbAuthLoading">
+            {{ fbAuthLoading ? '⏳' : '🔑 Accedi a Firebase' }}
+          </button>
+        </div>
+        <div v-else style="display:flex;align-items:center;justify-content:space-between;padding:8px 0">
+          <span style="font-size:0.8rem;color:var(--lime)">✅ {{ firebaseUser.email }}</span>
+          <button class="btn btn-ghost btn-sm" @click="firebaseLogout">Esci</button>
+        </div>
+        <div style="font-size:0.78rem;font-weight:700;color:var(--text);margin:12px 0 8px">🔄 Azioni Cloud</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-blue btn-sm" @click="syncToCloud" :disabled="syncLoading||!firebaseUser">
+            {{ syncLoading ? '⏳' : '⬆️' }} Carica
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="syncFromCloud" :disabled="syncLoading">
+            {{ syncLoading ? '⏳' : '⬇️' }} Scarica
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -3741,6 +3695,10 @@ createApp({
     const showPNGPreview    = ref(false);
     const showMoreMenu      = ref(false);
     const showInstallGuide  = ref(false);
+    const showGroupCloud    = ref(false);
+    const showFbHelp        = ref(false);
+    const groupCloudUrl     = ref('');
+    const groupCloudApiKey  = ref('');
     const showExportModal   = ref(false);
     const exportGroupIds    = ref([]);
     const installTab        = ref('app');
@@ -3880,8 +3838,8 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.115');
-    const appDate         = ref('2026-05-02'); // updated from version.json at runtime
+    const appVersion = ref('1.120');
+    const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
     const previewPNGUrl  = ref('');
@@ -5013,7 +4971,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const drawStatsCanvas = async (tipo) => {
       const W=900;
       const rrect=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
-      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
+      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();if(!src.startsWith('https://lh3'))img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
       const statConfigs = {
@@ -5067,7 +5025,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       // Rows
       const avR=24;
       for(let i=0;i<rows.length;i++){
-        const p=rows[i]; const rowY=HEADER_H+i*ROW_H; const top3=i<3;
+        const p=rows[i]; const rowY=HEADER_H+i*ROW_H; const top3 = (tipo!=='topteam') && i<3; // no medals for formation
         // Row bg
         const rbg=ctx.createLinearGradient(0,rowY,W,rowY);
         rbg.addColorStop(0,'rgba(0,0,0,0)');rbg.addColorStop(0.5,top3?'rgba(200,255,0,0.07)':'rgba(255,255,255,0.02)');rbg.addColorStop(1,'rgba(0,0,0,0)');
@@ -5596,8 +5554,46 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── Firebase Cloud Sync ──
     const getFirebaseBase = () => {
-      const url = (settings.value.firebaseUrl || '').replace(/\/$/, '');
+      // Each group has its own Firebase — no global fallback
+      const url = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
       return url ? `${url}/amicifc` : null;
+    };
+
+    // Per-group Firebase API key
+    const getFirebaseApiKey = () => {
+      return currentGroup.value?.firebaseApiKey || '';
+    };
+
+    // Open group cloud config modal
+    const openGroupCloud = () => {
+      // Load group's own Firebase config only
+      groupCloudUrl.value    = currentGroup.value?.firebaseUrl || '';
+      groupCloudApiKey.value = currentGroup.value?.firebaseApiKey || '';
+      showGroupCloud.value   = true;
+    };
+
+    // Save per-group Firebase config
+    const saveGroupCloud = async () => {
+      if (!currentGroup.value) return;
+      const url = groupCloudUrl.value.trim();
+      // Validate: same Firebase URL cannot be used by another group
+      if (url) {
+        const duplicate = groups.value.find(g =>
+          g.id !== currentGroup.value.id &&
+          g.firebaseUrl && g.firebaseUrl.trim() === url
+        );
+        if (duplicate) {
+          toast(`❌ Questo DB Firebase è già usato dal gruppo "${duplicate.nome}". Ogni gruppo deve avere il suo Firebase.`, 'error', 5000);
+          return;
+        }
+      }
+      await db.groups.update(currentGroup.value.id, {
+        firebaseUrl: url,
+        firebaseApiKey: groupCloudApiKey.value.trim(),
+      });
+      await loadGroups();
+      showGroupCloud.value = false;
+      toast(url ? '☁️ Firebase configurato per questo gruppo!' : '☁️ Firebase rimosso dal gruppo', 'success');
     };
 
     // ── Repair malformed UIDs (uid = "Nome|Cognome" or missing) ──
@@ -5953,15 +5949,18 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     const syncFromCloudAndGo = async () => {
-      // Use onboarding input URL (never pre-filled), save it to settings
+      // Use onboarding input URL — save it to the newly created group, NOT global settings
       const url = onboardingFirebaseUrl.value.trim();
       if (!url) { toast('Inserisci l\'URL Firebase prima!', 'error'); return; }
-      settings.value.firebaseUrl = url;
-      localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
       await syncFromCloud();
       await loadGroups();
       if (groups.value.length > 0) {
         if (!currentGroup.value) await selectGroup(groups.value[0]);
+        // Save Firebase URL to the group (not global settings)
+        if (currentGroup.value) {
+          await db.groups.update(currentGroup.value.id, { firebaseUrl: url });
+          await loadGroups();
+        }
         settings.value.syncEnabled = true;
         localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
         currentView.value = 'home';
@@ -7196,7 +7195,20 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         await selectGroup(groups.value[0]);
       }
 
-      // DB caricato: attiva il watch e controlla se serve onboarding
+
+      // ── MIGRATE: Move global Firebase URL to current group (one-time) ──
+      const legacyUrl    = settings.value.firebaseUrl;
+      const legacyApiKey = settings.value.firebaseApiKey;
+      if (legacyUrl && currentGroup.value && !currentGroup.value.firebaseUrl) {
+        await db.groups.update(currentGroup.value.id, { firebaseUrl: legacyUrl, firebaseApiKey: legacyApiKey || '' });
+        settings.value.firebaseUrl    = '';
+        settings.value.firebaseApiKey = '';
+        localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
+        await loadGroups();
+        console.log('[AmiciFC] Migrated Firebase URL to group:', currentGroup.value?.nome);
+      }
+
+            // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
       if (groups.value.length === 0) {
         currentView.value = 'onboarding';
@@ -7300,7 +7312,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide,
-      computeFormationPrediction
+      computeFormationPrediction,
+      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp
     };
   }
 }).mount('#app');
