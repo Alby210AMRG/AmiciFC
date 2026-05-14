@@ -3868,7 +3868,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.128');
+    const appVersion = ref('1.129');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5523,6 +5523,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           notePartita:            m.notePartita,
           titoloGiornale:         m.titoloGiornale,
           commentoAI:             m.commentoAI,
+          uomoPartita:            m.uomoPartita || null,
+          mvp:                    m.mvp || null,
         });
         if (!updated) {
           await db.matches.put({ ...m });
@@ -5748,8 +5750,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── AUTO-SYNC: chiamato dopo ogni salvataggio se Firebase è attivo ──
     const autoSyncToCloud = async () => {
-      // Solo se Firebase configurato E utente loggato
-      if (!settings.value.firebaseUrl || !fbIdToken.value) return;
+      // Solo se Firebase configurato nel gruppo corrente E utente loggato
+      if (!currentGroup.value?.firebaseUrl || !fbIdToken.value) return;
       try {
         await syncToCloud();
         // Sync silenzioso: nessun toast (l'utente non deve essere disturbato)
@@ -6047,13 +6049,20 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         }
 
         await loadGroups();
-        if (groups.value.length > 0) {
-          if (!currentGroup.value) await selectGroup(groups.value[0]);
+        const allG = await db.groups.toArray();
+        if (allG.length > 0) {
+          const firstG = allG[0];
+          await selectGroup(firstG);
+          await loadGroupData();
           await recomputeStats();
           settings.value.syncEnabled = true;
           localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
+          // Dismiss loading toast and show success
+          toasts.value = toasts.value.filter(t => t.type !== 'info');
           toast(`✅ Sincronizzato! ${syncedGroups} gruppi, ${syncedPlayers} giocatori, ${syncedMatches} partite`, 'success', 5000);
           currentView.value = 'home';
+        } else {
+          toast('⚠️ Nessun dato trovato nel cloud', 'error', 4000);
         }
       } catch(e) {
         toast('❌ Errore: ' + e.message, 'error', 5000);
