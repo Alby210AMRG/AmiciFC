@@ -7272,26 +7272,24 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     const doUpdate = async () => {
-      toast('⏳ Pulizia cache e ricarica...', 'info', 2000);
+      updateAvailable.value = false; // hide banner immediately to avoid loop
+      toast('⏳ Aggiornamento in corso...', 'info', 3000);
       try {
-        // 1. Svuota tutti i cache del SW
+        // 1. Unregister ALL service workers
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        // 2. Clear ALL caches
         if ('caches' in window) {
           const keys = await caches.keys();
           await Promise.all(keys.map(k => caches.delete(k)));
         }
-        // 2. Attiva il nuovo SW se in attesa
-        if ('serviceWorker' in navigator) {
-          const reg = await navigator.serviceWorker.ready;
-          if (reg.waiting) {
-            sessionStorage.setItem('sw-update-pending', '1');
-            reg.waiting.postMessage('SKIP_WAITING');
-          }
-        }
       } catch(e) {
         console.warn('[AmiciFC] doUpdate error:', e);
       }
-      // 3. Ricarica hard bypassando cache del browser
-      setTimeout(() => window.location.reload(true), 500);
+      // 3. Hard reload after short delay
+      setTimeout(() => window.location.reload(true), 800);
     };
 
     // ── Logo embedded as base64 (funziona sempre, locale + GitHub Pages) ──
