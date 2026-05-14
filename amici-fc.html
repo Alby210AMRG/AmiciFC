@@ -2589,7 +2589,44 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <br><br>Made with ❤️ + Vue 3 + IndexedDB + AI
         </div>
       </div>
-    </template>
+    
+      <!-- ── Zona Pericolo ── -->
+      <div class="card" style="border-color:rgba(255,77,77,0.3)">
+        <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
+          <button class="btn btn-full" style="background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
+            ☢️ Reset Totale (come nuova installazione)
+          </button>
+          <div style="font-size:0.72rem;color:var(--text2);line-height:1.4">
+            ⚠️ Reset Totale cancella tutto localmente. I dati su Firebase <strong>non</strong> vengono toccati.
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Versione App ── -->
+      <div class="card">
+        <div class="card-title">ℹ️ Versione App</div>
+        <div style="font-size:0.85rem;color:var(--text2)">
+          <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
+          <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
+        </div>
+      </div>
+
+<!-- CREDITI -->
+      <div class="card credits-card">
+        <span class="credits-ball">⚽</span>
+        <div class="credits-main">Amici FC</div>
+        <div class="credits-sub">Il Calcetto Manager Definitivo</div>
+        <div class="credits-author">Creato e sviluppato con ❤️ da <strong>Alby</strong></div>
+        <span class="credits-icon">🎮</span>
+      </div>
+
+</template>
 
   </main>
 
@@ -3838,7 +3875,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.120');
+    const appVersion = ref('1.123');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4686,7 +4723,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const canvas=document.createElement('canvas');
       canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
-      await document.fonts.ready;
+      // fonts ready check removed (not needed with inline fonts)
 
       const rrect=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
 
@@ -4971,7 +5008,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const drawStatsCanvas = async (tipo) => {
       const W=900;
       const rrect=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
-      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();if(!src.startsWith('https://lh3'))img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
+      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
       const statConfigs = {
@@ -4991,7 +5028,6 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const H = HEADER_H + rows.length*ROW_H + 16 + FOOTER_H;
       const canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
-      await document.fonts.ready;
       // Background
       const bgG=ctx.createLinearGradient(0,0,0,H);
       bgG.addColorStop(0,'#020408');bgG.addColorStop(0.5,'#050c18');bgG.addColorStop(1,'#081420');
@@ -5042,9 +5078,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.beginPath();ctx.arc(avX,avY,avR,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fill();
         ctx.strokeStyle=top3?cfg.color:'rgba(255,255,255,0.12)';ctx.lineWidth=2;ctx.stroke();
         ctx.save();ctx.beginPath();ctx.arc(avX,avY,avR-1,0,Math.PI*2);ctx.clip();
-        const ph=await loadPhoto(p.foto,p.uid).catch(()=>null);
-        if(ph){ctx.drawImage(ph,avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);}
-        else{
+        let ph=await loadPhoto(p.foto,p.uid).catch(()=>null);
+        if(ph){try{ctx.drawImage(ph,avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);}catch(e){ph=null;}}
+        if(!ph){
           // Draw silhouette
           ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);
           // Head circle
@@ -5074,7 +5110,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
       ctx.fillStyle=acG;ctx.fillRect(0,fY,W,2);
       ctx.font='700 italic 15px "Arial Black",Arial';ctx.fillStyle='rgba(200,255,0,0.5)';ctx.textAlign='center';
       ctx.fillText('\u26BD Amici FC \u00B7 Dove i campioni nascono\u2026 e litigano!',W/2,fY+33);
-      return canvas.toDataURL('image/png');
+      try {
+        return canvas.toDataURL('image/png');
+      } catch(e) {
+        console.warn('[Stats PNG] toDataURL failed:', e.message);
+        throw e;
+      }
     };
 
 
@@ -5565,10 +5606,15 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // Open group cloud config modal
-    const openGroupCloud = () => {
-      // Load group's own Firebase config only
-      groupCloudUrl.value    = currentGroup.value?.firebaseUrl || '';
+    const openGroupCloud = async () => {
+      // Reload current group from DB to get latest Firebase config
+      if (currentGroup.value) {
+        const fresh = await db.groups.get(currentGroup.value.id);
+        if (fresh) currentGroup.value = fresh;
+      }
+      groupCloudUrl.value    = currentGroup.value?.firebaseUrl    || '';
       groupCloudApiKey.value = currentGroup.value?.firebaseApiKey || '';
+      showFbHelp.value = false;
       showGroupCloud.value   = true;
     };
 
@@ -6476,7 +6522,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const canvas=document.createElement('canvas');
       canvas.width=W;canvas.height=H;
       const ctx=canvas.getContext('2d');
-      await document.fonts.ready;
+      // fonts ready check removed (not needed with inline fonts)
 
       const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
 
