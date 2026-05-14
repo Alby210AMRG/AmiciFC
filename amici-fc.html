@@ -3875,7 +3875,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.123');
+    const appVersion = ref('1.124');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5005,7 +5005,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       } catch(e) { console.error(e); toast('❌ Errore PNG: '+e.message,'error'); }
     };
 
-    const drawStatsCanvas = async (tipo) => {
+    const drawStatsCanvas = async (tipo, skipPhotos=false) => {
       const W=900;
       const rrect=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
       const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
@@ -5078,7 +5078,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.beginPath();ctx.arc(avX,avY,avR,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fill();
         ctx.strokeStyle=top3?cfg.color:'rgba(255,255,255,0.12)';ctx.lineWidth=2;ctx.stroke();
         ctx.save();ctx.beginPath();ctx.arc(avX,avY,avR-1,0,Math.PI*2);ctx.clip();
-        let ph=await loadPhoto(p.foto,p.uid).catch(()=>null);
+        let ph=skipPhotos?null:await loadPhoto(p.foto,p.uid).catch(()=>null);
         if(ph){try{ctx.drawImage(ph,avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);}catch(e){ph=null;}}
         if(!ph){
           // Draw silhouette
@@ -5113,7 +5113,10 @@ Rispondi SOLO con questo JSON (niente altro testo):
       try {
         return canvas.toDataURL('image/png');
       } catch(e) {
-        console.warn('[Stats PNG] toDataURL failed:', e.message);
+        if (!skipPhotos) {
+          console.warn('[Stats PNG] Canvas tainted, retrying without photos...');
+          return drawStatsCanvas(tipo, true);
+        }
         throw e;
       }
     };
