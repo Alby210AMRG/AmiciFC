@@ -3460,6 +3460,7 @@ const hashCode = s => [...s].reduce((h,c) => (Math.imul(31,h)+c.charCodeAt(0))|0
 /* AmiciFC v1.039 - loaded: 2026-05-06 */
 const { createApp, ref, computed, reactive, onMounted, watch, nextTick } = Vue;
 
+let _syncNavigated = false;
 createApp({
   setup() {
     // ── State ──
@@ -4076,6 +4077,7 @@ createApp({
       // Ricalcola stats dai match ogni volta (garantisce coerenza)
       if (groupMatches.value.length > 0) {
         try { await recomputeStats(); } catch(e) { console.warn('recomputeStats error:', e); }
+        try { await repairMatchPlayerIds(); } catch(e) {}
       }
     };
 
@@ -6091,8 +6093,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           toasts.value = toasts.value.filter(t => t.type !== 'info');
           toast(`✅ Sincronizzato! ${syncedGroups} gruppi, ${syncedPlayers} giocatori, ${syncedMatches} partite`, 'success', 5000);
           await loadGroupData();
-          // Use nextTick to ensure Vue has processed all reactivity before navigating
-          await new Promise(r => setTimeout(r, 100));
+          _syncNavigated = true;
           currentView.value = 'home';
         } else {
           toast('⚠️ Nessun dato trovato nel cloud', 'error', 4000);
@@ -7335,6 +7336,44 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
     };
 
+    
+    // ── One-time repair: remap stale player IDs in existing matches ──
+    const repairMatchPlayerIds = async () => {
+      if (!currentGroup.value) return;
+      const gid = currentGroup.value.id;
+      const players = await db.players.where('groupId').equals(gid).toArray();
+      const matches = await db.matches.where('groupId').equals(gid).toArray();
+      let fixed = 0;
+      for (const m of matches) {
+        let changed = false;
+        const newStats = (m.statisticheGiocatori||[]).map(s => {
+          // If this playerId exists in current players, keep it
+          const exists = players.find(p => p.id === s.playerId);
+          if (exists) return s;
+          // Otherwise try to find by uid or by index position
+          // The playerId might be a stale number - try to match by position in the squad
+          const allPids = [...(m.squadraA||[]), ...(m.squadraB||[])];
+          const validPid = allPids.find(pid => players.find(p => p.id === pid) && pid === s.playerId);
+          if (validPid) return s;
+          changed = true;
+          return null; // will be filtered out
+        }).filter(Boolean);
+        
+        const newA = (m.squadraA||[]).filter(pid => players.find(p => p.id === pid));
+        const newB = (m.squadraB||[]).filter(pid => players.find(p => p.id === pid));
+        
+        if (changed || newA.length !== (m.squadraA||[]).length || newB.length !== (m.squadraB||[]).length) {
+          await db.matches.update(m.id, {
+            statisticheGiocatori: newStats,
+            squadraA: newA,
+            squadraB: newB
+          });
+          fixed++;
+        }
+      }
+      if (fixed > 0) console.log(`[AmiciFC] Repaired ${fixed} matches with stale player IDs`);
+    };
+
         onMounted(async () => {
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -7384,8 +7423,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
             // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
-      // Only redirect to onboarding if no groups AND not already navigated away
-      if (groups.value.length === 0 && currentView.value !== 'home') {
+      // Only go to onboarding if no groups AND sync hasn't already navigated away
+      if (groups.value.length === 0 && !_syncNavigated) {
         currentView.value = 'onboarding';
       }
 
