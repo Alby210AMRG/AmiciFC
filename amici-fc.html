@@ -1521,6 +1521,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             {{ syncLoading ? '⏳' : '☁️ Connetti' }}
           </button>
         </div>
+        <!-- Login fields shown when DB requires auth -->
+        <div v-if="showOnboardingLogin" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:12px;background:rgba(255,211,61,0.08);border:1px solid rgba(255,211,61,0.3);border-radius:10px">
+          <div style="font-size:0.8rem;color:var(--yellow);font-weight:700">🔐 Database protetto — accedi per continuare</div>
+          <input class="input-field" v-model="fbLoginEmail" placeholder="Email Firebase" type="email">
+          <input class="input-field" v-model="fbLoginPwd" type="password" placeholder="Password">
+          <button class="btn btn-primary" @click="firebaseLoginThenSync" :disabled="fbAuthLoading||syncLoading">
+            {{ fbAuthLoading ? '⏳ Login...' : '🔑 Accedi e Sincronizza' }}
+          </button>
+        </div>
       </div>
 
     </template>
@@ -3102,10 +3111,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="margin-top:6px"><strong style="color:var(--text)">6. Regole Database</strong><br>Realtime Database → Regole → incolla questo:</div>
         <pre v-pre style="background:var(--bg2);border-radius:6px;padding:8px;font-size:0.7rem;color:var(--lime);overflow-x:auto;margin:4px 0">{
   "rules": {
-    ".read": "auth != null",
+    ".read": true,
     ".write": "auth != null"
   }
 }</pre>
+              <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
+                💡 <strong style="color:var(--lime)">.read: true</strong> = tutti possono vedere i dati (consigliato per il gruppo).<br>
+                <strong style="color:var(--yellow)">.write: auth != null</strong> = solo chi ha le credenziali può modificare.
+              </div>
         <div style="margin-top:6px"><strong style="color:var(--text)">7. Aggiungere altri utenti scrittori</strong><br>Authentication → Users → Aggiungi utente → inserisci email e password dell'amico che può modificare</div>
       </div>
       <div class="input-group">
@@ -3712,6 +3725,7 @@ createApp({
     const showMoreMenu      = ref(false);
     const showInstallGuide  = ref(false);
     const showGroupCloud    = ref(false);
+    const showOnboardingLogin = ref(false);
     const showFbHelp        = ref(false);
     const groupCloudUrl     = ref('');
     const groupCloudApiKey  = ref('');
@@ -3854,7 +3868,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.127');
+    const appVersion = ref('1.128');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5989,10 +6003,21 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Sync directly using the provided URL (no group needed yet)
       const base = url.replace(/\/$/, '') + '/amicifc';
       syncLoading.value = true;
-      toast('⏳ Connessione a Firebase...', 'info', 5000);
+      toast('⏳ Connessione a Firebase...', 'info', 8000);
       try {
-        const resp = await fetch(`${base}.json`, { cache: 'no-store' });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        // Try public read first; if 401, try with existing token
+        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+        if (resp.status === 401 && fbIdToken.value) {
+          resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, { cache: 'no-store' });
+        }
+        if (resp.status === 401) {
+          syncLoading.value = false;
+          toast('🔐 Il database richiede il login. Inserisci email e password qui sotto.', 'error', 6000);
+          // Show login fields in onboarding
+          showOnboardingLogin.value = true;
+          return;
+        }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
         const data = await resp.json();
         if (!data || !data.groups) throw new Error('Nessun dato trovato nel cloud');
 
@@ -7232,6 +7257,20 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── Lifecycle ──
 
+    // ── Firebase login then sync (used from onboarding when DB is protected) ──
+    const firebaseLoginThenSync = async () => {
+      fbAuthLoading.value = true;
+      try {
+        await firebaseLogin(); // logs in and sets fbIdToken
+        if (!fbIdToken.value) throw new Error('Login fallito');
+        await syncFromCloudAndGo(); // retry sync with token
+      } catch(e) {
+        toast('❌ ' + e.message, 'error');
+      } finally {
+        fbAuthLoading.value = false;
+      }
+    };
+
     // ── Force SW cache clear and reload ──
     const forceUpdate = async () => {
       if (!confirm('Vuoi forzare l\u2019aggiornamento?\n\nI dati NON vengono cancellati.\nSvuota solo la cache app.')) return;
@@ -7404,7 +7443,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
-      showInstallGuide, forceUpdate,
+      showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction,
       showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp
     };
