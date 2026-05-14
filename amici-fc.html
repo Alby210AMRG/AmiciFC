@@ -2614,6 +2614,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
           <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--yellow)" @click="forceUpdate">⚡ Forza Aggiornamento</button>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:6px;line-height:1.5">
+          💡 <strong>I dati non vengono cancellati.</strong> Svuota solo la cache dell'app.<br>
+          Utile se l'app installata su mobile non si aggiorna automaticamente.
         </div>
       </div>
 
@@ -3849,7 +3854,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.125');
+    const appVersion = ref('1.126');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7190,7 +7195,30 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const loadLogo = () => { logoDataUrl.value = LOGO_EMBEDDED; };
 
     // ── Lifecycle ──
-    onMounted(async () => {
+
+    // ── Force SW cache clear and reload ──
+    const forceUpdate = async () => {
+      if (!confirm('Vuoi forzare l\u2019aggiornamento?\n\nI dati NON vengono cancellati.\nSvuota solo la cache app.')) return;
+      toast('⏳ Aggiornamento in corso...', 'info', 10000);
+      try {
+        // 1. Unregister service workers
+        if ('serviceWorker' in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.unregister()));
+        }
+        // 2. Clear all caches
+        if ('caches' in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+        // 3. Reload fresh
+        window.location.reload(true);
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error');
+      }
+    };
+
+        onMounted(async () => {
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
       document.body.scrollTop = 0;
@@ -7340,7 +7368,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
-      showInstallGuide,
+      showInstallGuide, forceUpdate,
       computeFormationPrediction,
       showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp
     };
