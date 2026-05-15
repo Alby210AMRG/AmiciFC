@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.143');
+    const appVersion = ref('1.144');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5568,9 +5568,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         showEditMatch.value = false;
         editingMatch.value  = null;
         toast('✅ Partita aggiornata', 'success');
-        // Background: recompute stats, reload, sync to Firebase
+        // Sync to Firebase IMMEDIATELY (do not chain after loadGroupData)
+        autoSyncToCloud();
+        // Background UI update
         recomputeStats().catch(console.warn);
-        loadGroupData().then(() => autoSyncToCloud()).catch(console.warn);
+        loadGroupData().catch(console.warn);
       } catch(e) {
         console.error('saveEditMatch error:', e);
         toast('❌ Errore salvataggio: ' + e.message, 'error');
