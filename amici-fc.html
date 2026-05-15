@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.147');
+    const appVersion = ref('1.149');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6911,10 +6911,18 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
 
     const autoSync = async () => {
-      // Use per-group Firebase (settings.firebaseUrl is deprecated/empty)
-      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
-        const token = await getValidToken();
-        if (token) await syncFromCloud();
+      if (!currentGroup.value?.firebaseUrl) return;
+      if (currentGroup.value?.syncOnStartup === false) return;
+      const token = await getValidToken();
+      if (!token) {
+        console.warn('[autoSync] No token');
+        return;
+      }
+      try {
+        await syncFromCloud();
+      } catch(e) {
+        console.warn('[autoSync] Error:', e.message);
+        toast('⚠️ Sync Firebase: ' + e.message, 'error', 5000);
       }
     };
     const firebaseUser    = ref(JSON.parse(localStorage.getItem('amicifc_fb_user') || 'null'));
@@ -7253,7 +7261,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           updateAvailable.value = true;
           toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 8000);
         } else {
-          toast('✅ App già aggiornata (v' + appVersion.value + ')', 'info', 3000);
+          toast('✅ App aggiornata v' + appVersion.value, 'success', 4000);
         }
       } catch (err) {
         console.warn('[AmiciFC] Update check failed:', err);
@@ -7456,6 +7464,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       setTimeout(checkForUpdates, 2000);
       // Auto-sync after 3s if configured
       setTimeout(autoSync, 3000);
+      // Debug: confirm app version on startup
+      setTimeout(() => toast('📱 Amici FC v' + appVersion.value + ' pronto!', 'success', 3000), 500);
     });
 
     // Expose to template
