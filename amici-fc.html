@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.141');
+    const appVersion = ref('1.142');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5788,12 +5788,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── AUTO-SYNC: chiamato dopo ogni salvataggio se Firebase è attivo ──
     const autoSyncToCloud = async () => {
-      if (!currentGroup.value?.firebaseUrl) return;
-      if (!fbIdToken.value) {
-        // Token missing: show brief warning in console but NOT a toast (would be annoying)
-        console.warn('[AutoSync] No token - not synced to Firebase. Login to enable auto-sync.');
-        return;
-      }
+      const _url = currentGroup.value?.firebaseUrl;
+      const _tok = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
+      // Ensure ref is updated from localStorage if needed
+      if (!fbIdToken.value && _tok) fbIdToken.value = _tok;
+      if (!_url) { console.warn('[AutoSync] No Firebase URL'); return; }
+      if (!_tok) { console.warn('[AutoSync] No token — login first'); return; }
       try {
         await syncToCloud();
         // Silent success
@@ -5829,6 +5829,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           });
         };
 
+        // Ensure we have the latest token
+        if (!fbIdToken.value) {
+          const stored = localStorage.getItem('amicifc_fb_token');
+          if (stored) fbIdToken.value = stored;
+        }
         let resp = await doUpload(fbIdToken.value);
 
         // 401 = token expired → try refresh once
@@ -5863,8 +5868,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       syncLoading.value = true;
       try {
         // Try with auth token first, fall back to public read
+        const _token = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
+        if (_token && !fbIdToken.value) fbIdToken.value = _token;
         let resp = await fetch(
-          fbIdToken.value ? `${base}.json?auth=${fbIdToken.value}` : `${base}.json`,
+          _token ? `${base}.json?auth=${_token}` : `${base}.json`,
           { cache: 'no-store' }
         );
         // If public read fails with 401, we can't download without login
@@ -7376,7 +7383,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
 
             // ── Auto-sync on startup ──
-      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false && fbIdToken.value) {
+      const _startupToken = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
+      if (_startupToken && !fbIdToken.value) fbIdToken.value = _startupToken;
+      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false && _startupToken) {
         setTimeout(async () => {
           try {
             await syncFromCloud();
