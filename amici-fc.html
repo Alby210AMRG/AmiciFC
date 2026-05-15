@@ -3164,7 +3164,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="setting-label">🔄 Sincronizza all'avvio</div>
           <div class="setting-sub">Scarica i dati Firebase ogni volta che apri l'app</div>
         </div>
-        <label class="toggle"><input type="checkbox" v-model="groupSyncOnStartup"><span class="slider"></span></label>
+        <label class="toggle"><input type="checkbox" v-model="groupSyncOnStartup"><span class="toggle-slider"></span></label>
       </div>
       <div style="display:flex;gap:10px;margin-top:14px">
         <button class="btn btn-ghost" style="flex:1" @click="showGroupCloud=false">Annulla</button>
@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.138');
+    const appVersion = ref('1.139');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5936,23 +5936,42 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           };
 
           for (const cm of cloudMatches) {
-            // Dedup by data + risultato (senza confrontare squadre che hanno ID diversi)
-            const isDup = localMatches.some(lm =>
+            const remapped = {
+              groupId: gid,
+              squadraA: (cm.squadraA||[]).map(remapId),
+              squadraB: (cm.squadraB||[]).map(remapId),
+              statisticheGiocatori: (cm.statisticheGiocatori||[]).map(s => ({
+                ...s, playerId: remapId(s.playerId)
+              })),
+              risultato: cm.risultato,
+              data: cm.data,
+              nomeSquadraA: cm.nomeSquadraA,
+              nomeSquadraB: cm.nomeSquadraB,
+              notePartita: cm.notePartita,
+              titoloGiornale: cm.titoloGiornale,
+              commentoAI: cm.commentoAI,
+              uomoPartita: cm.uomoPartita,
+              mvp: cm.mvp,
+              orario: cm.orario,
+              luogo: cm.luogo,
+              fotoPartita: cm.fotoPartita,
+              pngFormazione: cm.pngFormazione,
+              pngRisultato: cm.pngRisultato,
+              pngPagelle: cm.pngPagelle,
+              appVersion: cm.appVersion,
+            };
+            // Find existing match by date + score
+            const existing = localMatches.find(lm =>
               lm.data === cm.data &&
               lm.risultato?.goalA === cm.risultato?.goalA &&
               lm.risultato?.goalB === cm.risultato?.goalB
             );
-            if (!isDup) {
-              const { id: _id, groupId: _gid, ...mRest } = cm;
-              await db.matches.add({
-                ...mRest,
-                groupId: gid,
-                squadraA: (mRest.squadraA||[]).map(remapId),
-                squadraB: (mRest.squadraB||[]).map(remapId),
-                statisticheGiocatori: (mRest.statisticheGiocatori||[]).map(s => ({
-                  ...s, playerId: remapId(s.playerId)
-                }))
-              });
+            if (existing) {
+              // UPDATE existing match with all cloud data (including updated voti)
+              await db.matches.update(existing.id, remapped);
+            } else {
+              // NEW match — insert
+              await db.matches.add(remapped);
               syncedMatches++;
             }
           }
