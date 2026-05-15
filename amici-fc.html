@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.145');
+    const appVersion = ref('1.146');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6028,6 +6028,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
         toast(`☁️ Sync completata: ${syncedPlayers} gioc., ${syncedMatches} nuove partite, aggiornamenti applicati`);
+        // Refresh Vue reactive state so UI shows updated data
+        await loadGroupData();
+        await recomputeStats();
         // Pre-resolve all photos after sync
         groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
       } catch (e) {
@@ -7411,6 +7414,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           if (_startupToken) {
             await syncFromCloud();
             console.log('[Startup sync] ✅ OK');
+          } else {
+            console.warn('[Startup sync] No valid token - skipped');
           }
         } catch(e) {
           console.warn('[Startup sync] ❌', e.message);
@@ -7435,7 +7440,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js?v=1114', { scope: './' });
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1145', { scope: './' });
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
