@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.146');
+    const appVersion = ref('1.147');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6911,8 +6911,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
 
     const autoSync = async () => {
-      if (settings.value.syncEnabled && settings.value.firebaseUrl) {
-        await syncFromCloud();
+      // Use per-group Firebase (settings.firebaseUrl is deprecated/empty)
+      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
+        const token = await getValidToken();
+        if (token) await syncFromCloud();
       }
     };
     const firebaseUser    = ref(JSON.parse(localStorage.getItem('amicifc_fb_user') || 'null'));
@@ -7407,20 +7409,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         console.log('[AmiciFC] Migrated Firebase URL to group:', currentGroup.value?.nome);
       }
 
-            // ── Auto-sync on startup ──
-      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
-        try {
-          const _startupToken = await getValidToken();
-          if (_startupToken) {
-            await syncFromCloud();
-            console.log('[Startup sync] ✅ OK');
-          } else {
-            console.warn('[Startup sync] No valid token - skipped');
-          }
-        } catch(e) {
-          console.warn('[Startup sync] ❌', e.message);
-        }
-      }
+            // ── Auto-sync on startup: handled by setTimeout(autoSync, 3000) below ──
 
             // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
