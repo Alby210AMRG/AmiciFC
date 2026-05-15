@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.151');
+    const appVersion = ref('1.152');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6911,17 +6911,23 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
 
     const autoSync = async () => {
-      if (!currentGroup.value?.firebaseUrl) return;
-      if (currentGroup.value?.syncOnStartup === false) return;
+      if (!currentGroup.value?.firebaseUrl) {
+        // No Firebase configured for this group
+        return;
+      }
+      if (currentGroup.value?.syncOnStartup === false) {
+        toast('☁️ Sync avvio: disattivato', 'info', 3000);
+        return;
+      }
       const token = await getValidToken();
       if (!token) {
-        console.warn('[autoSync] No token');
+        toast('🔐 Sync Firebase: nessun token — fai login dal pulsante ☁️', 'error', 6000);
         return;
       }
       try {
         await syncFromCloud();
+        // syncFromCloud shows its own toast on success
       } catch(e) {
-        console.warn('[autoSync] Error:', e.message);
         toast('⚠️ Sync Firebase: ' + e.message, 'error', 5000);
       }
     };
@@ -7241,9 +7247,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     // ── Update Check ──
     const checkForUpdates = async () => {
       try {
-        // Fetch sempre dalla rete, mai cache
         const resp = await fetch('./version.json?nocache=' + Date.now(), { cache: 'no-store' });
-        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        if (!resp.ok) { toast('⚠️ Controllo versione: HTTP ' + resp.status, 'error', 5000); return; }
         const data = await resp.json();
         if (!data.version) return;
         // Always update date from version.json
@@ -7261,9 +7266,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           updateAvailable.value = true;
           toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 8000);
         } else {
-          toast('✅ App aggiornata v' + appVersion.value, 'success', 4000);
+          toast('✅ App aggiornata v' + appVersion.value, 'success', 6000);
         }
       } catch (err) {
+        toast('⚠️ Controllo versione fallito: ' + err.message, 'error', 5000);
         console.warn('[AmiciFC] Update check failed:', err);
         toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
       }
