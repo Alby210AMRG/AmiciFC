@@ -1,5 +1,5 @@
-// Amici FC Service Worker v1135
-const CACHE = 'amicifc-v1135';
+// Amici FC Service Worker v1149
+const CACHE = 'amicifc-v1149';
 const ASSETS = [
   './',
   './amici-fc.html',
@@ -10,11 +10,8 @@ self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(async c => {
       for (const url of ASSETS) {
-        try {
-          await c.add(url);
-        } catch(err) {
-          console.warn('[SW] Failed to cache:', url, err.message);
-        }
+        try { await c.add(url); }
+        catch(err) { console.warn('[SW] Failed to cache:', url, err.message); }
       }
     }).then(() => self.skipWaiting())
   );
@@ -22,20 +19,16 @@ self.addEventListener('install', e => {
 
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
-  // Skip non-http requests (chrome-extension://, etc.)
   if (!e.request.url.startsWith('http')) return;
-  
   const url = new URL(e.request.url);
-  
-  // Network-first for version.json
   if (url.pathname.endsWith('version.json')) {
     e.respondWith(
       fetch(e.request)
@@ -50,8 +43,6 @@ self.addEventListener('fetch', e => {
     );
     return;
   }
-  
-  // Cache-first for everything else
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
@@ -62,9 +53,7 @@ self.addEventListener('fetch', e => {
         }
         return r;
       }).catch(() => {
-        if (e.request.mode === 'navigate') {
-          return caches.match('./amici-fc.html');
-        }
+        if (e.request.mode === 'navigate') return caches.match('./amici-fc.html');
         return new Response('Offline', { status: 503 });
       });
     })
