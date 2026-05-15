@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.153');
+    const appVersion = ref('1.154');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6030,7 +6030,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         await recomputeStats();
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
-        toast(`☁️ Sync completata: ${syncedPlayers} gioc., ${syncedMatches} nuove partite, aggiornamenti applicati`);
+        toast(`☁️ Sync Firebase: ${syncedPlayers} gioc., ${syncedMatches} partite aggiornate`, 'success', 8000);
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
@@ -7269,7 +7269,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           updateAvailable.value = true;
           toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 12000);
         } else {
-          toast('✅ App aggiornata v' + appVersion.value, 'success', 10000);
+          toast('✅ App aggiornata v' + appVersion.value, 'success', 8000);
         }
       } catch (err) {
         toast('⚠️ Controllo versione fallito: ' + err.message, 'error', 5000);
@@ -7380,6 +7380,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
         onMounted(async () => {
+      // Schedule all startup checks IMMEDIATELY (before any await)
+      // This ensures they fire 2s/3s from app open, not from end of onMounted
+      setTimeout(checkForUpdates, 2000);
+      setTimeout(autoSync, 3000);
+
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
       document.body.scrollTop = 0;
@@ -7446,7 +7451,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js?v=1149', { scope: './' });
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1153', { scope: './' });
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
@@ -7469,11 +7474,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         } catch(e) { console.warn('[AmiciFC] SW failed:', e); }
       }
 
-            // Check updates after 5s (give time to user to see)
-      setTimeout(checkForUpdates, 5000);
-      // Auto-sync after 6s if configured
-      setTimeout(autoSync, 6000);
-    });
+          });
 
     // Expose to template
     return {
