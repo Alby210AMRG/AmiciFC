@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.139');
+    const appVersion = ref('1.140');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5788,13 +5788,19 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── AUTO-SYNC: chiamato dopo ogni salvataggio se Firebase è attivo ──
     const autoSyncToCloud = async () => {
-      // Solo se Firebase configurato nel gruppo corrente E utente loggato
-      if (!currentGroup.value?.firebaseUrl || !fbIdToken.value) return;
+      if (!currentGroup.value?.firebaseUrl) return;
+      if (!fbIdToken.value) {
+        // Token missing: show brief warning in console but NOT a toast (would be annoying)
+        console.warn('[AutoSync] No token - not synced to Firebase. Login to enable auto-sync.');
+        return;
+      }
       try {
         await syncToCloud();
-        // Sync silenzioso: nessun toast (l'utente non deve essere disturbato)
+        // Silent success
+        console.log('[AutoSync] ✅ Synced to Firebase at', new Date().toLocaleTimeString('it-IT'));
       } catch(e) {
-        console.warn('[AutoSync] Errore sync Firebase:', e.message);
+        console.warn('[AutoSync] ❌ Error:', e.message);
+        toast('⚠️ Sync Firebase fallito: ' + e.message, 'error', 4000);
       }
     };
 
@@ -5969,6 +5975,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             if (existing) {
               // UPDATE existing match with all cloud data (including updated voti)
               await db.matches.update(existing.id, remapped);
+              syncedMatches++; // count updates too
             } else {
               // NEW match — insert
               await db.matches.add(remapped);
@@ -5983,7 +5990,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         await recomputeStats();
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
-        toast(`☁️ Sync completata: ${syncedPlayers} nuovi giocatori, ${syncedMatches} nuove partite`);
+        toast(`☁️ Sync completata: ${syncedPlayers} gioc., ${syncedMatches} nuove partite, aggiornamenti applicati`);
         // Pre-resolve all photos after sync
         groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
       } catch (e) {
