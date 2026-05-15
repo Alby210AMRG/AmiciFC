@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.150');
+    const appVersion = ref('1.151');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7371,6 +7371,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
         onMounted(async () => {
+      // Immediate toast to confirm app version (before any await)
+      setTimeout(() => toast('📱 v' + appVersion.value, 'success', 5000), 100);
+      
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
       document.body.scrollTop = 0;
@@ -7464,8 +7467,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       setTimeout(checkForUpdates, 2000);
       // Auto-sync after 3s if configured
       setTimeout(autoSync, 3000);
-      // Debug: confirm app version on startup
-      setTimeout(() => toast('📱 Amici FC v' + appVersion.value + ' pronto!', 'success', 3000), 500);
     });
 
     // Expose to template
