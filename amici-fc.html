@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.140');
+    const appVersion = ref('1.141');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5862,7 +5862,15 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
       syncLoading.value = true;
       try {
-        const resp = await fetch(`${base}.json`, { cache: 'no-store' });
+        // Try with auth token first, fall back to public read
+        let resp = await fetch(
+          fbIdToken.value ? `${base}.json?auth=${fbIdToken.value}` : `${base}.json`,
+          { cache: 'no-store' }
+        );
+        // If public read fails with 401, we can't download without login
+        if (resp.status === 401 && !fbIdToken.value) {
+          throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
+        }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
         if (!data || !data.groups) throw new Error('Nessun dato trovato nel cloud');
@@ -7369,7 +7377,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
             // ── Auto-sync on startup ──
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false && fbIdToken.value) {
-        setTimeout(() => syncFromCloud().catch(e => console.warn('[Startup sync]', e.message)), 1500);
+        setTimeout(async () => {
+          try {
+            await syncFromCloud();
+            console.log('[Startup sync] ✅ OK');
+          } catch(e) {
+            console.warn('[Startup sync] ❌', e.message);
+          }
+        }, 1500);
       }
 
             // DB caricato: attiva il watch e controlla se serve onboarding
