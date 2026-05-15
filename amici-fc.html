@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.142');
+    const appVersion = ref('1.143');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5787,13 +5787,36 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // ── AUTO-SYNC: chiamato dopo ogni salvataggio se Firebase è attivo ──
-    const autoSyncToCloud = async () => {
+    // ── Auto-refresh Firebase token using refresh token ──
+    
+
+    // ── Get valid token (refresh if expired) ──
+    const getValidToken = async () => {
+      // Try stored token first
+      let token = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
+      if (token) {
+        // Test if token is still valid by checking expiry
+        // Firebase tokens are JWTs - decode payload to check exp
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          const expiry = payload.exp * 1000; // ms
+          if (Date.now() < expiry - 60000) { // valid for more than 1 min
+            fbIdToken.value = token;
+            return token;
+          }
+        } catch(e) { /* invalid JWT, try refresh */ }
+        // Token expired or invalid — try refresh
+        console.log('[Firebase] Token expired, refreshing...');
+      }
+      const ok = await refreshFirebaseToken();
+      return ok ? fbIdToken.value : '';
+    };
+
+        const autoSyncToCloud = async () => {
       const _url = currentGroup.value?.firebaseUrl;
-      const _tok = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
-      // Ensure ref is updated from localStorage if needed
-      if (!fbIdToken.value && _tok) fbIdToken.value = _tok;
-      if (!_url) { console.warn('[AutoSync] No Firebase URL'); return; }
-      if (!_tok) { console.warn('[AutoSync] No token — login first'); return; }
+      if (!_url) return;
+      const _tok = await getValidToken();
+      if (!_tok) { console.warn('[AutoSync] No valid token — login first'); return; }
       try {
         await syncToCloud();
         // Silent success
@@ -5829,12 +5852,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           });
         };
 
-        // Ensure we have the latest token
-        if (!fbIdToken.value) {
-          const stored = localStorage.getItem('amicifc_fb_token');
-          if (stored) fbIdToken.value = stored;
-        }
-        let resp = await doUpload(fbIdToken.value);
+        // Ensure valid token (auto-refresh if expired)
+        const _uploadToken = await getValidToken();
+        if (!_uploadToken) throw new Error('Token non valido. Effettua il login.');
+        let resp = await doUpload(_uploadToken);
 
         // 401 = token expired → try refresh once
         if (resp.status === 401) {
@@ -5868,8 +5889,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       syncLoading.value = true;
       try {
         // Try with auth token first, fall back to public read
-        const _token = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
-        if (_token && !fbIdToken.value) fbIdToken.value = _token;
+        const _token = await getValidToken();
         let resp = await fetch(
           _token ? `${base}.json?auth=${_token}` : `${base}.json`,
           { cache: 'no-store' }
@@ -7383,9 +7403,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
 
             // ── Auto-sync on startup ──
-      const _startupToken = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
-      if (_startupToken && !fbIdToken.value) fbIdToken.value = _startupToken;
-      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false && _startupToken) {
+      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
+        const _startupToken = await getValidToken();
+        if (_startupToken) {
         setTimeout(async () => {
           try {
             await syncFromCloud();
@@ -7394,6 +7414,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
             console.warn('[Startup sync] ❌', e.message);
           }
         }, 1500);
+        }
       }
 
             // DB caricato: attiva il watch e controlla se serve onboarding
@@ -7495,7 +7516,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction,
-      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup
+      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken
     };
   }
 }).mount('#app');
