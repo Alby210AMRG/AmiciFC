@@ -3159,6 +3159,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-if="currentGroup.firebaseUrl" style="margin:12px 0;padding:10px;background:rgba(166,255,77,0.08);border:1px solid rgba(166,255,77,0.2);border-radius:10px;font-size:0.78rem;color:var(--text2)">
         ✅ DB configurato: <span style="color:var(--lime);font-weight:700">{{ currentGroup.firebaseUrl }}</span>
       </div>
+      <div class="setting-row" style="margin:10px 0;padding:10px;background:var(--bg3);border-radius:10px">
+        <div>
+          <div class="setting-label">🔄 Sincronizza all'avvio</div>
+          <div class="setting-sub">Scarica i dati Firebase ogni volta che apri l'app</div>
+        </div>
+        <label class="toggle"><input type="checkbox" v-model="groupSyncOnStartup"><span class="slider"></span></label>
+      </div>
       <div style="display:flex;gap:10px;margin-top:14px">
         <button class="btn btn-ghost" style="flex:1" @click="showGroupCloud=false">Annulla</button>
         <button class="btn btn-primary" style="flex:2" @click="saveGroupCloud">💾 Salva Configurazione</button>
@@ -3752,6 +3759,7 @@ createApp({
     const showMoreMenu      = ref(false);
     const showInstallGuide  = ref(false);
     const showGroupCloud    = ref(false);
+    const groupSyncOnStartup  = ref(true);
     const showOnboardingLogin = ref(false);
     const showFbHelp        = ref(false);
     const groupCloudUrl     = ref('');
@@ -3894,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.136');
+    const appVersion = ref('1.138');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4109,7 +4117,7 @@ createApp({
     const createGroup = async () => {
       const n = newGroupName.value.trim();
       if (!n) return;
-      const id = await db.groups.add({ nome: n });
+      const id = await db.groups.add({ nome: n, firebaseUrl:'', firebaseApiKey:'', stagione:'Stagione 1', archivioStagioni:[], syncOnStartup:true });
       await loadGroups();
       const g = groups.value.find(x => x.id === id);
       if (g) await selectGroup(g);
@@ -5556,12 +5564,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         if (!updated) {
           await db.matches.put({ ...m });
         }
-        await recomputeStats();
-        await loadGroupData();
+        // Show feedback immediately
         showEditMatch.value = false;
         editingMatch.value  = null;
         toast('✅ Partita aggiornata', 'success');
-        autoSyncToCloud();
+        // Background: recompute stats, reload, sync to Firebase
+        recomputeStats().catch(console.warn);
+        loadGroupData().then(() => autoSyncToCloud()).catch(console.warn);
       } catch(e) {
         console.error('saveEditMatch error:', e);
         toast('❌ Errore salvataggio: ' + e.message, 'error');
@@ -5643,8 +5652,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const fresh = await db.groups.get(currentGroup.value.id);
         if (fresh) currentGroup.value = fresh;
       }
-      groupCloudUrl.value    = currentGroup.value?.firebaseUrl    || '';
-      groupCloudApiKey.value = currentGroup.value?.firebaseApiKey || '';
+      groupCloudUrl.value       = currentGroup.value?.firebaseUrl    || '';
+      groupCloudApiKey.value    = currentGroup.value?.firebaseApiKey || '';
+      groupSyncOnStartup.value  = currentGroup.value?.syncOnStartup !== false; // default true
       showFbHelp.value = false;
       showGroupCloud.value   = true;
     };
@@ -5667,6 +5677,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       await db.groups.update(currentGroup.value.id, {
         firebaseUrl: url,
         firebaseApiKey: groupCloudApiKey.value.trim(),
+        syncOnStartup: groupSyncOnStartup.value,
       });
       await loadGroups();
       showGroupCloud.value = false;
@@ -7330,6 +7341,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         console.log('[AmiciFC] Migrated Firebase URL to group:', currentGroup.value?.nome);
       }
 
+            // ── Auto-sync on startup ──
+      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false && fbIdToken.value) {
+        setTimeout(() => syncFromCloud().catch(e => console.warn('[Startup sync]', e.message)), 1500);
+      }
+
             // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
       // Navigation handled by watch(groups) below - don't override sync navigation
@@ -7429,7 +7445,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction,
-      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp
+      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup
     };
   }
 }).mount('#app');
