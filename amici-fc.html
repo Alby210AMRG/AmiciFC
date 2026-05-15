@@ -3902,7 +3902,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.144');
+    const appVersion = ref('1.145');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7406,16 +7406,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
             // ── Auto-sync on startup ──
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
-        const _startupToken = await getValidToken();
-        if (_startupToken) {
-        setTimeout(async () => {
-          try {
+        try {
+          const _startupToken = await getValidToken();
+          if (_startupToken) {
             await syncFromCloud();
             console.log('[Startup sync] ✅ OK');
-          } catch(e) {
-            console.warn('[Startup sync] ❌', e.message);
           }
-        }, 1500);
+        } catch(e) {
+          console.warn('[Startup sync] ❌', e.message);
         }
       }
 
