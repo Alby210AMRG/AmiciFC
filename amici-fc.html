@@ -2274,8 +2274,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🥇 Migliori in Campo</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
-              Come si calcola l'<strong style="color:var(--lime)">Overall</strong>? Punteggio composito per partita (min. 2 presenze):<br>
-              🏆 <strong>Media punti ×10</strong> · ⚽ <strong>Gol/partita ×8</strong> · 🅰️ <strong>Assist/partita ×4</strong> · 🏅 <strong>Uomo partita/g ×10</strong> · 🧤 <strong>Clean Sheet/g ×8</strong> (solo portieri) · ⭐ <strong>Voto medio ×2</strong> · ❌ <strong>Autogol/g −6</strong> · 📅 <strong>Costanza +max5</strong> (bonus presenze sul totale partite, min. 3 giocate)
+              Come si calcola l'<strong style="color:var(--lime)">Overall</strong>? Punteggio composito per partita (min. 25% delle partite del gruppo, almeno 2):<br>
+              🏆 <strong>Media punti ×10</strong> · ⚽ <strong>Gol/partita ×8</strong> · 🅰️ <strong>Assist/partita ×4</strong> · 🏅 <strong>Uomo partita/g ×10</strong> · 🧤 <strong>Clean Sheet/g ×8</strong> (solo portieri) · ⭐ <strong>Voto medio ×2</strong> · ❌ <strong>Autogol/g −6</strong> · 📅 <strong>Costanza +5</strong> (bonus ai giocatori nei top-3 livelli di presenze del gruppo)
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
             <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row">
@@ -3696,7 +3696,14 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
-      { version:'v1.124', date:'2026-05-14', items:[
+      { version:'v1.154', date:'2026-05-15', items:[
+        '🔧 FIX: Timer versione e sync all’avvio schedulati all’inizio (visibili dopo 2-3s)',
+        '🔧 FIX: Token Firebase auto-rinnovato con refresh token (no più login ogni ora)',
+        '🔧 FIX: Sync Firebase usa sempre token valido per operazioni automatiche',
+        '🔧 FIX: Salva Modifiche partita carica su Firebase immediatamente',
+        '🆕 Sincronizza all’avvio attivabile per gruppo dal pulsante ☁️',
+      ]},
+            { version:'v1.124', date:'2026-05-14', items:[
         '🔧 FIX: Foto Drive visibili nelle grafiche statistiche (crossOrigin corretto)',
         '🔧 FIX: Jolly ora competono per punteggio su qualsiasi slot di formazione',
         '🔧 FIX: Condivisione statistiche genera immagine anche con foto esterne',
@@ -3902,7 +3909,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.154');
+    const appVersion = ref('1.155');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -3972,7 +3979,7 @@ createApp({
 
     // Media punti per partita (min 2 partite)
     const topAvgPoints = computed(() =>
-      [...groupPlayers.value].filter(p => (p.partiteTotali||0) >= 2)
+      [...groupPlayers.value].filter(p => { const minP = Math.max(2, Math.floor((groupMatches.value.length||0) * 0.25)); return (p.partiteTotali||0) >= minP; })
         .sort((a,b) => (b.mediaPunti||0)-(a.mediaPunti||0)).slice(0,12)
     );
 
@@ -3998,8 +4005,13 @@ createApp({
       // Costanza: bonus proporzionale alle presenze sul totale partite del gruppo
       // Max +5 punti per chi ha giocato tutte le partite, scalato linearmente
       // Min 3 partite per ricevere bonus costanza
-      const presenzaRatio = n / totalMatches;
-      const costanzaBonus = n >= 3 ? presenzaRatio * 5 : 0;
+      // FIX5: Costanza bonus - top 3 LEVELS of presence get bonus
+      // Find the 3 unique highest presence counts among all players
+      const allPresenze = [...new Set(groupPlayers.value.map(x => x.partiteTotali||0))].sort((a,b)=>b-a);
+      const top3Levels = allPresenze.slice(0,3); // e.g. [16,15,14]
+      // If player's presence == one of top3 levels → full bonus (5)
+      // Else → no bonus
+      const costanzaBonus = top3Levels.includes(n) ? 5 : 0;
       return (
         (p.mediaPunti||0) * 10 +
         (p.goalTotali||0) / n * 8 +
@@ -4014,7 +4026,7 @@ createApp({
 
     const topOverall = computed(() =>
       [...groupPlayers.value]
-        .filter(p => (p.partiteTotali||0) >= 2)
+        .filter(p => { const minP = Math.max(2, Math.floor((groupMatches.value.length||0) * 0.25)); return (p.partiteTotali||0) >= minP; })
         .map(p => ({ ...p, _score: overallScore(p), _cs: calcCleanSheets(p.id) }))
         .sort((a,b) => b._score - a._score)
         .slice(0, 12)
@@ -6470,20 +6482,36 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           const negScore=f.p*3-f.gol;
           if (negScore>coldScore&&f.p>=2){coldScore=negScore;coldPid=pid;}
         }
-        if (hotPid) {
+        // FIX: require that LAST match was a win to be "hot"
+        const lastMatch = last5[0]; // most recent (already sorted desc)
+        const lastSqA = new Set(lastMatch?.squadraA||[]);
+        const lastGa = lastMatch?.risultato?.goalA||0, lastGb = lastMatch?.risultato?.goalB||0;
+        const playerWonLast = (pid) => {
+          const inA = lastSqA.has(Number(pid)||pid);
+          return (inA && lastGa>lastGb) || (!inA && lastGb>lastGa);
+        };
+        if (hotPid && playerWonLast(hotPid)) {
           const p=players.find(x=>x.id==hotPid);
           const f=formMap[hotPid];
           const nome=p?.soprannome||p?.nome||'?';
-          const winStr=f.v>0?`${f.v}V`:f.x>0?`${f.x}P`:'';
-          items.push({emoji:'🔥',text:`FORMA DEL MOMENTO: ${nome} è INFUOCATO! ${winStr} nelle ultime partite con ${f.gol} gol. Chi lo ferma?`});
+          const winStr=f.v>0?`${f.v} vittorie`:f.x>0?`${f.x} pareggi`:'';
+          items.push({emoji:'🔥',text:`FORMA DEL MOMENTO: ${nome} è INFUOCATO! ${winStr} nelle ultime partite${f.gol>0?' con '+f.gol+' gol':''}. Chi lo ferma?`});
         }
         if (coldPid&&coldPid!==hotPid) {
           const p=players.find(x=>x.id==coldPid);
           const f=formMap[coldPid];
           const nome=p?.soprannome||p?.nome||'?';
-          items.push({emoji:'🧊',text:`MOMENTO NO: ${nome} sta attraversando un periodo difficile (${f.p} sconfitte nelle ultime partite). La rivincita è vicina!`});
+          items.push({emoji:'🧊',text:`MOMENTO NO: ${nome} attraversa un periodo difficile — ${f.p} sconfitte nelle ultime partite. Coraggio!`});
         }
-      }
+        // FIX 2: SFORTUNA - chi non vince nelle ultime 5 (0 vittorie)
+        const sfOrtunaList = Object.entries(formMap)
+          .filter(([pid,f]) => f.v===0 && f.p>=3 && pid!==coldPid)
+          .map(([pid,f]) => ({pid,f}));
+        if (sfOrtunaList.length>0) {
+          const pick = sfOrtunaList[Math.floor(Date.now()/3600000)%sfOrtunaList.length];
+          const p=players.find(x=>x.id==pick.pid);
+          if(p) items.push({emoji:'😤',text:`SFORTUNA NERA: ${p.soprannome||p.nome} non vince da ${pick.f.p+pick.f.x} partite. Qualcuno rompa il sortilegio!`});
+        }     }
 
       // ── 🎲 FRASI MOTIVAZIONALI PERSONALIZZATE ──
       if (players.length > 0 && matches.length > 0) {
