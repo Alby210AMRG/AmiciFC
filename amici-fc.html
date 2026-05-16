@@ -3899,7 +3899,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.171');
+    const appVersion = ref('1.172');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4342,7 +4342,30 @@ createApp({
       const nonGK=dst2.findIndex(id=>!gkIds.includes(id));
       if(gkS&&nonGK>=0){const sw=dst2[nonGK];dst2[nonGK]=gkS;src2[src2.indexOf(gkS)]=sw;}
     };
-    const statsScore = p=>(p.puntiTotali||0)*2+(p.goalTotali||0)+(p.assistTotali||0)*0.5+(p.mediaVoto||6)*0.8+(p.uomoPartitaTotali||0)*3;
+    // ── Form modifier based on last 5 matches ──
+    const calcPlayerForm = (pid) => {
+      const sorted = [...groupMatches.value]
+        .sort((a,b) => b.data.localeCompare(a.data));
+      let played = 0, score = 0;
+      for (const m of sorted) {
+        const inA = (m.squadraA||[]).includes(pid);
+        const inB = (m.squadraB||[]).includes(pid);
+        if (!inA && !inB) continue;
+        const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
+        const won = (inA && gA>gB) || (inB && gB>gA);
+        const draw = gA===gB;
+        score += won ? 1 : draw ? 0 : -0.5;
+        if (++played >= 5) break;
+      }
+      // Normalize: 5 wins = +2, 5 losses = -2.5→cap at -2
+      return played > 0 ? Math.max(-2, Math.min(2, score * (2/Math.max(played,1)))) : 0;
+    };
+
+        const statsScore = p => {
+      const base = (p.mediaPunti||0)*10 + (p.goalTotali||0)*0.8 + (p.assistTotali||0)*0.5 + (p.mediaVoto||6)*0.8 + (p.uomoPartitaTotali||0)*3;
+      const form = calcPlayerForm(p.id) * 1.5; // form modifier: -3 to +3
+      return base + form;
+    };
     const buildFormationBase = ()=>({groupId:currentGroup.value.id,dataCreazione:new Date().toISOString().slice(0,10),matchData:matchInfo.value.data,matchOrario:matchInfo.value.orario,matchLuogo:matchInfo.value.luogo,stato:'proposta'});
     const AI_FORMATION_NAMES=['La Remontada dei Poveri 🔥','Piano Panino 🥪','Stile Oratorio 2.0 ⛪','La Banda del Buco 🕳️','Tiki-Taka col Kebab 🫔','Pressing Alto sui Tramezzini 🥪','Il Catenaccio Liquido 🔐','La Zona Mista (di Pizza) 🍕','Gegenpressing da Bar 🍺','Il Falso Nueve (e gli Otto Veri) 😂','La Filosofia del Portiere Che Attacca 🥅','Ultra-Offensiva con Difesa Speranza 🤞','Il Rombo della Malinconia 💎','Total Football (Budget Limitato) 💸','La Sorpresa della Nonna 👵'];
     const usedFormationNames=ref([]);
@@ -4375,10 +4398,16 @@ createApp({
         goal: p.goalTotali || 0,
         assist: p.assistTotali || 0,
         voto: Number((p.mediaVoto||6).toFixed(1)),
-        puntiMedi: Number((p.mediaPunti||0).toFixed(2)),
-        puntiTot: p.puntiTotali || 0,
-        partite: p.partiteTotali || 0,
-        desc: p.descrizione || ''
+        mediaPunti: Number((p.mediaPunti||0).toFixed(2)),
+        forma: (() => {
+          const f = calcPlayerForm(p.id);
+          if (f >= 1.5) return '🔥 Ottima (vince spesso)';
+          if (f >= 0.5) return '✅ Buona';
+          if (f >= -0.5) return '😐 Nella media';
+          if (f >= -1.5) return '❄️ Bassa (perde spesso)';
+          return '😤 Pessima (non vince da molte partite)';
+        })(),
+        scoreForma: Number((statsScore(p)).toFixed(1))
       }));
 
       const prompt = `Sei un allenatore di calcetto a 5vs5. Hai questi ${players.length} giocatori disponibili per la partita di stasera:
@@ -4525,15 +4554,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
         sortedRem = [...remaining].sort(() => Math.random() - 0.5);
       }
 
-      // Distribute remaining alternately, keeping equal sizes
-      sortedRem.forEach(p => {
-        if (a.length < halfA) a.push(p.id);
+      // Snake draft: alternating picks for maximum balance
+      // 1→A, 2→B, 3→B, 4→A, 5→A, 6→B ... (snake pattern)
+      sortedRem.forEach((p, idx) => {
+        const round = Math.floor(idx / 2);
+        const pickA = round % 2 === 0 ? idx % 2 === 0 : idx % 2 === 1;
+        if (pickA && a.length < halfA) a.push(p.id);
         else b.push(p.id);
       });
-
-      // Final balance check
-      while (a.length > halfA + 1 && b.length < half) { b.push(a.pop()); }
-      while (b.length > half + 1 && a.length < halfA) { a.push(b.pop()); }
+      // Safety: fix sizes
+      while (a.length > halfA) { b.push(a.pop()); }
+      while (b.length > half + 1) { a.push(b.pop()); }
 
       return { a: sortByRole(a), b: sortByRole(b) };
     };
@@ -4547,7 +4578,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
       usedFormationNames.value=ex.map(f=>f.nome);
       const players=selectedForMatch.value.map(id=>getPlayer(id)).filter(Boolean);
 
-      const strategies = ['score','role','random'];
+      // First formation: always score+form (most balanced)
+      // Second: role-aware balance, Third: slight variation
+      const strategies = ['score','score','role'];
       for(let i=0;i<toGen;i++){
         const {a,b} = buildBalancedTeams(players, strategies[i % strategies.length]);
         const ni=i%TEAM_NAMES_A.length;
