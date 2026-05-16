@@ -1758,21 +1758,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <div style="flex:1;text-align:center">
               <div style="font-size:0.72rem;color:#7ab0ff;font-weight:700">{{ f.nomeSquadraA||'Squadra A' }}</div>
-              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ computeFormationPrediction(f).quoteA }}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteA }}</div>
               <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
             </div>
             <div style="text-align:center;padding:0 4px">
-              <div style="font-size:0.75rem;font-weight:900;color:var(--yellow)">{{ computeFormationPrediction(f).quoteX }}</div>
+              <div style="font-size:0.75rem;font-weight:900;color:var(--yellow)">{{ getCachedPrediction(f)?.quoteX }}</div>
               <div style="font-size:0.6rem;color:var(--text2)">pareggio</div>
             </div>
             <div style="flex:1;text-align:center">
               <div style="font-size:0.72rem;color:#ff9090;font-weight:700">{{ f.nomeSquadraB||'Squadra B' }}</div>
-              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ computeFormationPrediction(f).quoteB }}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteB }}</div>
               <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
             </div>
           </div>
           <div style="font-size:0.72rem;color:var(--text2);text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
-            {{ computeFormationPrediction(f).verdict }}
+            {{ getCachedPrediction(f)?.verdict }}
           </div>
         </div>
 
@@ -3909,7 +3909,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.155');
+    const appVersion = ref('1.156');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4629,7 +4629,19 @@ Rispondi SOLO con questo JSON (niente altro testo):
         quoteB: oddB.toFixed(2),
         verdict
       };
-    };
+    }
+
+    // Memoized wrapper — recalculates only when formation squadra changes
+    const _predCache = new Map();
+    const getCachedPrediction = (f) => {
+      if (!f) return null;
+      const key = (f.id||'') + '|' + (f.squadraA||[]).join(',') + '|' + (f.squadraB||[]).join(',');
+      if (_predCache.has(key)) return _predCache.get(key);
+      const result = computeFormationPrediction(f);
+      _predCache.set(key, result);
+      // Clear cache when players change
+      return result;
+    };;
 
     const generateTeamsRandom = () => {
       const ids = [...selectedForMatch.value];
@@ -4773,7 +4785,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
       const rrect=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
 
-      const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;setTimeout(()=>res(null),5000);}else res(null);};img.src=src;setTimeout(()=>res(null),6000);});
+      const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();
+        if(src&&!src.includes('lh3.googleusercontent'))img.crossOrigin='anonymous';
+        img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;setTimeout(()=>res(null),5000);}else res(null);};img.src=src;setTimeout(()=>res(null),6000);});
       const loadPhoto=(foto,uid)=>{const ext=s=>s.endsWith('.png')?s.replace(/\.png$/,'.jpg'):s.replace(/\.jpe?g$/,'.png');if(foto){
         // Convert Google Drive share URL to direct lh3 URL
         const driveM=foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
@@ -4968,22 +4982,21 @@ Rispondi SOLO con questo JSON (niente altro testo):
           {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.80, col:aCol},
         ];
         for(const b of qBoxes){
-          ctx.fillStyle=b.col+'22';
-          ctx.strokeStyle=b.col+'AA';ctx.lineWidth=2;
-          const bw=230,bh=76,bx=b.x-bw/2,by=SLOG_Y+30;
+          // Box: taller (96px) so name fits inside
+          const bw=240,bh=96,bx=b.x-bw/2,by=SLOG_Y+28;
+          ctx.fillStyle=b.col+'22';ctx.strokeStyle=b.col+'AA';ctx.lineWidth=2;
           ctx.beginPath();ctx.rect(bx,by,bw,bh);ctx.fill();ctx.stroke();
-          // Odd value — big
+          // Odd value
           ctx.font='900 44px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
           ctx.shadowColor=b.col;ctx.shadowBlur=10;
-          ctx.fillText(b.odd,b.x,SLOG_Y+86);ctx.shadowBlur=0;
-          // FIX1: team name 14px, no truncation needed with bw=230
-          ctx.font='700 14px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.6)';
-          ctx.textAlign='center';
-          // Soft-truncate only if really needed
+          ctx.fillText(b.odd,b.x,SLOG_Y+80);ctx.shadowBlur=0;
+          // Team name INSIDE box — auto-size font to fit width
           let lbl=b.label;
-          ctx.font='700 14px "Arial Black",Arial';
-          while(ctx.measureText(lbl).width>218&&lbl.length>3)lbl=lbl.slice(0,-1);
-          ctx.fillText(lbl,b.x,SLOG_Y+110);
+          let fontSize=15;
+          ctx.font=`700 ${fontSize}px "Arial Black",Arial`;
+          while(ctx.measureText(lbl).width>bw-16 && fontSize>9){ fontSize--; ctx.font=`700 ${fontSize}px "Arial Black",Arial`; }
+          ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='center';
+          ctx.fillText(lbl,b.x,SLOG_Y+108); // inside box (box bottom = by+96 = SLOG_Y+124)
         }
 
         // FIX2: bigger RISULTATO PREVISTO label
@@ -4999,9 +5012,24 @@ Rispondi SOLO con questo JSON (niente altro testo):
           ctx.fillText(sc,W/2,SLOG_Y+172);ctx.shadowBlur=0;
         }
         // FIX4: bigger verdict text (18px was 13px)
-        const vshort=pred.verdict.replace(/Risultato probabile:.*$/,'').trim().slice(0,80);
-        ctx.font='italic 18px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';ctx.textAlign='center';
-        ctx.fillText(vshort,W/2,SLOG_Y+200);
+        // Verdict text - word wrap into 2 lines if too long
+        const verdFull=pred.verdict.replace(/Risultato probabile:.*$/,'').trim();
+        ctx.font='italic 17px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
+        const maxVW=W-60;
+        if(ctx.measureText(verdFull).width<=maxVW){
+          ctx.fillText(verdFull,W/2,SLOG_Y+208);
+        } else {
+          // Split at word boundary near middle
+          const words=verdFull.split(' ');
+          let line1='',line2='';
+          for(let i=0;i<words.length;i++){
+            const test=line1+(line1?' ':'')+words[i];
+            if(ctx.measureText(test).width>maxVW&&line1){line2=words.slice(i).join(' ');break;}
+            line1=test;
+          }
+          ctx.fillText(line1,W/2,SLOG_Y+203);
+          ctx.fillText(line2||'',W/2,SLOG_Y+222);
+        }
         // FIX3: NO "BUON DIVERTIMENTO" line removed
       } else {
         ctx.font='900 italic 50px "Arial Black",Arial';
@@ -7555,7 +7583,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
-      computeFormationPrediction,
+      computeFormationPrediction, getCachedPrediction,
       showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken
     };
   }
