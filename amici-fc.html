@@ -3909,7 +3909,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.163');
+    const appVersion = ref('1.166');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4121,6 +4121,8 @@ createApp({
     };
 
     const loadGroupData = async () => {
+      // Clear caches on group reload to prevent unbounded memory growth
+      _predCache.clear();
       if (!currentGroup.value) { groupPlayers.value = []; groupMatches.value = []; groupFormations.value = []; return; }
       const gid = currentGroup.value.id;
       groupPlayers.value  = await db.players.where('groupId').equals(gid).toArray();
@@ -4204,9 +4206,8 @@ createApp({
         // Clear photo cache so new foto loads immediately
         const oldKey = f.foto || editingPlayer.value?.uid;
         if (oldKey) {
-          const newCache = { ...resolvedPhotoUrls.value };
-          Object.keys(newCache).forEach(k => { if (k.includes(oldKey) || (f.uid && k.includes(f.uid))) delete newCache[k]; });
-          resolvedPhotoUrls.value = newCache;
+          // invalidate old entries for this player
+          Array.from(resolvedPhotoUrls.keys()).filter(k => k.includes(oldKey) || (f.uid && k.includes(f.uid))).forEach(k => resolvedPhotoUrls.delete(k));
         }
         toast('✅ Giocatore aggiornato!');
         autoSyncToCloud();
@@ -5831,7 +5832,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     // ── Refresh expired Firebase ID token automatically ──
     const refreshFirebaseToken = async () => {
       const refreshToken = localStorage.getItem('amicifc_fb_refresh');
-      const apiKey = (settings.value.firebaseApiKey || '').trim();
+      // Use per-group API key (settings.firebaseApiKey is always empty since v1.119)
+      const apiKey = (currentGroup.value?.firebaseApiKey || localStorage.getItem('amicifc_fb_apikey') || '').trim();
       if (!refreshToken || !apiKey) return false;
       try {
         const r = await fetch(
@@ -6319,7 +6321,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // ── Photo resolution: tries jpg/png by uid even if foto field is empty ──
-    const resolvedPhotoUrls = ref({});
+    const resolvedPhotoUrls = new Map(); // plain Map, not reactive (avoids spread leak)
+    const _photoVersion = ref(0); // increment to trigger reactivity
 
     const resolvePhotoKey = (foto, uid) => foto || uid || null;
 
@@ -6338,20 +6341,27 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if (!tryList.length) return null;
 
       const cacheKey = tryList[0];
-      const cached = resolvedPhotoUrls.value[cacheKey];
+      if (_photoVersion.value >= 0) {} // reactive dependency
+      const cached = resolvedPhotoUrls.get(cacheKey);
       if (cached === undefined) {
         // Not yet resolved — start async probe
-        resolvedPhotoUrls.value = { ...resolvedPhotoUrls.value, [cacheKey]: null }; // mark as pending
+        resolvedPhotoUrls.set(cacheKey, null); // mark as pending
         let idx = 0;
         const tryNext = () => {
           if (idx >= tryList.length) {
-            resolvedPhotoUrls.value = { ...resolvedPhotoUrls.value, [cacheKey]: '' }; // all failed
+            resolvedPhotoUrls.set(cacheKey, ''); // all failed
             return;
           }
           const img = new Image();
           img.crossOrigin = 'anonymous';
           const url = tryList[idx++];
-          img.onload = () => { resolvedPhotoUrls.value = { ...resolvedPhotoUrls.value, [cacheKey]: url }; };
+          img.onload = () => { resolvedPhotoUrls.set(cacheKey, url);
+            // Cap cache at 200 entries to prevent unbounded growth
+            if (resolvedPhotoUrls.size > 200) {
+              const firstKey = resolvedPhotoUrls.keys().next().value;
+              resolvedPhotoUrls.delete(firstKey);
+            }
+            _photoVersion.value++; };
           img.onerror = () => tryNext();
           img.src = url;
         };
@@ -7000,12 +7010,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         return;
       }
       if (currentGroup.value?.syncOnStartup === false) {
-        toast('☁️ Sync avvio: disattivato', 'info', 3000);
+        // Sync on startup disabled for this group
         return;
       }
       const token = await getValidToken();
       if (!token) {
-        toast('🔐 Sync Firebase: nessun token — fai login dal pulsante ☁️', 'error', 10000);
+        // Silent: user hasn't logged in on this device (read-only users are fine without token)
+        console.info('[autoSync] No token - read-only mode');
         return;
       }
       try {
@@ -7064,6 +7075,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         fbIdToken.value    = d.idToken;
         localStorage.setItem('amicifc_fb_user',    JSON.stringify(firebaseUser.value));
         localStorage.setItem('amicifc_fb_token',   d.idToken);
+        localStorage.setItem('amicifc_fb_apikey',  groupCloudApiKey.value || currentGroup.value?.firebaseApiKey || '');
         localStorage.setItem('amicifc_fb_refresh', d.refreshToken || ''); // store refresh token
         fbLoginEmail.value = '';
         fbLoginPwd.value = '';
@@ -7512,9 +7524,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         console.log('[AmiciFC] Migrated Firebase URL to group:', currentGroup.value?.nome);
       }
 
-            // ── Auto-sync on startup: handled by setTimeout(autoSync, 3000) below ──
-
-            // DB caricato: attiva il watch e controlla se serve onboarding
+      // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
       // Navigation handled by watch(groups) below - don't override sync navigation
 
@@ -7528,6 +7538,19 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
       // Start news ticker
       startNewsTicker();
+
+      // Re-sync when user returns to the app from background
+      let _visTimer = null;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          // Debounce: only fire once if multiple visibility events
+          clearTimeout(_visTimer);
+          _visTimer = setTimeout(() => {
+            autoSync().catch(console.warn);
+            checkForUpdates().catch(console.warn);
+          }, 1000);
+        }
+      });
 
       // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
