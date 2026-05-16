@@ -3899,7 +3899,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.169');
+    const appVersion = ref('1.171');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4123,6 +4123,7 @@ createApp({
       if (groupMatches.value.length > 0) {
         try { await recomputeStats(); } catch(e) { console.warn('recomputeStats error:', e); }
         try { await repairMatchPlayerIds(); } catch(e) {}
+        _scheduleNewsCompute();
       }
     };
 
@@ -5815,7 +5816,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           votiTotali:        st.votiTotali || 0
         });
       }
-      await loadGroupData();
     };
     // ── Refresh expired Firebase ID token automatically ──
     const refreshFirebaseToken = async () => {
@@ -6124,10 +6124,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     // Avvia il ticker una volta sola dopo il primo caricamento dati
     let _tickerStarted = false;
     watch(groupPlayers, (newP) => {
-      if (newP.length > 0 && !_tickerStarted) {
-        _tickerStarted = true;
-        newsIndex.value = 0;
-        setTimeout(startNewsTicker, 500);
+      if (newP.length > 0) {
+        if (!_tickerStarted) {
+          _tickerStarted = true;
+          newsIndex.value = 0;
+          setTimeout(startNewsTicker, 500);
+        }
+        _scheduleNewsCompute();
       }
     }, { immediate: false });
 
@@ -7473,6 +7476,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
       // Start news ticker
       startNewsTicker();
+      // Compute initial news items
+      setTimeout(_scheduleNewsCompute, 1000);
 
       // Re-sync when user returns to the app from background
       let _visTimer = null;
