@@ -3899,7 +3899,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.168');
+    const appVersion = ref('1.169');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6089,8 +6089,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
-        // Pre-resolve all photos after sync
-        groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
       } catch (e) {
         toast('❌ Errore sync: ' + e.message, 'error');
       }
@@ -6309,63 +6307,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // ── Photo resolution: tries jpg/png by uid even if foto field is empty ──
-    const resolvedPhotoUrls = new Map(); // plain Map, not reactive (avoids spread leak)
-    const _photoVersion = ref(0); // increment to trigger reactivity
 
-    const resolvePhoto = (foto, uid) => {
-      // Build keys to try
-      const tryList = [];
-      if (foto) {
-        const url = getPhotoUrlSmart(foto);
-        const alt = url.endsWith('.png') ? url.replace(/\.png$/,'.jpg') : url.replace(/\.jpe?g$/,'.png');
-        tryList.push(url, alt);
-      }
-      if (uid) {
-        const base = `./images/players/${uid}`;
-        tryList.push(base+'.png', base+'.jpg');
-      }
-      if (!tryList.length) return null;
 
-      const cacheKey = tryList[0];
-      if (_photoVersion.value >= 0) {} // reactive dependency
-      const cached = resolvedPhotoUrls.get(cacheKey);
-      if (cached === undefined) {
-        // Not yet resolved — start async probe
-        resolvedPhotoUrls.set(cacheKey, null); // mark as pending
-        let idx = 0;
-        const tryNext = () => {
-          if (idx >= tryList.length) {
-            resolvedPhotoUrls.set(cacheKey, ''); // all failed
-            return;
-          }
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          const url = tryList[idx++];
-          img.onload = () => { resolvedPhotoUrls.set(cacheKey, url);
-            // Cap cache at 200 entries to prevent unbounded growth
-            if (resolvedPhotoUrls.size > 200) {
-              const firstKey = resolvedPhotoUrls.keys().next().value;
-              resolvedPhotoUrls.delete(firstKey);
-            }
-            _photoVersion.value++; };
-          img.onerror = () => tryNext();
-          img.src = url;
-        };
-        tryNext();
-        return tryList[0]; // optimistic
-      }
-      return cached || null; // '' means all failed → null
-    };
 
     // Used by @error as last-resort (shouldn't be needed much with resolvePhoto)
-    const tryAltPhoto = (event, foto) => {
-      const url = event.target.src;
-      if (!url || event.target.dataset.altTried) { event.target.style.display = 'none'; return; }
-      event.target.dataset.altTried = '1';
-      if (url.endsWith('.png')) event.target.src = url.replace(/\.png$/, '.jpg');
-      else if (url.endsWith('.jpg') || url.endsWith('.jpeg')) event.target.src = url.replace(/\.jpe?g$/, '.png');
-      else event.target.style.display = 'none';
-    };
+
     // Pre-cache player photos in SW for offline use
     const precachePlayerPhotos = () => {
       if (!('serviceWorker' in navigator) || !navigator.serviceWorker.controller) return;
@@ -6405,7 +6351,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const newsIndex = ref(0);
     let _newsTimer = null;
 
-    const newsItems = computed(() => {
+    const newsItems = ref([]);
+    let _newsComputeTimer = null;
+    const _computeNewsItems = () => {
       const items = [];
       const players = groupPlayers.value;
       const matches = groupMatches.value;
@@ -6706,7 +6654,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
 
       return finalItems.length ? finalItems : [{emoji:'⚽',text:'Inizia a registrare partite per vedere le notizie qui!'}];
-    });
+    };
+    const _scheduleNewsCompute = () => {
+      clearTimeout(_newsComputeTimer);
+      _newsComputeTimer = setTimeout(() => {
+        newsItems.value = _computeNewsItems();
+      }, 50);
+    };;
 
     const currentNews = computed(() => {
       const list = newsItems.value;
@@ -7515,8 +7469,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       loadLogo();
 
       // Pre-resolve player photos (try both jpg/png proactively)
-      groupPlayers.value.forEach(p => { if (p.uid) resolvePhoto(p.foto, p.uid); });
-      // Pre-cache photos in SW for offline use
       setTimeout(precachePlayerPhotos, 2000);
 
       // Start news ticker
