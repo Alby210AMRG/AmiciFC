@@ -2609,16 +2609,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           Usa il pulsante <strong style="color:var(--lime)">☁️</strong> accanto al nome del gruppo in cima all'app.
         </div>
 <!-- CREDITI -->
-      <div class="card credits-card">
-        <span class="credits-ball">⚽</span>
-        <div class="credits-main">Amici FC</div>
-        <div class="credits-by">🕹️ Creato e sviluppato da Alby</div>
-        <div style="font-size:0.75rem;color:var(--text2);margin-top:12px;line-height:1.7">
-          "Il calcetto non è solo uno sport,<br>è una filosofia di vita… e di amicizie!"
-          <br><br>Made with ❤️ + Vue 3 + IndexedDB + AI
-        </div>
-      </div>
-    
       <!-- ── Zona Pericolo ── -->
       <div class="card" style="border-color:rgba(255,77,77,0.3)">
         <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
@@ -3909,7 +3899,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.166');
+    const appVersion = ref('1.167');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4358,7 +4348,7 @@ createApp({
     const getRandomFormationName=()=>{const avail=AI_FORMATION_NAMES.filter(n=>!usedFormationNames.value.includes(n));const pool=avail.length?avail:AI_FORMATION_NAMES;const name=pool[Math.floor(Math.random()*pool.length)];usedFormationNames.value.push(name);return name;};
     const TEAM_NAMES_A=['Gli Invincibili','I Fenomeni','La Macchina','I Dominatori','Gli Imbattibili'];
     const TEAM_NAMES_B=['I Disperati','I Coraggiosi','La Resistenza','Gli Sfidanti','I Guerrieri'];
-    const checkFormationSlot=()=>{const ex=groupFormations.value.filter(f=>f.stato!=='giocata');if(ex.length>=5){toast('Hai già 5 formazioni attive!','info',4000);return false;}return true;};
+    
 
     const generateFormationsWithAI = async () => {
       if (selectedForMatch.value.length < 2) return;
@@ -5709,9 +5699,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // Per-group Firebase API key
-    const getFirebaseApiKey = () => {
-      return currentGroup.value?.firebaseApiKey || '';
-    };
+;
 
     // Open group cloud config modal
     const openGroupCloud = async () => {
@@ -6323,8 +6311,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     // ── Photo resolution: tries jpg/png by uid even if foto field is empty ──
     const resolvedPhotoUrls = new Map(); // plain Map, not reactive (avoids spread leak)
     const _photoVersion = ref(0); // increment to trigger reactivity
-
-    const resolvePhotoKey = (foto, uid) => foto || uid || null;
 
     const resolvePhoto = (foto, uid) => {
       // Build keys to try
@@ -7034,10 +7020,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const fbIdToken       = ref(localStorage.getItem('amicifc_fb_token') || '');
 
     // Firebase Auth REST endpoint (uses Firebase API key from the DB URL, extracted)
-    const getFbApiKey = () => {
-      // Users can paste their Firebase Web API key in settings
-      return settings.value.firebaseApiKey || '';
-    };
+;
 
     const firebaseLogin = async () => {
       // Read from Vue refs (reliable across all contexts)
