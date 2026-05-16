@@ -3909,7 +3909,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.160');
+    const appVersion = ref('1.161');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4800,7 +4800,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const rrect=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
 
       const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();
-        img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;setTimeout(()=>res(null),5000);}else res(null);};img.src=src;setTimeout(()=>res(null),6000);});
+        if(src.startsWith('https://'))img.crossOrigin='anonymous';
+        img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();if(alt.startsWith('https://'))i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;setTimeout(()=>res(null),5000);}else res(null);};img.src=src;setTimeout(()=>res(null),6000);});
       const loadPhoto=(foto,uid)=>{const ext=s=>s.endsWith('.png')?s.replace(/\.png$/,'.jpg'):s.replace(/\.jpe?g$/,'.png');if(foto){
         // Convert Google Drive share URL to direct lh3 URL
         const driveM=foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
