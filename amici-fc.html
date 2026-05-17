@@ -3763,6 +3763,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.185', date:'2026-05-17', items:[
+        '🔧 FIX: Toast versione solo se manuale - avvio silenzioso (solo badge aggiorna se nuova versione)',
+        '🔧 FIX: Sync avvio attende caricamento gruppo prima di partire (5s + retry se gruppo non pronto)',
+      ]},
       { version:'v1.184', date:'2026-05-17', items:[
         '🔧 FIX: Salva giocatore - update con fallback put() se record non trovato per ID',
         '🔧 FIX: autoSyncToCloud awaited dopo salvataggio giocatore',
@@ -4057,7 +4061,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.184');
+    const appVersion = ref('1.185');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7271,6 +7275,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
 
     const autoSync = async () => {
+      // If group not loaded yet, wait a bit more
+      if (!currentGroup.value) {
+        setTimeout(autoSync, 2000);
+        return;
+      }
       if (!currentGroup.value?.firebaseUrl) {
         // No Firebase configured for this group
         return;
@@ -7624,11 +7633,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           newVersion.value      = data.version;
           updateAvailable.value = true;
           toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 12000);
-        } else {
+        } else if (!silent) {
           toast('✅ App già aggiornata (v' + appVersion.value + ')', 'success', 4000);
         }
       } catch (err) {
-        toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
+        if (!silent) toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
         console.warn('[AmiciFC] Update check failed:', err);
         toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
       }
@@ -7738,8 +7747,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         onMounted(async () => {
       // Schedule all startup checks IMMEDIATELY (before any await)
       // This ensures they fire 2s/3s from app open, not from end of onMounted
-      setTimeout(checkForUpdates, 2000);
-      setTimeout(autoSync, 3000);
+      setTimeout(() => checkForUpdates(true), 2000); // silent at startup
+      setTimeout(autoSync, 5000); // 5s to ensure onMounted has finished loading groups
 
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
