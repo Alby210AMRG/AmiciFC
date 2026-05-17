@@ -3763,6 +3763,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.183', date:'2026-05-17', items:[
+        '🔧 FIX: Salva Modifiche giocatore ora funziona (update esplicito campi)',
+        '🔧 FIX: Controlla Aggiornamenti mostra toast con esito (aggiornato / nuova versione)',
+      ]},
       { version:'v1.182', date:'2026-05-17', items:[
         '🔧 FIX: Badge equilibrio formazione su riga separata (non va più a capo storto)',
         '🔧 FIX: Quote scommessa - Squadra A a sinistra, Squadra B a destra (come nel campo)',
@@ -4049,7 +4053,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.182');
+    const appVersion = ref('1.183');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4343,7 +4347,17 @@ createApp({
       if (!currentGroup.value) return toast('Seleziona un gruppo prima!', 'error');
 
       if (editingPlayer.value) {
-        await db.players.update(editingPlayer.value.id, { ...f });
+        await db.players.update(editingPlayer.value.id, {
+          nome:        f.nome.trim(),
+          cognome:     f.cognome?.trim() || '',
+          soprannome:  f.soprannome?.trim() || '',
+          ruolo:       f.ruolo || 'Jolly',
+          piede:       f.piede || 'Destro',
+          foto:        f.foto || '',
+          descrizione: f.descrizione || '',
+          rivali:      (f.rivali||[]).filter(Boolean),
+          affinita:    (f.affinita||[]).filter(Boolean),
+        });
         // Clear photo cache so new foto loads immediately
         // photo cache no longer needed (was resolvedPhotoUrls, now removed)
         toast('✅ Giocatore aggiornato!');
@@ -7578,7 +7592,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const checkForUpdates = async () => {
       try {
         const resp = await fetch('./version.json?nocache=' + Date.now(), { cache: 'no-store' });
-        if (!resp.ok) { console.warn('[AmiciFC] version check HTTP', resp.status); return; }
+        if (!resp.ok) { toast('⚠️ Controllo versione fallito (HTTP ' + resp.status + ')', 'error', 4000); return; }
         const data = await resp.json();
         if (!data.version) return;
         // Always update date from version.json
@@ -7596,10 +7610,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           updateAvailable.value = true;
           toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 12000);
         } else {
-          console.log('[AmiciFC] App aggiornata v' + appVersion.value);
+          toast('✅ App già aggiornata (v' + appVersion.value + ')', 'success', 4000);
         }
       } catch (err) {
-        console.warn('[AmiciFC] version check failed:', err.message);
+        toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
         console.warn('[AmiciFC] Update check failed:', err);
         toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
       }
