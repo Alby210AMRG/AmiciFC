@@ -1262,7 +1262,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <span class="topbar-title">Amici FC</span>
     <div style="display:flex;align-items:center;gap:6px">
       <button class="topbar-group-btn" @click="showGroupSelector = true">
-        <span class="dot"></span>
+        <span class="dot" :style="isOnline ? '' : 'background:var(--red)'" :title="isOnline ? 'Online' : 'Offline'"></span>
         <span>{{ currentGroup ? currentGroup.nome : 'Gruppo' }}</span>
       </button>
       <button v-if="currentGroup" @click="openGroupCloud"
@@ -3779,6 +3779,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.198', date:'2026-05-17', items:[
+        '🔧 FIX: Pallino topbar rosso quando offline',
+        '🆕 Nomi squadre e partite a tema calcetto/pizza/birra',
+      ]},
       { version:'v1.197', date:'2026-05-17', items:[
         '🔧 FIX: Ottimizza Foto ora salta le foto già ottimizzate (controllo dimensioni pixel + risparmio reale)',
       ]},
@@ -3978,6 +3982,7 @@ createApp({
     const showMoreMenu      = ref(false);
     const showInstallGuide  = ref(false);
     const showGroupCloud    = ref(false);
+    const isOnline          = ref(navigator.onLine);
     const lastSyncTime      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const groupSyncOnStartup  = ref(true);
     const showOnboardingLogin = ref(false);
@@ -4122,7 +4127,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.197');
+    const appVersion = ref('1.198');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4624,8 +4629,8 @@ createApp({
     const AI_FORMATION_NAMES=['La Remontada dei Poveri 🔥','Piano Panino 🥪','Stile Oratorio 2.0 ⛪','La Banda del Buco 🕳️','Tiki-Taka col Kebab 🫔','Pressing Alto sui Tramezzini 🥪','Il Catenaccio Liquido 🔐','La Zona Mista (di Pizza) 🍕','Gegenpressing da Bar 🍺','Il Falso Nueve (e gli Otto Veri) 😂','La Filosofia del Portiere Che Attacca 🥅','Ultra-Offensiva con Difesa Speranza 🤞','Il Rombo della Malinconia 💎','Total Football (Budget Limitato) 💸','La Sorpresa della Nonna 👵'];
     const usedFormationNames=ref([]);
     const getRandomFormationName=()=>{const avail=AI_FORMATION_NAMES.filter(n=>!usedFormationNames.value.includes(n));const pool=avail.length?avail:AI_FORMATION_NAMES;const name=pool[Math.floor(Math.random()*pool.length)];usedFormationNames.value.push(name);return name;};
-    const TEAM_NAMES_A=['Gli Invincibili','I Fenomeni','La Macchina','I Dominatori','Gli Imbattibili'];
-    const TEAM_NAMES_B=['I Disperati','I Coraggiosi','La Resistenza','Gli Sfidanti','I Guerrieri'];
+    const TEAM_NAMES_A=['Gli Invincibili 🏆','I Fenomeni del Giovedi ⚡','La Macchina da Guerra 💪','I Dominatori della Pizza 🍕','Gli Imbattibili del Bar 🍺','I Campioni della Birra 🍺','La Banda del Martedi 🌙','I Maestri del Calcetto ⚽','I Goleador della Serata 🥅','I Terribili del Campo 😤','La Curva Sud 🎤','I Vecchi Leoni 🦁','Gli Idoli del Campo 🌟','I Fulmini del Calcetto ⚡','La Squadra della Pizzeria 🍕'];
+    const TEAM_NAMES_B=['I Disperati ma Belli 😅','I Coraggiosi della Birra 🍺','La Resistenza Calcistica 💪','Gli Sfidanti della Notte 🌙','I Guerrieri del Giovedi ⚽','La Banda Bassotti 🐾','I Superstiti del Campo 😂','I Tornanti del Campetto 🔄','Gli Ultimi della Classe 🏅','I Recuperati dalla Panchina 🪑','La Riscossa del Oratorio ⛪','I Dimenticati ma Forti 💎','Gli Eroi Senza Trofeo 🎖️','La Rimonta Impossibile 🔥','I Birraioli in Forma 🍺'];
     
 
     const generateFormationsWithAI = async () => {
@@ -7913,6 +7918,9 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
 
+      window.addEventListener('online',  () => { isOnline.value = true;  });
+      window.addEventListener('offline', () => { isOnline.value = false; });
+
       // Re-sync when user returns to the app from background
       let _visTimer = null;
       document.addEventListener('visibilitychange', () => {
@@ -8060,7 +8068,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction, getCachedPrediction,
-      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime,
+      showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime,
       regenerateFormations, getFormationBalance,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory
