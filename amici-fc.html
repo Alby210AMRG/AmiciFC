@@ -1716,15 +1716,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-for="f in groupFormations" :key="f.id" class="formation-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
           <div>
-            <div style="font-family:var(--font-title);font-size:1.05rem;color:var(--lime)">{{ f.nome }}
-              <span v-if="getFormationBalance(f) !== null" :style="{
-                fontSize:'0.65rem', padding:'2px 6px', borderRadius:'8px', marginLeft:'6px',
+            <div style="font-family:var(--font-title);font-size:1.05rem;color:var(--lime)">{{ f.nome }}</div>
+            <div v-if="getFormationBalance(f) !== null" :style="{
+                display:'inline-block', fontSize:'0.62rem', padding:'2px 7px', borderRadius:'8px', marginTop:'3px',
                 background: getFormationBalance(f) <= 5 ? 'rgba(166,255,77,0.15)' : getFormationBalance(f) <= 15 ? 'rgba(255,211,61,0.15)' : 'rgba(255,77,77,0.15)',
                 color: getFormationBalance(f) <= 5 ? 'var(--lime)' : getFormationBalance(f) <= 15 ? 'var(--yellow)' : 'var(--red)',
                 border: '1px solid currentColor'
               }">
-                {{ getFormationBalance(f) <= 5 ? '⚖️ Ultra Bilanciata' : getFormationBalance(f) <= 15 ? '⚡ Abbastanza Bilanciata' : '🎲 Creativa' }}
-              </span>
+              {{ getFormationBalance(f) <= 5 ? '⚖️ Ultra Bilanciata' : getFormationBalance(f) <= 15 ? '⚡ Abbastanza Bilanciata' : '🎲 Creativa' }}
             </div>
             <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">
               📅 {{ formatDate(f.dataCreazione) }} ·
@@ -3764,6 +3763,11 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.182', date:'2026-05-17', items:[
+        '🔧 FIX: Badge equilibrio formazione su riga separata (non va più a capo storto)',
+        '🔧 FIX: Quote scommessa - Squadra A a sinistra, Squadra B a destra (come nel campo)',
+        '🔧 FIX: Formazione Joker ora crea vera asimmetria (top-2 nella stessa squadra)',
+      ]},
       { version:'v1.181', date:'2026-05-17', items:[
         '🔧 FIX: Grafico forma mostra ultime 10 partite in ordine corretto (sinistra=vecchio, destra=recente)',
       ]},
@@ -4045,7 +4049,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.181');
+    const appVersion = ref('1.182');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4693,13 +4697,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
         const roleOrd = {'Portiere':0,'Difensore':1,'Centrocampista':2,'Attaccante':3,'Jolly':4};
         sortedRem = remaining.sort((x,y) => (roleOrd[x.ruolo]??4)-(roleOrd[y.ruolo]??4) || statsScore(y)-statsScore(x));
       } else if (strategy === 'joker') {
-        // Sort by statsScore, then swap top player to opposite team
+        // Joker: sort by statsScore but keep top-2 players together (creates imbalance)
         sortedRem = [...remaining].sort((x,y) => statsScore(y) - statsScore(x));
-        // Force top form player into the weaker-looking team (joker swap)
+        // Keep top 2 in same team: swap 2nd with last (2→end, ensuring top2 go to A)
         if (sortedRem.length >= 4) {
-          const top = sortedRem[0];
-          sortedRem[0] = sortedRem[2];
-          sortedRem[2] = top;
+          const second = sortedRem[1];
+          sortedRem[1] = sortedRem[sortedRem.length-1];
+          sortedRem[sortedRem.length-1] = second;
         }
       } else {
         sortedRem = [...remaining].sort((x,y) => statsScore(y) - statsScore(x));
@@ -5265,9 +5269,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
         // FIX1: wider boxes 230px, team name font 14px (was 12px, bw 162px)
         const qBoxes=[
-          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(), odd:pred.quoteB, x:W*0.20, col:bCol},
+          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.20, col:aCol},
           {label:'PAREGGIO',                                   odd:pred.quoteX, x:W*0.50, col:'#FFD700'},
-          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.80, col:aCol},
+          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(), odd:pred.quoteB, x:W*0.80, col:bCol},
         ];
         for(const b of qBoxes){
           // Box: taller (96px) so name fits inside
