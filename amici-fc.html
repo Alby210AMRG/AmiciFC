@@ -1693,9 +1693,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title" style="margin:0">📋 Formazioni
           <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
         </div>
-        <button class="btn btn-primary btn-sm" @click="startPlayerSelection">
-          ➕ Nuova
-        </button>
+        <div style="display:flex;gap:8px">
+          <button v-if="groupFormations.filter(f=>f.stato!=='giocata').length>0"
+            class="btn btn-ghost btn-sm" @click="regenerateFormations" :disabled="aiLoading"
+            style="color:var(--yellow);border-color:rgba(255,211,61,0.3)" title="Rigenera formazioni attive">
+            {{ aiLoading ? '⏳' : '🔁 Rigenera' }}
+          </button>
+          <button class="btn btn-primary btn-sm" @click="startPlayerSelection">
+            ➕ Nuova
+          </button>
+        </div>
       </div>
 
       <!-- Lista formazioni salvate (stato=proposta o da giocare) -->
@@ -1709,7 +1716,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-for="f in groupFormations" :key="f.id" class="formation-card">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
           <div>
-            <div style="font-family:var(--font-title);font-size:1.05rem;color:var(--lime)">{{ f.nome }}</div>
+            <div style="font-family:var(--font-title);font-size:1.05rem;color:var(--lime)">{{ f.nome }}
+              <span v-if="getFormationBalance(f) !== null" :style="{
+                fontSize:'0.65rem', padding:'2px 6px', borderRadius:'8px', marginLeft:'6px',
+                background: getFormationBalance(f) <= 5 ? 'rgba(166,255,77,0.15)' : getFormationBalance(f) <= 15 ? 'rgba(255,211,61,0.15)' : 'rgba(255,77,77,0.15)',
+                color: getFormationBalance(f) <= 5 ? 'var(--lime)' : getFormationBalance(f) <= 15 ? 'var(--yellow)' : 'var(--red)',
+                border: '1px solid currentColor'
+              }">
+                {{ getFormationBalance(f) <= 5 ? '⚖️ Ultra Bilanciata' : getFormationBalance(f) <= 15 ? '⚡ Abbastanza Bilanciata' : '🎲 Creativa' }}
+              </span>
+            </div>
             <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">
               📅 {{ formatDate(f.dataCreazione) }} ·
               <span :class="f.stato==='proposta'?'':''" style="color:var(--yellow)">
@@ -2797,6 +2813,37 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </select>
         </div>
       </div>
+
+      <!-- Rivalità e Affinità -->
+      <div style="margin-top:12px;padding:12px;background:var(--bg3);border-radius:12px;border:1px solid var(--border)">
+        <div style="font-weight:700;font-size:0.85rem;margin-bottom:10px">⚔️ Rivalità &amp; 🤝 Affinità <span style="color:var(--text2);font-size:0.75rem">(max 3 ciascuna, dalla 2ª formazione in poi)</span></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <div>
+            <div style="font-size:0.78rem;color:var(--red);font-weight:700;margin-bottom:6px">⚔️ Rivali</div>
+            <div v-for="(rid,ri) in (Array.isArray(playerForm.rivali)?playerForm.rivali:[]).slice(0,3)" :key="ri" style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
+              <select class="select-field" style="flex:1;font-size:0.8rem;padding:4px 6px"
+                :value="rid" @change="e=>setRivalità(ri, e.target.value)">
+                <option value="">-- Nessuno --</option>
+                <option v-for="p in otherPlayers" :key="p.id" :value="p.id">{{ p.soprannome||p.nome }}</option>
+              </select>
+              <button class="btn btn-ghost" style="padding:2px 6px;font-size:0.75rem;color:var(--red)" @click="removeRivalità(ri)">✕</button>
+            </div>
+            <button v-if="(Array.isArray(playerForm.rivali)?playerForm.rivali:[]).length < 3" class="btn btn-ghost btn-sm" style="font-size:0.75rem;color:var(--red);border-color:rgba(255,77,77,0.3);margin-top:2px" @click="addRivalità">+ Aggiungi Rivale</button>
+          </div>
+          <div>
+            <div style="font-size:0.78rem;color:var(--lime);font-weight:700;margin-bottom:6px">🤝 Affinità</div>
+            <div v-for="(aid,ai) in (Array.isArray(playerForm.affinita)?playerForm.affinita:[]).slice(0,3)" :key="ai" style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
+              <select class="select-field" style="flex:1;font-size:0.8rem;padding:4px 6px"
+                :value="aid" @change="e=>setAffinita(ai, e.target.value)">
+                <option value="">-- Nessuno --</option>
+                <option v-for="p in otherPlayers" :key="p.id" :value="p.id">{{ p.soprannome||p.nome }}</option>
+              </select>
+              <button class="btn btn-ghost" style="padding:2px 6px;font-size:0.75rem;color:var(--lime)" @click="removeAffinita(ai)">✕</button>
+            </div>
+            <button v-if="(Array.isArray(playerForm.affinita)?playerForm.affinita:[]).length < 3" class="btn btn-ghost btn-sm" style="font-size:0.75rem;color:var(--lime);border-color:rgba(166,255,77,0.3);margin-top:2px" @click="addAffinita">+ Aggiungi Affinità</button>
+          </div>
+        </div>
+      </div>
       <div class="input-group">
         <label class="input-label">⭐ Qualità / Descrizione</label>
         <textarea class="input-field" v-model="playerForm.descrizione"
@@ -2858,6 +2905,34 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="quick-stat-card">
           <div class="stat-big" style="color:var(--text2)">{{ detailPlayer.partiteTotali||0 }}</div>
           <div class="stat-label">🏟️ Partite</div>
+        </div>
+      </div>
+
+      <!-- ── Grafico Andamento Forma ── -->
+      <div v-if="detailPlayer?.id && playerFormHistory(detailPlayer.id).length >= 2"
+        style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:12px">
+        <div style="font-weight:700;font-size:0.82rem;margin-bottom:10px">📈 Andamento Forma (ultime 10 partite)</div>
+        <svg :viewBox="`0 0 300 80`" style="width:100%;height:80px;overflow:visible">
+          <!-- Zero line -->
+          <line x1="0" y1="40" x2="300" y2="40" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
+          <!-- Form line -->
+          <polyline
+            :points="(playerFormHistory(detailPlayer?.id)||[]).map((v,i,arr)=>`${arr.length>1?i*(300/(arr.length-1)):150},${40-v*3}`).join(' ')"
+            fill="none" stroke="var(--lime)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <!-- Points -->
+          <circle v-for="(v,i) in (playerFormHistory(detailPlayer?.id)||[])" :key="i"
+            :cx="(playerFormHistory(detailPlayer?.id)||[]).length > 1 ? i*(300/((playerFormHistory(detailPlayer?.id)||[]).length-1)) : 150" :cy="40-v*3"
+            r="4"
+            :fill="v>0?'var(--lime)':v<0?'var(--red)':'var(--yellow)'"
+            stroke="var(--bg3)" stroke-width="2"/>
+          <!-- Labels -->
+          <text x="0" y="75" font-size="9" fill="var(--text2)">↑ Vince</text>
+          <text x="250" y="75" font-size="9" fill="var(--text2)">Perde ↓</text>
+        </svg>
+        <div style="display:flex;gap:12px;font-size:0.7rem;color:var(--text2);margin-top:4px">
+          <span style="color:var(--lime)">● Vittoria</span>
+          <span style="color:var(--yellow)">● Pareggio</span>
+          <span style="color:var(--red)">● Sconfitta</span>
         </div>
       </div>
 
@@ -3251,7 +3326,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <input class="input-field" v-model="editingFormationData.nomeSquadraB" placeholder="Squadra B">
         </div>
       </div>
-      <div style="font-weight:800;color:var(--blue);margin-bottom:8px;font-size:0.88rem">🔵 {{ editingFormationData.nomeSquadraA }} ({{ editingFormationData.squadraA.length }})</div>
+      <div style="font-weight:800;color:var(--blue);margin-bottom:8px;font-size:0.88rem">🔵 {{ editingFormationData?.nomeSquadraA }} ({{ editingFormationData?.squadraA?.length || 0 }})</div>
       <div v-for="pid in editingFormationData.squadraA" :key="'ea-'+pid" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center">
           <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
@@ -3264,7 +3339,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <button class="btn btn-red btn-sm" style="padding:4px 10px;font-size:0.72rem" @click="movePlayerInEditor(pid,'squadraA','squadraB')">→ B</button>
         <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.72rem" @click="removePlayerFromEditor(pid)">✕</button>
       </div>
-      <div style="font-weight:800;color:var(--red);margin:14px 0 8px;font-size:0.88rem">🔴 {{ editingFormationData.nomeSquadraB }} ({{ editingFormationData.squadraB.length }})</div>
+      <div style="font-weight:800;color:var(--red);margin:14px 0 8px;font-size:0.88rem">🔴 {{ editingFormationData?.nomeSquadraB }} ({{ editingFormationData?.squadraB?.length || 0 }})</div>
       <div v-for="pid in editingFormationData.squadraB" :key="'eb-'+pid" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
         <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center">
           <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
@@ -3689,6 +3764,43 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.176', date:'2026-05-17', items:[
+        '🔧 FIX: Scheda giocatore non si bloccava più (playerFormHistory/getFormationBalance nel return)',
+        '🔧 FIX: Grafico forma con optional chaining sicuro',
+      ]},
+      { version:'v1.175', date:'2026-05-17', items:[
+        '🔧 FIX: savePlayer non dà più errore resolvedPhotoUrls',
+        '🆕 Pulsante 🔁 Rigenera formazioni (stessi giocatori, nuova distribuzione)',
+        '🆕 Rivalità ⚔️ e Affinità 🤝 nel profilo giocatore (max 3 ciascuna)',
+        '🆕 Indicatore equilibrio formazione (⚖️ Ultra / ⚡ Abbastanza / 🎲 Creativa)',
+        '🆕 Strategia Joker per 3ª formazione',
+        '🆕 Grafico andamento forma nel profilo giocatore (ultime 10 partite)',
+      ]},
+      { version:'v1.173', date:'2026-05-17', items:[
+        '🔧 FIX: Formazioni non più duplicate (dedup + variazione seed)',
+        '🔧 FIX: Toast avvio rimossi (solo log silenzioso)',
+        '🆕 Data/ora ultima sincronizzazione nel modal ☁️',
+      ]},
+      { version:'v1.172', date:'2026-05-16', items:[
+        '🆕 Formazioni bilanciate con forma recente (ultimi 5 risultati per giocatore)',
+        '🆕 Snake draft per distribuzione giocatori',
+        '🆕 Score forma incluso nel prompt AI',
+      ]},
+      { version:'v1.170', date:'2026-05-16', items:[
+        '🔧 FIX CRITICO: rimosso loop infinito recomputeStats↔loadGroupData (causava esplosione RAM)',
+      ]},
+      { version:'v1.166', date:'2026-05-16', items:[
+        '🔧 FIX RAM: foto cache da ref{} spread a plain Map',
+        '🔧 FIX RAM: visibilitychange con debounce 1s',
+      ]},
+      { version:'v1.164', date:'2026-05-16', items:[
+        '🔧 FIX: Rinnovo token Firebase usa API key del gruppo',
+        '🔧 FIX: Messaggio nessun token ora silenzioso',
+      ]},
+      { version:'v1.163', date:'2026-05-16', items:[
+        '🔧 FIX: Foto Drive nella PNG formazione (stesso codice stats)',
+      ]},
+
       { version:'v1.154', date:'2026-05-15', items:[
         '🔧 FIX: Timer versione e sync all’avvio schedulati all’inizio (visibili dopo 2-3s)',
         '🔧 FIX: Token Firebase auto-rinnovato con refresh token (no più login ogni ora)',
@@ -3860,7 +3972,7 @@ createApp({
 
     // Player form
     const editingPlayer = ref(null);
-    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'' });
+    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[] });
     const detailPlayer  = ref(null);
     const detailMatch   = ref(null);
 
@@ -3903,7 +4015,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.173');
+    const appVersion = ref('1.179');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4186,8 +4298,8 @@ createApp({
     const openPlayerForm = p => {
       editingPlayer.value = p;
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro' }
-        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro' };
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [] }
+        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[] };
       showPlayerForm.value = true;
     };
 
@@ -4199,11 +4311,7 @@ createApp({
       if (editingPlayer.value) {
         await db.players.update(editingPlayer.value.id, { ...f });
         // Clear photo cache so new foto loads immediately
-        const oldKey = f.foto || editingPlayer.value?.uid;
-        if (oldKey) {
-          // invalidate old entries for this player
-          Array.from(resolvedPhotoUrls.keys()).filter(k => k.includes(oldKey) || (f.uid && k.includes(f.uid))).forEach(k => resolvedPhotoUrls.delete(k));
-        }
+        // photo cache no longer needed (was resolvedPhotoUrls, now removed)
         toast('✅ Giocatore aggiornato!');
         autoSyncToCloud();
       } else {
@@ -4213,7 +4321,7 @@ createApp({
           goalTotali:0, assistTotali:0, autogolTotali:0,
           puntiTotali:0, partiteTotali:0, mediaPunti:0,
           mediaVoto:0, votiTotali:0, uomoPartitaTotali:0,
-          piede: f.piede||'Destro', descrizione: f.descrizione||'', storicoPartite:[]
+          piede: f.piede||'Destro', descrizione: f.descrizione||'', storicoPartite:[], rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean)
         });
         toast('✅ Giocatore aggiunto!');
         autoSyncToCloud();
@@ -4554,8 +4662,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
       } else if (strategy === 'role') {
         const roleOrd = {'Portiere':0,'Difensore':1,'Centrocampista':2,'Attaccante':3,'Jolly':4};
         sortedRem = remaining.sort((x,y) => (roleOrd[x.ruolo]??4)-(roleOrd[y.ruolo]??4) || statsScore(y)-statsScore(x));
+      } else if (strategy === 'joker') {
+        // Sort by statsScore, then swap top player to opposite team
+        sortedRem = [...remaining].sort((x,y) => statsScore(y) - statsScore(x));
+        // Force top form player into the weaker-looking team (joker swap)
+        if (sortedRem.length >= 4) {
+          const top = sortedRem[0];
+          sortedRem[0] = sortedRem[2];
+          sortedRem[2] = top;
+        }
       } else {
-        sortedRem = [...remaining].sort(() => Math.random() - 0.5);
+        sortedRem = [...remaining].sort((x,y) => statsScore(y) - statsScore(x));
       }
 
       // Snake draft with variation offset for different formations
@@ -4573,10 +4690,100 @@ Rispondi SOLO con questo JSON (niente altro testo):
       while (a.length > halfA) { b.push(a.pop()); }
       while (b.length > half + 1) { a.push(b.pop()); }
 
+      // Apply rivali/affinità constraints (from 2nd formation: variation>0)
+      if (variation > 0) {
+        const MAX_SWAPS = 3;
+        let swaps = 0;
+        const trySwap = (pidA, pidB) => {
+          if (swaps >= MAX_SWAPS) return;
+          const ia = a.indexOf(pidA), ib = b.indexOf(pidB);
+          const ia2 = a.indexOf(pidB), ib2 = b.indexOf(pidA);
+          if (ia >= 0 && ib >= 0) { a[ia]=pidB; b[ib]=pidA; swaps++; }
+          else if (ia2 >= 0 && ib2 >= 0) { a[ia2]=pidA; b[ib2]=pidB; swaps++; }
+        };
+        // Rivals: force them into different teams
+        for (const pid of [...a,...b]) {
+          const p = getPlayer(pid);
+          if (!p?.rivali) continue;
+          for (const riv of p.rivali) {
+            if (a.includes(pid) && a.includes(riv)) trySwap(riv, b[b.length-1]);
+            if (b.includes(pid) && b.includes(riv)) trySwap(riv, a[a.length-1]);
+          }
+        }
+        // Affinità: try to keep them in same team
+        for (const pid of [...a,...b]) {
+          const p = getPlayer(pid);
+          if (!p?.affinita) continue;
+          for (const aff of p.affinita) {
+            if (a.includes(pid) && b.includes(aff)) trySwap(aff, a[a.length-1]);
+            if (b.includes(pid) && a.includes(aff)) trySwap(aff, b[b.length-1]);
+          }
+        }
+      }
+
       return { a: sortByRole(a), b: sortByRole(b) };
     };
 
-    const generateFormationsAI=async()=>{
+    // ── Rigenera formazioni (cancella non-giocate, rigenera con stessi giocatori) ──
+    // ── Formation balance indicator ──
+    // ── Rivalità / Affinità helpers ──
+    const otherPlayers = computed(() =>
+      groupPlayers.value.filter(p => p.id !== editingPlayer.value?.id && p.id !== playerForm.value?.id)
+    );
+    const addRivalità  = () => { if (!Array.isArray(playerForm.value.rivali)) playerForm.value.rivali=[]; if(playerForm.value.rivali.length<3) playerForm.value.rivali.push(''); };
+    const removeRivalità = (i) => { playerForm.value.rivali.splice(i,1); };
+    const setRivalità  = (i,v) => { if(!playerForm.value.rivali) playerForm.value.rivali=[]; playerForm.value.rivali[i]=Number(v)||v; };
+    const addAffinita  = () => { if (!Array.isArray(playerForm.value.affinita)) playerForm.value.affinita=[]; if(playerForm.value.affinita.length<3) playerForm.value.affinita.push(''); };
+    const removeAffinita = (i) => { playerForm.value.affinita.splice(i,1); };
+    const setAffinita  = (i,v) => { if(!playerForm.value.affinita) playerForm.value.affinita=[]; playerForm.value.affinita[i]=Number(v)||v; };
+
+        // ── Player form history for chart (last 10 matches: +1 win, 0 draw, -1 loss) ──
+    const playerFormHistory = (pid) => {
+      if (!pid) return [];
+      // Sort DESC (newest first), take last 10 played, then reverse to show oldest→newest in chart
+      const sorted = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data));
+      const results = [];
+      for (const m of sorted) {
+        const inA = (m.squadraA||[]).includes(pid);
+        const inB = (m.squadraB||[]).includes(pid);
+        if (!inA && !inB) continue;
+        const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
+        const won = (inA && gA>gB) || (inB && gB>gA);
+        const draw = gA===gB;
+        results.push(won ? 6 : draw ? 0 : -6);
+        if (results.length >= 10) break;
+      }
+      return results.reverse(); // oldest left → newest right
+    };
+
+        const getFormationBalance = (f) => {
+      if (!f?.squadraA?.length || !f?.squadraB?.length) return null;
+      const scoreTeam = pids => pids.reduce((sum, pid) => {
+        const p = getPlayer(pid);
+        return sum + (p ? statsScore(p) : 0);
+      }, 0);
+      const sA = scoreTeam(f.squadraA), sB = scoreTeam(f.squadraB);
+      return Math.abs(sA - sB);
+    };
+
+        const regenerateFormations = async () => {
+      const active = groupFormations.value.filter(f => f.stato !== 'giocata');
+      if (!active.length) return;
+      // Get players from the most recent active formation
+      const ref = active[0];
+      const allPids = [...(ref.squadraA||[]), ...(ref.squadraB||[])];
+      if (allPids.length < 2) return;
+      if (!confirm(`🔁 Elimina ${active.length} formazione/i e rigenera con gli stessi ${allPids.length} giocatori?`)) return;
+      // Set selectedForMatch to same players
+      selectedForMatch.value = allPids;
+      // Delete all non-played formations
+      for (const f of active) await db.formations.delete(f.id);
+      await loadFormations();
+      // Regenerate
+      await generateFormationsAI();
+    };
+
+        const generateFormationsAI=async()=>{
       if(selectedForMatch.value.length<2)return;
       aiLoading.value=true;
       const ex=groupFormations.value.filter(f=>f.stato!=='giocata');
@@ -7625,7 +7832,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction, getCachedPrediction,
-      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime
+      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime,
+      regenerateFormations, getFormationBalance,
+      otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
+      playerFormHistory
     };
   }
 }).mount('#app');
