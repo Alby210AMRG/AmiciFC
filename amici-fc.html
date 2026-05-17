@@ -3153,6 +3153,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div>
           <div class="setting-label">🔄 Sincronizza all'avvio</div>
           <div class="setting-sub">Scarica i dati Firebase ogni volta che apri l'app</div>
+          <div v-if="lastSyncTime" style="font-size:0.7rem;color:var(--lime);margin-top:3px">
+            Ultima sync: {{ lastSyncTime }}
+          </div>
         </div>
         <label class="toggle"><input type="checkbox" v-model="groupSyncOnStartup"><span class="toggle-slider"></span></label>
       </div>
@@ -3756,6 +3759,7 @@ createApp({
     const showMoreMenu      = ref(false);
     const showInstallGuide  = ref(false);
     const showGroupCloud    = ref(false);
+    const lastSyncTime      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const groupSyncOnStartup  = ref(true);
     const showOnboardingLogin = ref(false);
     const showFbHelp        = ref(false);
@@ -3899,7 +3903,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.172');
+    const appVersion = ref('1.173');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4511,7 +4515,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     };
 
     // ── Balanced team builder: equal sizes, GK + ATT guaranteed ──
-    const buildBalancedTeams = (players, strategy) => {
+    const buildBalancedTeams = (players, strategy, variation=0) => {
       const n = players.length;
       const half = Math.floor(n / 2);  // equal halves (odd player goes to A)
       const halfA = n - half;           // A gets extra player if odd
@@ -4554,9 +4558,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
         sortedRem = [...remaining].sort(() => Math.random() - 0.5);
       }
 
-      // Snake draft: alternating picks for maximum balance
-      // 1→A, 2→B, 3→B, 4→A, 5→A, 6→B ... (snake pattern)
-      sortedRem.forEach((p, idx) => {
+      // Snake draft with variation offset for different formations
+      // variation=0: 1→A,2→B,3→B,4→A; variation=1: swap mid pair; variation=2: swap last pair
+      const rotated = variation > 0 && sortedRem.length >= 4
+        ? [...sortedRem.slice(0, variation), ...sortedRem.slice(variation).reverse()].slice(0, sortedRem.length)
+        : sortedRem;
+      rotated.forEach((p, idx) => {
         const round = Math.floor(idx / 2);
         const pickA = round % 2 === 0 ? idx % 2 === 0 : idx % 2 === 1;
         if (pickA && a.length < halfA) a.push(p.id);
@@ -4578,13 +4585,23 @@ Rispondi SOLO con questo JSON (niente altro testo):
       usedFormationNames.value=ex.map(f=>f.nome);
       const players=selectedForMatch.value.map(id=>getPlayer(id)).filter(Boolean);
 
-      // First formation: always score+form (most balanced)
-      // Second: role-aware balance, Third: slight variation
-      const strategies = ['score','score','role'];
-      for(let i=0;i<toGen;i++){
-        const {a,b} = buildBalancedTeams(players, strategies[i % strategies.length]);
-        const ni=i%TEAM_NAMES_A.length;
+      // Generate unique formations: score+form, role+form, hybrid swap
+      const existingKeys = new Set(groupFormations.value.map(f =>
+        [...(f.squadraA||[])].sort().join(',')
+      ));
+      let generated = 0, attempts = 0;
+      const strategies = ['score','role','score'];
+      while (generated < toGen && attempts < 15) {
+        attempts++;
+        const strat = strategies[generated % strategies.length];
+        // Add controlled variation: on 2nd+ attempt with same strategy, swap border players
+        const {a,b} = buildBalancedTeams(players, strat, generated);
+        const key = [...a].sort().join(',');
+        if (existingKeys.has(key)) continue; // skip duplicates
+        existingKeys.add(key);
+        const ni = generated % TEAM_NAMES_A.length;
         await db.formations.add({...buildFormationBase(),nome:getRandomFormationName(),nomeSquadraA:TEAM_NAMES_A[ni],nomeSquadraB:TEAM_NAMES_B[ni],squadraA:a,squadraB:b});
+        generated++;
       }
       await loadFormations();aiLoading.value=false;
       toast(`🤖 Generate ${toGen} formazioni bilanciate ${Math.floor(players.length/2)}v${Math.floor(players.length/2)}!`);
@@ -6118,7 +6135,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         await recomputeStats();
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
-        toast(`☁️ Sync Firebase: ${syncedPlayers} gioc., ${syncedMatches} partite aggiornate`, 'success', 8000);
+        const _now = new Date().toLocaleString('it-IT');
+        lastSyncTime.value = _now;
+        localStorage.setItem('amicifc_last_sync', _now);
+        console.log(`[AmiciFC] Sync OK: ${syncedPlayers} gioc., ${syncedMatches} partite`);
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
@@ -7317,7 +7337,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const checkForUpdates = async () => {
       try {
         const resp = await fetch('./version.json?nocache=' + Date.now(), { cache: 'no-store' });
-        if (!resp.ok) { toast('⚠️ Controllo versione: HTTP ' + resp.status, 'error', 5000); return; }
+        if (!resp.ok) { console.warn('[AmiciFC] version check HTTP', resp.status); return; }
         const data = await resp.json();
         if (!data.version) return;
         // Always update date from version.json
@@ -7335,10 +7355,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           updateAvailable.value = true;
           toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 12000);
         } else {
-          toast('✅ App aggiornata v' + appVersion.value, 'success', 8000);
+          console.log('[AmiciFC] App aggiornata v' + appVersion.value);
         }
       } catch (err) {
-        toast('⚠️ Controllo versione fallito: ' + err.message, 'error', 5000);
+        console.warn('[AmiciFC] version check failed:', err.message);
         console.warn('[AmiciFC] Update check failed:', err);
         toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
       }
@@ -7605,7 +7625,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction, getCachedPrediction,
-      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken
+      showGroupCloud, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime
     };
   }
 }).mount('#app');
