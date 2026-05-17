@@ -3779,6 +3779,14 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.194', date:'2026-05-17', items:[
+        '🔧 FIX: Foto base64 da Firebase vengono ridimensionate a 400px prima di salvarle localmente',
+        '🔧 FIX: resizeBase64() helper condiviso per upload e sync',
+      ]},
+      { version:'v1.193', date:'2026-05-17', items:[
+        '🔧 FIX CRITICO: Sync usa updatedAt - dato più recente vince sempre',
+        '🔧 FIX: Foto non sovrascritta da Firebase se locale è più recente',
+      ]},
       { version:'v1.192', date:'2026-05-17', items:[
         '🔧 FIX: Toast sync solo per dati realmente cambiati (confronto firma gol+voti)',
         '🔧 FIX: Rimosso toast aggiornamento app duplicato (il banner è già visibile)',
@@ -4102,7 +4110,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.192');
+    const appVersion = ref('1.194');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4406,6 +4414,7 @@ createApp({
           descrizione: f.descrizione || '',
           rivali:      (f.rivali||[]).filter(Boolean),
           affinita:    (f.affinita||[]).filter(Boolean),
+          updatedAt:   Date.now(),
         });
         if (!updated) {
           // Fallback: try put() in case the record id doesn't match
@@ -5894,6 +5903,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
       const match = {
         id:         uuid(),
+        updatedAt:  Date.now(),
         groupId:    currentGroup.value.id,
         data:       matchInfo.value.data || new Date().toISOString().slice(0,10),
         orario:     matchInfo.value.orario || '',
@@ -5982,6 +5992,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const m = JSON.parse(JSON.stringify(editingMatch.value));
       try {
         const updated = await db.matches.update(m.id, {
+          updatedAt: Date.now(),
           data:                   m.data,
           luogo:                  m.luogo,
           nomeSquadraA:           m.nomeSquadraA,
@@ -6321,7 +6332,25 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       syncLoading.value = false;
     };
 
-    const syncFromCloud = async () => {
+    // ── Resize base64 photo if needed (max 400px) ──
+    const resizeBase64 = (b64) => new Promise(resolve => {
+      if (!b64 || !b64.startsWith('data:image')) return resolve(b64);
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 400;
+        if (img.width <= MAX && img.height <= MAX) return resolve(b64); // already small
+        const scale = MAX / Math.max(img.width, img.height);
+        const canvas = document.createElement('canvas');
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.75));
+      };
+      img.onerror = () => resolve(b64);
+      img.src = b64;
+    });
+
+        const syncFromCloud = async () => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
       syncLoading.value = true;
@@ -6379,7 +6408,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                 ruolo:       cp.ruolo       ?? lp.ruolo,
                 piede:       cp.piede       ?? lp.piede,
                 descrizione: cp.descrizione ?? lp.descrizione,
-                foto:        cp.foto        || lp.foto,
+                foto:        await resizeBase64((cp.updatedAt||0) >= (lp.updatedAt||0) ? (cp.foto||lp.foto) : (lp.foto||cp.foto)),
                 goalTotali:        Math.max(cp.goalTotali        ||0, lp.goalTotali        ||0),
                 assistTotali:      Math.max(cp.assistTotali      ||0, lp.assistTotali      ||0),
                 autogolTotali:     Math.max(cp.autogolTotali     ||0, lp.autogolTotali     ||0),
@@ -6446,8 +6475,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
               lm.risultato?.goalB === cm.risultato?.goalB
             );
             if (existing) {
-              // Only update if key data changed (voti, gol, statistiche)
-              const _sig = m => [m.risultato?.goalA,m.risultato?.goalB,
+              // Cloud wins only if newer timestamp (updatedAt)
+              if ((remapped.updatedAt||0) > (existing.updatedAt||0)) {
+                await db.matches.update(existing.id, remapped);
+                syncedMatches++;
+              }
+              const _sig_REMOVE = m => [m.risultato?.goalA,m.risultato?.goalB,
                 (m.statisticheGiocatori||[]).map(s=>`${s.playerId}:${s.goal}:${s.assist}:${s.voto}:${s.uomoPartita}`).join(',')
               ].join('|');
               if (_sig(existing) !== _sig(remapped)) {
