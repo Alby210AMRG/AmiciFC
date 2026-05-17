@@ -3779,6 +3779,11 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.195', date:'2026-05-17', items:[
+        '🔧 FIX CRITICO: Rimosso codice zombie _sig che causava crash all\'avvio su mobile',
+        '🔧 FIX: Toast "App aggiornata" non appare più dal nulla (visibilitychange silenzioso)',
+        '🔧 FIX: Sync Firebase: updatedAt garantisce che il dato più recente vinca sempre',
+      ]},
       { version:'v1.194', date:'2026-05-17', items:[
         '🔧 FIX: Foto base64 da Firebase vengono ridimensionate a 400px prima di salvarle localmente',
         '🔧 FIX: resizeBase64() helper condiviso per upload e sync',
@@ -4110,7 +4115,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.194');
+    const appVersion = ref('1.195');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6480,14 +6485,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                 await db.matches.update(existing.id, remapped);
                 syncedMatches++;
               }
-              const _sig_REMOVE = m => [m.risultato?.goalA,m.risultato?.goalB,
-                (m.statisticheGiocatori||[]).map(s=>`${s.playerId}:${s.goal}:${s.assist}:${s.voto}:${s.uomoPartita}`).join(',')
-              ].join('|');
-              if (_sig(existing) !== _sig(remapped)) {
-                await db.matches.update(existing.id, remapped);
-                syncedMatches++;
-              }
-            } else {
+} else {
               // NEW match — insert
               await db.matches.add(remapped);
               syncedMatches++;
@@ -7916,7 +7914,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           clearTimeout(_visTimer);
           _visTimer = setTimeout(() => {
             autoSync().catch(console.warn);
-            checkForUpdates().catch(console.warn);
+            checkForUpdates(true).catch(console.warn);
           }, 1000);
         }
       });
