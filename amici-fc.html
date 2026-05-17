@@ -2625,6 +2625,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           Usa il pulsante <strong style="color:var(--lime)">☁️</strong> accanto al nome del gruppo in cima all'app.
         </div>
 <!-- CREDITI -->
+      <!-- ── Ottimizza Foto ── -->
+      <div class="card" style="border-color:rgba(58,123,255,0.3)">
+        <div class="card-title" style="color:var(--blue)">🖼️ Ottimizza Foto Giocatori</div>
+        <div style="font-size:0.8rem;color:var(--text2);margin-bottom:12px">
+          Ridimensiona le foto caricate da file a max 400px e qualità 75%.<br>
+          Riduce lo spazio su Firebase e migliora la sincronizzazione.
+        </div>
+        <button class="btn btn-primary btn-full" @click="optimizePlayerPhotos" :disabled="optimizingPhotos">
+          {{ optimizingPhotos ? '⏳ Ottimizzazione in corso...' : '✨ Ottimizza Foto' }}
+        </button>
+        <div v-if="optimizeResult" style="margin-top:8px;font-size:0.82rem;color:var(--lime)">
+          {{ optimizeResult }}
+        </div>
+      </div>
+
       <!-- ── Zona Pericolo ── -->
       <div class="card" style="border-color:rgba(255,77,77,0.3)">
         <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
@@ -3764,6 +3779,22 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.191', date:'2026-05-17', items:[
+        '🆕 Impostazioni: pulsante "Ottimizza Foto Giocatori" (ridimensiona base64 a max 400px)',
+      ]},
+      { version:'v1.190', date:'2026-05-17', items:[
+        '🔧 FIX: Foto Drive (lh3 URL salvate) ora visibili nei giocatori',
+        '🔧 FIX: Foto caricate da file ridimensionate a max 400px (no overflow Firebase)',
+        '🔧 FIX: Errori file:// in locale non mostrano toast (normale in locale)',
+      ]},
+      { version:'v1.189', date:'2026-05-17', items:[
+        '🔧 FIX CRITICO: Foto Drive nei canvas ripristinate (lh3 per canvas, uc?export per browser display)',
+        '🔧 FIX: Toast sincronizzazione visibile solo quando ci sono dati nuovi da Firebase',
+      ]},
+      { version:'v1.188', date:'2026-05-17', items:[
+        '🔧 FIX: Controllo aggiornamenti con toast solo se premuto manualmente',
+        '🔧 FIX: Foto Drive visibili su Firefox/Chrome (uc?export=view)',
+      ]},
       { version:'v1.186', date:'2026-05-17', items:[
         '🔧 FIX DEFINITIVO: Sync avvio chiamata direttamente alla fine di onMounted (dopo caricamento gruppo)',
         '🔧 FIX: Rimosso setTimeout(autoSync) inaffidabile',
@@ -4066,7 +4097,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.187');
+    const appVersion = ref('1.191');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4414,8 +4445,21 @@ createApp({
     const handlePhotoUpload = e => {
       const file = e.target.files[0];
       if (!file) return;
+      // Resize photo before saving to keep data URI manageable
+      const img = new Image();
       const reader = new FileReader();
-      reader.onload = ev => { playerForm.value.foto = ev.target.result; };
+      reader.onload = ev => {
+        img.onload = () => {
+          const MAX = 400; // max 400px
+          const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(img.width * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          playerForm.value.foto = canvas.toDataURL('image/jpeg', 0.75);
+        };
+        img.src = ev.target.result;
+      };
       reader.readAsDataURL(file);
     };
 
@@ -6417,6 +6461,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const _now = new Date().toLocaleString('it-IT');
         lastSyncTime.value = _now;
         localStorage.setItem('amicifc_last_sync', _now);
+        if (syncedPlayers > 0 || syncedMatches > 0) toast(`☁️ Aggiornato: ${syncedPlayers} gioc., ${syncedMatches} partite`, 'success', 4000);
         console.log(`[AmiciFC] Sync OK: ${syncedPlayers} gioc., ${syncedMatches} partite`);
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
@@ -6586,9 +6631,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const SILHOUETTE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
     const getPlayerPhoto = (foto, uid) => {
       if (foto) {
-        // Auto-convert Google Drive share URL → thumbnail URL (CORS-friendly)
+        // Convert Drive share URL → uc?export=view (works in all browsers)
         const driveMatch = foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
-        if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+        if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
+        // Convert stored lh3 URLs → uc?export=view (lh3 can fail without CORS in browser)
+        const lh3Match = foto.match(/lh3\.googleusercontent\.com\/d\/([^\/\?&]+)/);
+        if (lh3Match) return `https://drive.google.com/uc?export=view&id=${lh3Match[1]}`;
         if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./')) return foto;
         return `./images/players/${foto}`;
       }
@@ -6634,7 +6682,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if (!foto) return null;
       // Auto-convert Google Drive share URL → lh3 direct (CORS-friendly, no redirect)
       const driveMatch = foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
-      if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+      if (driveMatch) return `https://drive.google.com/uc?export=view&id=${driveMatch[1]}`;
       if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./') || foto.startsWith('/')) return foto;
       const hasExt = /\.(jpg|jpeg|png|webp)$/i.test(foto);
       if (!hasExt) return `./images/players/${foto}.png`; // default PNG
@@ -7613,7 +7661,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // ── Update Check ──
-    const checkForUpdates = async () => {
+    const checkForUpdates = async (silent = false) => {
       try {
         const resp = await fetch('./version.json?nocache=' + Date.now(), { cache: 'no-store' });
         if (!resp.ok) { toast('⚠️ Controllo versione fallito (HTTP ' + resp.status + ')', 'error', 4000); return; }
@@ -7637,7 +7685,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           toast('✅ App già aggiornata (v' + appVersion.value + ')', 'success', 4000);
         }
       } catch (err) {
-        if (!silent) toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
+        if (!silent && !err.message.includes('Failed to fetch')) toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
         console.warn('[AmiciFC] Update check failed:', err);
         toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
       }
@@ -7858,7 +7906,53 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
           });
 
-    // Expose to template
+    // ── Optimize player photos ──
+    const optimizingPhotos = ref(false);
+    const optimizeResult   = ref('');
+    const optimizePlayerPhotos = async () => {
+      if (!currentGroup.value) return;
+      optimizingPhotos.value = true;
+      optimizeResult.value = '';
+      try {
+        const players = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
+        let optimized = 0, skipped = 0, savedKB = 0;
+        for (const p of players) {
+          if (!p.foto || !p.foto.startsWith('data:image')) { skipped++; continue; }
+          // Check size - skip if already small (< 30KB)
+          const sizeBefore = Math.round(p.foto.length * 0.75 / 1024);
+          if (sizeBefore < 30) { skipped++; continue; }
+          // Resize via canvas
+          const resized = await new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+              const MAX = 400;
+              const scale = Math.min(1, MAX / Math.max(img.width || 1, img.height || 1));
+              const canvas = document.createElement('canvas');
+              canvas.width  = Math.round(img.width  * scale);
+              canvas.height = Math.round(img.height * scale);
+              canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.75));
+            };
+            img.onerror = () => resolve(null);
+            img.src = p.foto;
+          });
+          if (!resized || resized === p.foto) { skipped++; continue; }
+          const sizeAfter = Math.round(resized.length * 0.75 / 1024);
+          savedKB += sizeBefore - sizeAfter;
+          await db.players.update(p.id, { foto: resized });
+          optimized++;
+        }
+        await loadGroupData();
+        autoSyncToCloud();
+        optimizeResult.value = `✅ ${optimized} foto ottimizzate${savedKB > 0 ? ', risparmiati ~' + savedKB + 'KB' : ''}. ${skipped} già ok o su Drive.`;
+      } catch(e) {
+        optimizeResult.value = '❌ Errore: ' + e.message;
+      } finally {
+        optimizingPhotos.value = false;
+      }
+    };
+
+        // Expose to template
     return {
       currentView, groups, currentGroup, groupPlayers, groupMatches, settings,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showPlayerDetail,
@@ -7901,7 +7995,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       sharePNG,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
       exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
-      checkForUpdates, doUpdate,
+      checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch,
       shareStatsPNG,
