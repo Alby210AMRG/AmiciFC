@@ -3779,6 +3779,9 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.197', date:'2026-05-17', items:[
+        '🔧 FIX: Ottimizza Foto ora salta le foto già ottimizzate (controllo dimensioni pixel + risparmio reale)',
+      ]},
       { version:'v1.196', date:'2026-05-17', items:[
         '🔧 FIX: Scarica manuale forza aggiornamento foto da Firebase (force=true)',
         '🔧 FIX: Sync automatico usa updatedAt per non sovrascrivere foto locali più recenti',
@@ -4119,7 +4122,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.196');
+    const appVersion = ref('1.197');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7966,22 +7969,30 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           // Check size - skip if already small (< 30KB)
           const sizeBefore = Math.round(p.foto.length * 0.75 / 1024);
           if (sizeBefore < 30) { skipped++; continue; }
-          // Resize via canvas
+          // Check actual pixel dimensions - skip if already small enough
           const resized = await new Promise((resolve) => {
             const img = new Image();
             img.onload = () => {
               const MAX = 400;
+              // Already within limits AND file is small - skip
+              if (img.width <= MAX && img.height <= MAX && sizeBefore < 50) {
+                return resolve(null); // null = skip
+              }
               const scale = Math.min(1, MAX / Math.max(img.width || 1, img.height || 1));
               const canvas = document.createElement('canvas');
               canvas.width  = Math.round(img.width  * scale);
               canvas.height = Math.round(img.height * scale);
               canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-              resolve(canvas.toDataURL('image/jpeg', 0.75));
+              const result = canvas.toDataURL('image/jpeg', 0.75);
+              const sizeResult = Math.round(result.length * 0.75 / 1024);
+              // Skip if no meaningful saving (< 10% reduction)
+              if (sizeResult >= sizeBefore * 0.90) return resolve(null);
+              resolve(result);
             };
             img.onerror = () => resolve(null);
             img.src = p.foto;
           });
-          if (!resized || resized === p.foto) { skipped++; continue; }
+          if (!resized) { skipped++; continue; }
           const sizeAfter = Math.round(resized.length * 0.75 / 1024);
           savedKB += sizeBefore - sizeAfter;
           await db.players.update(p.id, { foto: resized });
