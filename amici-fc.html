@@ -3779,6 +3779,11 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.192', date:'2026-05-17', items:[
+        '🔧 FIX: Toast sync solo per dati realmente cambiati (confronto firma gol+voti)',
+        '🔧 FIX: Rimosso toast aggiornamento app duplicato (il banner è già visibile)',
+        '🔧 FIX: Sync periodico ogni 5min per browser PC non-PWA',
+      ]},
       { version:'v1.191', date:'2026-05-17', items:[
         '🆕 Impostazioni: pulsante "Ottimizza Foto Giocatori" (ridimensiona base64 a max 400px)',
       ]},
@@ -4097,7 +4102,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.191');
+    const appVersion = ref('1.192');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6441,9 +6446,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
               lm.risultato?.goalB === cm.risultato?.goalB
             );
             if (existing) {
-              // UPDATE existing match with all cloud data (including updated voti)
-              await db.matches.update(existing.id, remapped);
-              syncedMatches++; // count updates too
+              // Only update if key data changed (voti, gol, statistiche)
+              const _sig = m => [m.risultato?.goalA,m.risultato?.goalB,
+                (m.statisticheGiocatori||[]).map(s=>`${s.playerId}:${s.goal}:${s.assist}:${s.voto}:${s.uomoPartita}`).join(',')
+              ].join('|');
+              if (_sig(existing) !== _sig(remapped)) {
+                await db.matches.update(existing.id, remapped);
+                syncedMatches++;
+              }
             } else {
               // NEW match — insert
               await db.matches.add(remapped);
@@ -7680,7 +7690,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         if (remoteVer > currentVer) {
           newVersion.value      = data.version;
           updateAvailable.value = true;
-          toast(`🎉 Versione ${data.version} disponibile! Premi Aggiorna.`, 'info', 12000);
+          // updateAvailable banner already shown - no extra toast
         } else if (!silent) {
           toast('✅ App già aggiornata (v' + appVersion.value + ')', 'success', 4000);
         }
