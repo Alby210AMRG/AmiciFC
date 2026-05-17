@@ -140,11 +140,12 @@ body {
 
 .topbar {
   position: fixed; top: 0; left: 0; right: 0; z-index: 100;
-  height: var(--top-h);
+  height: calc(var(--top-h) + env(safe-area-inset-top, 0px));
   background: var(--card);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; gap: 12px;
   padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0px);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
@@ -7808,11 +7809,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Compute initial news items
       setTimeout(_scheduleNewsCompute, 1000);
 
-      // ── Startup sync: now that group is loaded, sync from Firebase ──
+      // ── Startup sync: direct await after group confirmed loaded ──
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
-        getValidToken().then(token => {
-          if (token) syncFromCloud().catch(e => console.warn('[startup sync]', e.message));
-        });
+        try {
+          const _startToken = await getValidToken();
+          if (_startToken) await syncFromCloud();
+        } catch(e) { console.warn('[startup sync]', e.message); }
       }
 
       // Re-sync when user returns to the app from background
