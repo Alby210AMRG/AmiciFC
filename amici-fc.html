@@ -3763,6 +3763,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.186', date:'2026-05-17', items:[
+        '🔧 FIX DEFINITIVO: Sync avvio chiamata direttamente alla fine di onMounted (dopo caricamento gruppo)',
+        '🔧 FIX: Rimosso setTimeout(autoSync) inaffidabile',
+      ]},
       { version:'v1.185', date:'2026-05-17', items:[
         '🔧 FIX: Toast versione solo se manuale - avvio silenzioso (solo badge aggiorna se nuova versione)',
         '🔧 FIX: Sync avvio attende caricamento gruppo prima di partire (5s + retry se gruppo non pronto)',
@@ -4061,7 +4065,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.185');
+    const appVersion = ref('1.186');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7275,11 +7279,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
 
     const autoSync = async () => {
-      // If group not loaded yet, wait a bit more
-      if (!currentGroup.value) {
-        setTimeout(autoSync, 2000);
-        return;
-      }
       if (!currentGroup.value?.firebaseUrl) {
         // No Firebase configured for this group
         return;
@@ -7748,8 +7747,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       // Schedule all startup checks IMMEDIATELY (before any await)
       // This ensures they fire 2s/3s from app open, not from end of onMounted
       setTimeout(() => checkForUpdates(true), 2000); // silent at startup
-      setTimeout(autoSync, 5000); // 5s to ensure onMounted has finished loading groups
-
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
       document.body.scrollTop = 0;
@@ -7810,6 +7807,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       startNewsTicker();
       // Compute initial news items
       setTimeout(_scheduleNewsCompute, 1000);
+
+      // ── Startup sync: now that group is loaded, sync from Firebase ──
+      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
+        getValidToken().then(token => {
+          if (token) syncFromCloud().catch(e => console.warn('[startup sync]', e.message));
+        });
+      }
 
       // Re-sync when user returns to the app from background
       let _visTimer = null;
