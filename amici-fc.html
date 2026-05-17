@@ -3276,7 +3276,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="btn btn-blue btn-sm" @click="syncToCloud" :disabled="syncLoading||!firebaseUser">
             {{ syncLoading ? '⏳' : '⬆️' }} Carica
           </button>
-          <button class="btn btn-ghost btn-sm" @click="syncFromCloud" :disabled="syncLoading">
+          <button class="btn btn-ghost btn-sm" @click="syncFromCloud(true)" :disabled="syncLoading">
             {{ syncLoading ? '⏳' : '⬇️' }} Scarica
           </button>
         </div>
@@ -3779,6 +3779,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.196', date:'2026-05-17', items:[
+        '🔧 FIX: Scarica manuale forza aggiornamento foto da Firebase (force=true)',
+        '🔧 FIX: Sync automatico usa updatedAt per non sovrascrivere foto locali più recenti',
+      ]},
       { version:'v1.195', date:'2026-05-17', items:[
         '🔧 FIX CRITICO: Rimosso codice zombie _sig che causava crash all\'avvio su mobile',
         '🔧 FIX: Toast "App aggiornata" non appare più dal nulla (visibilitychange silenzioso)',
@@ -4115,7 +4119,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.195');
+    const appVersion = ref('1.196');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6355,7 +6359,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       img.src = b64;
     });
 
-        const syncFromCloud = async () => {
+        const syncFromCloud = async (force=false) => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
       syncLoading.value = true;
@@ -6413,7 +6417,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                 ruolo:       cp.ruolo       ?? lp.ruolo,
                 piede:       cp.piede       ?? lp.piede,
                 descrizione: cp.descrizione ?? lp.descrizione,
-                foto:        await resizeBase64((cp.updatedAt||0) >= (lp.updatedAt||0) ? (cp.foto||lp.foto) : (lp.foto||cp.foto)),
+                foto:        await resizeBase64(force || (cp.updatedAt||0) >= (lp.updatedAt||0) ? (cp.foto||lp.foto) : (lp.foto||cp.foto)),
                 goalTotali:        Math.max(cp.goalTotali        ||0, lp.goalTotali        ||0),
                 assistTotali:      Math.max(cp.assistTotali      ||0, lp.assistTotali      ||0),
                 autogolTotali:     Math.max(cp.autogolTotali     ||0, lp.autogolTotali     ||0),
@@ -7384,7 +7388,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         return;
       }
       try {
-        await syncFromCloud();
+        await syncFromCloud(false);
         // syncFromCloud shows its own toast on success
       } catch(e) {
         toast('⚠️ Sync Firebase: ' + e.message, 'error', 5000);
@@ -7902,7 +7906,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
         try {
           const _startToken = await getValidToken();
-          if (_startToken) await syncFromCloud();
+          if (_startToken) await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
 
