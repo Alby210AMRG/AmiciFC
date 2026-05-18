@@ -26,6 +26,21 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
+  // Cache Google Fonts
+  if (e.request.url.includes('fonts.googleapis.com') || e.request.url.includes('fonts.gstatic.com')) {
+    e.respondWith(
+      caches.open('amicifc-fonts').then(cache =>
+        cache.match(e.request).then(cached => {
+          if (cached) return cached;
+          return fetch(e.request).then(resp => {
+            if (resp.ok) cache.put(e.request, resp.clone());
+            return resp;
+          }).catch(() => cached);
+        })
+      )
+    );
+    return;
+  }
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith('http')) return;
   const url = new URL(e.request.url);

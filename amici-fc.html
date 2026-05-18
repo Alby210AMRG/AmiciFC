@@ -83,8 +83,8 @@ function _i(e,t){const n=ns(e);class s extends xi{constructor(e){super(n,e,t)}}r
   --shadow:    0 4px 24px rgba(0,0,0,0.5);
   --shadow-sm: 0 2px 8px rgba(0,0,0,0.3);
 
-  --font-title: 'Fredoka One', cursive;
-  --font-body:  'Nunito', sans-serif;
+  --font-title: 'Fredoka One', 'Trebuchet MS', 'Arial Rounded MT Bold', system-ui, sans-serif;
+  --font-body: 'Nunito', 'Segoe UI', 'SF Pro Display', system-ui, sans-serif;
   --radius: 18px;
   --radius-sm: 10px;
   --nav-h: 70px;
@@ -3125,6 +3125,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <label class="input-label">📝 Note partita</label>
         <textarea class="input-field" v-model="editingMatch.notePartita" rows="2" style="resize:none"></textarea>
       </div>
+      <div style="margin-bottom:12px">
+        <label class="input-label">💬 Note per AI (opzionale)</label>
+        <textarea class="input-field" v-model="editingMatch.noteAI" rows="2" style="resize:none"
+          placeholder="Es: rimonta epica, gol di tacco, arbitro discutibile..."></textarea>
+      </div>
+      <div style="margin-bottom:12px">
+        <label class="input-label">🤖 Commento AI</label>
+        <textarea class="input-field" v-model="editingMatch.commentoAI" rows="3" style="resize:none"></textarea>
+        <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--yellow);width:100%"
+          @click="regenAIComment(editingMatch)" :disabled="aiRegenLoading">
+          {{ aiRegenLoading ? '⏳ Generando...' : '✨ Rigenera Commento AI' }}
+        </button>
+      </div>
       <div style="display:flex;gap:10px;margin-top:4px">
         <button class="btn btn-ghost" style="flex:1" @click="showEditMatch=false">Annulla</button>
         <button class="btn btn-primary" style="flex:2" @click="saveEditMatch">💾 Salva Modifiche</button>
@@ -3779,6 +3792,14 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.201', date:'2026-05-18', items:[
+        '🔧 FIX: Immagine formazione usa f.matchData (non f.data) per la data partita',
+      ]},
+      { version:'v1.200', date:'2026-05-18', items:[
+        '🔧 FIX: Font sistema come fallback offline (Trebuchet MS, Segoe UI)',
+        '🔧 FIX: Immagine formazione mostra data partita (PER IL GG/MM/AAAA)',
+        '🆕 Modifica partita: note per AI + pulsante Rigenera Commento AI',
+      ]},
       { version:'v1.199', date:'2026-05-17', items:[
         '🔧 FIX: Quote scommessa - squadra B (arancio/sinistra) prima, squadra A (blu/destra) dopo',
         '🔧 FIX: Colore pannello sinistro canvas ora arancio (non verde)',
@@ -4131,7 +4152,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.199');
+    const appVersion = ref('1.201');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5243,7 +5264,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
       // PER STASERA! - lime green italic
       ctx.font='900 italic 90px "Arial Black",Arial';
       const gPS=ctx.createLinearGradient(0,0,W,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(0.5,'#C8FF00');gPS.addColorStop(1,'#8FE600');
-      ctx.fillStyle=gPS;ctx.fillText('PER STASERA!',W/2,212);ctx.shadowBlur=0;
+      const matchDateStr = f.matchData ? 'PER IL ' + f.matchData.split('-').reverse().join('/') : 'PER STASERA!';
+      ctx.fillStyle=gPS;ctx.fillText(matchDateStr,W/2,212);ctx.shadowBlur=0;
       // Formation name
       ctx.font='700 28px "Arial Black",Arial';ctx.fillStyle='#ffffff';
       ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,262);
@@ -8020,6 +8042,48 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
     };
 
+        const aiRegenLoading = ref(false);
+    const regenAIComment = async (match) => {
+      if (!match) return;
+      aiRegenLoading.value = true;
+      try {
+        const apiKey = settings.value.apiKey;
+        const provider = settings.value.aiProvider || 'gemini';
+        if (!apiKey) { toast('Nessuna API Key nelle impostazioni', 'error'); return; }
+        const stats = (match.statisticheGiocatori||[]).map(s => {
+          const p = getPlayer(s.playerId);
+          const nome = p ? (p.soprannome || p.nome) : s.playerId;
+          return nome + ': ' + (s.goal||0) + ' gol, ' + (s.assist||0) + ' assist, voto ' + (s.voto||'-') + (s.uomoPartita ? ' UoM' : '');
+        }).join('; ');
+        const sqA = match.nomeSquadraA || 'Squadra A';
+        const sqB = match.nomeSquadraB || 'Squadra B';
+        const ris = (match.risultato ? match.risultato.goalA||0 : 0) + '-' + (match.risultato ? match.risultato.goalB||0 : 0);
+        const nota = match.noteAI || match.notePartita || '';
+        const prompt = 'Sei un telecronista italiano divertente e ironico. Genera un commento epico (max 3 righe) per questa partita di calcetto tra amici.' +
+          ' ' + sqA + ' vs ' + sqB + ', risultato: ' + ris + '.' +
+          ' Statistiche: ' + stats + '.' +
+          (nota ? ' Note: ' + nota + '.' : '') +
+          ' Sii ironico, divertente, usa i soprannomi.';
+        let comment = '';
+        if (provider === 'gemini') {
+          const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
+          const rr = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+          const dd = await rr.json();
+          comment = ((dd.candidates||[])[0]?.content?.parts||[])[0]?.text || '';
+        } else {
+          const rr = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:300, messages:[{role:'user', content:prompt}]})});
+          const dd = await rr.json();
+          comment = ((dd.content||[])[0]?.text) || '';
+        }
+        if (comment) { match.commentoAI = comment.trim(); toast('Commento rigenerato!', 'success'); }
+        else toast('Nessun commento generato', 'error');
+      } catch(e) { toast('Errore: ' + e.message, 'error'); }
+      finally { aiRegenLoading.value = false; }
+    };
+
         // Expose to template
     return {
       currentView, groups, currentGroup, groupPlayers, groupMatches, settings,
@@ -8065,7 +8129,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
-      showEditMatch, editingMatch, openEditMatch, movePlayerInEdit, saveEditMatch,
+      showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
       shareStatsPNG,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
