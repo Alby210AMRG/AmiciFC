@@ -1773,8 +1773,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="font-size:0.72rem;font-weight:800;color:var(--lime);margin-bottom:8px;letter-spacing:0.5px">🎯 PREDIZIONE AI · QUOTE</div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <div style="flex:1;text-align:center">
-              <div style="font-size:0.72rem;color:#7ab0ff;font-weight:700">{{ f.nomeSquadraA||'Squadra A' }}</div>
-              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteA }}</div>
+              <div style="font-size:0.72rem;color:#FF8C00;font-weight:700">{{ f.nomeSquadraB||'Squadra B' }}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteB }}</div>
               <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
             </div>
             <div style="text-align:center;padding:0 4px">
@@ -1782,8 +1782,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="font-size:0.6rem;color:var(--text2)">pareggio</div>
             </div>
             <div style="flex:1;text-align:center">
-              <div style="font-size:0.72rem;color:#ff9090;font-weight:700">{{ f.nomeSquadraB||'Squadra B' }}</div>
-              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteB }}</div>
+              <div style="font-size:0.72rem;color:#3A7BFF;font-weight:700">{{ f.nomeSquadraA||'Squadra A' }}</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteA }}</div>
               <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
             </div>
           </div>
@@ -3779,6 +3779,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.199', date:'2026-05-17', items:[
+        '🔧 FIX: Quote scommessa - squadra B (arancio/sinistra) prima, squadra A (blu/destra) dopo',
+        '🔧 FIX: Colore pannello sinistro canvas ora arancio (non verde)',
+      ]},
       { version:'v1.198', date:'2026-05-17', items:[
         '🔧 FIX: Pallino topbar rosso quando offline',
         '🆕 Nomi squadre e partite a tema calcetto/pizza/birra',
@@ -4127,7 +4131,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.198');
+    const appVersion = ref('1.199');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5254,13 +5258,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const PLX=PAD, PRX=PAD+PW+GAP; // panel left x, right x
 
       // LEFT PANEL (Team B - lime green)
-      const bCol='#A8FF00', bBg='rgba(0,30,0,0.82)', bBorder='rgba(120,220,0,0.85)';
+      const bCol='#FF8C00', bBg='rgba(40,15,0,0.82)', bBorder='rgba(255,140,0,0.85)';
       ctx.save();ctx.shadowColor='rgba(100,220,0,0.5)';ctx.shadowBlur=20;ctx.fillStyle=bBg;
       rrect(PLX,PY,PW,PH,20);ctx.fill();ctx.restore();
       ctx.strokeStyle=bBorder;ctx.lineWidth=3;rrect(PLX,PY,PW,PH,20);ctx.stroke();
 
       // RIGHT PANEL (Team A - blue)
-      const aCol='#5599FF', aBg='rgba(0,10,40,0.82)', aBorder='rgba(60,120,255,0.85)';
+      const aCol='#3A7BFF', aBg='rgba(0,10,50,0.82)', aBorder='rgba(58,123,255,0.85)';
       ctx.save();ctx.shadowColor='rgba(60,120,255,0.5)';ctx.shadowBlur=20;ctx.fillStyle=aBg;
       rrect(PRX,PY,PW,PH,20);ctx.fill();ctx.restore();
       ctx.strokeStyle=aBorder;ctx.lineWidth=3;rrect(PRX,PY,PW,PH,20);ctx.stroke();
@@ -5382,9 +5386,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
         // FIX1: wider boxes 230px, team name font 14px (was 12px, bw 162px)
         const qBoxes=[
-          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.20, col:aCol},
+          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(), odd:pred.quoteB, x:W*0.20, col:bCol},
           {label:'PAREGGIO',                                   odd:pred.quoteX, x:W*0.50, col:'#FFD700'},
-          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(), odd:pred.quoteB, x:W*0.80, col:bCol},
+          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.80, col:aCol},
         ];
         for(const b of qBoxes){
           // Box: taller (96px) so name fits inside
