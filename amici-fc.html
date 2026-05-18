@@ -3792,6 +3792,13 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.205', date:'2026-05-18', items:[
+        '🔧 FIX: Rigenera AI usa stesso ordine modelli del resto dell\'app (2.5→2.0→1.5-flash)',
+      ]},
+      { version:'v1.204', date:'2026-05-18', items:[
+        '🔧 FIX: Rigenera AI usa gemini-1.5-flash (ha quota gratuita, gemini-2.0-flash non ce l\'ha)',
+        '🔧 FIX: saveEditMatch salva anche noteAI nel DB e Firebase',
+      ]},
       { version:'v1.203', date:'2026-05-18', items:[
         '🔧 FIX CRITICO sync: soprannome e foto rispettano updatedAt (cloud vince se più recente)',
         '🔧 FIX: syncedPlayers conta anche i giocatori aggiornati (non solo i nuovi)',
@@ -4158,7 +4165,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.203');
+    const appVersion = ref('1.205');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6053,6 +6060,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           notePartita:            m.notePartita,
           titoloGiornale:         m.titoloGiornale,
           commentoAI:             m.commentoAI,
+          noteAI:                 m.noteAI || '',
           uomoPartita:            m.uomoPartita || null,
           mvp:                    m.mvp || null,
         });
@@ -8076,12 +8084,18 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           ' Sii ironico e usa i soprannomi.';
         let comment = '';
         if (provider === 'gemini') {
-          const rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey,
-            {method:'POST', headers:{'Content-Type':'application/json'},
-             body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
-          const dd = await rr.json();
-          if (dd.error) throw new Error('Gemini: ' + (dd.error.message || JSON.stringify(dd.error)));
-          comment = ((dd.candidates||[])[0]?.content?.parts||[])[0]?.text || '';
+          // Try models in order: 2.5-flash → 2.0-flash → 1.5-flash (same as main AI)
+          const geminiModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+          for (const model of geminiModels) {
+            const rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey,
+              {method:'POST', headers:{'Content-Type':'application/json'},
+               body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+            const dd = await rr.json();
+            if (dd.error?.status === 'RESOURCE_EXHAUSTED') continue; // try next model
+            if (dd.error) throw new Error('Gemini (' + model + '): ' + (dd.error.message || JSON.stringify(dd.error)));
+            comment = ((dd.candidates||[])[0]?.content?.parts||[])[0]?.text || '';
+            if (comment) break; // got a response, stop
+          }
         } else if (provider === 'claude') {
           const rr = await fetch('https://api.anthropic.com/v1/messages',
             {method:'POST', headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
