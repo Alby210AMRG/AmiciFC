@@ -3792,6 +3792,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.206', date:'2026-05-18', items:[
+        '🔧 FIX: Toast sync non appare più all\'avvio se i dati non sono cambiati',
+        '✅ Commento AI partita: usa gemini-2.5→2.0→1.5 flash con fallback automatico',
+      ]},
       { version:'v1.205', date:'2026-05-18', items:[
         '🔧 FIX: Rigenera AI usa stesso ordine modelli del resto dell\'app (2.5→2.0→1.5-flash)',
       ]},
@@ -4165,7 +4169,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.205');
+    const appVersion = ref('1.206');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6455,7 +6459,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                        localPlayers.find(x => x.nome === cp.nome && x.cognome === cp.cognome);
 
             if (lp) {
-              // Player exists locally — cloud is source of truth for profile fields
+              // Only update and count if something actually changed
+              const _lpSig = [lp.nome,lp.cognome,lp.soprannome,lp.ruolo,lp.piede,lp.foto,lp.descrizione,
+                lp.goalTotali,lp.assistTotali,lp.mediaVoto,lp.partiteTotali,lp.mediaPunti].join('|');
+              const _cpSig = [cp.nome,cp.cognome,cp.soprannome,cp.ruolo,cp.piede,cp.foto,cp.descrizione,
+                cp.goalTotali,cp.assistTotali,cp.mediaVoto,cp.partiteTotali,cp.mediaPunti].join('|');
+              // Cloud is source of truth for profile fields
               // For stats: take the MAXIMUM (never downgrade)
               await db.players.update(lp.id, {
                 uid:         cpUid,
@@ -6482,7 +6491,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                 rivali:       Array.isArray(cp.rivali) ? cp.rivali : (lp.rivali||[]),
                 affinita:     Array.isArray(cp.affinita) ? cp.affinita : (lp.affinita||[]),
               });
-              syncedPlayers++;
+              if (_lpSig !== _cpSig) syncedPlayers++;
               if (cp.id !== undefined) idMap[String(cp.id)] = lp.id;
             } else {
               // New player — add with uid
