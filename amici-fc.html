@@ -3792,6 +3792,12 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.203', date:'2026-05-18', items:[
+        '🔧 FIX CRITICO sync: soprannome e foto rispettano updatedAt (cloud vince se più recente)',
+        '🔧 FIX: syncedPlayers conta anche i giocatori aggiornati (non solo i nuovi)',
+        '🔧 FIX: updatedAt e rivali/affinita preservati nel merge sync',
+      ]},
+      { version:'v1.202', date:'2026-05-18', items:['🔧 FIX: Rigenera AI - Gemini/Claude/ChatGPT tutti funzionanti con headers corretti']},
       { version:'v1.201', date:'2026-05-18', items:[
         '🔧 FIX: Immagine formazione usa f.matchData (non f.data) per la data partita',
       ]},
@@ -4152,7 +4158,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.201');
+    const appVersion = ref('1.203');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6447,10 +6453,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                 uid:         cpUid,
                 nome:        cp.nome        ?? lp.nome,
                 cognome:     cp.cognome     ?? lp.cognome,
-                soprannome:  cp.soprannome  ?? lp.soprannome,
+                // Text profile fields: cloud wins if force=true OR cloud is newer
+                soprannome:  (force || (cp.updatedAt||0) >= (lp.updatedAt||0)) ? (cp.soprannome ?? lp.soprannome) : (lp.soprannome ?? cp.soprannome),
                 ruolo:       cp.ruolo       ?? lp.ruolo,
                 piede:       cp.piede       ?? lp.piede,
-                descrizione: cp.descrizione ?? lp.descrizione,
+                descrizione: (force || (cp.updatedAt||0) >= (lp.updatedAt||0)) ? (cp.descrizione ?? lp.descrizione) : (lp.descrizione ?? cp.descrizione),
                 foto:        await resizeBase64(force || (cp.updatedAt||0) >= (lp.updatedAt||0) ? (cp.foto||lp.foto) : (lp.foto||cp.foto)),
                 goalTotali:        Math.max(cp.goalTotali        ||0, lp.goalTotali        ||0),
                 assistTotali:      Math.max(cp.assistTotali      ||0, lp.assistTotali      ||0),
@@ -6462,8 +6469,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                                    lp.partiteTotali > 0 ? (lp.puntiTotali||0)/(lp.partiteTotali||1) : 0,
                 mediaVoto:    ((cp.mediaVoto||0) > 0 ? cp.mediaVoto : null) ??
                               ((lp.mediaVoto||0) > 0 ? lp.mediaVoto : 0),
-                votiTotali:   Math.max(cp.votiTotali||0, lp.votiTotali||0)
+                votiTotali:   Math.max(cp.votiTotali||0, lp.votiTotali||0),
+                updatedAt:    Math.max(cp.updatedAt||0, lp.updatedAt||0),
+                rivali:       Array.isArray(cp.rivali) ? cp.rivali : (lp.rivali||[]),
+                affinita:     Array.isArray(cp.affinita) ? cp.affinita : (lp.affinita||[]),
               });
+              syncedPlayers++;
               if (cp.id !== undefined) idMap[String(cp.id)] = lp.id;
             } else {
               // New player — add with uid
@@ -8059,32 +8070,38 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const sqB = match.nomeSquadraB || 'Squadra B';
         const ris = (match.risultato ? match.risultato.goalA||0 : 0) + '-' + (match.risultato ? match.risultato.goalB||0 : 0);
         const nota = match.noteAI || match.notePartita || '';
-        const prompt = 'Sei un telecronista italiano divertente e ironico. Genera un commento epico (max 3 righe) per questa partita di calcetto tra amici.' +
-          ' ' + sqA + ' vs ' + sqB + ', risultato: ' + ris + '.' +
-          ' Statistiche: ' + stats + '.' +
-          (nota ? ' Note: ' + nota + '.' : '') +
-          ' Sii ironico, divertente, usa i soprannomi.';
+        const prompt = 'Sei un telecronista italiano divertente. Genera commento epico (max 3 righe) per partita calcetto tra amici.' +
+          ' ' + sqA + ' vs ' + sqB + ' risultato ' + ris + '.' +
+          ' Giocatori: ' + stats + '.' + (nota ? ' Note: ' + nota + '.' : '') +
+          ' Sii ironico e usa i soprannomi.';
         let comment = '';
         if (provider === 'gemini') {
-          const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey;
-          const rr = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
+          const rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey,
+            {method:'POST', headers:{'Content-Type':'application/json'},
+             body: JSON.stringify({contents:[{parts:[{text:prompt}]}]})});
           const dd = await rr.json();
+          if (dd.error) throw new Error('Gemini: ' + (dd.error.message || JSON.stringify(dd.error)));
           comment = ((dd.candidates||[])[0]?.content?.parts||[])[0]?.text || '';
-        } else {
-          const rr = await fetch('https://api.anthropic.com/v1/messages', {method:'POST',
-            headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:300, messages:[{role:'user', content:prompt}]})});
+        } else if (provider === 'claude') {
+          const rr = await fetch('https://api.anthropic.com/v1/messages',
+            {method:'POST', headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
+             body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:300, messages:[{role:'user',content:prompt}]})});
           const dd = await rr.json();
           comment = ((dd.content||[])[0]?.text) || '';
+        } else if (provider === 'chatgpt') {
+          const rr = await fetch('https://api.openai.com/v1/chat/completions',
+            {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer ' + apiKey},
+             body: JSON.stringify({model:'gpt-4o-mini', max_tokens:300, messages:[{role:'user',content:prompt}]})});
+          const dd = await rr.json();
+          comment = dd.choices?.[0]?.message?.content || '';
         }
         if (comment) { match.commentoAI = comment.trim(); toast('Commento rigenerato!', 'success'); }
-        else toast('Nessun commento generato', 'error');
-      } catch(e) { toast('Errore: ' + e.message, 'error'); }
+        else toast('Nessun commento - controlla console per errori', 'error');
+      } catch(e) { toast('Errore: ' + e.message, 'error'); console.error('[regenAI]', e); }
       finally { aiRegenLoading.value = false; }
     };
 
-        // Expose to template
+            // Expose to template
     return {
       currentView, groups, currentGroup, groupPlayers, groupMatches, settings,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showPlayerDetail,
