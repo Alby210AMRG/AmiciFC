@@ -3798,6 +3798,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.211', date:'2026-05-19', items:[
+        '🔧 FIX Giornale: un giocatore per squadra nella hero (il migliore di A a sinistra, il migliore di B a destra)',
+        '✅ In caso di parità di punteggio viene mostrato il primo giocatore della squadra',
+      ]},
       { version:'v1.210', date:'2026-05-19', items:[
         '🔧 FIX Giornale: box risultato più compatto, marcatori 2 righe (nome + gol/assist/OG)',
         '✅ Pagelle dinamiche per qualsiasi numero di giocatori (5vs5, 7vs7, 8vs8...)',
@@ -4194,7 +4198,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.210');
+    const appVersion = ref('1.211');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7260,16 +7264,18 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
 
-      // ── Find top 2 players by score for hero section ──
-      const sortedByScore = [...allPids].sort((a,b)=>{
-        const sa = playerStats.value[a]||{}, sb = playerStats.value[b]||{};
-        const scoreA = (sa.voto||6)*2 + (sa.goal||0)*3 + (sa.assist||0) + (sa.uomoPartita?5:0);
-        const scoreB = (sb.voto||6)*2 + (sb.goal||0)*3 + (sb.assist||0) + (sb.uomoPartita?5:0);
-        return scoreB - scoreA;
-      });
-      const hero1pid = sortedByScore[0], hero2pid = sortedByScore[1];
+      // ── Best player from EACH team (one per side) ──
+      const scoreOf = pid => {
+        const s = playerStats.value[pid]||{};
+        return (s.voto||6)*2 + (s.goal||0)*3 + (s.assist||0) + (s.uomoPartita?5:0);
+      };
+      // Best from team A (shown left, orange side)
+      const hero1pid = [...pidsA].sort((a,b)=>scoreOf(b)-scoreOf(a))[0] || null;
+      // Best from team B (shown right, blue side)
+      const hero2pid = [...pidsB].sort((a,b)=>scoreOf(b)-scoreOf(a))[0] || null;
       const hero1 = hero1pid ? getPlayer(hero1pid) : null;
       const hero2 = hero2pid ? getPlayer(hero2pid) : null;
+      // In case of tie (all same score), still picks first player → always shows someone
       const [hero1Photo, hero2Photo] = await Promise.all([
         hero1 ? loadPhoto(hero1.foto, hero1.uid) : Promise.resolve(null),
         hero2 ? loadPhoto(hero2.foto, hero2.uid) : Promise.resolve(null),
