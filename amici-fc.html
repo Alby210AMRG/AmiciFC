@@ -1908,6 +1908,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <template v-if="matchStep === 1">
         <div class="card">
           <div class="card-title">🏆 Risultato</div>
+          <div style="font-size:0.72rem;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.8">
+            ⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
+            <span style="color:var(--red)">OG = Autogol (nella propria porta)</span> &nbsp;·&nbsp;
+            <span style="color:var(--yellow)">UoM = Uomo della Partita</span> &nbsp;·&nbsp;
+            Voto 1-10
+          </div>
           <div class="match-score" style="margin-bottom:20px">
             <div style="text-align:center">
               <div style="font-family:var(--font-title);color:var(--blue);margin-bottom:8px">
@@ -2015,7 +2021,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" @click="currentView='formations'">← Annulla</button>
-          <button class="btn btn-primary" style="flex:1" @click="matchStep=2;generateCommentAI()">Avanti → Pagelle</button>
+          <button class="btn btn-primary" style="flex:1" @click="matchStep=2">Avanti → Pagelle</button>
         </div>
       </template>
 
@@ -3792,6 +3798,13 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.207', date:'2026-05-18', items:[
+        '🔧 FIX: AI non parte in automatico - serve premere il tasto',
+        '🆕 Legenda OG=Autogol, UoM=Uomo della Partita nella schermata statistiche',
+        '🆕 Articolo senza AI usa dati reali (marcatori, OG, UoM, assist)',
+        '🆕 Prompt AI con squadre, marcatori, OG, UoM, storico giocatori',
+        '🔧 FIX: Notizie si aggiornano subito dopo salvataggio partita',
+      ]},
       { version:'v1.206', date:'2026-05-18', items:[
         '🔧 FIX: Toast sync non appare più all\'avvio se i dati non sono cambiati',
         '✅ Commento AI partita: usa gemini-2.5→2.0→1.5 flash con fallback automatico',
@@ -4169,7 +4182,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.206');
+    const appVersion = ref('1.207');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5795,15 +5808,26 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       aiComment.value = '';
 
       const allPlayers = [...teamA.value, ...teamB.value];
+      const _sqA = activeFormation.value?.nomeSquadraA||'Squadra A';
+      const _sqB = activeFormation.value?.nomeSquadraB||'Squadra B';
+      const _scorers = allPlayers.filter(p=>(playerStats.value[p]?.goal||0)>0)
+        .map(p=>{ const pl=getPlayer(p),s=playerStats.value[p]; return (pl?.soprannome||pl?.nome)+' '+s.goal+' gol'+(s.assist?' +'+s.assist+' assist':''); });
+      const _ogs = allPlayers.filter(p=>(playerStats.value[p]?.autogol||0)>0)
+        .map(p=>{ const pl=getPlayer(p); return pl?.soprannome||pl?.nome; });
+      const _uomName = computedUomoPartita.value?(getPlayer(computedUomoPartita.value)?.soprannome||getPlayer(computedUomoPartita.value)?.nome):null;
       const stats = allPlayers.map(pid => {
-        const p = getPlayer(pid);
-        const s = playerStats.value[pid] || {};
-        const hist = `(storico: ${p?.goalTotali||0} gol, ${p?.partiteTotali||0} partite)`;
-        return `${p?.soprannome||p?.nome}: voto ${s.voto||6}, goal ${s.goal||0}, assist ${s.assist||0} ${hist}`;
+        const p = getPlayer(pid), s = playerStats.value[pid]||{};
+        const inA = teamA.value.includes(pid);
+        const hist = 'storico: '+(p?.goalTotali||0)+' gol in '+(p?.partiteTotali||0)+' partite, media '+(p?.mediaVoto||6).toFixed(1);
+        const extra = [s.autogol?'OG:'+s.autogol:'',s.uomoPartita?'UoM':''].filter(Boolean).join(' ');
+        return '['+(inA?_sqA:_sqB)+'] '+(p?.soprannome||p?.nome)+': voto '+(s.voto||6)+', gol '+(s.goal||0)+', assist '+(s.assist||0)+(extra?' '+extra:'')+'  ('+hist+')';
       }).join('\n');
 
       const mvpName = computedMVP.value ? (getPlayer(computedMVP.value)?.soprannome || getPlayer(computedMVP.value)?.nome) : 'nessuno';
-      const notesSection = matchNotes.value.trim() ? `\nNote aggiuntive dal campo: ${matchNotes.value.trim()}` : '';
+      const notesSection = matchNotes.value.trim() ? '\nNote dal campo: '+matchNotes.value.trim() : '';
+      const _scorersSection = _scorers.length ? '\nMarcatori: '+_scorers.join(', ') : '';
+      const _ogsSection = _ogs.length ? '\nAutogol (OG): '+_ogs.join(', ') : '';
+      const _uomSection = _uomName ? '\nUomo della partita: '+_uomName : '';
       const hasPagelle = allPlayers.some(pid => (playerStats.value[pid]?.voto||0) !== 6 && (playerStats.value[pid]?.voto||0) > 0);
 
       const prompt = `Sei un giornalista sportivo italiano. Scrivi un ARTICOLO DI GIORNALE (stile "La Gazzetta dello Sport") su questa partita di calcetto tra amici.
@@ -5884,16 +5908,31 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       aiLoading.value = false;
     };
 
-    const generateLocalComment = mvp => {
+    const generateLocalComment = (mvp) => {
       const a = matchGoalA.value, b = matchGoalB.value;
-      const diff = Math.abs(a - b);
-      const comments = [
-        `Che partita ragazzi! ${a} a ${b}, un risultato che farà discutere nei bar per settimane! ${mvp ? `${mvp} è stato semplicemente fenomenale!` : ''} Il prossimo girone è già atteso con trepidazione!`,
-        `Incredibile! ${diff <= 1 ? 'Una partita tiepidalissima, degna di una finale mondiale!' : 'Una goleada storica!'} ${a}-${b} e già si litiga sui rigori inesistenti! ${mvp} stava su un altro pianeta!`,
-        `Signori, questa non era una partita: era un FILM! ${a} reti contro ${b}! ${mvp ? `${mvp} ha mandato in crisi l'avversario come Totti in una domenica qualsiasi.` : 'Nessun MVP ma tutti vincitori!'} Alla prossima battaglia!`,
-        `${a} a ${b}! Il campo ha parlato chiaro, anche se qualcuno continuerà a dire che era in fuorigioco! Grande serata di calcetto per tutti! Arrivederci campioni!`
-      ];
-      return comments[Math.floor(Math.random()*comments.length)];
+      const sqA = activeFormation.value?.nomeSquadraA || 'Squadra A';
+      const sqB = activeFormation.value?.nomeSquadraB || 'Squadra B';
+      const winner = a>b?sqA:b>a?sqB:null, loser = a>b?sqB:b>a?sqA:null;
+      const allPids = [...(teamA.value||[]),...(teamB.value||[])];
+      const scorers = allPids.filter(p=>(playerStats.value[p]?.goal||0)>0)
+        .map(p=>{ const pl=getPlayer(p),g=playerStats.value[p].goal; return (pl?.soprannome||pl?.nome)+(g>1?' ('+g+')':''); });
+      const assists = allPids.filter(p=>(playerStats.value[p]?.assist||0)>0)
+        .map(p=>{ const pl=getPlayer(p); return pl?.soprannome||pl?.nome; });
+      const ogs = allPids.filter(p=>(playerStats.value[p]?.autogol||0)>0)
+        .map(p=>{ const pl=getPlayer(p); return pl?.soprannome||pl?.nome; });
+      const uom = computedUomoPartita.value?(getPlayer(computedUomoPartita.value)?.soprannome||getPlayer(computedUomoPartita.value)?.nome):null;
+      const diff = Math.abs(a-b);
+      let txt = !winner?'PAREGGIO EPICO! '+sqA+' e '+sqB+' pari: '+a+'-'+b+'.'
+        :diff>=4?'GOLEADA! '+winner+' demolisce '+loser+': '+a+'-'+b+'!'
+        :diff===1?winner+' vince di misura '+a+'-'+b+' su '+loser+'!'
+        :winner+' si impone '+a+'-'+b+' su '+loser+'!';
+      if (scorers.length) txt += ' Marcatori: '+scorers.join(', ')+'.';
+      if (assists.length) txt += ' Assist: '+assists.join(', ')+'.';
+      if (ogs.length) txt += ' OG di '+ogs.join(', ')+' (che sfortuna!).';
+      if (uom) txt += ' Uomo della Partita: '+uom+'!';
+      if (mvp&&mvp!==uom) txt += ' Top scorer: '+mvp+'.';
+      if (matchNotes.value?.trim()) txt += ' '+matchNotes.value.trim();
+      return txt + [' Alla prossima!',' Grande calcetto!',' Bella serata!',' Pronti per la rivincita?'][Math.floor(Math.random()*4)];
     };
 
     // ── PNG Generation ──
@@ -6022,6 +6061,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       await recomputeStats();
 
       await loadGroupData();
+      _scheduleNewsCompute();
       toast('🏆 Partita salvata!');
       currentView.value = 'history';
       // Auto-sync se Firebase è configurato e loggato
