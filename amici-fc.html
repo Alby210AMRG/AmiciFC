@@ -3798,6 +3798,18 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.210', date:'2026-05-19', items:[
+        '🔧 FIX Giornale: box risultato più compatto, marcatori 2 righe (nome + gol/assist/OG)',
+        '✅ Pagelle dinamiche per qualsiasi numero di giocatori (5vs5, 7vs7, 8vs8...)',
+      ]},
+      { version:'v1.209', date:'2026-05-19', items:[
+        '🔧 FIX: Voti visibili anche per giocatori senza gol (colore badge corretto)',
+        '🔧 FIX: Hero section ridisegnata con foto ai lati e score al centro (come immagine riferimento)',
+        '🔧 FIX: MVP e Commento AI affiancati (metà schermo ciascuno)',
+      ]},
+      { version:'v1.208', date:'2026-05-18', items:[
+        '🆕 Giornale completamente ridisegnato: stile dark neon, top-2 player in hero, pagelle con avatar e voto colorato, MVP card',
+      ]},
       { version:'v1.207', date:'2026-05-18', items:[
         '🔧 FIX: AI non parte in automatico - serve premere il tasto',
         '🆕 Legenda OG=Autogol, UoM=Uomo della Partita nella schermata statistiche',
@@ -4182,7 +4194,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.207');
+    const appVersion = ref('1.210');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7219,257 +7231,362 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }
     };
     const generateAndShareMatchPNG = async () => {
-      const W=900, PAD=36;
+      const W=1080, PAD=44;
 
-      // Data
-      const tAN = activeFormation.value?.nomeSquadraA || matchInfo.value?.nomeSquadraA || 'Squadra A';
-      const tBN = activeFormation.value?.nomeSquadraB || matchInfo.value?.nomeSquadraB || 'Squadra B';
+      // ── Data ──
+      const tAN = activeFormation.value?.nomeSquadraA || 'Squadra A';
+      const tBN = activeFormation.value?.nomeSquadraB || 'Squadra B';
       const goalA = matchGoalA.value||0, goalB = matchGoalB.value||0;
-      const luogo = matchInfo.value?.luogo||'', data2 = matchInfo.value?.data||new Date().toISOString().slice(0,10);
+      const matchDate = (matchInfo.value?.data||new Date().toISOString().slice(0,10));
       const pidsA = teamA.value||[], pidsB = teamB.value||[];
       const allPids = [...pidsA,...pidsB];
-      const upId = computedUomoPartita.value||computedMVP.value;
-      const upPlayer = upId?getPlayer(upId):null;
-      const upName = upPlayer?(upPlayer.soprannome||upPlayer.nome):'';
 
-      const li=(src,alt)=>new Promise(res=>{if(!src)return res(null);const img=new Image();img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>{if(alt){const i2=new Image();i2.crossOrigin='anonymous';i2.onload=()=>res(i2);i2.onerror=()=>res(null);i2.src=alt;}else res(null);};img.src=src;setTimeout(()=>res(null),7000);});
-      const logoImg = await li(LOGO_EMBEDDED||logoDataUrl.value);
-      const upPhoto = upPlayer?await li(getPlayerPhoto(upPlayer.foto,upPlayer.uid)):null;
-      const matchPhotoImg = matchPhoto.value
-        ? await li(matchPhoto.value)
-        : await li('./images/match-default.png');
+      // Colors
+      const C_BG1='#07101f', C_BG2='#0d1a30', C_BG3='#111d33';
+      const C_LIME='#A6FF4D', C_BLUE='#3A7BFF', C_ORANGE='#FF8C00';
+      const C_YELLOW='#FFD93D', C_RED='#FF4D4D', C_WHITE='#F7F7F7';
+      const C_MUTED='rgba(247,247,247,0.45)';
 
-      const allSix = allPids.every(pid=>!(playerStats.value[pid]?.voto)||playerStats.value[pid].voto===6);
-      const scorersA = pidsA.filter(pid=>(playerStats.value[pid]?.goal||0)>0||(playerStats.value[pid]?.assist||0)>0);
-      const scorersB = pidsB.filter(pid=>(playerStats.value[pid]?.goal||0)>0||(playerStats.value[pid]?.assist||0)>0);
+      // ── Photo loader ──
+      const li=(src)=>new Promise(res=>{
+        if(!src)return res(null);
+        const img=new Image();
+        img.crossOrigin='anonymous';
+        img.onload=()=>res(img);
+        img.onerror=()=>res(null);
+        img.src=src;
+        setTimeout(()=>res(null),7000);
+      });
+      const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
+      const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
 
-      // Fonts: serif for body (Georgia), slab-serif for headers (Impact fallback)
-      const FONT_HEAD = '"Impact","Arial Black",Arial';
-      const FONT_BODY = 'Georgia,"Times New Roman",serif';
-      const FONT_SANS = '"Arial Black",Arial';
+      // ── Find top 2 players by score for hero section ──
+      const sortedByScore = [...allPids].sort((a,b)=>{
+        const sa = playerStats.value[a]||{}, sb = playerStats.value[b]||{};
+        const scoreA = (sa.voto||6)*2 + (sa.goal||0)*3 + (sa.assist||0) + (sa.uomoPartita?5:0);
+        const scoreB = (sb.voto||6)*2 + (sb.goal||0)*3 + (sb.assist||0) + (sb.uomoPartita?5:0);
+        return scoreB - scoreA;
+      });
+      const hero1pid = sortedByScore[0], hero2pid = sortedByScore[1];
+      const hero1 = hero1pid ? getPlayer(hero1pid) : null;
+      const hero2 = hero2pid ? getPlayer(hero2pid) : null;
+      const [hero1Photo, hero2Photo] = await Promise.all([
+        hero1 ? loadPhoto(hero1.foto, hero1.uid) : Promise.resolve(null),
+        hero2 ? loadPhoto(hero2.foto, hero2.uid) : Promise.resolve(null),
+      ]);
 
-      // Pre-measure height
-      let H = 90+60+70; // header+title
-      if(articleTitle.value||true) H+=60;
-      if(matchPhotoImg) H+=220;
-      H+=100; // teams+score
-      if(luogo) H+=36;
-      H+=Math.max(scorersA.length,scorersB.length)*28+70;
-      H+=allPids.length*30+80; // pagelle
-      H+=220; // commento+mvp
-      H+=90;  // footer
-      H=Math.max(H,1100);
+      // MVP
+      const mvpId = computedUomoPartita.value||computedMVP.value;
+      const mvpPlayer = mvpId ? getPlayer(mvpId) : null;
+      const mvpPhoto = mvpPlayer ? await loadPhoto(mvpPlayer.foto, mvpPlayer.uid) : null;
+      const mvpName = mvpPlayer ? (mvpPlayer.soprannome||mvpPlayer.nome) : '';
+      const mvpVoto = mvpId ? (playerStats.value[mvpId]?.voto||'') : '';
 
-      const canvas=document.createElement('canvas');
-      canvas.width=W;canvas.height=H;
-      const ctx=canvas.getContext('2d');
-      // fonts ready check removed (not needed with inline fonts)
+      // Scorers
+      const scorersA = pidsA.filter(p=>(playerStats.value[p]?.goal||0)>0||(playerStats.value[p]?.autogol||0)>0);
+      const scorersB = pidsB.filter(p=>(playerStats.value[p]?.goal||0)>0||(playerStats.value[p]?.autogol||0)>0);
+      const hasScorers = scorersA.length||scorersB.length;
 
-      const rr=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
+      // Pagelle - load all photos
+      const pagellePhotos = {};
+      await Promise.all(allPids.map(async pid => {
+        const p = getPlayer(pid);
+        if(p) pagellePhotos[pid] = await loadPhoto(p.foto, p.uid);
+      }));
 
-      // ══ BACKGROUND: aged newspaper effect ══
-      // Base cream
-      ctx.fillStyle='#F2ECD8';ctx.fillRect(0,0,W,H);
-      // Grain texture (many tiny dots)
-      for(let i=0;i<8000;i++){
-        const gx=Math.random()*W,gy=Math.random()*H,ga=Math.random()*0.06;
-        ctx.fillStyle=`rgba(${Math.random()>0.5?120:80},${Math.random()>0.5?90:60},40,${ga})`;
-        ctx.fillRect(gx,gy,1,1);
-      }
-      // Faint horizontal lines (newspaper grid)
-      ctx.strokeStyle='rgba(100,80,40,0.07)';ctx.lineWidth=1;
-      for(let ly=0;ly<H;ly+=22){ctx.beginPath();ctx.moveTo(0,ly);ctx.lineTo(W,ly);ctx.stroke();}
-      // Slight vignette
-      const vig=ctx.createRadialGradient(W/2,H/2,H*0.2,W/2,H/2,H*0.8);
-      vig.addColorStop(0,'transparent');vig.addColorStop(1,'rgba(60,40,10,0.10)');
-      ctx.fillStyle=vig;ctx.fillRect(0,0,W,H);
+      // ── Height calculation ──
+      const HEADER_H = 110, HERO_H = 160, SCORE_H = 100;
+      const SCORERS_H = hasScorers ? 70 + Math.max(scorersA.length, scorersB.length)*48 : 0;
+      const ROW_H = 68;
+      const PAGELLE_H = 80 + Math.max(pidsA.length, pidsB.length)*ROW_H;
+      const SIDE_BOX_H = (mvpPlayer || aiComment.value) ? 260 : 0;
+      const FOOTER_H = 90;
+      const H = HEADER_H + (HERO_H + SCORE_H) + SCORERS_H + PAGELLE_H + SIDE_BOX_H + FOOTER_H + 40;
 
-      const HR=(y,col='#8B0000',thick=2)=>{ctx.fillStyle=col;ctx.fillRect(PAD,y,W-PAD*2,thick);return y+thick+6;};
-      const wrapText=(text,x,y,maxW,font,size,col,lineH,align='left',maxLines=999)=>{
-        ctx.font=`${size}px ${font}`;ctx.fillStyle=col;ctx.textAlign=align;
-        const words=text.split(' ');let line='',lines=0,lastY=y;
-        const cx=align==='center'?x+maxW/2:align==='right'?x+maxW:x;
-        for(const w of words){const t=line+w+' ';if(ctx.measureText(t).width>maxW&&line){ctx.fillText(line.trim(),cx,lastY);lines++;lastY+=lineH;if(lines>=maxLines){ctx.fillText('…',cx,lastY);return lastY+lineH;}line=w+' ';}else line=t;}
-        if(line.trim()){ctx.fillText(line.trim(),cx,lastY);lastY+=lineH;}
-        return lastY;
+      const canvas = document.createElement('canvas');
+      canvas.width = W; canvas.height = H;
+      const ctx = canvas.getContext('2d');
+
+      // ── Helpers ──
+      const rr = (x,y,w,h,r,fill,stroke,glow,glowColor)=>{
+        ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);
+        ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);
+        ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);
+        ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);
+        ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+        if(glow){ctx.shadowColor=glowColor||fill;ctx.shadowBlur=glow;}
+        if(fill){ctx.fillStyle=fill;ctx.fill();}
+        if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();}
+        ctx.shadowBlur=0;
+      };
+      const avatar = (img, cx, cy, r, borderCol, glow=0) => {
+        ctx.save();
+        ctx.shadowColor=borderCol;ctx.shadowBlur=glow;
+        ctx.beginPath();ctx.arc(cx,cy,r+2,0,Math.PI*2);
+        ctx.strokeStyle=borderCol;ctx.lineWidth=3;ctx.stroke();
+        ctx.shadowBlur=0;
+        ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
+        if(img){
+          try{ctx.drawImage(img,cx-r,cy-r,r*2,r*2);}
+          catch(e){img=null;}
+        }
+        if(!img){
+          ctx.fillStyle='rgba(255,255,255,0.06)';ctx.fillRect(cx-r,cy-r,r*2,r*2);
+          ctx.fillStyle='rgba(255,255,255,0.25)';ctx.beginPath();ctx.arc(cx,cy-r*0.2,r*0.38,0,Math.PI*2);ctx.fill();
+          ctx.beginPath();ctx.arc(cx,cy+r*0.6,r*0.58,Math.PI,0);ctx.fill();
+        }
+        ctx.restore();
+      };
+      const glowText = (text, x, y, font, col, blur=12, align='center') => {
+        ctx.font=font; ctx.textAlign=align; ctx.fillStyle=col;
+        ctx.shadowColor=col; ctx.shadowBlur=blur;
+        ctx.fillText(text,x,y); ctx.shadowBlur=0;
+      };
+      const divider = (y, col=C_LIME, alpha=0.15) => {
+        const g = ctx.createLinearGradient(0,y,W,y);
+        g.addColorStop(0,'transparent'); g.addColorStop(0.5,col); g.addColorStop(1,'transparent');
+        ctx.fillStyle=`rgba(0,0,0,0)`;
+        ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=col;
+        ctx.fillRect(PAD,y,W-PAD*2,1); ctx.restore();
       };
 
-      let Y=0;
+      let Y = 0;
 
-      // ══ HEADER ══
-      ctx.fillStyle='#8B0000';ctx.fillRect(0,0,W,58); // Gazzetta red
-      ctx.fillStyle='#FFD700';ctx.fillRect(0,56,W,4);
-      // Masthead
-      ctx.font=`900 italic 30px ${FONT_HEAD}`;ctx.fillStyle='#FFD700';ctx.textAlign='left';
-      ctx.fillText('⚽ GAZZETTA DEL CALCETTO',PAD,40);
-      const d2=new Date(data2);const ds=isNaN(d2.getTime())?data2:d2.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
-      ctx.font=`14px ${FONT_BODY}`;ctx.fillStyle='rgba(255,255,255,0.8)';ctx.textAlign='right';ctx.fillText(ds,W-PAD,37);
-      Y=72;
+      // ════ BACKGROUND ════
+      const bgG = ctx.createLinearGradient(0,0,0,H);
+      bgG.addColorStop(0,C_BG1); bgG.addColorStop(0.5,C_BG2); bgG.addColorStop(1,C_BG1);
+      ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
+      // Subtle grid
+      ctx.strokeStyle='rgba(58,123,255,0.04)'; ctx.lineWidth=1;
+      for(let gy=0;gy<H;gy+=48){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
+      for(let gx=0;gx<W;gx+=48){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
 
-      // ══ ARTICLE TITLE (FIX1: rimosso "CHE PARTITA!", titolo AI più grande) ══
-      const rawAI=aiComment.value||'';
-      const aiLines=rawAI.split('\n').filter(l=>l.trim());
-      const userTitle=articleTitle.value.trim();
-      const autoTitle=aiLines[0]?.trim()||`${tAN.toUpperCase()} VS ${tBN.toUpperCase()}: UNA SERATA INDIMENTICABILE!`;
-      const displayTitle=userTitle||autoTitle;
-      const articleBody=userTitle?rawAI:(aiLines.slice(1).join(' ').trim()||rawAI);
+      // ════ HEADER ════
+      const hdrG = ctx.createLinearGradient(0,0,W,HEADER_H);
+      hdrG.addColorStop(0,'#0a1628'); hdrG.addColorStop(1,'#091422');
+      ctx.fillStyle=hdrG; ctx.fillRect(0,0,W,HEADER_H);
+      // Top lime bar
+      const topBar = ctx.createLinearGradient(0,0,W,0);
+      topBar.addColorStop(0,'transparent'); topBar.addColorStop(0.5,C_LIME); topBar.addColorStop(1,'transparent');
+      ctx.fillStyle=topBar; ctx.fillRect(0,0,W,3);
+      // Logo left
+      const logoImg = await li(logoDataUrl.value||null);
+      if(logoImg) ctx.drawImage(logoImg,PAD,18,64,64);
+      // Title
+      glowText('⚡ AMICI FC REPORT',W/2,46,'900 italic 34px "Arial Black",Arial',C_LIME,20);
+      glowText('IL GIORNALE UFFICIALE DEL CALCETTO',W/2,74,'700 16px "Arial Black",Arial','rgba(247,247,247,0.5)',0);
+      // Date right
+      const dateStr = (() => {
+        const d=new Date(matchDate);
+        return isNaN(d.getTime())?matchDate:d.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
+      })();
+      ctx.font='700 14px "Arial Black",Arial'; ctx.textAlign='right'; ctx.fillStyle=C_MUTED;
+      ctx.fillText('📅 '+dateStr, W-PAD, 42);
+      ctx.font='700 13px "Arial Black",Arial'; ctx.fillStyle=C_ORANGE;
+      ctx.fillText('ORE 21:00', W-PAD, 60);
+      Y = HEADER_H;
 
-      // Auto-size title: start at 42px, shrink to fit
-      let titleFs=42;
-      ctx.font=`700 italic ${titleFs}px ${FONT_BODY}`;
-      while(ctx.measureText(displayTitle).width>W-PAD*2-20 && titleFs>22){ titleFs-=2; ctx.font=`700 italic ${titleFs}px ${FONT_BODY}`; }
-      ctx.fillStyle='#1a1a1a';ctx.textAlign='center';
-      const titleEndY=wrapText(displayTitle,PAD,Y,W-PAD*2,`italic 700 ${titleFs}px ${FONT_BODY}`,titleFs,'#1a1a1a',titleFs+8,'center',3);
-      Y=titleEndY+12;Y=HR(Y,'#8B0000',2);
-
-      // ══ MATCH PHOTO ══
-      if(matchPhotoImg){
-        const ph=200,pw=W-PAD*2;
-        const scale=Math.min(pw/matchPhotoImg.naturalWidth,ph/matchPhotoImg.naturalHeight);
-        const dw=matchPhotoImg.naturalWidth*scale,dh=matchPhotoImg.naturalHeight*scale;
-        ctx.save();rr(PAD,Y,pw,ph,8);ctx.clip();
-        ctx.fillStyle='#ddd';ctx.fillRect(PAD,Y,pw,ph);
-        ctx.drawImage(matchPhotoImg,(pw-dw)/2+PAD,(ph-dh)/2+Y,dw,dh);
-        ctx.restore();
-        Y+=ph+14;Y=HR(Y,'#8B0000',1);
+      // ════ HERO: player photos + team names + score (all merged, like ref image) ════
+      const HERO_Y = Y, AVTAR_R = 72;
+      const HERO_TOTAL = HERO_H + SCORE_H;
+      // Full-width hero background
+      const heroBgG = ctx.createLinearGradient(0,HERO_Y,W,HERO_Y+HERO_TOTAL);
+      heroBgG.addColorStop(0,'#0a1628'); heroBgG.addColorStop(1,'#071020');
+      ctx.fillStyle=heroBgG; ctx.fillRect(0,HERO_Y,W,HERO_TOTAL);
+      // Left orange glow panel
+      const heroAG = ctx.createLinearGradient(0,HERO_Y,W*0.45,HERO_Y);
+      heroAG.addColorStop(0,`${C_ORANGE}44`); heroAG.addColorStop(1,'transparent');
+      ctx.fillStyle=heroAG; ctx.fillRect(0,HERO_Y,W*0.45,HERO_TOTAL);
+      // Right blue glow panel
+      const heroBG2 = ctx.createLinearGradient(W*0.55,HERO_Y,W,HERO_Y);
+      heroBG2.addColorStop(0,'transparent'); heroBG2.addColorStop(1,`${C_BLUE}44`);
+      ctx.fillStyle=heroBG2; ctx.fillRect(W*0.55,HERO_Y,W*0.45,HERO_TOTAL);
+      // Border
+      ctx.strokeStyle=`${C_LIME}44`; ctx.lineWidth=1.5;
+      ctx.strokeRect(PAD/2,HERO_Y+4,W-PAD,HERO_TOTAL-8);
+      // ── Left player ──
+      const leftCX=PAD+AVTAR_R+20, heroCY=HERO_Y+HERO_TOTAL/2-10;
+      avatar(hero1Photo, leftCX, heroCY, AVTAR_R, C_ORANGE, 25);
+      if(hero1){
+        glowText((hero1.soprannome||hero1.nome).toUpperCase(), leftCX, HERO_Y+28,
+          '700 18px "Arial Black",Arial', C_ORANGE, 10, 'center');
       }
-
-      // ══ LOCATION ══
-      if(luogo){
-        ctx.font=`italic 17px ${FONT_BODY}`;ctx.fillStyle='#555';ctx.textAlign='center';
-        ctx.fillText('📍 '+luogo,W/2,Y+20);Y+=32;
+      // ── Right player ──
+      const rightCX=W-PAD-AVTAR_R-20;
+      avatar(hero2Photo, rightCX, heroCY, AVTAR_R, C_BLUE, 25);
+      if(hero2){
+        glowText((hero2.soprannome||hero2.nome).toUpperCase(), rightCX, HERO_Y+28,
+          '700 18px "Arial Black",Arial', C_BLUE, 10, 'center');
       }
+      // ── Center: team names + VS + score ──
+      const CX=W/2, midW=W-AVTAR_R*4-PAD*2-60;
+      // Team A name (orange, above score)
+      const tnA=tAN.toUpperCase(); let tnAfs=20;
+      ctx.font=`900 ${tnAfs}px "Arial Black",Arial`;
+      while(ctx.measureText(tnA).width>midW/2-10&&tnAfs>13){tnAfs--;ctx.font=`900 ${tnAfs}px "Arial Black",Arial`;}
+      glowText(tnA, CX-midW/4, HERO_Y+40, `900 ${tnAfs}px "Arial Black",Arial`, C_ORANGE, 12);
+      // Team B name (blue)
+      const tnB=tBN.toUpperCase(); let tnBfs=20;
+      ctx.font=`900 ${tnBfs}px "Arial Black",Arial`;
+      while(ctx.measureText(tnB).width>midW/2-10&&tnBfs>13){tnBfs--;ctx.font=`900 ${tnBfs}px "Arial Black",Arial`;}
+      glowText(tnB, CX+midW/4, HERO_Y+40, `900 ${tnBfs}px "Arial Black",Arial`, C_BLUE, 12);
+      // VS
+      glowText('VS', CX, HERO_Y+60, '900 italic 22px "Arial Black",Arial', 'rgba(247,247,247,0.4)', 0);
+      // Score box
+      rr(CX-140, HERO_Y+75, 280, 100, 16, 'rgba(10,20,40,0.7)', `${C_LIME}66`, 20, C_LIME);
+      glowText(String(goalA), CX-70, HERO_Y+152, '900 88px "Arial Black",Arial', C_ORANGE, 35);
+      glowText('-', CX, HERO_Y+145, '900 60px "Arial Black",Arial', 'rgba(200,200,200,0.4)', 0);
+      glowText(String(goalB), CX+70, HERO_Y+152, '900 88px "Arial Black",Arial', C_BLUE, 35);
+      // Winner
+      const winner = goalA>goalB?tAN:goalB>goalA?tBN:null;
+      const winnerCol = goalA>goalB?C_ORANGE:goalB>goalA?C_BLUE:C_YELLOW;
+      if(winner) glowText('🏆 '+winner.toUpperCase()+' VINCE!',CX,HERO_Y+HERO_TOTAL-18,'700 15px "Arial Black",Arial',winnerCol,8);
+      else glowText('🤝 PAREGGIO EPICO!',CX,HERO_Y+HERO_TOTAL-18,'700 15px "Arial Black",Arial',C_YELLOW,8);
+      Y += HERO_TOTAL; divider(Y-4);
 
-      // ══ SCORE ══
-      const SBW=580,SBH=90,SBX=(W-SBW)/2;
-      ctx.fillStyle='rgba(255,255,255,0.7)';ctx.shadowColor='rgba(0,0,0,0.1)';ctx.shadowBlur=10;
-      rr(SBX,Y,SBW,SBH,12);ctx.fill();ctx.shadowBlur=0;
-      // Team A (blue, left)
-      ctx.fillStyle='#0D3B8C';rr(SBX,Y,185,SBH,12);ctx.fill();
-      ctx.font=`900 16px ${FONT_SANS}`;ctx.fillStyle='#fff';ctx.textAlign='center';
-      ctx.fillText(tAN.toUpperCase(),SBX+92,Y+30);
-      ctx.font=`900 34px ${FONT_SANS}`;ctx.fillStyle='#FFD700';
-      ctx.fillText(String(goalA),SBX+92,Y+70);
-      // Divider VS (FIX3)
-      ctx.font=`900 40px ${FONT_SANS}`;ctx.fillStyle='#1a0000';ctx.textAlign='center';
-      ctx.fillText('VS',W/2,Y+58);
-      // Team B (red, right)
-      ctx.fillStyle='#8B0000';rr(SBX+SBW-185,Y,185,SBH,12);ctx.fill();
-      ctx.font=`900 16px ${FONT_SANS}`;ctx.fillStyle='#fff';ctx.textAlign='center';
-      ctx.fillText(tBN.toUpperCase(),SBX+SBW-92,Y+30);
-      ctx.font=`900 34px ${FONT_SANS}`;ctx.fillStyle='#FFD700';
-      ctx.fillText(String(goalB),SBX+SBW-92,Y+70);
-      Y+=SBH+20;Y=HR(Y,'#8B0000',2);
-
-      // ══ MARCATORI (two columns) ══
-      ctx.font=`900 20px ${FONT_SANS}`;ctx.fillStyle='#8B0000';ctx.textAlign='center';
-      ctx.fillText('MARCATORI',W/2,Y+22);Y+=36;
-      const colW=(W-PAD*2-16)/2;
-      ctx.font=`700 17px ${FONT_SANS}`;ctx.fillStyle='#0D3B8C';ctx.textAlign='left';
-      ctx.fillText(tAN.toUpperCase(),PAD,Y+18);
-      ctx.fillStyle='#8B0000';ctx.textAlign='right';
-      ctx.fillText(tBN.toUpperCase(),W-PAD,Y+18);Y+=24;
-      const mxS=Math.max(scorersA.length,scorersB.length,0);
-      if(mxS===0){ctx.font=`italic 16px ${FONT_BODY}`;ctx.fillStyle='#888';ctx.textAlign='center';ctx.fillText('Nessun marcatore registrato',W/2,Y+18);Y+=28;}
-      for(let i=0;i<mxS;i++){
-        const pA=scorersA[i],pB=scorersB[i];
-        if(pA){const p=getPlayer(pA),s=playerStats.value[pA]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'')+(s.autogol?(' OG×'+(s.autogol)):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='left';ctx.fillText(`${p?.soprannome||p?.nome} ${icons}`,PAD,Y+18);}
-        if(pB){const p=getPlayer(pB),s=playerStats.value[pB]||{};const icons='⚽'.repeat(s.goal||0)+(s.assist?'🅰️'.repeat(s.assist):'')+(s.autogol?(' OG×'+(s.autogol)):'');ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign='right';ctx.fillText(`${icons} ${p?.soprannome||p?.nome}`,W-PAD,Y+18);}
-        Y+=26;
-      }
-      Y+=10;Y=HR(Y,'#8B0000',2);
-
-      // ══ PAGELLE (split by team, voto colored) ══
-      ctx.font=`900 20px ${FONT_SANS}`;ctx.fillStyle='#8B0000';ctx.textAlign='center';
-      ctx.fillText('PAGELLE',W/2,Y+22);Y+=36;
-      if(allSix){ctx.font=`italic 15px ${FONT_BODY}`;ctx.fillStyle='#888';ctx.textAlign='center';ctx.fillText('"Il pagellista era in vacanza questa volta..."',W/2,Y+16);Y+=28;}
-      // Two columns A | B
-      ctx.font=`700 16px ${FONT_SANS}`;ctx.fillStyle='#0D3B8C';ctx.textAlign='left';ctx.fillText(tAN.toUpperCase(),PAD,Y+16);
-      ctx.fillStyle='#8B0000';ctx.textAlign='right';ctx.fillText(tBN.toUpperCase(),W-PAD,Y+16);Y+=22;
-      const mxP=Math.max(pidsA.length,pidsB.length);
-      for(let i=0;i<mxP;i++){
-        const pA2=pidsA[i],pB2=pidsB[i];
-        const drawP=(pid,align)=>{
-          if(!pid)return;
-          const p=getPlayer(pid),s=playerStats.value[pid]||{},v=s.voto||6;
-          const n=(p?.soprannome||p?.nome||'').toUpperCase();
-          const vc=v>=8?'#006600':v>=7?'#0D3B8C':v<=5?'#8B0000':'#555';
-          const bx=align==='left'?PAD:W-PAD-colW;
-          // Name
-          ctx.font=`600 17px ${FONT_BODY}`;ctx.fillStyle='#111';ctx.textAlign=align;
-          const nameX=align==='left'?PAD:W-PAD;
-          // voto at the right of name
-          if(align==='left'){
-            ctx.fillText(n,PAD,Y+18);
-            const nw=ctx.measureText(n).width;
-            ctx.font=`900 18px ${FONT_SANS}`;ctx.fillStyle=vc;
-            ctx.fillText(` ${v}`,PAD+nw+4,Y+18);
-          }else{
-            ctx.fillText(n,W-PAD,Y+18);
-            const nw=ctx.measureText(n).width;
-            ctx.font=`900 18px ${FONT_SANS}`;ctx.fillStyle=vc;
-            ctx.fillText(`${v} `,W-PAD-nw-4-ctx.measureText(String(v)).width,Y+18);
+      // ════ MARCATORI ════
+      if(hasScorers){
+        glowText('⚽ MARCATORI', W/2, Y+36, '900 20px "Arial Black",Arial', C_LIME, 10);
+        Y += 50;
+        const mxS = Math.max(scorersA.length, scorersB.length);
+        for(let i=0; i<mxS; i++){
+          const pA=scorersA[i], pB=scorersB[i];
+          if(pA){
+            const p=getPlayer(pA), s=playerStats.value[pA]||{};
+            const gls='⚽'.repeat(Math.min(s.goal||0,6)),ext=(s.assist?` +${s.assist}🅰️`:'')+(s.autogol?' 🔴OG':'');
+            ctx.font='700 20px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
+            ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), PAD, Y+22);
+            ctx.font='600 16px Arial'; ctx.fillStyle=C_LIME; ctx.fillText(gls+ext, PAD, Y+42);
           }
-        };
-        drawP(pA2,'left');drawP(pB2,'right');
-        Y+=26;
-      }
-      Y+=14;Y=HR(Y,'#8B0000',2);
-
-      // ══ COMMENTO + MVP CARD ══
-      ctx.font=`900 20px ${FONT_SANS}`;ctx.fillStyle='#8B0000';ctx.textAlign='center';
-      ctx.fillText('IL COMMENTO',W/2,Y+22);Y+=36;
-
-      const MVP_W=175,MVP_H=220,mvpX=W-PAD-MVP_W,mvpY=Y;
-      const artMaxW=upPlayer?mvpX-PAD-16:W-PAD*2;
-
-      if(upPlayer){
-        // Gold frame
-        ctx.fillStyle='#FFD700';ctx.shadowColor='rgba(0,0,0,0.2)';ctx.shadowBlur=12;
-        rr(mvpX-4,mvpY-4,MVP_W+8,MVP_H+8,12);ctx.fill();ctx.shadowBlur=0;
-        ctx.fillStyle='#0D3B8C';rr(mvpX,mvpY,MVP_W,MVP_H,10);ctx.fill();
-        // Photo/silhouette
-        ctx.save();rr(mvpX+6,mvpY+6,MVP_W-12,MVP_H-58,8);ctx.clip();
-        if(upPhoto){const iw=upPhoto.naturalWidth||100,ih=upPhoto.naturalHeight||100,s2=Math.min(iw,ih),sx=(iw-s2)/2,sy=(ih-s2)/2;ctx.drawImage(upPhoto,sx,sy,s2,s2,mvpX+6,mvpY+6,MVP_W-12,MVP_H-58);}
-        else{ctx.fillStyle='#1a2a50';ctx.fillRect(mvpX+6,mvpY+6,MVP_W-12,MVP_H-58);ctx.fillStyle='rgba(255,255,255,0.22)';ctx.beginPath();ctx.arc(mvpX+MVP_W/2,mvpY+50,26,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(mvpX+MVP_W/2,mvpY+100,34,28,0,Math.PI,0);ctx.fill();}
-        ctx.restore();
-        ctx.font=`900 17px ${FONT_SANS}`;ctx.fillStyle='#FFD700';ctx.textAlign='center';
-        ctx.fillText(upName.toUpperCase(),mvpX+MVP_W/2,mvpY+MVP_H-30);
-        ctx.font=`600 12px ${FONT_SANS}`;ctx.fillStyle='#fff';
-        ctx.fillText('MIGLIORE IN CAMPO!',mvpX+MVP_W/2,mvpY+MVP_H-12);
+          if(pB){
+            const p=getPlayer(pB), s=playerStats.value[pB]||{};
+            const gls='⚽'.repeat(Math.min(s.goal||0,6)),ext=(s.assist?` +${s.assist}🅰️`:'')+(s.autogol?' 🔴OG':'');
+            ctx.font='700 20px "Arial Black",Arial'; ctx.textAlign='right'; ctx.fillStyle=C_WHITE;
+            ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), W-PAD, Y+22);
+            ctx.font='600 16px Arial'; ctx.fillStyle=C_LIME; ctx.textAlign='right'; ctx.fillText(gls+ext, W-PAD, Y+42);
+          }
+          Y += 48;
+        }
+        divider(Y+4); Y += 12;
       }
 
-      // Article body
-      const bodyText=articleBody||rawAI||'Una serata che rimarrà nei ricordi!';
-      ctx.font=`italic 20px ${FONT_BODY}`;ctx.fillStyle='#1a1a1a';ctx.textAlign='left';
-      const artEndY=wrapText(bodyText,PAD,Y+4,artMaxW,`italic 20px ${FONT_BODY}`,20,'#1a1a1a',30,'left');
-      Y=Math.max(artEndY+20,mvpY+MVP_H+20);
-      Y=HR(Y,'#8B0000',2);
-
-      // ══ FOOTER (logo right, text left) ══
-      const FOOT_H=70;
-      // Logo bottom-right
-      if(logoImg){
-        ctx.shadowColor='rgba(0,0,0,0.15)';ctx.shadowBlur=6;
-        ctx.drawImage(logoImg,W-PAD-60,Y+5,60,60);
-        ctx.shadowBlur=0;
+      // ════ PAGELLE ════
+      glowText('📋 PAGELLE', W/2, Y+36, '900 20px "Arial Black",Arial', C_YELLOW, 10);
+      // Team headers
+      ctx.font='700 15px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_ORANGE;
+      ctx.fillText(tAN.toUpperCase(), PAD+10, Y+58);
+      ctx.fillStyle=C_BLUE; ctx.textAlign='right';
+      ctx.fillText(tBN.toUpperCase(), W-PAD-10, Y+58);
+      Y += 68;
+      const mxP = Math.max(pidsA.length, pidsB.length);
+      const COL_W = (W-PAD*2-24)/2, AV_R=22;
+      for(let i=0; i<mxP; i++){
+        const pA=pidsA[i], pB=pidsB[i];
+        const rowBg = i%2===0 ? 'rgba(255,255,255,0.02)' : 'transparent';
+        if(rowBg!=='transparent'){ctx.fillStyle=rowBg;ctx.fillRect(PAD,Y,W-PAD*2,ROW_H);}
+        // Player A
+        if(pA){
+          const p=getPlayer(pA), s=playerStats.value[pA]||{}, v=s.voto||6;
+          const vc=v>=8?C_LIME:v>=7?C_BLUE:v<=5?C_RED:'#888888';
+          avatar(pagellePhotos[pA], PAD+AV_R+6, Y+ROW_H/2, AV_R, vc, 6);
+          ctx.font='700 17px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
+          ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), PAD+AV_R*2+18, Y+ROW_H/2-4);
+          const badges=[(s.goal||0)>0?`⚽${s.goal}`:'', (s.assist||0)>0?`🅰️${s.assist}`:'', s.uomoPartita?'⭐':'', (s.autogol||0)>0?'OG':''].filter(Boolean).join(' ');
+          if(badges){ctx.font='600 13px Arial'; ctx.fillStyle=C_MUTED; ctx.fillText(badges, PAD+AV_R*2+18, Y+ROW_H/2+16);}
+          // Voto badge
+          ctx.save(); ctx.globalAlpha=0.2; rr(PAD+COL_W-50, Y+ROW_H/2-18, 44, 36, 8, vc, null, 0); ctx.restore();
+          ctx.save(); rr(PAD+COL_W-50, Y+ROW_H/2-18, 44, 36, 8, null, vc, 0); ctx.restore();
+          glowText(String(v), PAD+COL_W-28, Y+ROW_H/2+10, '900 20px "Arial Black",Arial', vc, 8);
+        }
+        // Player B
+        if(pB){
+          const p=getPlayer(pB), s=playerStats.value[pB]||{}, v=s.voto||6;
+          const vc=v>=8?C_LIME:v>=7?C_BLUE:v<=5?C_RED:'#888888';
+          const bx = W-PAD-COL_W;
+          avatar(pagellePhotos[pB], bx+AV_R+6, Y+ROW_H/2, AV_R, vc, 6);
+          ctx.font='700 17px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
+          ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), bx+AV_R*2+18, Y+ROW_H/2-4);
+          const badges=[(s.goal||0)>0?`⚽${s.goal}`:'', (s.assist||0)>0?`🅰️${s.assist}`:'', s.uomoPartita?'⭐':'', (s.autogol||0)>0?'OG':''].filter(Boolean).join(' ');
+          if(badges){ctx.font='600 13px Arial'; ctx.fillStyle=C_MUTED; ctx.fillText(badges, bx+AV_R*2+18, Y+ROW_H/2+16);}
+          ctx.save(); ctx.globalAlpha=0.2; rr(W-PAD-50, Y+ROW_H/2-18, 44, 36, 8, vc, null, 0); ctx.restore();
+          ctx.save(); rr(W-PAD-50, Y+ROW_H/2-18, 44, 36, 8, null, vc, 0); ctx.restore();
+          glowText(String(v), W-PAD-28, Y+ROW_H/2+10, '900 20px "Arial Black",Arial', vc, 8);
+        }
+        Y += ROW_H;
       }
-      ctx.font=`900 italic 22px ${FONT_HEAD}`;ctx.fillStyle='#8B0000';ctx.textAlign='right';
-      ctx.fillText('⚽ Amici FC',W-PAD-68,Y+28);
-      ctx.font=`italic 14px ${FONT_BODY}`;ctx.fillStyle='#666';
-      ctx.fillText(currentGroup.value?.nome||'',W-PAD-68,Y+48);
-      ctx.font=`italic 13px ${FONT_BODY}`;ctx.fillStyle='#aaa';ctx.textAlign='left';
-      ctx.fillText('"Dove i campioni nascono… e litigano!"',PAD,Y+38);
-      Y+=FOOT_H;
+      divider(Y+4); Y += 16;
 
-      // Trim canvas
-      const finalCanvas=document.createElement('canvas');
-      finalCanvas.width=W;finalCanvas.height=Y;
-      finalCanvas.getContext('2d').drawImage(canvas,0,0);
-      const dataUrl=finalCanvas.toDataURL('image/png');
-      previewPNGUrl.value=dataUrl;
-      previewPNGName.value=`amicifc-giornale-${data2}.png`;
-      showPNGPreview.value=true;
+      // ════ MVP + COMMENTO side by side (like reference image) ════
+      if(mvpPlayer || aiComment.value){
+        const SIDE_H = 220;
+        const HALF = (W-PAD*2-16)/2;
+        const mvpX=PAD, commX=PAD+HALF+16;
+        // MVP left box
+        if(mvpPlayer){
+          rr(mvpX, Y, HALF, SIDE_H, 14, '#0d1a2a', C_YELLOW+'88', 15, C_YELLOW);
+          // Top glow bar
+          const mvpBar=ctx.createLinearGradient(mvpX,Y,mvpX+HALF,Y);
+          mvpBar.addColorStop(0,C_YELLOW+'00'); mvpBar.addColorStop(0.5,C_YELLOW+'66'); mvpBar.addColorStop(1,C_YELLOW+'00');
+          ctx.fillStyle=mvpBar; ctx.fillRect(mvpX+14,Y,HALF-28,2);
+          // Header
+          glowText('🏆 MVP DEL MATCH', mvpX+HALF/2, Y+24, '900 14px "Arial Black",Arial', C_YELLOW, 8, 'center');
+          // Photo centered
+          avatar(mvpPhoto, mvpX+70, Y+SIDE_H/2+8, 50, C_YELLOW, 20);
+          // Name + voto right of photo
+          const mtx = mvpX+130;
+          glowText((mvpPlayer.soprannome||mvpPlayer.nome).toUpperCase(), mtx, Y+85,
+            '900 24px "Arial Black",Arial', C_WHITE, 10, 'left');
+          if(mvpVoto) glowText(String(mvpVoto), mtx, Y+140,
+            '900 48px "Arial Black",Arial', C_LIME, 18, 'left');
+          ctx.font='600 12px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_YELLOW;
+          ctx.fillText('⭐ CAMPIONE!', mtx, Y+183);
+        }
+        // Commento right box
+        if(aiComment.value){
+          rr(commX, Y, HALF, SIDE_H, 14, '#091428', C_BLUE+'88', 15, C_BLUE);
+          // Top glow bar
+          const commBar=ctx.createLinearGradient(commX,Y,commX+HALF,Y);
+          commBar.addColorStop(0,C_BLUE+'00'); commBar.addColorStop(0.5,C_LIME+'55'); commBar.addColorStop(1,C_BLUE+'00');
+          ctx.fillStyle=commBar; ctx.fillRect(commX+14,Y,HALF-28,2);
+          // Header
+          glowText('💬 IL COMMENTO', commX+HALF/2, Y+24, '900 14px "Arial Black",Arial', C_LIME, 8, 'center');
+          // Text wrapped
+          ctx.font='italic 15px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.88)';
+          const cmW=HALF-32, cmX=commX+16;
+          const cwords=aiComment.value.split(' ');
+          let cline='', clineY=Y+46, clineH=24;
+          for(const w of cwords){
+            const t=cline+w+' ';
+            if(ctx.measureText(t).width>cmW&&cline){
+              ctx.fillText(cline.trim(),cmX,clineY); clineY+=clineH; cline=w+' ';
+              if(clineY>Y+SIDE_H-20){ctx.fillText('…',cmX,clineY); cline=''; break;}
+            } else cline=t;
+          }
+          if(cline.trim()&&clineY<=Y+SIDE_H-20) ctx.fillText(cline.trim(),cmX,clineY);
+        }
+        Y += SIDE_H+20;
+        divider(Y); Y += 16;
+      }
+
+      // ════ FOOTER ════
+      const FY = Y;
+      rr(0, FY, W, FOOTER_H, 0, '#07101f', null, 0);
+      const topBarF = ctx.createLinearGradient(0,FY,W,FY);
+      topBarF.addColorStop(0,'transparent'); topBarF.addColorStop(0.5,C_LIME); topBarF.addColorStop(1,'transparent');
+      ctx.fillStyle=topBarF; ctx.fillRect(0,FY,W,2);
+      glowText('⚽ Amici FC · Dove i campioni nascono… e litigano!', W/2, FY+38, '700 italic 17px "Arial Black",Arial', `${C_LIME}99`, 8);
+      ctx.font='700 14px "Arial Black",Arial'; ctx.textAlign='center'; ctx.fillStyle=C_MUTED;
+      ctx.fillText((currentGroup.value?.nome||'').toUpperCase(), W/2, FY+62);
+      Y += FOOTER_H;
+
+      // Output
+      const final = document.createElement('canvas');
+      final.width=W; final.height=Y;
+      final.getContext('2d').drawImage(canvas,0,0);
+      const dataUrl = final.toDataURL('image/png');
+      previewPNGUrl.value = dataUrl;
+      previewPNGName.value = `amicifc-giornale-${matchDate}.png`;
+      showPNGPreview.value = true;
     };
 
 
