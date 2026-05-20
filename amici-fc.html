@@ -3942,6 +3942,10 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.215', date:'2026-05-19', items:[
+        '🆕 Giornale: foto partita come sfondo semi-trasparente nella hero section',
+        '🔧 FIX: Foto partita ridimensionata a max 800px prima del salvataggio',
+      ]},
       { version:'v1.214', date:'2026-05-19', items:[
         '🔧 FIX: H2H sezione template inserita (era mancante)',
         '🔧 FIX: Scroll orizzontale statistiche con classe CSS dedicata',
@@ -4361,7 +4365,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.214');
+    const appVersion = ref('1.215');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7382,9 +7386,17 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const handleMatchPhoto = (e) => {
       const file = e.target.files?.[0];
       if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => { matchPhoto.value = ev.target.result; };
-      reader.readAsDataURL(file);
+      const _mpr = new FileReader();
+      _mpr.onload = ev => {
+        const _mi = new Image();
+        _mi.onload = () => {
+          const _MAX=800, _sc=Math.min(1,_MAX/Math.max(_mi.width,_mi.height));
+          const _mc=document.createElement('canvas');
+          _mc.width=Math.round(_mi.width*_sc); _mc.height=Math.round(_mi.height*_sc);
+          _mc.getContext('2d').drawImage(_mi,0,0,_mc.width,_mc.height);
+          matchPhoto.value=_mc.toDataURL('image/jpeg',0.80);
+        }; _mi.src=ev.target.result;
+      }; _mpr.readAsDataURL(file);
     };
 
     const shareHistoryMatchPNG = async (m) => {
@@ -7415,6 +7427,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const C_MUTED='rgba(247,247,247,0.45)';
 
       // ── Photo loader ──
+      const _fotoPartita = activeFormation.value?.fotoPartita || '';
       const li=(src)=>new Promise(res=>{
         if(!src)return res(null);
         const img=new Image();
@@ -7439,9 +7452,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const hero1 = hero1pid ? getPlayer(hero1pid) : null;
       const hero2 = hero2pid ? getPlayer(hero2pid) : null;
       // In case of tie (all same score), still picks first player → always shows someone
-      const [hero1Photo, hero2Photo] = await Promise.all([
+      const [hero1Photo, hero2Photo, matchBgPhoto] = await Promise.all([
         hero1 ? loadPhoto(hero1.foto, hero1.uid) : Promise.resolve(null),
         hero2 ? loadPhoto(hero2.foto, hero2.uid) : Promise.resolve(null),
+        _fotoPartita ? li(_fotoPartita) : Promise.resolve(null),
       ]);
 
       // MVP
@@ -7559,9 +7573,22 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const HERO_Y = Y, AVTAR_R = 72;
       const HERO_TOTAL = HERO_H + SCORE_H;
       // Full-width hero background
-      const heroBgG = ctx.createLinearGradient(0,HERO_Y,W,HERO_Y+HERO_TOTAL);
-      heroBgG.addColorStop(0,'#0a1628'); heroBgG.addColorStop(1,'#071020');
-      ctx.fillStyle=heroBgG; ctx.fillRect(0,HERO_Y,W,HERO_TOTAL);
+      if (matchBgPhoto) {
+        const _ph=matchBgPhoto, _pr=_ph.width/_ph.height, _cr=W/HERO_TOTAL;
+        let _sx=0,_sy=0,_sw=_ph.width,_sh=_ph.height;
+        if(_pr>_cr){_sw=Math.round(_sh*_cr);_sx=Math.round((_ph.width-_sw)/2);}
+        else{_sh=Math.round(_sw/_cr);_sy=Math.round((_ph.height-_sh)/2);}
+        ctx.save(); ctx.globalAlpha=0.30;
+        ctx.drawImage(matchBgPhoto,_sx,_sy,_sw,_sh,0,HERO_Y,W,HERO_TOTAL);
+        ctx.restore();
+        const _ov=ctx.createLinearGradient(0,HERO_Y,0,HERO_Y+HERO_TOTAL);
+        _ov.addColorStop(0,'rgba(7,16,31,0.60)'); _ov.addColorStop(1,'rgba(7,16,31,0.70)');
+        ctx.fillStyle=_ov; ctx.fillRect(0,HERO_Y,W,HERO_TOTAL);
+      } else {
+        const heroBgG=ctx.createLinearGradient(0,HERO_Y,W,HERO_Y+HERO_TOTAL);
+        heroBgG.addColorStop(0,'#0a1628'); heroBgG.addColorStop(1,'#071020');
+        ctx.fillStyle=heroBgG; ctx.fillRect(0,HERO_Y,W,HERO_TOTAL);
+      }
       // Left orange glow panel
       const heroAG = ctx.createLinearGradient(0,HERO_Y,W*0.45,HERO_Y);
       heroAG.addColorStop(0,`${C_ORANGE}44`); heroAG.addColorStop(1,'transparent');
