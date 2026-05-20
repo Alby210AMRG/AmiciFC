@@ -235,8 +235,15 @@ body {
   width: 56px; height: 56px;
   flex: none;
   margin: auto;
-  box-shadow: 0 4px 20px rgba(166,255,77,0.5);
+  box-shadow: 0 4px 20px rgba(166,255,77,0.5);;
+  animation: play-pulse 2.2s ease-in-out infinite;
 }
+@keyframes play-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(166,255,77,0.7), 0 4px 15px rgba(166,255,77,0.4); }
+  60%  { box-shadow: 0 0 0 12px rgba(166,255,77,0), 0 4px 22px rgba(166,255,77,0.6); }
+  100% { box-shadow: 0 0 0 0 rgba(166,255,77,0), 0 4px 15px rgba(166,255,77,0.4); }
+}
+
 .nav-item.center-btn svg { width: 28px; height: 28px; }
 
 /* ═══════════════════════════════════════
@@ -519,8 +526,8 @@ textarea.input-field { resize: vertical; min-height: 80px; }
   font-size: 2.4rem;
   line-height: 1;
 }
-.score-a { color: var(--blue); }
-.score-b { color: var(--red); }
+.score-a { color: #FF8C00; }
+.score-b { color: var(--blue); }
 .score-sep { font-family: var(--font-title); font-size: 1.5rem; color: var(--text2); }
 
 .match-date { font-size: 0.75rem; color: var(--text2); }
@@ -1299,7 +1306,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <!-- ── HOME HERO CAROSELLO ── -->
       <div v-if="currentGroup"
         style="position:relative;border-radius:18px;overflow:hidden;margin-bottom:12px;height:184px;cursor:pointer"
-        @click="currentView=homeHeroData[homeHeroIdx].dest; newsExpanded=false">
+        @click="currentView=homeHeroData[homeHeroIdx].dest; if(homeHeroData[homeHeroIdx].statsTab) statsTab=homeHeroData[homeHeroIdx].statsTab; newsExpanded=false">
         <div v-for="(s,i) in (homeHeroData||[])" :key="i"
           style="position:absolute;inset:0;display:flex;align-items:center;padding:20px;gap:16px;transition:opacity .6s"
           :style="i===homeHeroIdx?'opacity:1;pointer-events:auto':'opacity:0;pointer-events:none'">
@@ -1311,10 +1318,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="position:relative;z-index:1;flex-shrink:0">
             <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(255,255,255,.08)"
               :style="'border:2.5px solid '+s.col+';box-shadow:0 0 18px '+s.col+'44'">
-              <img v-if="getPlayerPhoto(s.foto,s.uid)" :src="getPlayerPhoto(s.foto,s.uid)"
+              <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)"
                 style="width:100%;height:100%;object-fit:cover;border-radius:50%"
                 @error="$event.target.style.display='none'">
-              <span v-else>{{s.icon}}</span>
+              <span v-else style="position:relative;z-index:1">{{s.icon}}</span>
             </div>
           </div>
           <!-- info -->
@@ -1972,7 +1979,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="match-score" style="margin-bottom:20px">
             <div style="text-align:center">
               <div style="font-family:var(--font-title);color:var(--blue);margin-bottom:8px">
-                {{ activeFormation?.nomeSquadraA || '🔵 Squadra A' }}
+                {{ activeFormation?.nomeSquadraA || '🟠 Squadra A' }}
               </div>
               <div style="display:flex;align-items:center;gap:12px">
                 <button class="counter-btn" @click="matchGoalA > 0 ? matchGoalA-- : null">−</button>
@@ -1983,7 +1990,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div class="score-sep">VS</div>
             <div style="text-align:center">
               <div style="font-family:var(--font-title);color:var(--red);margin-bottom:8px">
-                {{ activeFormation?.nomeSquadraB || '🔴 Squadra B' }}
+                {{ activeFormation?.nomeSquadraB || '🔵 Squadra B' }}
               </div>
               <div style="display:flex;align-items:center;gap:12px">
                 <button class="counter-btn" @click="matchGoalB > 0 ? matchGoalB-- : null">−</button>
@@ -2616,6 +2623,50 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <div :style="'flex:'+(parseFloat(m.a)||0)+';background:#FF8C00;border-radius:4px 0 0 4px;min-width:'+(parseFloat(m.a)>0?'8px':'0')"></div>
                     <div :style="'flex:'+(parseFloat(m.b)||0)+';background:var(--blue);border-radius:0 4px 4px 0;min-width:'+(parseFloat(m.b)>0?'8px':'0')"></div>
                   </div>
+                </div>
+              </div>
+              <!-- ── Andamento ultime partite a confronto ── -->
+              <div style="margin-top:14px">
+                <div style="font-size:10px;color:var(--text2);margin-bottom:10px;letter-spacing:.5px;font-weight:700">ANDAMENTO ULTIME PARTITE</div>
+                <div style="display:flex;gap:8px;align-items:flex-end">
+                  <!-- Player A form -->
+                  <div style="flex:1">
+                    <div style="font-size:10px;color:#FF8C00;font-weight:700;margin-bottom:4px;text-align:center">{{h2hComputed.pA.soprannome||h2hComputed.pA.nome}}</div>
+                    <div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:40px">
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pA.id)" :key="i"
+                        style="width:14px;border-radius:3px 3px 0 0;transition:height .3s"
+                        :style="v>0?'background:#A6FF4D;height:'+Math.min(40,16+v*3)+'px':v===0?'background:var(--yellow);height:16px':'background:#FF4D4D;height:'+Math.min(40,16+Math.abs(v)*3)+'px'">
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:3px;justify-content:center;margin-top:3px">
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pA.id)" :key="i"
+                        style="width:14px;height:3px;border-radius:1px"
+                        :style="v>0?'background:#A6FF4D':v===0?'background:var(--yellow)':'background:#FF4D4D'">
+                      </div>
+                    </div>
+                  </div>
+                  <div style="font-size:11px;color:var(--text2);font-weight:700;padding-bottom:6px">VS</div>
+                  <!-- Player B form -->
+                  <div style="flex:1">
+                    <div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px;text-align:center">{{h2hComputed.pB.soprannome||h2hComputed.pB.nome}}</div>
+                    <div style="display:flex;gap:3px;align-items:flex-end;justify-content:center;height:40px">
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pB.id)" :key="i"
+                        style="width:14px;border-radius:3px 3px 0 0;transition:height .3s"
+                        :style="v>0?'background:#A6FF4D;height:'+Math.min(40,16+v*3)+'px':v===0?'background:var(--yellow);height:16px':'background:#FF4D4D;height:'+Math.min(40,16+Math.abs(v)*3)+'px'">
+                      </div>
+                    </div>
+                    <div style="display:flex;gap:3px;justify-content:center;margin-top:3px">
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pB.id)" :key="i"
+                        style="width:14px;height:3px;border-radius:1px"
+                        :style="v>0?'background:#A6FF4D':v===0?'background:var(--yellow)':'background:#FF4D4D'">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;justify-content:center;gap:12px;margin-top:6px;font-size:10px;color:var(--text2)">
+                  <span style="color:#A6FF4D">▬ Vittoria</span>
+                  <span style="color:var(--yellow)">▬ Pareggio</span>
+                  <span style="color:#FF4D4D">▬ Sconfitta</span>
                 </div>
               </div>
             </div>
@@ -3988,6 +4039,19 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.219', date:'2026-05-20', items:[
+        '🔧 FIX: Hero Partite mostra data ultima partita corretta',
+        '🔧 FIX: Dettaglio partita colori arancio (A) e blu (B)',
+        '🆕 H2H: grafico andamento ultime partite a confronto',
+        '🔧 FIX: H2H conta vittorie su tutte le partite (non solo ultime 5)',
+      ]},
+      { version:'v1.218', date:'2026-05-20', items:[
+        '🆕 Play button: effetto pulsante luminoso verde',
+        '🔧 FIX: Hero Goal apre direttamente classifica marcatori',
+        '🔧 FIX: Hero icone emoji corrette per Giocatori/Partite/HallOfFame',
+        '🔧 FIX: News foto su tutte le notizie con soggetto giocatore',
+        '🔧 FIX: Storico partite colori arancio/blu (non più blu/rosso)',
+      ]},
       { version:'v1.217', date:'2026-05-20', items:[
         '🔧 FIX: News - foto giocatore su tutte le notizie con soggetto giocatore',
         '🔧 FIX: Ultime partite con nome squadre (arancio/blu) e score moderno',
@@ -4423,7 +4487,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.217');
+    const appVersion = ref('1.219');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7162,7 +7226,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const mostG=[...players].sort((a,b)=>(b.partiteTotali||0)-(a.partiteTotali||0))[0];
       if (mostG?.partiteTotali>0) items.push({uid:mostG.uid,foto:mostG.foto,emoji:'🏃',text:`${mostG.soprannome||mostG.nome} è il più presente: ${mostG.partiteTotali} partite giocate`});
       const topA=[...players].sort((a,b)=>(b.assistTotali||0)-(a.assistTotali||0))[0];
-      if (topA?.assistTotali>0) items.push({emoji:'🅰️',text:`${topA.soprannome||topA.nome} guida gli assist con ${topA.assistTotali} passaggi decisivi`});
+      if (topA?.assistTotali>0) items.push({uid:topA.uid,foto:topA.foto,emoji:'🅰️',text:`${topA.soprannome||topA.nome} guida gli assist con ${topA.assistTotali} passaggi decisivi`});
       const topU=[...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
       if (topU?.uomoPartitaTotali>0) items.push({uid:topU.uid,foto:topU.foto,emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
       // Descrizione giocatore (1 ogni ~7 notizie, poco frequente)
@@ -7278,7 +7342,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         if (sfOrtunaList.length>0) {
           const pick = sfOrtunaList[Math.floor(Date.now()/3600000)%sfOrtunaList.length];
           const p=players.find(x=>x.id==pick.pid);
-          if(p) items.push({emoji:'😤',text:`SFORTUNA NERA: ${p.soprannome||p.nome} non vince da ${pick.f.p+pick.f.x} partite. Qualcuno rompa il sortilegio!`});
+          if(p) items.push({uid:p.uid,foto:p.foto,emoji:'😤',text:`SFORTUNA NERA: ${p.soprannome||p.nome} non vince da ${pick.f.p+pick.f.x} partite. Qualcuno rompa il sortilegio!`});
         }     }
 
       // ── 🎲 FRASI MOTIVAZIONALI PERSONALIZZATE ──
@@ -8593,12 +8657,20 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       }).sort((a,b) => b.data.localeCompare(a.data));
       if (!matches.length) return { empty: true, pA, pB };
       let winsA=0, winsB=0, draws=0;
+      // Count wins across ALL matches
+      matches.forEach(m => {
+        const aOnTeamA = (m.squadraA||[]).includes(pA.id);
+        const gA2 = m.risultato?.goalA||0, gB2 = m.risultato?.goalB||0;
+        const aW = aOnTeamA ? gA2>gB2 : gB2>gA2;
+        const bW = aOnTeamA ? gB2>gA2 : gA2>gB2;
+        if(aW) winsA++; else if(bW) winsB++; else draws++;
+      });
+      // Last 5 for timeline
       const history = matches.slice(0,5).map(m => {
         const aOnTeamA = (m.squadraA||[]).includes(pA.id);
         const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
         const aWins = aOnTeamA ? gA>gB : gB>gA;
         const bWins = aOnTeamA ? gB>gA : gA>gB;
-        if(aWins) winsA++; else if(bWins) winsB++; else draws++;
         return { date: m.data, score: gA+'-'+gB, winner: aWins?'a':bWins?'b':'p' };
       });
       // all matches for overall stats
@@ -8644,14 +8716,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           bg:'linear-gradient(135deg,#1a3a0f,#071a04)',
           foto: null, uid: null, dest:'players', icon:'👤' },
         { label:'PARTITE', val: nm, name:'Stagione in corso',
-          sub: nm>0 ? 'Ultima: '+(groupMatches.value[0]?.data||'').split('-').reverse().join('/') : 'Nessuna partita ancora',
+          sub: nm>0 ? 'Ultima: '+([...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0]?.data||'').split('-').reverse().join('/') : 'Nessuna partita ancora',
           col:'var(--blue)', bg:'linear-gradient(135deg,#0f1f3a,#040c1a)',
           foto: null, uid: null, dest:'history', icon:'📅' },
         { label:'GOAL TOTALI', val: ng,
           name: topG ? (topG.soprannome||topG.nome)+' — '+(topG.goalTotali||0)+' ⚽ top scorer' : 'Nessun goal ancora',
           sub:'Premi per classifica marcatori',
           col:'#FF8C00', bg:'linear-gradient(135deg,#3a1a0f,#1a0404)',
-          foto: topG?.foto, uid: topG?.uid, dest:'stats', icon:'⚽' },
+          foto: topG?.foto, uid: topG?.uid, dest:'stats', statsTab:'goal', icon:'⚽' },
         { label:'HALL OF FAME', val:'★',
           name:'Classifiche, record e stats',
           sub:'Premi per la pagina statistiche',
