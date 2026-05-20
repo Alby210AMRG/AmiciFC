@@ -1296,10 +1296,47 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- ════ HOME ════ -->
     <template v-if="currentView === 'home'">
 
-      <!-- ── Hero card — compact horizontal ── -->
-      <!-- ── Hero card ── -->
-      <div class="hero-card">
-        <!-- Pallone animato (rotazione) al posto del logo -->
+      <!-- ── HOME HERO CAROSELLO ── -->
+      <div v-if="currentGroup"
+        style="position:relative;border-radius:18px;overflow:hidden;margin-bottom:12px;height:184px;cursor:pointer"
+        @click="currentView=homeHeroData[homeHeroIdx].dest; newsExpanded=false">
+        <div v-for="(s,i) in (homeHeroData||[])" :key="i"
+          style="position:absolute;inset:0;display:flex;align-items:center;padding:20px;gap:16px;transition:opacity .6s"
+          :style="i===homeHeroIdx?'opacity:1;pointer-events:auto':'opacity:0;pointer-events:none'">
+          <!-- bg gradient -->
+          <div style="position:absolute;inset:0" :style="'background:'+s.bg"></div>
+          <!-- ghost number -->
+          <div style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:92px;font-weight:900;opacity:.06;pointer-events:none;letter-spacing:-4px;z-index:0">{{s.val}}</div>
+          <!-- avatar -->
+          <div style="position:relative;z-index:1;flex-shrink:0">
+            <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(255,255,255,.08)"
+              :style="'border:2.5px solid '+s.col+';box-shadow:0 0 18px '+s.col+'44'">
+              <img v-if="getPlayerPhoto(s.foto,s.uid)" :src="getPlayerPhoto(s.foto,s.uid)"
+                style="width:100%;height:100%;object-fit:cover;border-radius:50%"
+                @error="$event.target.style.display='none'">
+              <span v-else>{{s.icon}}</span>
+            </div>
+          </div>
+          <!-- info -->
+          <div style="position:relative;z-index:1;flex:1">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:2px;opacity:.65" :style="'color:'+s.col">{{s.label}}</div>
+            <div style="font-size:50px;font-weight:900;line-height:1;letter-spacing:-2px" :style="'color:'+s.col">{{s.val}}</div>
+            <div style="font-size:13px;font-weight:600;margin-top:4px;color:rgba(247,247,247,.9)">{{s.name}}</div>
+            <div style="font-size:11px;color:rgba(247,247,247,.4);margin-top:1px">{{s.sub}}</div>
+          </div>
+        </div>
+        <!-- dots -->
+        <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:2">
+          <div v-for="(_,i) in (homeHeroData||[])" :key="i"
+            style="height:5px;border-radius:3px;transition:all .3s;background:rgba(255,255,255,.2)"
+            :style="i===homeHeroIdx?'width:18px;background:var(--lime)':'width:5px'">
+          </div>
+        </div>
+        <div style="position:absolute;right:12px;bottom:9px;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 8px;font-size:10px;color:rgba(247,247,247,.4);z-index:2">Apri →</div>
+      </div>
+
+      <!-- Hero card fallback se nessun gruppo -->
+      <div v-if="!currentGroup" class="hero-card">
         <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.4rem;line-height:1;animation:ball-roll 3s linear infinite;display:inline-block">⚽</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
           <div class="hero-title">Amici FC</div>
@@ -1307,77 +1344,86 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- ── News Ticker ── -->
-      <div style="margin-bottom:14px;background:var(--card);border-radius:16px;border:2px solid var(--lime);overflow:hidden;box-shadow:0 0 20px rgba(166,255,77,0.2)">
-        <!-- Header strip — testo bianco per entrambi i temi -->
+      <!-- ── NEWS con foto + espandi ── -->
+      <div style="margin-bottom:12px;background:var(--card);border-radius:16px;border:2px solid var(--lime);overflow:hidden;box-shadow:0 0 18px rgba(166,255,77,0.15)">
         <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:6px 14px;display:flex;align-items:center;gap:8px">
-          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;text-shadow:0 1px 3px rgba(0,0,0,0.4)">🏟️ In diretta dallo spogliatoio</span>
+          <span style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:.8;animation:blink 1.4s infinite;flex-shrink:0"></span>
+          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;flex:1">🏟️ In diretta dallo spogliatoio</span>
         </div>
-        <!-- Content — multiline, bigger font, fade only -->
-        <div style="padding:18px 16px 16px;min-height:110px;display:flex;align-items:flex-start;gap:16px">
+        <div style="padding:14px 16px">
           <transition name="news-fade" mode="out-in">
-            <div :key="newsIndex" style="display:flex;align-items:flex-start;gap:16px;width:100%">
-              <span style="font-size:2.2rem;flex-shrink:0;line-height:1.1">{{ currentNews.emoji }}</span>
-              <p style="font-size:1.05rem;line-height:1.6;color:var(--text);margin:0;font-weight:500;word-break:break-word">{{ currentNews.text }}</p>
+            <div :key="newsIndex" style="display:flex;align-items:flex-start;gap:12px">
+              <!-- foto giocatore o emoji -->
+              <div v-if="currentNews.uid || currentNews.foto"
+                style="width:44px;height:44px;border-radius:50%;flex-shrink:0;overflow:hidden;border:2px solid rgba(166,255,77,.4);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
+                <img :src="getPlayerPhoto(currentNews.foto, currentNews.uid)"
+                  style="width:100%;height:100%;object-fit:cover;border-radius:50%"
+                  @error="$event.target.style.display='none'">
+              </div>
+              <div v-else style="font-size:2rem;flex-shrink:0;line-height:1.2">{{currentNews.emoji}}</div>
+              <!-- testo con espandi -->
+              <div style="flex:1;min-width:0">
+                <p style="font-size:1rem;line-height:1.6;color:var(--text);margin:0;font-weight:500;word-break:break-word"
+                  :style="newsExpanded?'':'display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden'">
+                  {{currentNews.text}}
+                </p>
+                <button v-if="currentNews.text && currentNews.text.length > 90"
+                  @click.stop="newsExpanded=!newsExpanded"
+                  style="margin-top:4px;background:none;border:none;color:var(--lime);font-size:0.78rem;font-weight:700;cursor:pointer;padding:0">
+                  {{newsExpanded ? '▲ Mostra meno' : '▼ Leggi tutto'}}
+                </button>
+              </div>
             </div>
           </transition>
         </div>
       </div>
-      <!-- ── Stats & Quick actions (solo se gruppo selezionato) ── -->
-      <template v-if="currentGroup">
-        <div class="quick-stats">
-          <div class="quick-stat-card">
-            <div class="stat-big">{{ groupPlayers.length }}</div>
-            <div class="stat-label">👤 Giocatori</div>
-          </div>
-          <div class="quick-stat-card">
-            <div class="stat-big">{{ groupMatches.length }}</div>
-            <div class="stat-label">⚽ Partite</div>
-          </div>
-          <div class="quick-stat-card">
-            <div class="stat-big">{{ totalGoals }}</div>
-            <div class="stat-label">🥅 Goal</div>
-          </div>
-        </div>
 
-        <div class="card" style="padding:14px">
-          <div class="card-title" style="font-size:0.82rem;margin-bottom:12px">⚡ Azioni rapide</div>
-          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+      <!-- ── Stats & Quick actions ── -->
+      <template v-if="currentGroup">
+        <!-- Azioni rapide: 3 pill orizzontali -->
+        <div style="overflow-x:auto;scrollbar-width:none;margin-bottom:12px;-webkit-overflow-scrolling:touch">
+          <div style="display:flex;gap:8px;padding:2px 0;min-width:max-content">
             <button @click="currentView='stats'"
-              style="background:linear-gradient(135deg,rgba(255,211,61,0.15),rgba(255,211,61,0.05));border:1.5px solid rgba(255,211,61,0.3);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform 0.15s,box-shadow 0.15s"
-              @mousedown="$event.currentTarget.style.transform='scale(0.96)'" @mouseup="$event.currentTarget.style.transform=''" @touchstart.passive="$event.currentTarget.style.transform='scale(0.96)'" @touchend.passive="$event.currentTarget.style.transform=''">
-              <span style="font-size:1.6rem">📊</span>
-              <span style="font-size:0.72rem;font-weight:700;color:var(--yellow)">Statistiche</span>
+              style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;border:1.5px solid rgba(255,217,61,.4);color:var(--yellow);background:transparent;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+              📊 Statistiche
             </button>
             <button @click="currentView='players'"
-              style="background:linear-gradient(135deg,rgba(58,123,255,0.15),rgba(58,123,255,0.05));border:1.5px solid rgba(58,123,255,0.3);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform 0.15s"
-              @mousedown="$event.currentTarget.style.transform='scale(0.96)'" @mouseup="$event.currentTarget.style.transform=''" @touchstart.passive="$event.currentTarget.style.transform='scale(0.96)'" @touchend.passive="$event.currentTarget.style.transform=''">
-              <span style="font-size:1.6rem">👤</span>
-              <span style="font-size:0.72rem;font-weight:700;color:var(--blue)">Giocatori</span>
+              style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;border:1.5px solid rgba(58,123,255,.4);color:var(--blue);background:transparent;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+              👤 Giocatori
             </button>
             <button @click="currentView='history'"
-              style="background:linear-gradient(135deg,rgba(166,255,77,0.12),rgba(166,255,77,0.04));border:1.5px solid rgba(166,255,77,0.25);border-radius:14px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;transition:transform 0.15s"
-              @mousedown="$event.currentTarget.style.transform='scale(0.96)'" @mouseup="$event.currentTarget.style.transform=''" @touchstart.passive="$event.currentTarget.style.transform='scale(0.96)'" @touchend.passive="$event.currentTarget.style.transform=''">
-              <span style="font-size:1.6rem">🕐</span>
-              <span style="font-size:0.72rem;font-weight:700;color:var(--lime)">Storico</span>
+              style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;border:1.5px solid rgba(166,255,77,.4);color:var(--lime);background:transparent;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+              🕐 Storico
             </button>
           </div>
         </div>
 
         <div v-if="recentMatches.length">
           <div class="card-title">🕐 Ultime Partite</div>
-          <div v-for="m in recentMatches" :key="m.id" class="match-card" @click="viewMatch(m)">
-            <div style="display:flex;justify-content:space-between;align-items:center">
-              <span class="match-date">📅 {{ formatDate(m.data) }}</span>
-              <div style="display:flex;gap:6px">
-                <span v-if="m.uomoPartita" class="match-mvp">🏅 {{ m.uomoPartita }}</span>
-                <span v-else-if="m.mvp" class="match-mvp">⭐ {{ m.mvp }}</span>
-              </div>
+          <div v-for="m in recentMatches" :key="m.id"
+            style="border-radius:14px;border:1.5px solid var(--border);background:var(--bg3);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:background .15s"
+            @click="viewMatch(m)">
+            <!-- top row -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+              <span style="font-size:10px;color:var(--text2)">📅 {{ formatDate(m.data) }}</span>
+              <span v-if="m.uomoPartita||m.mvp"
+                style="font-size:10px;color:var(--yellow);background:rgba(255,217,61,.12);padding:2px 8px;border-radius:8px">
+                🏅 {{ m.uomoPartita||m.mvp }}
+              </span>
             </div>
-            <div class="match-score">
-              <span class="score-num score-a">{{ m.risultato.goalA }}</span>
-              <span class="score-sep">–</span>
-              <span class="score-num score-b">{{ m.risultato.goalB }}</span>
+            <!-- score row -->
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;font-size:11px;font-weight:700;color:#FF8C00;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                {{ m.nomeSquadraA || 'Squadra A' }}
+              </div>
+              <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border-radius:10px;padding:5px 12px;flex-shrink:0">
+                <span style="font-size:22px;font-weight:900;color:#FF8C00;line-height:1">{{ m.risultato?.goalA ?? '?' }}</span>
+                <span style="font-size:13px;color:rgba(247,247,247,.25)">–</span>
+                <span style="font-size:22px;font-weight:900;color:var(--blue);line-height:1">{{ m.risultato?.goalB ?? '?' }}</span>
+              </div>
+              <div style="flex:1;font-size:11px;font-weight:700;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">
+                {{ m.nomeSquadraB || 'Squadra B' }}
+              </div>
             </div>
           </div>
         </div>
@@ -3942,6 +3988,16 @@ createApp({
     };
     // Changelog entries — aggiornare ad ogni versione
     const changelogEntries = [
+      { version:'v1.217', date:'2026-05-20', items:[
+        '🔧 FIX: News - foto giocatore su tutte le notizie con soggetto giocatore',
+        '🔧 FIX: Ultime partite con nome squadre (arancio/blu) e score moderno',
+        '🔧 FIX: News espansa aspetta +5s prima di passare alla successiva',
+      ]},
+      { version:'v1.216', date:'2026-05-20', items:[
+        '🆕 Home: Hero carosello (Giocatori/Partite/Goal/Hall of Fame)',
+        '🆕 Home: News con foto giocatore + pulsante Leggi tutto per testi lunghi',
+        '🆕 Home: Azioni rapide come pill orizzontali (no Gioca)',
+      ]},
       { version:'v1.215', date:'2026-05-19', items:[
         '🆕 Giornale: foto partita come sfondo semi-trasparente nella hero section',
         '🔧 FIX: Foto partita ridimensionata a max 800px prima del salvataggio',
@@ -4342,6 +4398,8 @@ createApp({
     const roleFilter         = ref('Tutti');
     const groupFormations    = ref([]);
     const statsTab          = ref('overall');
+    const homeHeroIdx       = ref(0);   // home carousel index
+    const newsExpanded      = ref(false); // news expand/collapse
     const statsHeroIdx      = ref(0);  // hero carousel index (independent from tab)
     const h2hPlayerA        = ref('');
     const h2hPlayerB        = ref('');
@@ -4365,7 +4423,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.215');
+    const appVersion = ref('1.217');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7073,11 +7131,11 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const group = currentGroup.value;
       if (!players.length) { items.push({emoji:'⚽',text:'Benvenuto in Amici FC! Aggiungi i tuoi giocatori per iniziare.'}); return items; }
       const topGoal = [...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];
-      if (topGoal?.goalTotali > 0) items.push({emoji:'🥇',text:`${topGoal.soprannome||topGoal.nome} è il capocannoniere con ${topGoal.goalTotali} goal in ${topGoal.partiteTotali||1} partite!`});
+      if (topGoal?.goalTotali > 0) items.push({emoji:'🥇',uid:topGoal.uid,foto:topGoal.foto,text:`${topGoal.soprannome||topGoal.nome} è il capocannoniere con ${topGoal.goalTotali} goal in ${topGoal.partiteTotali||1} partite!`});
       const topAvg = [...players].filter(p=>(p.partiteTotali||0)>=3).sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0))[0];
-      if (topAvg) items.push({emoji:'📈',text:`${topAvg.soprannome||topAvg.nome} ha la miglior media: ${(topAvg.mediaPunti||0).toFixed(2)} punti/partita`});
+      if (topAvg) items.push({uid:topAvg.uid,foto:topAvg.foto,emoji:'📈',text:`${topAvg.soprannome||topAvg.nome} ha la miglior media: ${(topAvg.mediaPunti||0).toFixed(2)} punti/partita`});
       const gks = players.filter(p=>p.ruolo==='Portiere').sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0));
-      if (gks.length) items.push({emoji:'🧤',text:`${gks[0].soprannome||gks[0].nome} è il portiere titolare del gruppo con ${(gks[0].mediaPunti||0).toFixed(2)} punti/g`});
+      if (gks.length) items.push({uid:gks[0].uid,foto:gks[0].foto,emoji:'🧤',text:`${gks[0].soprannome||gks[0].nome} è il portiere titolare del gruppo con ${(gks[0].mediaPunti||0).toFixed(2)} punti/g`});
       if (matches.length) {
         const last=[...matches].sort((a,b)=>b.data?.localeCompare(a.data||'')||0)[0];
         const gA=last.risultato?.goalA??0,gB=last.risultato?.goalB??0;
@@ -7096,21 +7154,21 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const ratedLast=(last.statisticheGiocatori||[]).filter(s=>(s.voto||0)>0).sort((a,b)=>(b.voto||0)-(a.voto||0));
         if(ratedLast.length){
           const best=ratedLast[0];const p=players.find(x=>x.id===best.playerId);
-          if(p) items.push({emoji:'⭐',text:`Migliore in campo dell'ultima partita: ${p.soprannome||p.nome} con voto ${best.voto}`});
+          if(p) items.push({uid:p.uid,foto:p.foto,emoji:'⭐',text:`Migliore in campo dell'ultima partita: ${p.soprannome||p.nome} con voto ${best.voto}`});
         }
         const totalG=matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
         items.push({emoji:'📊',text:`${group?.nome||'Gruppo'}: ${matches.length} partite giocate, ${totalG} goal totali`});
       }
       const mostG=[...players].sort((a,b)=>(b.partiteTotali||0)-(a.partiteTotali||0))[0];
-      if (mostG?.partiteTotali>0) items.push({emoji:'🏃',text:`${mostG.soprannome||mostG.nome} è il più presente: ${mostG.partiteTotali} partite giocate`});
+      if (mostG?.partiteTotali>0) items.push({uid:mostG.uid,foto:mostG.foto,emoji:'🏃',text:`${mostG.soprannome||mostG.nome} è il più presente: ${mostG.partiteTotali} partite giocate`});
       const topA=[...players].sort((a,b)=>(b.assistTotali||0)-(a.assistTotali||0))[0];
       if (topA?.assistTotali>0) items.push({emoji:'🅰️',text:`${topA.soprannome||topA.nome} guida gli assist con ${topA.assistTotali} passaggi decisivi`});
       const topU=[...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
-      if (topU?.uomoPartitaTotali>0) items.push({emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
+      if (topU?.uomoPartitaTotali>0) items.push({uid:topU.uid,foto:topU.foto,emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
       // Descrizione giocatore (1 ogni ~7 notizie, poco frequente)
       const withDesc=players.filter(p=>p.descrizione&&p.descrizione.length>10);
       if (withDesc.length) { const _di=Math.floor(Date.now()/60000)%Math.max(withDesc.length,1); const pick=withDesc[_di];
-        items.push({emoji:'📋',text:`${pick.soprannome||pick.nome} — ${pick.descrizione}`});
+        items.push({uid:pick.uid,foto:pick.foto,emoji:'📋',text:`${pick.soprannome||pick.nome} — ${pick.descrizione}`});
       }
       // Best formations (one per size, rotates)
       const formSizes = [5,6,7,8,11];
@@ -7379,9 +7437,20 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       const list = newsItems.value;
       return list[newsIndex.value % Math.max(1, list.length)] || {emoji:'⚽',text:''};
     });
-    const nextNews = () => { newsIndex.value = (newsIndex.value+1) % Math.max(1, newsItems.value.length); };
+    const nextNews = () => { newsIndex.value = (newsIndex.value+1) % Math.max(1, newsItems.value.length); newsExpanded.value = false; };
     const prevNews = () => { newsIndex.value = (newsIndex.value-1+newsItems.value.length) % Math.max(1, newsItems.value.length); };
-    const startNewsTicker = () => { if(_newsTimer)clearInterval(_newsTimer); _newsTimer=setInterval(nextNews,7000); };
+    const _newsTickMs = () => newsExpanded.value ? 12000 : 7000;
+    const startNewsTicker = () => {
+      if(_newsTimer)clearInterval(_newsTimer);
+      _newsTimer = setInterval(() => {
+        if(!newsExpanded.value) nextNews();
+        else {
+          // user is reading expanded news - wait longer, then collapse and advance
+          newsExpanded.value = false;
+          setTimeout(nextNews, 1500);
+        }
+      }, 7000);
+    };
 
     const handleMatchPhoto = (e) => {
       const file = e.target.files?.[0];
@@ -8316,6 +8385,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       startNewsTicker();
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
+      // Home hero carousel auto-rotate
+      setInterval(() => { homeHeroIdx.value = (homeHeroIdx.value+1) % 4; }, 4000);
       // Compute initial news items
       setTimeout(_scheduleNewsCompute, 1000);
 
@@ -8560,6 +8631,35 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         avgVotoB: statsB.votoN ? (statsB.voto/statsB.votoN).toFixed(1) : '—' };
     });
 
+
+    // ── Home Hero Carousel ──
+    const homeHeroData = computed(() => {
+      const np = groupPlayers.value.length;
+      const nm = groupMatches.value.length;
+      const ng = totalGoals.value || 0;
+      const topG = topScorers.value?.[0];
+      return [
+        { label:'GIOCATORI', val: np, name:'Rosa completa',
+          sub:'Premi per vedere tutti', col:'var(--lime)',
+          bg:'linear-gradient(135deg,#1a3a0f,#071a04)',
+          foto: null, uid: null, dest:'players', icon:'👤' },
+        { label:'PARTITE', val: nm, name:'Stagione in corso',
+          sub: nm>0 ? 'Ultima: '+(groupMatches.value[0]?.data||'').split('-').reverse().join('/') : 'Nessuna partita ancora',
+          col:'var(--blue)', bg:'linear-gradient(135deg,#0f1f3a,#040c1a)',
+          foto: null, uid: null, dest:'history', icon:'📅' },
+        { label:'GOAL TOTALI', val: ng,
+          name: topG ? (topG.soprannome||topG.nome)+' — '+(topG.goalTotali||0)+' ⚽ top scorer' : 'Nessun goal ancora',
+          sub:'Premi per classifica marcatori',
+          col:'#FF8C00', bg:'linear-gradient(135deg,#3a1a0f,#1a0404)',
+          foto: topG?.foto, uid: topG?.uid, dest:'stats', icon:'⚽' },
+        { label:'HALL OF FAME', val:'★',
+          name:'Classifiche, record e stats',
+          sub:'Premi per la pagina statistiche',
+          col:'var(--yellow)', bg:'linear-gradient(135deg,#2a2a0f,#101004)',
+          foto: null, uid: null, dest:'stats', icon:'📊' },
+      ];
+    });
+
     // Expose to template
     return {
       currentView, groups, currentGroup, groupPlayers, groupMatches, settings,
@@ -8616,7 +8716,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       regenerateFormations, getFormationBalance,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
-      statsHeroIdx, statsHeroData, h2hPlayerA, h2hPlayerB, h2hComputed
+      statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, h2hPlayerA, h2hPlayerB, h2hComputed
     };
   }
 }).mount('#app');
