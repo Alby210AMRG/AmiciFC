@@ -1264,6 +1264,38 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 .empty-state .emoji { font-size: 3.5rem; display: block; margin-bottom: 16px; }
 .empty-state h3 { font-family: var(--font-title); font-size: 1.3rem; color: var(--text); margin-bottom: 8px; }
 .empty-state p { font-size: 0.85rem; line-height: 1.6; }
+
+/* Pull-to-refresh indicator */
+.ptr-indicator {
+  position: fixed;
+  top: var(--top-h);
+  left: 50%;
+  transform: translateX(-50%) translateY(-80px);
+  background: var(--card);
+  border: 1.5px solid var(--lime);
+  border-radius: 20px;
+  padding: 6px 16px;
+  font-size: 0.8rem;
+  color: var(--lime);
+  font-weight: 700;
+  z-index: 500;
+  transition: transform 0.2s ease;
+  pointer-events: none;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+.ptr-indicator.visible {
+  transform: translateX(-50%) translateY(8px);
+}
+.ptr-indicator.loading {
+  animation: ptr-spin 0.8s linear infinite;
+}
+@keyframes ptr-spin {
+  0% { border-color: var(--lime); }
+  50% { border-color: var(--blue); }
+  100% { border-color: var(--lime); }
+}
+
 </style>
 </head>
 <body>
@@ -1295,6 +1327,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <span>🎉 Nuova versione {{ newVersion }}!</span>
     <button class="btn btn-sm" style="background:#fff;color:#1a1a1a;margin-left:auto" @click="doUpdate">Aggiorna</button>
     <button @click="updateAvailable=false" style="background:none;border:none;cursor:pointer;font-size:1.1rem">✕</button>
+  </div>
+
+  <!-- Pull-to-refresh indicator -->
+  <div class="ptr-indicator" :class="{visible: ptrVisible, loading: ptrLoading}" id="ptr-indicator">
+    <span v-if="ptrLoading">🔄 Sincronizzazione...</span>
+    <span v-else>⬇️ Rilascia per aggiornare</span>
   </div>
 
   <!-- ── MAIN CONTENT ── -->
@@ -1371,7 +1409,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <!-- testo con espandi -->
               <div style="flex:1;min-width:0">
                 <p style="font-size:1rem;line-height:1.6;color:var(--text);margin:0;font-weight:500;word-break:break-word"
-                  :style="newsExpanded?'':'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden'">
+                  :style="newsExpanded?'display:block;overflow:visible;max-height:none':'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden'">
                   {{currentNews.text}}
                 </p>
                 <button v-if="currentNews.text && currentNews.text.length > 120"
@@ -4057,7 +4095,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4516,7 +4554,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.226');
+    const appVersion = ref('1.227');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7630,6 +7668,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const nextNews = () => { newsIndex.value = (newsIndex.value+1) % Math.max(1, newsItems.value.length); newsExpanded.value = false; };
     const prevNews = () => { newsIndex.value = (newsIndex.value-1+newsItems.value.length) % Math.max(1, newsItems.value.length); };
     const _newsTickMs = () => newsExpanded.value ? 12000 : 7000;
+    // ── Pull-to-refresh ──
+    const ptrVisible = ref(false);
+    const ptrLoading = ref(false);
+
     // ── Lazy sync con debounce: scarica solo se >5 min dall'ultimo sync ──
     const LAZY_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minuti
     let _lazySyncTimer = null;
@@ -7657,6 +7699,47 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           setTimeout(nextNews, 1500);
         }
       }, 7000);
+    };
+
+    // ── Pull-to-refresh touch logic ──
+    let _ptrStartY = 0, _ptrDelta = 0, _ptrActive = false;
+    const _onPtrStart = (e) => {
+      const main = document.querySelector('.main-content');
+      if (!main || main.scrollTop > 5) return; // solo se in cima
+      if (currentView.value !== 'home') return; // solo nella home
+      _ptrStartY = e.touches[0].clientY;
+      _ptrActive = true;
+      _ptrDelta = 0;
+    };
+    const _onPtrMove = (e) => {
+      if (!_ptrActive) return;
+      _ptrDelta = e.touches[0].clientY - _ptrStartY;
+      if (_ptrDelta > 10) {
+        ptrVisible.value = true;
+        if (_ptrDelta > 60) e.preventDefault(); // blocca scroll solo se abbastanza
+      } else {
+        ptrVisible.value = false;
+      }
+    };
+    const _onPtrEnd = async () => {
+      if (!_ptrActive) return;
+      _ptrActive = false;
+      if (_ptrDelta >= 60 && !ptrLoading.value) {
+        ptrLoading.value = true;
+        ptrVisible.value = true;
+        try {
+          await syncFromCloud(true);
+          toast('✅ Dati aggiornati!', 'success', 2000);
+        } catch(e) {
+          toast('⚠️ Sync fallita', 'warning', 2000);
+        } finally {
+          ptrLoading.value = false;
+          setTimeout(() => { ptrVisible.value = false; }, 600);
+        }
+      } else {
+        ptrVisible.value = false;
+      }
+      _ptrDelta = 0;
     };
 
     const handleMatchPhoto = (e) => {
@@ -8597,6 +8680,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         }
       });
       setInterval(()=>{if(document.visibilityState==='visible')_scheduleNewsCompute();},120000);
+      // Pull-to-refresh
+      document.addEventListener('touchstart', _onPtrStart, { passive: true });
+      document.addEventListener('touchmove', _onPtrMove, { passive: false });
+      document.addEventListener('touchend', _onPtrEnd, { passive: true });
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
       // Home hero carousel auto-rotate
@@ -8938,7 +9025,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       regenerateFormations, getFormationBalance,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
-      statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, h2hPlayerA, h2hPlayerB, h2hComputed
+      statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed
     };
   }
 }).mount('#app');
