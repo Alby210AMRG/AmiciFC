@@ -3126,6 +3126,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <div class="input-group">
+        <label class="input-label">💬 Frase Celebre</label>
+        <input class="input-field" v-model="playerForm.fraseCelebre"
+          placeholder="Es: «Quello era rigore!» oppure «Ero in fuorigioco? No!»">
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
+          La frase tipica di questo giocatore — apparirà nelle notizie 🎤
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;margin-top:8px">
         <button class="btn btn-ghost" style="flex:1" @click="showPlayerForm=false">Annulla</button>
         <button class="btn btn-primary" style="flex:2" @click="savePlayer" :disabled="!playerForm.nome.trim()">
@@ -4048,7 +4057,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4458,7 +4467,7 @@ createApp({
 
     // Player form
     const editingPlayer = ref(null);
-    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[] });
+    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[], fraseCelebre:'' });
     const detailPlayer  = ref(null);
     const detailMatch   = ref(null);
 
@@ -4507,7 +4516,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.224');
+    const appVersion = ref('1.226');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4790,7 +4799,7 @@ createApp({
     const openPlayerForm = p => {
       editingPlayer.value = p;
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [] }
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'' }
         : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[] };
       showPlayerForm.value = true;
     };
@@ -4809,6 +4818,7 @@ createApp({
           piede:       f.piede || 'Destro',
           foto:        f.foto || '',
           descrizione: f.descrizione || '',
+          fraseCelebre: f.fraseCelebre?.trim() || '',
           rivali:      (f.rivali||[]).filter(Boolean),
           affinita:    (f.affinita||[]).filter(Boolean),
           updatedAt:   Date.now(),
@@ -4821,7 +4831,7 @@ createApp({
             await db.players.put({ ...editingPlayer.value,
               nome: f.nome.trim(), cognome: f.cognome?.trim()||'',
               soprannome: f.soprannome?.trim()||'', ruolo: f.ruolo||'Jolly',
-              piede: f.piede||'Destro', foto: f.foto||'', descrizione: f.descrizione||'',
+              piede: f.piede||'Destro', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'',
               rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean),
             });
           }
@@ -4835,7 +4845,7 @@ createApp({
           goalTotali:0, assistTotali:0, autogolTotali:0,
           puntiTotali:0, partiteTotali:0, mediaPunti:0,
           mediaVoto:0, votiTotali:0, uomoPartitaTotali:0,
-          piede: f.piede||'Destro', descrizione: f.descrizione||'', storicoPartite:[], rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean)
+          piede: f.piede||'Destro', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', storicoPartite:[], rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean)
         });
         toast('✅ Giocatore aggiunto!');
         autoSyncToCloud();
@@ -6840,6 +6850,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
                 ruolo:       cp.ruolo       ?? lp.ruolo,
                 piede:       cp.piede       ?? lp.piede,
                 descrizione: (force || (cp.updatedAt||0) >= (lp.updatedAt||0)) ? (cp.descrizione ?? lp.descrizione) : (lp.descrizione ?? cp.descrizione),
+                fraseCelebre: (force || (cp.updatedAt||0) >= (lp.updatedAt||0)) ? (cp.fraseCelebre ?? lp.fraseCelebre ?? '') : (lp.fraseCelebre ?? cp.fraseCelebre ?? ''),
                 foto:        await resizeBase64(force || (cp.updatedAt||0) >= (lp.updatedAt||0) ? (cp.foto||lp.foto) : (lp.foto||cp.foto)),
                 goalTotali:        Math.max(cp.goalTotali        ||0, lp.goalTotali        ||0),
                 assistTotali:      Math.max(cp.assistTotali      ||0, lp.assistTotali      ||0),
@@ -7263,6 +7274,19 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const names = topF.map(p=>p.soprannome||p.nome).join(', ');
         items.push({emoji:'⭐',text:`Miglior formazione ${fSize}v${fSize}: ${names}`});
       }
+      // ── Frasi Celebri giocatori (se presenti) ──
+      const conFrase = players.filter(p => p.fraseCelebre?.trim());
+      if (conFrase.length > 0) {
+        // Rotate through players with frasi using stable time-based index
+        const fraseIdx = Math.floor(Date.now() / 45000) % conFrase.length;
+        const fp = conFrase[fraseIdx];
+        items.push({
+          uid: fp.uid, foto: fp.foto,
+          emoji: '💬',
+          text: `${fp.soprannome||fp.nome} dice sempre: "${fp.fraseCelebre}"`
+        });
+      }
+
       // ── Frasi simpatiche (2 per ciclo, pool di 40, rotate ogni 30s) ──
       const funnyPhrases = [
         {emoji:'😂',text:'Non importa il risultato: l\'importante è avere qualcuno da insultare con affetto.'},
@@ -7606,6 +7630,23 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const nextNews = () => { newsIndex.value = (newsIndex.value+1) % Math.max(1, newsItems.value.length); newsExpanded.value = false; };
     const prevNews = () => { newsIndex.value = (newsIndex.value-1+newsItems.value.length) % Math.max(1, newsItems.value.length); };
     const _newsTickMs = () => newsExpanded.value ? 12000 : 7000;
+    // ── Lazy sync con debounce: scarica solo se >5 min dall'ultimo sync ──
+    const LAZY_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minuti
+    let _lazySyncTimer = null;
+    const lazySyncIfNeeded = () => {
+      if (!groupCloudUrl.value) return; // nessun firebase configurato
+      const now = Date.now();
+      const last = lastSyncTime.value || 0;
+      if (now - last < LAZY_SYNC_INTERVAL) return; // sync recente, skip
+      // Debounce: aspetta 800ms prima di avviare (evita chiamate multiple rapide)
+      clearTimeout(_lazySyncTimer);
+      _lazySyncTimer = setTimeout(async () => {
+        try {
+          await syncFromCloud(false); // silent, non forzato
+        } catch(e) { /* silent fail */ }
+      }, 800);
+    };
+
     const startNewsTicker = () => {
       if(_newsTimer)clearInterval(_newsTimer);
       _newsTimer = setInterval(() => {
@@ -8549,6 +8590,12 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
       // Start news ticker
       startNewsTicker();
+      // Lazy sync on navigation to data-heavy views
+      watch(currentView, (newView) => {
+        if (['stats','history','players'].includes(newView)) {
+          lazySyncIfNeeded();
+        }
+      });
       setInterval(()=>{if(document.visibilityState==='visible')_scheduleNewsCompute();},120000);
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
@@ -8887,7 +8934,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction, getCachedPrediction,
-      showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime,
+      showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime, lazySyncIfNeeded,
       regenerateFormations, getFormationBalance,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
