@@ -1268,9 +1268,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 /* Pull-to-refresh indicator */
 .ptr-indicator {
   position: fixed;
-  top: var(--top-h);
+  top: calc(var(--top-h) + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(-80px);
+  transform: translateX(-50%);
   background: var(--card);
   border: 1.5px solid var(--lime);
   border-radius: 20px;
@@ -1279,13 +1279,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   color: var(--lime);
   font-weight: 700;
   z-index: 500;
-  transition: transform 0.2s ease;
   pointer-events: none;
   box-shadow: var(--shadow-sm);
   white-space: nowrap;
-}
-.ptr-indicator.visible {
-  transform: translateX(-50%) translateY(8px);
 }
 .ptr-indicator.loading {
   animation: ptr-spin 0.8s linear infinite;
@@ -1330,7 +1326,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   </div>
 
   <!-- Pull-to-refresh indicator -->
-  <div class="ptr-indicator" :class="{visible: ptrVisible, loading: ptrLoading}" id="ptr-indicator">
+  <div class="ptr-indicator" v-show="ptrVisible" :class="{loading: ptrLoading}" id="ptr-indicator">
     <span v-if="ptrLoading">🔄 Sincronizzazione...</span>
     <span v-else>⬇️ Rilascia per aggiornare</span>
   </div>
@@ -4095,7 +4091,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4554,7 +4550,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.227');
+    const appVersion = ref('1.229');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7714,11 +7710,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const _onPtrMove = (e) => {
       if (!_ptrActive) return;
       _ptrDelta = e.touches[0].clientY - _ptrStartY;
-      if (_ptrDelta > 10) {
+      if (_ptrDelta > 15) {
         ptrVisible.value = true;
-        if (_ptrDelta > 60) e.preventDefault(); // blocca scroll solo se abbastanza
+        if (_ptrDelta > 70) e.preventDefault();
       } else {
-        ptrVisible.value = false;
+        // user scrolled up or barely moved - cancel PTR
+        if (_ptrDelta <= 0) { _ptrActive = false; ptrVisible.value = false; }
+        else { ptrVisible.value = false; }
       }
     };
     const _onPtrEnd = async () => {
@@ -8675,6 +8673,10 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       startNewsTicker();
       // Lazy sync on navigation to data-heavy views
       watch(currentView, (newView) => {
+        // Reset pull-to-refresh on any navigation
+        _ptrActive = false;
+        ptrVisible.value = false;
+        ptrLoading.value = false;
         if (['stats','history','players'].includes(newView)) {
           lazySyncIfNeeded();
         }
@@ -8684,6 +8686,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       document.addEventListener('touchstart', _onPtrStart, { passive: true });
       document.addEventListener('touchmove', _onPtrMove, { passive: false });
       document.addEventListener('touchend', _onPtrEnd, { passive: true });
+      document.addEventListener('touchcancel', () => { _ptrActive=false; ptrVisible.value=false; }, { passive: true });
+      document.addEventListener('visibilitychange', () => { if(document.hidden){ _ptrActive=false; ptrVisible.value=false; } });
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
       // Home hero carousel auto-rotate
