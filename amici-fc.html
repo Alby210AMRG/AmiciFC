@@ -1313,7 +1313,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         style="background:rgba(58,123,255,0.15);border:1px solid rgba(58,123,255,0.4);border-radius:20px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#7ab0ff"
         :style="currentGroup.firebaseUrl?'color:var(--lime);border-color:rgba(200,255,0,0.4);background:rgba(200,255,0,0.1)':''"
         title="Firebase gruppo">
-        {{ currentGroup.firebaseUrl ? '☁️✅' : '☁️' }}
+        {{ lastSyncError ? '☁️⚠️' : currentGroup.firebaseUrl ? '☁️✅' : '☁️' }}
       </button>
     </div>
   </header>
@@ -1796,9 +1796,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             style="color:var(--yellow);border-color:rgba(255,211,61,0.3)" title="Rigenera formazioni attive">
             {{ aiLoading ? '⏳' : '🔁 Rigenera' }}
           </button>
-          <button class="btn btn-primary btn-sm" @click="startPlayerSelection">
-            ➕ Nuova
-          </button>
+          <div style="position:relative;display:inline-block" id="nuovaDropWrap">
+            <button class="btn btn-primary btn-sm" @click="showNuovaMenu=!showNuovaMenu" style="display:flex;align-items:center;gap:4px">
+              ➕ Nuova <span style="font-size:9px;opacity:.7">▼</span>
+            </button>
+            <div v-if="showNuovaMenu"
+              style="position:absolute;right:0;top:calc(100% + 4px);background:var(--card);border:1px solid var(--border);border-radius:12px;padding:4px;min-width:180px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.2)"
+              @click.stop>
+              <button @click="startPlayerSelection();showNuovaMenu=false"
+                style="display:flex;align-items:center;gap:8px;padding:10px 12px;width:100%;background:none;border:none;cursor:pointer;border-radius:8px;color:var(--text);font-size:0.85rem;text-align:left"
+                onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">
+                ⚽ <span><strong>Nuova Formazione</strong><br><span style="font-size:0.75rem;color:var(--text2)">Seleziona giocatori e crea squadre</span></span>
+              </button>
+              <div style="height:1px;background:var(--border);margin:2px 8px"></div>
+              <button @click="showReceiveForm=true;showNuovaMenu=false"
+                style="display:flex;align-items:center;gap:8px;padding:10px 12px;width:100%;background:none;border:none;cursor:pointer;border-radius:8px;color:var(--text);font-size:0.85rem;text-align:left"
+                onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">
+                📥 <span><strong>Ricevi Formazione</strong><br><span style="font-size:0.75rem;color:var(--text2)">Importa da codice o testo</span></span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1888,9 +1905,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
-        <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
-          <button class="btn btn-blue btn-sm" @click="shareFormationPNG(f)">📱 Condividi</button>
-          <button class="btn btn-primary btn-sm" @click="playFormation(f)" :disabled="f.stato==='giocata'">
+        <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
+          <button class="btn btn-blue btn-sm" @click="shareFormationPNG(f)" title="Condividi immagine formazione" style="padding:6px 10px">🖼️</button>
+          <button class="btn btn-ghost btn-sm" @click="openSendFormation(f)" title="Invia formazione a un altro giocatore" style="padding:6px 10px;border-color:rgba(166,255,77,0.4);color:var(--lime)">📲</button>
+          <button class="btn btn-primary btn-sm" style="flex:1" @click="playFormation(f)" :disabled="f.stato==='giocata'">
             {{ f.stato === 'giocata' ? '✅ Già giocata' : '⚽ Gioca questa' }}
           </button>
         </div>
@@ -2718,6 +2736,109 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </template>
 
 
+
+
+    <!-- ════ MODAL LOG DI SISTEMA ════ -->
+    <div v-if="showLogModal" class="modal-overlay" @click.self="showLogModal=false">
+      <div class="modal-box" style="max-width:420px;max-height:85vh;display:flex;flex-direction:column">
+        <div class="modal-header" style="flex-shrink:0">
+          <div class="modal-title">📋 Log di sistema</div>
+          <button class="modal-close" @click="showLogModal=false">✕</button>
+        </div>
+        <div style="display:flex;gap:8px;padding:10px 16px;flex-shrink:0;border-bottom:1px solid var(--border)">
+          <button class="btn btn-ghost btn-sm" style="flex:1" @click="copyLogs" :disabled="!appLogs.length">📋 Copia Log</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;color:var(--red);border-color:rgba(255,77,77,0.3)" @click="clearLogs" :disabled="!appLogs.length">🗑️ Pulisci Log</button>
+        </div>
+        <div v-if="appLogs.length" style="padding:7px 16px;display:flex;gap:10px;font-size:0.72rem;flex-shrink:0;border-bottom:1px solid var(--border)">
+          <span style="color:var(--red)">🔴 {{appLogs.filter(l=>l.level==='error').length}}</span>
+          <span style="color:var(--yellow)">🟡 {{appLogs.filter(l=>l.level==='warn').length}}</span>
+          <span style="color:var(--lime)">🟢 {{appLogs.filter(l=>l.level==='info').length}}</span>
+          <span style="color:var(--text2);margin-left:auto">max 50 voci</span>
+        </div>
+        <div style="overflow-y:auto;flex:1;padding:8px 10px">
+          <div v-if="!appLogs.length" style="text-align:center;padding:32px;color:var(--text2)">
+            <div style="font-size:2rem;margin-bottom:8px">✅</div>
+            <div style="font-size:0.85rem">Nessun log presente</div>
+          </div>
+          <div v-for="(l,i) in appLogs" :key="i"
+            style="padding:7px 10px;border-radius:8px;margin-bottom:4px;font-size:0.73rem;font-family:monospace"
+            :style="l.level==='error'?'background:rgba(255,77,77,0.08);border-left:3px solid var(--red)':
+                    l.level==='warn'?'background:rgba(255,211,61,0.08);border-left:3px solid var(--yellow)':
+                    'background:var(--bg2);border-left:3px solid var(--lime)'">
+            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">
+              <span>{{l.level==='error'?'🔴':l.level==='warn'?'🟡':'🟢'}}</span>
+              <span style="color:var(--text2)">{{l.ts}}</span>
+              <span style="color:var(--blue);font-weight:700">[{{l.module}}]</span>
+              <span v-if="l.count > 1" style="background:var(--bg3);border-radius:8px;padding:0 5px;color:var(--text2)">×{{l.count}}</span>
+            </div>
+            <div :style="l.level==='error'?'color:var(--red)':l.level==='warn'?'color:var(--yellow)':'color:var(--text)'">{{l.msg}}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ MODAL INVIA FORMAZIONE ════ -->
+    <div v-if="showSendFormation" class="modal-overlay" @click.self="showSendFormation=false">
+      <div class="modal-box" style="max-width:360px">
+        <div class="modal-header">
+          <div class="modal-title">📲 Invia Formazione</div>
+          <button class="modal-close" @click="showSendFormation=false">✕</button>
+        </div>
+        <div style="padding:16px">
+          <div style="font-size:0.82rem;color:var(--text2);margin-bottom:14px">
+            Scegli come inviare la formazione a un altro giocatore del gruppo:
+          </div>
+
+          <!-- Codice Firebase -->
+          <div v-if="groupCloudUrl" class="card" style="margin-bottom:12px;padding:14px">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--lime);margin-bottom:8px">🔢 CODICE (consigliato)</div>
+            <div v-if="!sendCode" style="color:var(--text2);font-size:0.8rem">⏳ Generazione codice...</div>
+            <div v-else>
+              <div style="font-size:2rem;font-weight:900;letter-spacing:6px;color:var(--text);text-align:center;padding:8px 0;background:var(--bg2);border-radius:10px;margin-bottom:8px">{{sendCode}}</div>
+              <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">⏰ Valido 48 ore</div>
+              <button class="btn btn-ghost btn-sm" style="width:100%" @click="copyToClipboard(sendCode,'Codice copiato!')">📋 Copia codice</button>
+            </div>
+          </div>
+
+          <!-- Testo AMFC -->
+          <div class="card" style="padding:14px">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--text2);margin-bottom:8px">📝 TESTO (funziona sempre, senza internet)</div>
+            <div style="font-size:0.65rem;color:var(--text2);background:var(--bg2);border-radius:8px;padding:8px;word-break:break-all;max-height:60px;overflow:hidden;margin-bottom:8px">{{sendText.slice(0,80)}}...</div>
+            <button class="btn btn-ghost btn-sm" style="width:100%" @click="copyToClipboard(sendText,'Testo formazione copiato!')">📋 Copia testo formazione</button>
+          </div>
+
+          <div style="font-size:0.72rem;color:var(--text2);margin-top:12px;text-align:center">
+            Chi riceve apre Amici FC → Formazioni → Nuova → Ricevi Formazione
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ MODAL RICEVI FORMAZIONE ════ -->
+    <div v-if="showReceiveForm" class="modal-overlay" @click.self="showReceiveForm=false">
+      <div class="modal-box" style="max-width:360px">
+        <div class="modal-header">
+          <div class="modal-title">📥 Ricevi Formazione</div>
+          <button class="modal-close" @click="showReceiveForm=false">✕</button>
+        </div>
+        <div style="padding:16px">
+          <div style="font-size:0.82rem;color:var(--text2);margin-bottom:12px">
+            Inserisci il <strong>codice a 6 cifre</strong> o incolla il <strong>testo AMFC:</strong> ricevuto su WhatsApp:
+          </div>
+          <textarea class="input-field" v-model="receiveInput" rows="4"
+            placeholder="482931&#10;oppure&#10;AMFC:eyJhIjoiRGll..."
+            style="font-family:monospace;font-size:0.8rem;resize:none"></textarea>
+          <div style="font-size:0.72rem;color:var(--text2);margin:8px 0 12px">
+            • <strong>6 cifre</strong> → codice condiviso (richiede Firebase)<br>
+            • <strong>AMFC:...</strong> → testo copiato (funziona sempre)
+          </div>
+          <button class="btn btn-primary" style="width:100%" @click="importFormation" :disabled="receiveLoading">
+            {{ receiveLoading ? '⏳ Importazione...' : '✅ Importa Formazione' }}
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ════ GRUPPI ════ -->
     <template v-if="currentView === 'groups'">
       <div class="card-title">👥 Gestione Gruppi</div>
@@ -2935,6 +3056,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="card" style="border-color:rgba(255,77,77,0.3)">
         <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
         <div style="display:flex;flex-direction:column;gap:8px">
+          <button class="btn btn-ghost btn-full" @click="showLogModal=true"
+            style="display:flex;align-items:center;justify-content:space-between;border-color:rgba(255,255,255,0.15)">
+            <span>📋 Log di sistema</span>
+            <span style="display:flex;align-items:center;gap:6px">
+              <span v-if="appLogs.filter(l=>l.level==='error').length > 0"
+                style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700">
+                {{appLogs.filter(l=>l.level==='error').length}} err
+              </span>
+              <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}} voci →</span>
+            </span>
+          </button>
           <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
           <button class="btn btn-full" style="background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
             ☢️ Reset Totale (come nuova installazione)
@@ -3557,7 +3689,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="setting-label">🔄 Sincronizza all'avvio</div>
           <div class="setting-sub">Scarica i dati Firebase ogni volta che apri l'app</div>
           <div v-if="lastSyncTime" style="font-size:0.7rem;color:var(--lime);margin-top:3px">
-            Ultima sync: {{ lastSyncTime }}
+            ✅ Ultima sync: {{ lastSyncTime }}
+          </div>
+          <div v-if="lastSyncError" style="font-size:0.7rem;color:var(--red);margin-top:3px;font-weight:600">
+            ⚠️ Errore: {{ lastSyncError }}
+            <span v-if="lastSyncError.includes('protetto') || lastSyncError.includes('401')" style="display:block;margin-top:2px;font-weight:400;color:var(--text2)">
+              → Premi ☁️ nell'header e accedi con email/password Firebase
+            </span>
+          </div>
+          <div v-if="!lastSyncTime && !lastSyncError && currentGroup && currentGroup.firebaseUrl" style="font-size:0.7rem;color:var(--yellow);margin-top:3px">
+            ⏳ Sync non ancora eseguita — premi Sincronizza ora
           </div>
         </div>
         <label class="toggle"><input type="checkbox" v-model="groupSyncOnStartup"><span class="toggle-slider"></span></label>
@@ -4091,7 +4232,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4401,6 +4542,9 @@ createApp({
     const showGroupCloud    = ref(false);
     const isOnline          = ref(navigator.onLine);
     const lastSyncTime      = ref(localStorage.getItem('amicifc_last_sync') || '');
+    const lastSyncError     = ref(localStorage.getItem('amicifc_last_sync_error') || '');
+    const showLogModal      = ref(false);
+    const appLogs           = ref(JSON.parse(localStorage.getItem('amicifc_logs') || '[]')); // ultimo errore sync
     const groupSyncOnStartup  = ref(true);
     const showOnboardingLogin = ref(false);
     const showFbHelp        = ref(false);
@@ -4525,6 +4669,14 @@ createApp({
     const roleFilter         = ref('Tutti');
     const groupFormations    = ref([]);
     const statsTab          = ref('overall');
+    const showSendFormation = ref(false);
+    const showNuovaMenu      = ref(false);   // modal invia formazione
+    const showReceiveForm   = ref(false);   // modal ricevi formazione
+    const sendFormationData = ref(null);    // {formation, code, text}
+    const receiveInput      = ref('');      // input di B
+    const receiveLoading    = ref(false);
+    const sendCode          = ref('');      // 6-digit codice Firebase
+    const sendText          = ref('');      // AMFC: stringa
     const homeHeroIdx       = ref(0);   // home carousel index
     const newsExpanded      = ref(false); // news expand/collapse
     const statsHeroIdx      = ref(0);  // hero carousel index (independent from tab)
@@ -4550,7 +4702,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.231');
+    const appVersion = ref('1.235');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6710,6 +6862,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const getValidToken = async () => {
       // Try stored token first
       let token = fbIdToken.value || localStorage.getItem('amicifc_fb_token') || '';
+      // iOS fallback: localStorage può essere svuotato - controlliamo sessionStorage
+      if (!token) { try { token = sessionStorage.getItem('amicifc_fb_token_bak') || ''; } catch(e) {} }
       if (token) {
         // Test if token is still valid by checking expiry
         // Firebase tokens are JWTs - decode payload to check exp
@@ -6721,7 +6875,14 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           const expiry = payload.exp * 1000; // ms
           if (Date.now() < expiry - 60000) { // valid for more than 1 min
             fbIdToken.value = token;
+            try { sessionStorage.setItem('amicifc_fb_token_bak', token); } catch(e) {}
             return token;
+          } else {
+            logEvent('warn', 'auth', 'Token Firebase scaduto - rinnovare accesso');
+            // Token expired — clear it and try refresh
+            fbIdToken.value = '';
+            localStorage.removeItem('amicifc_fb_token');
+            token = '';
           }
         } catch(e) { /* invalid JWT, try refresh */ }
         // Token expired or invalid — try refresh
@@ -6978,13 +7139,24 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
         const _now = new Date().toLocaleString('it-IT');
         lastSyncTime.value = _now;
         localStorage.setItem('amicifc_last_sync', _now);
-        if (syncedPlayers > 0 || syncedMatches > 0) toast(`☁️ Aggiornato: ${syncedPlayers} gioc., ${syncedMatches} partite`, 'success', 4000);
+        lastSyncError.value = '';
+        localStorage.removeItem('amicifc_last_sync_error');
+        if (syncedPlayers > 0 || syncedMatches > 0) logEvent('info', 'sync', 'OK: ' + syncedPlayers + ' gioc., ' + syncedMatches + ' partite');
+        if (syncedPlayers > 0 || syncedMatches > 0) {
+          toast(`☁️ Aggiornato: ${syncedPlayers > 0 ? syncedPlayers+' gioc.' : ''} ${syncedMatches > 0 ? syncedMatches+' partite' : ''}`.trim(), 'success', 3000);
+        } else if (force) {
+          toast('✅ Dati già aggiornati', 'success', 2000);
+        }
         console.log(`[AmiciFC] Sync OK: ${syncedPlayers} gioc., ${syncedMatches} partite`);
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
       } catch (e) {
-        toast('❌ Errore sync: ' + e.message, 'error');
+        const errMsg = e.message || 'Errore sconosciuto';
+        lastSyncError.value = errMsg;
+        logEvent('error', 'sync', errMsg);
+        localStorage.setItem('amicifc_last_sync_error', errMsg);
+        toast('❌ Errore sync: ' + errMsg, 'error');
       }
       syncLoading.value = false;
     };
@@ -7102,12 +7274,16 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           for (const p of (eg.players||[])) {
             if (!p.id) continue; // skip players without ID
             const existing = await db.players.get(p.id);
+            let _changed = false;
             if (existing) {
-              await db.players.update(p.id, {...p, groupId: gid});
+              // Only count as synced if data actually differs
+              const _sig = JSON.stringify(existing);
+              const _newSig = JSON.stringify({...existing, ...p, groupId: gid});
+              if (_sig !== _newSig) { await db.players.update(p.id, {...p, groupId: gid}); _changed = true; }
             } else {
-              await db.players.put({...p, groupId: gid});
+              await db.players.put({...p, groupId: gid}); _changed = true;
             }
-            syncedPlayers++;
+            if (_changed) syncedPlayers++;
           }
           for (const m of (eg.matches||[])) {
             const remapped = {...m, groupId: gid, id: undefined};
@@ -7699,6 +7875,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
 
     // ── Pull-to-refresh touch logic ──
     let _ptrStartY=0, _ptrDelta=0, _ptrActive=false, _ptrHoldTimer=null, _ptrReady=false;
+    let _appHiddenAt=0; // timestamp quando app va in background (per iOS sync fix)
     const _ptrReset = () => {
       _ptrActive=false; _ptrReady=false; _ptrDelta=0;
       clearTimeout(_ptrHoldTimer); _ptrHoldTimer=null;
@@ -8682,6 +8859,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       setTimeout(precachePlayerPhotos, 2000);
 
       // Start news ticker
+      logEvent('info', 'app', 'Avvio Amici FC v' + appVersion.value);
       startNewsTicker();
       // Lazy sync on navigation to data-heavy views
       watch(currentView, (newView) => {
@@ -8697,7 +8875,28 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       document.addEventListener('touchmove', _onPtrMove, { passive: false });
       document.addEventListener('touchend', _onPtrEnd, { passive: true });
       document.addEventListener('touchcancel', _ptrReset, { passive: true });
-      document.addEventListener('visibilitychange', () => { if(document.hidden){ _ptrActive=false; ptrVisible.value=false; } });
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          _ptrActive = false; ptrVisible.value = false;
+          _appHiddenAt = Date.now();
+        } else {
+          // App ritorna in foreground - forza sync se era in background >10min
+          const hiddenMs = Date.now() - (_appHiddenAt || 0);
+          if (hiddenMs > 10 * 60 * 1000 && groupCloudUrl.value) {
+            setTimeout(() => syncFromCloud(false).catch(()=>{}), 1500);
+          }
+        }
+      });
+      // iOS PWA: pageshow fires when returning from background (visibilitychange non sempre scatta)
+      window.addEventListener('pageshow', (e) => {
+        if (e.persisted && groupCloudUrl.value) {
+          // Page was restored from bfcache (common on iOS)
+          const hiddenMs = Date.now() - (_appHiddenAt || 0);
+          if (hiddenMs > 5 * 60 * 1000) {
+            setTimeout(() => syncFromCloud(false).catch(()=>{}), 1000);
+          }
+        }
+      });
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
       // Home hero carousel auto-rotate
@@ -8865,7 +9064,6 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       finally { aiRegenLoading.value = false; }
     };
 
-        
     // ── Stats Hero Carousel (auto-rotate, independent from tabs) ──
     const statsHeroData = computed(() => {
       const p0 = topOverall.value[0], p1 = topScorers.value[0],
@@ -8983,6 +9181,184 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       ];
     });
 
+
+
+    // ── LOG DI SISTEMA ──
+    const LOG_MAX = 50;
+    const LOG_DEDUP_MS = 10 * 60 * 1000;
+
+    const logEvent = (level, module, msg) => {
+      try {
+        const logs = appLogs.value;
+        const now = Date.now();
+        const d = new Date();
+        const pad = n => String(n).padStart(2,'0');
+        const ts = pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+
+                   pad(d.getHours())+':'+pad(d.getMinutes())+':'+pad(d.getSeconds());
+        const last = logs[0];
+        if (last && last.module === module && last.msg === msg &&
+            (now - (last._ts || 0)) < LOG_DEDUP_MS) {
+          last.count = (last.count || 1) + 1;
+          last.ts = ts; last._ts = now;
+        } else {
+          logs.unshift({ ts, level, module, msg, count: 1, _ts: now });
+          if (logs.length > LOG_MAX) logs.splice(LOG_MAX);
+        }
+        appLogs.value = [...logs];
+        localStorage.setItem('amicifc_logs', JSON.stringify(logs));
+      } catch(e) { /* silent */ }
+    };
+
+    const clearLogs = () => {
+      appLogs.value = [];
+      localStorage.removeItem('amicifc_logs');
+      toast('Log puliti', 'success', 1500);
+    };
+
+    const copyLogs = async () => {
+      const icon = { error: '[ERRORE]', warn: '[AVVISO]', info: '[INFO]' };
+      const lines = appLogs.value.map(function(l) {
+        var cnt = l.count > 1 ? ' (x' + l.count + ')' : '';
+        return (icon[l.level] || '[LOG]') + ' ' + l.ts + ' [' + l.module + ']' + cnt + ' ' + l.msg;
+      });
+      const header = '=== Amici FC Log v' + appVersion.value + ' ===';
+      const text = header + String.fromCharCode(10) + lines.join(String.fromCharCode(10));
+      try {
+        await navigator.clipboard.writeText(text);
+        toast('Log copiato negli appunti!', 'success', 2000);
+      } catch(e) {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy'); document.body.removeChild(ta);
+        toast('Log copiato!', 'success', 2000);
+      }
+    };
+
+    // ── CONDIVISIONE FORMAZIONE ──
+
+    // Serializza formazione in stringa AMFC:base64
+    const serializeFormation = (f) => {
+      const players = groupPlayers.value;
+      const toUids = (ids) => ids.map(id => {
+        const p = players.find(p => p.id === id || String(p.id) === String(id));
+        return p ? (p.uid || String(p.id)) : String(id);
+      });
+      const data = {
+        v: 1,
+        nA: f.nomeSquadraA || 'Squadra A',
+        nB: f.nomeSquadraB || 'Squadra B',
+        a: toUids(f.squadraA || []),
+        b: toUids(f.squadraB || []),
+        g: currentGroup.value?.nome || '',
+        d: f.matchData || '',
+      };
+      try { return 'AMFC:' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))); }
+      catch(e) { return 'AMFC:' + btoa(JSON.stringify(data)); }
+    };
+
+    // Genera codice 6 cifre e salva su Firebase (se disponibile)
+    const generateShareCode = async (f) => {
+      const base = getFirebaseBase();
+      if (!base) return null;
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const text = serializeFormation(f);
+      const payload = { text, expires: Date.now() + 48*3600*1000, group: currentGroup.value?.nome || '' };
+      try {
+        const token = await getValidToken().catch(() => null);
+        const url = token ? `${base}/share_codes/${code}.json?auth=${token}` : `${base}/share_codes/${code}.json`;
+        await fetch(url, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+        return code;
+      } catch(e) { return null; }
+    };
+
+    // Apre il modal di invio
+    const openSendFormation = async (f) => {
+      sendFormationData.value = f;
+      sendCode.value = '';
+      sendText.value = serializeFormation(f);
+      showSendFormation.value = true;
+      // Genera codice Firebase in background
+      if (groupCloudUrl.value) {
+        const code = await generateShareCode(f);
+        sendCode.value = code || '';
+      }
+    };
+
+    // Copia testo negli appunti
+    const copyToClipboard = async (text, label='Copiato!') => {
+      try {
+        await navigator.clipboard.writeText(text);
+        toast('📋 ' + label, 'success', 2000);
+      } catch(e) {
+        // Fallback: seleziona testo da un input temporaneo
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position='fixed'; ta.style.opacity='0';
+        document.body.appendChild(ta); ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        toast('📋 ' + label, 'success', 2000);
+      }
+    };
+
+    // Importa formazione da stringa AMFC: o codice 6 cifre
+    const importFormation = async () => {
+      const raw = receiveInput.value.trim();
+      if (!raw) return toast('Incolla il codice o il testo formazione', 'error');
+      receiveLoading.value = true;
+      try {
+        let text = raw;
+        // Codice 6 cifre → cerca su Firebase
+        if (/^\d{6}$/.test(raw)) {
+          const base = getFirebaseBase();
+          if (!base) return toast('❌ Firebase non configurato. Usa il testo AMFC:', 'error');
+          const token = await getValidToken().catch(() => null);
+          const url = token ? `${base}/share_codes/${raw}.json?auth=${token}` : `${base}/share_codes/${raw}.json`;
+          const resp = await fetch(url, { cache: 'no-store' });
+          if (!resp.ok) return toast('❌ Codice non trovato o scaduto', 'error');
+          const data = await resp.json();
+          if (!data || Date.now() > data.expires) return toast('❌ Codice scaduto (valido 48h)', 'error');
+          text = data.text;
+        }
+        if (!text.startsWith('AMFC:')) return toast('❌ Formato non riconosciuto', 'error');
+        // Decodifica
+        let parsed;
+        try { parsed = JSON.parse(decodeURIComponent(escape(atob(text.slice(5))))); }
+        catch(e) { parsed = JSON.parse(atob(text.slice(5))); }
+        // Risolvi uid → id locali
+        const players = groupPlayers.value;
+        const resolveIds = (uids) => uids.map(uid => {
+          const p = players.find(p => p.uid === uid) ||
+                    players.find(p => String(p.id) === String(uid));
+          return p ? p.id : null;
+        }).filter(Boolean);
+        const squadraA = resolveIds(parsed.a || []);
+        const squadraB = resolveIds(parsed.b || []);
+        if (!squadraA.length && !squadraB.length)
+          return toast('❌ Nessun giocatore trovato. Assicurati di usare lo stesso gruppo', 'error');
+        // Salva come nuova formazione proposta
+        const newForm = {
+          groupId: currentGroup.value.id,
+          dataCreazione: new Date().toISOString().slice(0,10),
+          matchData: parsed.d || '',
+          matchOrario: '', matchLuogo: '',
+          stato: 'proposta',
+          nome: `Formazione ricevuta ${new Date().toLocaleDateString('it')}`,
+          nomeSquadraA: parsed.nA || 'Squadra A',
+          nomeSquadraB: parsed.nB || 'Squadra B',
+          squadraA, squadraB,
+        };
+        await db.formations.add(newForm);
+        await loadGroupData();
+        receiveInput.value = '';
+        showReceiveForm.value = false;
+        toast('✅ Formazione importata! Vai in Formazioni per giocarla.', 'success', 3000);
+      } catch(e) {
+        logEvent('error', 'formazione', 'Import fallito: ' + e.message);
+        toast('❌ Errore importazione: ' + e.message, 'error');
+      } finally { receiveLoading.value = false; }
+    };
+
     // Expose to template
     return {
       currentView, groups, currentGroup, groupPlayers, groupMatches, settings,
@@ -9029,13 +9405,13 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
-      shareStatsPNG,
+      shareStatsPNG, openSendFormation, showLogModal, appLogs, clearLogs, copyLogs, logEvent, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction, getCachedPrediction,
-      showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime, lazySyncIfNeeded,
+      showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime, lastSyncError, lazySyncIfNeeded,
       regenerateFormations, getFormationBalance,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
