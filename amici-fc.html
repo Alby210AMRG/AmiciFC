@@ -1337,97 +1337,146 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- ════ HOME ════ -->
     <template v-if="currentView === 'home'">
 
-      <!-- ── HOME HERO CAROSELLO ── -->
+      <!-- ── HOME HERO CAROSELLO UNIFICATO ── -->
       <div v-if="currentGroup"
-        style="position:relative;border-radius:18px;overflow:hidden;margin-bottom:12px;height:184px;cursor:pointer"
-        @click="currentView=homeHeroData[homeHeroIdx].dest; if(homeHeroData[homeHeroIdx].statsTab) statsTab=homeHeroData[homeHeroIdx].statsTab; newsExpanded=false">
-        <div v-for="(s,i) in (homeHeroData||[])" :key="i"
-          style="position:absolute;inset:0;display:flex;align-items:center;padding:20px;gap:16px;transition:opacity .6s"
-          :style="i===homeHeroIdx?'opacity:1;pointer-events:auto':'opacity:0;pointer-events:none'">
-          <!-- bg gradient -->
-          <div style="position:absolute;inset:0" :style="'background:'+s.bg"></div>
-
-          <!-- ── LAYOUT NORMALE ── -->
-          <template v-if="!s.isDuel">
-            <!-- ghost number -->
-            <div style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:92px;font-weight:900;opacity:.06;pointer-events:none;letter-spacing:-4px;z-index:0">{{s.val}}</div>
-            <!-- avatar -->
-            <div style="position:relative;z-index:1;flex-shrink:0">
-              <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(255,255,255,.08)"
-                :style="'border:2.5px solid '+s.col+';box-shadow:0 0 18px '+s.col+'44'">
-                <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)"
-                  style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-                  @error="$event.target.style.display='none'">
-                <span v-else style="position:relative;z-index:1">{{s.icon}}</span>
-              </div>
-            </div>
-            <!-- info -->
-            <div style="position:relative;z-index:1;flex:1">
-              <div style="font-size:10px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:2px;opacity:.65" :style="'color:'+s.col">{{s.label}}</div>
-              <div style="font-size:50px;font-weight:900;line-height:1;letter-spacing:-2px" :style="'color:'+s.col">{{s.val}}</div>
-              <div style="font-size:13px;font-weight:600;margin-top:4px;color:rgba(247,247,247,.9)">{{s.name}}</div>
-              <div style="font-size:11px;color:rgba(247,247,247,.4);margin-top:1px">{{s.sub}}</div>
-            </div>
-          </template>
-
-          <!-- ── LAYOUT DUELLO: A sinistra | VS centrale | B destra ── -->
-          <template v-else>
-            <div style="position:relative;z-index:1;width:100%;display:flex;align-items:center;justify-content:space-between;padding:0 4px">
-
-              <!-- Giocatore A — sinistra -->
-              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:0">
-                <div style="width:62px;height:62px;border-radius:50%;overflow:hidden;border:2.5px solid #FF6B35;box-shadow:0 0 16px rgba(255,107,53,.5);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">
-                  <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
-                  <span v-else>👤</span>
-                </div>
-                <div style="font-size:11px;font-weight:800;color:#fff;text-align:center;line-height:1.2;width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                  {{s.name?.split(' vs ')?.[0]||'?'}}
-                </div>
-                <div style="font-size:22px;font-weight:900;color:#FF6B35;line-height:1">
-                  {{s.val?.split('-')?.[0]||'0'}}
-                </div>
-                <div style="font-size:9px;color:rgba(255,255,255,.5);letter-spacing:.5px">GOL</div>
-              </div>
-
-              <!-- Centro: label + VS + stats -->
-              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;padding:0 8px">
-                <div style="font-size:8px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:2px">{{s.label}}</div>
-                <div style="font-size:28px;font-weight:900;color:#fff;line-height:1;text-shadow:0 0 20px rgba(255,255,255,.3)">VS</div>
-                <div style="width:36px;height:2px;background:rgba(255,255,255,.2);border-radius:1px;margin:2px 0"></div>
-                <div style="font-size:9px;color:rgba(255,255,255,.55);text-align:center;line-height:1.4">
-                  {{s.sub}}
-                </div>
-              </div>
-
-              <!-- Giocatore B — destra -->
-              <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:0">
-                <div style="width:62px;height:62px;border-radius:50%;overflow:hidden;border:2.5px solid #3b82f6;box-shadow:0 0 16px rgba(59,130,246,.5);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">
-                  <img v-if="s.foto2||s.uid2" :src="getPlayerPhoto(s.foto2,s.uid2)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
-                  <span v-else>👤</span>
-                </div>
-                <div style="font-size:11px;font-weight:800;color:#fff;text-align:center;line-height:1.2;width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                  {{s.name?.split(' vs ')?.[1]||'?'}}
-                </div>
-                <div style="font-size:22px;font-weight:900;color:#3b82f6;line-height:1">
-                  {{s.val?.split('-')?.[1]||'0'}}
-                </div>
-                <div style="font-size:9px;color:rgba(255,255,255,.5);letter-spacing:.5px">GOL</div>
-              </div>
-
-            </div>
-          </template>
-        </div>
-        <!-- dots -->
-        <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:2">
-          <div v-for="(_,i) in (homeHeroData||[])" :key="i"
-            style="height:5px;border-radius:3px;transition:all .3s;background:rgba(255,255,255,.2)"
-            :style="i===homeHeroIdx?'width:18px;background:var(--lime)':'width:5px'">
+        style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:10px;height:320px;cursor:pointer;user-select:none"
+        @mousedown="heroMD" @mousemove="heroMM" @mouseup="heroMU"
+        @touchstart.passive="heroTS" @touchmove.passive="heroTM" @touchend.passive="heroTE"
+        @click="heroClick">
+        <div style="position:absolute;top:9px;left:12px;right:12px;display:flex;gap:3px;z-index:10;pointer-events:none">
+          <div v-for="(s,i) in (heroUnifiedData||[])" :key="'p'+i" style="flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden">
+            <div :id="'hpf'+i" style="height:100%;border-radius:2px;background:#fff;width:0%"></div>
           </div>
         </div>
-        <div style="position:absolute;right:12px;bottom:9px;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 8px;font-size:10px;color:rgba(247,247,247,.4);z-index:2">Apri →</div>
+        <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
+          <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
+            style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'?'flex-start':'flex-end')">
+            <div style="position:absolute;inset:0" :style="'background:'+s.bg"></div>
+            <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
+            <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
+            <template v-if="s.type==='stat'">
+              <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
+                <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+              </div>
+              <div v-else-if="s.showSilhouette" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center">
+                <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+              </div>
+              <div style="position:relative;z-index:1;font-size:84px;font-weight:900;line-height:1;letter-spacing:-4px" :style="'color:'+s.col">{{s.val}}</div>
+              <div style="position:relative;z-index:1;font-size:17px;font-weight:700;color:#fff;margin-top:6px">{{s.name}}</div>
+              <div v-if="s.meta" style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.5);margin-top:4px">{{s.meta}}</div>
+              <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
+            </template>
+            <template v-else-if="s.type==='duel'">
+              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:6px;margin-top:4px;margin-bottom:6px">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
+                  <div style="width:82px;height:82px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 18px rgba(255,107,53,.3);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0">
+                    <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>👤</span></div>
+                  <div style="font-size:15px;font-weight:800;color:#FF6B35">{{s.name&&s.name.split(' vs ')[0]}}</div>
+                  <div style="font-size:36px;font-weight:900;color:#FF6B35;line-height:1">{{s.val&&s.val.split('-')[0]}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.5px">GOL</div>
+                </div>
+                <div style="font-size:22px;font-weight:900;color:rgba(255,255,255,.6);padding:0 4px;margin-bottom:20px;flex-shrink:0">VS</div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
+                  <div style="width:82px;height:82px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 18px rgba(59,130,246,.3);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:34px;flex-shrink:0">
+                    <img v-if="s.foto2||s.uid2" :src="getPlayerPhoto(s.foto2,s.uid2)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>👤</span></div>
+                  <div style="font-size:15px;font-weight:800;color:#3b82f6">{{s.name&&s.name.split(' vs ')[1]}}</div>
+                  <div style="font-size:36px;font-weight:900;color:#3b82f6;line-height:1">{{s.val&&s.val.split('-')[1]}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4);letter-spacing:.5px">GOL</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:20px;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">
+                <div v-for="r in (s.rec||[])" :key="r.l" style="text-align:center;font-size:11px;color:rgba(255,255,255,.45);line-height:1.6">{{r.l}}<div style="font-size:14px;font-weight:700;color:rgba(255,255,255,.8)">{{r.v}}</div></div>
+              </div>
+            </template>
+            <template v-else-if="s.type==='story'">
+              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.55);text-align:center;margin-bottom:6px">{{s.phase}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;margin-bottom:6px">
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 16px rgba(255,107,53,.35);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px">
+                    <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>👤</span></div>
+                  <div style="font-size:14px;font-weight:800;color:#FF6B35">{{s.na}}</div>
+                </div>
+                <div style="font-size:22px;font-weight:900;color:rgba(255,255,255,.55);padding:0 10px;margin-bottom:20px">VS</div>
+                <div style="display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 16px rgba(59,130,246,.35);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px">
+                    <img v-if="s.foto2||s.uid2" :src="getPlayerPhoto(s.foto2,s.uid2)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>👤</span></div>
+                  <div style="font-size:14px;font-weight:800;color:#3b82f6">{{s.nb}}</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;font-size:15px;color:rgba(255,255,255,.82);line-height:1.5;text-align:center;margin-bottom:5px">{{s.txt}}</div>
+              <div style="position:relative;z-index:1;display:flex;gap:3px;align-items:flex-end;height:18px;margin:0 16px 4px">
+                <div v-for="(b,bi) in (s.bars||[])" :key="bi" style="flex:1;border-radius:2px 2px 0 0;min-height:2px" :style="'height:'+b.h+'%;background:'+b.c"></div>
+              </div>
+              <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:12px;font-size:11px;color:rgba(255,255,255,.4)">
+                <span v-for="(lg,li) in (s.legend||[])" :key="li" style="display:flex;align-items:center;gap:3px"><span style="width:7px;height:7px;border-radius:50%;display:inline-block" :style="'background:'+lg.c"></span>{{lg.l}}</span>
+              </div>
+            </template>
+            <template v-else-if="s.type==='news'">
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px 18px">
+                <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:16px;text-align:center">📻 In Diretta dallo Spogliatoio</div>
+                <div v-if="s.foto||s.uid" style="position:relative;z-index:1;width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2);margin-bottom:14px">
+                  <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                </div>
+                <div v-else style="position:relative;z-index:1;font-size:44px;margin-bottom:12px">{{s.badge}}</div>
+                <div style="position:relative;z-index:1;font-size:19px;font-weight:700;color:#fff;line-height:1.5;text-align:center">{{s.quote}}</div>
+                <div v-if="s.cit" style="position:relative;z-index:1;font-size:14px;color:rgba(255,255,255,.6);font-weight:600;margin-top:8px">{{s.cit}}</div>
+              </div>
+            </template>
+            <template v-else-if="s.type==='trend'">
+              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(52,211,153,.5);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">
+                  <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>⚡</span></div>
+                <div style="flex:1">
+                  <div style="font-size:17px;font-weight:800;color:#fff">{{s.name}}</div>
+                  <div style="font-size:13px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.5">{{s.sub}}</div>
+                </div>
+                <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+                  <div style="font-size:46px;font-weight:900;color:#34d399;line-height:1">{{s.delta}}</div>
+                  <div style="font-size:18px;color:#34d399">&#8593;</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;display:flex;gap:14px">
+                <div v-for="(c,ci) in (s.cmp||[])" :key="ci" style="font-size:11px;color:rgba(255,255,255,.4);line-height:1.6">{{c.l}}<div style="font-size:14px;font-weight:700;color:rgba(255,255,255,.8)">{{c.v}}</div></div>
+              </div>
+              <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">Premi per le statistiche complete</div>
+            </template>
+            <template v-else-if="s.type==='cronaca'">
+              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1">
+                <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:6px">{{s.kicker}}</div>
+                <div style="font-size:22px;font-weight:900;color:#fff;line-height:1.25;margin-bottom:10px">{{s.headline}}</div>
+                <div style="font-size:14px;color:rgba(255,255,255,.75);line-height:1.6">{{s.body}}</div>
+              </div>
+              <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
+            </template>
+            <template v-else-if="s.type==='recap'">
+              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:6px 12px;text-align:center;flex-shrink:0">
+                  <div style="font-size:26px;font-weight:900;color:#FF6B35;line-height:1">{{s.gA}}</div>
+                  <div style="font-size:8px;color:rgba(255,255,255,.5);margin-top:2px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.tA}}</div>
+                </div>
+                <div style="font-size:18px;font-weight:900;color:rgba(255,255,255,.4)">VS</div>
+                <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:6px 12px;text-align:center;flex-shrink:0">
+                  <div style="font-size:26px;font-weight:900;color:#60a5fa;line-height:1">{{s.gB}}</div>
+                  <div style="font-size:8px;color:rgba(255,255,255,.5);margin-top:2px;max-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.tB}}</div>
+                </div>
+                <div style="flex:1;font-size:13px;color:rgba(255,255,255,.75);line-height:1.55">{{s.intro}}</div>
+              </div>
+              <div style="position:relative;z-index:1;font-size:15px;color:rgba(255,255,255,.85);line-height:1.6;font-style:italic">{{s.body}}</div>
+              <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
+            </template>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:9px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5;pointer-events:none">
+          <div v-for="(_,i) in (heroUnifiedData||[])" :key="'dot'+i" style="height:4px;border-radius:2px;background:rgba(255,255,255,.25);transition:all .3s" :style="i===heroUnifiedIdx?'width:18px;background:rgba(255,255,255,.9)':'width:4px'"></div>
+        </div>
       </div>
 
-      <!-- Hero card fallback se nessun gruppo -->
       <div v-if="!currentGroup" class="hero-card">
         <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.4rem;line-height:1;animation:ball-roll 3s linear infinite;display:inline-block">⚽</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
@@ -1436,260 +1485,43 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- ── NEWS con foto + espandi ── -->
-      <div style="margin-bottom:12px;background:var(--card);border-radius:16px;border:2px solid var(--lime);overflow:hidden;box-shadow:0 0 18px rgba(166,255,77,0.15)">
-        <div style="background:linear-gradient(90deg,var(--lime),var(--teal));padding:6px 14px;display:flex;align-items:center;gap:8px">
-          <span style="width:6px;height:6px;border-radius:50%;background:#fff;opacity:.8;animation:blink 1.4s infinite;flex-shrink:0"></span>
-          <span style="font-size:0.75rem;font-weight:800;color:#fff;letter-spacing:0.5px;flex:1">🏟️ In diretta dallo spogliatoio</span>
-        </div>
-        <div style="padding:14px 16px">
-          <transition name="news-fade" mode="out-in">
-            <div :key="newsIndex" style="display:flex;align-items:flex-start;gap:12px">
-              <!-- foto giocatore o emoji -->
-              <div v-if="currentNews.uid || currentNews.foto"
-                style="width:44px;height:44px;border-radius:50%;flex-shrink:0;overflow:hidden;border:2px solid rgba(166,255,77,.4);background:rgba(255,255,255,.06);display:flex;align-items:center;justify-content:center">
-                <img :src="getPlayerPhoto(currentNews.foto, currentNews.uid)"
-                  style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-                  @error="$event.target.style.display='none'">
-              </div>
-              <div v-else style="font-size:2rem;flex-shrink:0;line-height:1.2">{{currentNews.emoji}}</div>
-              <!-- testo con espandi -->
-              <div style="flex:1;min-width:0">
-                <p style="font-size:1rem;line-height:1.6;color:var(--text);margin:0;font-weight:500;word-break:break-word"
-                  :style="newsExpanded?'display:block;overflow:visible;max-height:none':'display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden'">
-                  {{currentNews.text}}
-                </p>
-                <button v-if="currentNews.text && currentNews.text.length > 120"
-                  @click.stop="newsExpanded=!newsExpanded"
-                  style="margin-top:4px;background:none;border:none;color:var(--lime);font-size:0.78rem;font-weight:700;cursor:pointer;padding:0">
-                  {{newsExpanded ? '▲ Mostra meno' : '▼ Leggi tutto'}}
-                </button>
-              </div>
-            </div>
-          </transition>
-        </div>
-      </div>
-
-      <!-- ── Stats & Quick actions ── -->
       <template v-if="currentGroup">
-        <!-- Azioni rapide: 3 pill orizzontali -->
-        <div style="overflow-x:auto;scrollbar-width:none;margin-bottom:12px;-webkit-overflow-scrolling:touch">
-          <div style="display:flex;gap:8px;padding:2px 0;min-width:max-content">
-            <button @click="currentView='stats'"
-              style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;border:1.5px solid rgba(255,217,61,.4);color:var(--yellow);background:transparent;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-              📊 Statistiche
-            </button>
-            <button @click="currentView='players'"
-              style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;border:1.5px solid rgba(58,123,255,.4);color:var(--blue);background:transparent;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-              👤 Giocatori
-            </button>
-            <button @click="currentView='history'"
-              style="flex-shrink:0;display:flex;align-items:center;gap:7px;padding:9px 16px;border-radius:20px;border:1.5px solid rgba(166,255,77,.4);color:var(--lime);background:transparent;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
-              🕐 Storico
-            </button>
-          </div>
+        <div style="margin-bottom:10px;border-radius:10px;display:flex;background:#1E293B;height:34px;position:relative;border:1px solid rgba(255,255,255,.08)">
+          <div :style="'position:absolute;top:3px;bottom:3px;border-radius:7px;background:#16A34A;transition:left .22s cubic-bezier(.4,0,.2,1),width .22s cubic-bezier(.4,0,.2,1);pointer-events:none;z-index:0;left:'+homeSegHL.left+';width:'+homeSegHL.width"></div>
+          <button @click="setHomeSeg(0)" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;border:none;background:transparent;cursor:pointer;position:relative;z-index:1;height:100%;white-space:nowrap;transition:color .15s" :style="homeSegIdx===0?'color:#fff':'color:#6B7280'">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Stats
+          </button>
+          <button @click="setHomeSeg(1)" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;border:none;background:transparent;cursor:pointer;position:relative;z-index:1;height:100%;white-space:nowrap;transition:color .15s" :style="homeSegIdx===1?'color:#fff':'color:#6B7280'">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Giocatori
+          </button>
+          <button @click="setHomeSeg(2)" style="flex:1;display:flex;align-items:center;justify-content:center;gap:3px;font-size:10px;font-weight:700;border:none;background:transparent;cursor:pointer;position:relative;z-index:1;height:100%;white-space:nowrap;transition:color .15s" :style="homeSegIdx===2?'color:#fff':'color:#6B7280'">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Storico
+          </button>
         </div>
 
-        <div v-if="recentMatches.length">
-          <div class="card-title">🕐 Ultime Partite</div>
-          <div v-for="m in recentMatches" :key="m.id"
-            style="border-radius:14px;border:1.5px solid var(--border);background:var(--bg3);padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:background .15s"
+        <div v-if="recentMatches.length" style="margin-bottom:10px;background:var(--card);border-radius:16px;overflow:hidden">
+          <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
+            <span style="font-size:17px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase">🕐 Ultime Partite</span>
+            <button @click="currentView='history'" style="font-size:17px;font-weight:700;color:var(--lime);background:none;border:none;cursor:pointer">Vedi tutte →</button>
+          </div>
+          <div v-for="(m,mi) in recentMatches" :key="m.id"
+            style="padding:10px 12px;cursor:pointer"
+            :style="mi<recentMatches.length-1?'border-bottom:1px solid var(--border)':''"
             @click="viewMatch(m)">
-            <!-- top row -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-              <span style="font-size:10px;color:var(--text2)">📅 {{ formatDate(m.data) }}</span>
-              <span v-if="m.uomoPartita||m.mvp"
-                style="font-size:10px;color:var(--yellow);background:rgba(255,217,61,.12);padding:2px 8px;border-radius:8px">
-                🏅 {{ m.uomoPartita||m.mvp }}
-              </span>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <span style="font-size:9px;color:var(--text2);font-weight:600">{{formatDate(m.data)}}</span>
+              <span v-if="m.uomoPartita||m.mvp" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FEF3C7;color:#92400E;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⭐ {{m.uomoPartita||m.mvp}}</span>
             </div>
-            <!-- score row -->
             <div style="display:flex;align-items:center;gap:8px">
-              <div style="flex:1;font-size:11px;font-weight:700;color:#FF8C00;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-                {{ m.nomeSquadraA || 'Squadra A' }}
+              <span style="flex:1;font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#FF6B35">{{m.nomeSquadraA||'Squadra A'}}</span>
+              <div style="padding:6px 14px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;gap:10px;flex-shrink:0;min-width:80px;justify-content:center">
+                <span style="font-size:22px;font-weight:900;color:#FF6B35">{{m.risultato?.goalA||0}}</span>
+                <span style="font-size:13px;color:var(--text2)">—</span>
+                <span style="font-size:22px;font-weight:900;color:#60a5fa">{{m.risultato?.goalB||0}}</span>
               </div>
-              <div style="display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.06);border-radius:10px;padding:5px 12px;flex-shrink:0">
-                <span style="font-size:22px;font-weight:900;color:#FF8C00;line-height:1">{{ m.risultato?.goalA ?? '?' }}</span>
-                <span style="font-size:13px;color:rgba(247,247,247,.25)">–</span>
-                <span style="font-size:22px;font-weight:900;color:var(--blue);line-height:1">{{ m.risultato?.goalB ?? '?' }}</span>
-              </div>
-              <div style="flex:1;font-size:11px;font-weight:700;color:var(--blue);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right">
-                {{ m.nomeSquadraB || 'Squadra B' }}
-              </div>
+              <span style="flex:1;font-size:14px;font-weight:800;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#60a5fa">{{m.nomeSquadraB||'Squadra B'}}</span>
             </div>
-          </div>
         </div>
-      </template>
-
-      <!-- ── Nessun gruppo: redirect a onboarding ── -->
-      <template v-else>
-        <div class="empty-state">
-          <span class="emoji">👥</span>
-          <h3>Nessun gruppo attivo</h3>
-          <p>Seleziona un gruppo dal menu in alto, oppure torna alla schermata iniziale.</p>
-          <button class="btn btn-primary" style="margin-top:20px" @click="currentView='onboarding'">
-            🚀 Torna alla Schermata Iniziale
-          </button>
-        </div>
-      </template>
-
-    </template>
-
-    <!-- ════ ONBOARDING ════ (solo se nessun gruppo esiste) -->
-    <template v-if="currentView === 'onboarding'">
-
-      <!-- Hero animato -->
-      <div class="welcome-hero" style="margin-bottom:24px">
-        <div class="welcome-hero-bg"></div>
-        <img v-if="logoDataUrl" :src="logoDataUrl" class="welcome-logo bounce" alt="Amici FC">
-        <div v-else style="font-size:5rem;margin-bottom:16px;display:block">⚽</div>
-        <div class="welcome-app-title">Amici FC</div>
-        <div class="welcome-app-sub">Dove i campioni nascono… e litigano! 😂</div>
-        <div class="welcome-sparkles">
-          <span class="sparkle" style="--d:0s;--x:-60px;--y:-10px">✦</span>
-          <span class="sparkle" style="--d:.4s;--x:60px;--y:-20px">✦</span>
-          <span class="sparkle" style="--d:.8s;--x:-30px;--y:20px">⚡</span>
-          <span class="sparkle" style="--d:1.2s;--x:40px;--y:10px">🌟</span>
-        </div>
-      </div>
-
-      <div style="font-family:var(--font-title);font-size:1.1rem;color:var(--text2);text-align:center;margin-bottom:20px;letter-spacing:0.5px">
-        Come vuoi iniziare?
-      </div>
-
-            <!-- ── ISTRUZIONI COLLASSABILI (in cima) ── -->
-      <div class="card" style="margin-bottom:16px;border-color:rgba(200,255,0,0.2)">
-        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer"
-             @click="showInstallGuide=!showInstallGuide">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:1.1rem">📖</span>
-            <span style="font-weight:800;font-size:0.95rem">Guida all'installazione e configurazione</span>
-          </div>
-          <span style="font-size:1.2rem;transition:transform 0.2s"
-                :style="showInstallGuide?'transform:rotate(180deg)':''">▾</span>
-        </div>
-        <div v-show="showInstallGuide" style="margin-top:14px">
-        <div class="platform-tabs">
-          <button class="platform-tab" :class="{active:installTab==='app'}"      @click="installTab='app'">📲 Installa App</button>
-          <button class="platform-tab" :class="{active:installTab==='firebase'}" @click="installTab='firebase'">☁️ Firebase</button>
-        </div>
-
-        <!-- Installa App -->
-        <template v-if="installTab==='app'">
-          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
-            <button class="platform-tab" :class="{active:installSubTab==='android'}" @click="installSubTab='android'" style="font-size:0.75rem">🤖 Android</button>
-            <button class="platform-tab" :class="{active:installSubTab==='ios'}"     @click="installSubTab='ios'"     style="font-size:0.75rem">🍎 iPhone</button>
-            <button class="platform-tab" :class="{active:installSubTab==='pc'}"      @click="installSubTab='pc'"      style="font-size:0.75rem">💻 PC/Mac</button>
-          </div>
-          <template v-if="installSubTab==='android'">
-            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri questa pagina in <strong>Google Chrome</strong> su Android</div></div>
-            <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca il menu <strong>⋮ tre puntini</strong> in alto a destra</div></div>
-            <div class="install-step"><div class="install-num">3</div><div class="install-text">Seleziona <strong>"Aggiungi alla schermata Home"</strong> o <strong>"Installa app"</strong></div></div>
-            <div class="install-step"><div class="install-num">4</div><div class="install-text">Conferma → l'icona <strong>Amici FC ⚽</strong> appare nella home!</div></div>
-          </template>
-          <template v-if="installSubTab==='ios'">
-            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri in <strong>Safari</strong> (obbligatorio su iPhone/iPad)</div></div>
-            <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca il pulsante <strong>📤 Condividi</strong> in basso</div></div>
-            <div class="install-step"><div class="install-num">3</div><div class="install-text">Seleziona <strong>"Aggiungi a Home"</strong></div></div>
-            <div class="install-step"><div class="install-num">4</div><div class="install-text">Conferma → Amici FC si apre come app nativa!</div></div>
-          </template>
-          <template v-if="installSubTab==='pc'">
-            <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri in <strong>Chrome o Edge</strong> sul tuo PC</div></div>
-            <div class="install-step"><div class="install-num">2</div><div class="install-text">Clicca l'icona <strong>📥 Installa</strong> nella barra degli indirizzi (a destra)</div></div>
-            <div class="install-step"><div class="install-num">3</div><div class="install-text">Conferma → Amici FC si apre come app desktop!</div></div>
-          </template>
-        </template>
-
-        <!-- Firebase -->
-        <template v-if="installTab==='firebase'">
-          <div style="font-size:0.83rem;color:var(--text2);line-height:1.8;margin-bottom:12px">
-            Firebase permette a più persone di condividere gli stessi dati in tempo reale, <strong>gratuitamente</strong>.
-          </div>
-          <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:var(--yellow)">firebase.google.com</strong> → Accedi con Google → Console</div></div>
-          <div class="install-step"><div class="install-num">2</div><div class="install-text">Clicca <strong>"Aggiungi progetto"</strong> → dai un nome (es. amicifc) → Crea</div></div>
-          <div class="install-step"><div class="install-num">3</div><div class="install-text">Menu sinistra: <strong>Crea → Realtime Database</strong> → Crea database → <strong>"Modalità test"</strong></div></div>
-          <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia l'<strong>URL del database</strong> (es: https://amicifc-rtdb.firebaseio.com) e incollalo nelle Impostazioni</div></div>
-          <div class="install-step"><div class="install-num">5</div><div class="install-text">Condividi lo <strong>stesso URL</strong> con tutti gli amici → vedono tutti gli stessi dati 🎉</div></div>
-
-          <div style="margin-top:16px;padding:12px;background:rgba(58,123,255,0.08);border:1px solid rgba(58,123,255,0.25);border-radius:10px">
-            <div style="font-weight:800;font-size:0.85rem;color:var(--blue);margin-bottom:8px">👥 Aggiungere utenti con accesso in scrittura</div>
-            <div style="font-size:0.78rem;color:var(--text2);line-height:1.7">
-              <div style="margin-bottom:6px">Firebase Realtime Database usa le <strong>Regole</strong> per controllare chi può leggere e scrivere. Di default (modalità test) tutti possono fare tutto per 30 giorni.</div>
-              <div style="font-weight:700;color:var(--text);margin-bottom:4px">Per uso permanente e sicuro:</div>
-              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">1</div><div class="install-text">Console Firebase → <strong>Realtime Database → Regole</strong></div></div>
-              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">2</div><div class="install-text">Sostituisci le regole con questa configurazione che richiede il login:</div></div>
-              <pre v-pre style="background:var(--bg2);border-radius:8px;padding:10px;font-size:0.72rem;color:var(--lime);overflow-x:auto;margin:6px 0">{
-  "rules": {
-    ".read": "auth != null",
-    ".write": "auth != null"
-  }
-}</pre>
-              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">3</div><div class="install-text">Vai su <strong>Authentication → Inizia → Email/Password → Abilita</strong></div></div>
-              <div class="install-step" style="margin-bottom:6px"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">4</div><div class="install-text">Clicca <strong>"Aggiungi utente"</strong> → inserisci email e password per ogni amico che deve avere accesso in scrittura</div></div>
-              <div class="install-step"><div class="install-num" style="width:20px;height:20px;font-size:0.7rem">5</div><div class="install-text">Condividi le credenziali (email + password) con ogni amico → si logga dall'app in Impostazioni → Firebase</div></div>
-              <div style="margin-top:8px;padding:8px;background:rgba(166,255,77,0.08);border-radius:6px;font-size:0.74rem;color:var(--text2)">
-                💡 Chi <strong>non è loggato</strong> può solo leggere i dati (vede tutto) ma non può modificare. Solo gli utenti registrati possono aggiungere partite e modificare statistiche.
-              </div>
-            </div>
-          </div>
-
-          <div style="margin-top:10px;padding:10px;background:rgba(255,77,77,0.08);border:1px solid rgba(255,77,77,0.2);border-radius:8px;font-size:0.75rem;color:var(--text2)">
-            ⚠️ Hai bisogno anche dell'<strong>API Key Firebase</strong> per l'autenticazione: Console → Impostazioni progetto → Generali → App web → copia <code style="background:var(--bg2);padding:2px 4px;border-radius:3px">apiKey</code>
-          </div>
-        </template>
-        </div>
-      </div><!-- ── OPZIONE 1: Crea Gruppo ── -->
-      <div class="onboard-card" style="--accent:#A6FF4D">
-        <div class="onboard-header">
-          <div class="onboard-icon" style="background:rgba(166,255,77,0.15);color:var(--lime)">➕</div>
-          <div>
-            <div class="onboard-title" style="color:var(--lime)">Crea un Nuovo Gruppo</div>
-            <div class="onboard-sub">Inizia da zero: inserisci il nome del tuo gruppo di calcetto</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:14px">
-          <input class="input-field" v-model="newGroupName"
-            placeholder="es. Calcetto del Giovedì..."
-            @keyup.enter="createGroupAndGo" style="flex:1">
-          <button class="btn btn-primary" @click="createGroupAndGo" :disabled="!newGroupName.trim()">
-            Crea ➜
-          </button>
-        </div>
-      </div>
-
-      <!-- ── OPZIONE 2: Importa JSON ── -->
-      <div class="onboard-card" style="--accent:#3A7BFF">
-        <div class="onboard-header">
-          <div class="onboard-icon" style="background:rgba(58,123,255,0.15);color:var(--blue)">📥</div>
-          <div>
-            <div class="onboard-title" style="color:var(--blue)">Importa da JSON</div>
-            <div class="onboard-sub">Hai ricevuto un file JSON da un altro utente? Importalo qui</div>
-          </div>
-        </div>
-        <label class="btn btn-blue btn-full" style="cursor:pointer;margin-top:14px;justify-content:center">
-          📂 Seleziona file JSON…
-          <input type="file" accept=".json" style="display:none" @change="importDataAndGo">
-        </label>
-      </div>
-
-      <!-- ── OPZIONE 3: Firebase Sync ── -->
-      <div class="onboard-card" style="--accent:#FFD93D">
-        <div class="onboard-header">
-          <div class="onboard-icon" style="background:rgba(255,217,61,0.15);color:var(--yellow)">☁️</div>
-          <div>
-            <div class="onboard-title" style="color:var(--yellow)">Sincronizza da Firebase</div>
-            <div class="onboard-sub">Hai già un database Firebase condiviso? Connettiti e scarica i dati</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-          <input class="input-field" v-model="onboardingFirebaseUrl"
-            placeholder="https://progetto-default-rtdb.firebaseio.com"
-            style="flex:1;min-width:0">
-          <button class="btn btn-yellow" @click="syncFromCloudAndGo" :disabled="!onboardingFirebaseUrl||syncLoading">
-            {{ syncLoading ? '⏳' : '☁️ Connetti' }}
-          </button>
-        </div>
-        <!-- Login fields shown when DB requires auth -->
         <div v-if="showOnboardingLogin" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:12px;background:rgba(255,211,61,0.08);border:1px solid rgba(255,211,61,0.3);border-radius:10px">
           <div style="font-size:0.8rem;color:var(--yellow);font-weight:700">🔐 Database protetto — accedi per continuare</div>
           <input class="input-field" v-model="fbLoginEmail" placeholder="Email Firebase" type="email">
@@ -1701,6 +1533,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
     </template>
+
+      </template>
 
   <!-- ════ GIOCATORI ════ -->
     <template v-if="currentView === 'players'">
@@ -4283,7 +4117,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4728,7 +4562,12 @@ createApp({
     const receiveLoading    = ref(false);
     const sendCode          = ref('');      // 6-digit codice Firebase
     const sendText          = ref('');      // AMFC: stringa
-    const homeHeroIdx       = ref(0);   // home carousel index
+    const homeHeroIdx       = ref(0);
+    const heroUnifiedIdx    = ref(0);
+    const heroSwipeDelta    = ref(0);
+    const heroSwipeDragging = ref(false);
+    const homeSegIdx        = ref(0);
+    const homeSegHL         = ref({left:'3px',width:'33%'});
     const newsExpanded      = ref(false); // news expand/collapse
     const statsHeroIdx      = ref(0);  // hero carousel index (independent from tab)
     const h2hPlayerA        = ref('');
@@ -4753,7 +4592,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.243');
+    const appVersion = ref('1.255');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7996,6 +7835,48 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
           phraseIdx++;
         }
       }
+
+      // ── Notizie WOW ──
+      if(matches.length>0){
+        // Streak record
+        for(const p of el){const sortedM=[...matches].sort((a,b)=>b.data.localeCompare(a.data));let streak=0;for(const m of sortedM){const s=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.id));if(s&&(s.goal||0)>0)streak++;else break;}if(streak>=3)items.push({uid:p.uid,foto:p.foto,emoji:'🔥',text:`${p.soprannome||p.nome} segna da ${streak} partite consecutive. Qualcuno lo fermi!`});}
+        // Hat-trick recente
+        const _lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];
+        const _hat=(_lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);
+        if(_hat){const _hp=players.find(p=>String(p.id)===String(_hat.playerId));if(_hp)items.push({uid:_hp.uid,foto:_hp.foto,emoji:'🎩',text:`HAT-TRICK! ${_hp.soprannome||_hp.nome} ha segnato ${_hat.goal} gol nell'ultima partita. Storico.`});}
+        // Anniversario gruppo
+        if(matches.length>=4){const _fm=[...matches].sort((a,b)=>a.data.localeCompare(b.data))[0];if(_fm?.data){const _ms=Math.floor((Date.now()-new Date(_fm.data))/2592000000);if(_ms>0)items.push({emoji:'🎂',text:`${_ms} ${_ms===1?'mese':'mesi'} insieme! Da ${_fm.data.split('-').reverse().join('/')} ad oggi: ${matches.length} partite e mille emozioni.`});}}
+        // Traguardo vicino
+        const _ml=[10,25,50,75,100];const _nm=_ml.find(n=>n>matches.length&&n-matches.length<=3);
+        if(_nm)items.push({emoji:'🏆',text:`Solo ${_nm-matches.length} partite alla numero ${_nm}! Un traguardo storico per il gruppo.`});
+        // Partita piu gol
+        const _mx=matches.reduce((mx,m)=>{const t=(m.risultato?.goalA||0)+(m.risultato?.goalB||0);return t>mx.t?{m,t}:mx;},{m:null,t:0});
+        if(_mx.m&&_mx.t>=7)items.push({emoji:'💥',text:`Record del gruppo: ${_mx.t} gol in una partita! Il ${_mx.m.data?.split('-').reverse().join('/')||'giorno del caos'}. Portieri annientati.`});
+        // Dominanza statistica
+        const _tgAll=players.reduce((s,p)=>s+(p.goalTotali||0),0);
+        if(_tgAll>0&&el.length>=3){const _top1=el[0]?.goalTotali||0;const _pct=Math.round(_top1/_tgAll*100);if(_pct>=35)items.push({uid:el[0]?.uid,foto:el[0]?.foto,emoji:'👑',text:`${el[0]?.soprannome||el[0]?.nome} ha segnato il ${_pct}% di tutti i gol del gruppo. Una dipendenza preoccupante.`});}
+        // Mai vinto
+        const _mv=el.filter(p=>{const w=matches.filter(m=>{const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;return(inA&&gA>gB)||(inB&&gB>gA);});return w.length===0&&(p.partiteTotali||0)>=5;});
+        if(_mv.length){const p=_mv[0];items.push({uid:p.uid,foto:p.foto,emoji:'😤',text:`${p.soprannome||p.nome}: ${p.partiteTotali||0} partite senza mai vincere. La sfortuna ha eletto il suo rappresentante.`});}
+        // Favorito prossima
+        if(el.length>=2){const _l3b=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);const _rg={};for(const m of _l3b)for(const s of m.statisticheGiocatori||[]){_rg[s.playerId]=(_rg[s.playerId]||0)+(s.goal||0);}const _hot=[...el].sort((a,b)=>(_rg[b.id]||0)-(_rg[a.id]||0))[0];if(_hot&&(_rg[_hot.id]||0)>0)items.push({uid:_hot.uid,foto:_hot.foto,emoji:'🎯',text:`Forma del momento: ${_hot.soprannome||_hot.nome} con ${_rg[_hot.id]} gol nelle ultime 3. Favorito per la prossima partita?`});}
+      }
+      // Frasi WOW bonus (rotate)
+      const _wowP=[
+        {emoji:'🏟️',text:'"Il campo non mente mai. I piedi si."'},
+        {emoji:'🧠',text:'Il calcetto insegna tattica, umilta e come litigare con stile.'},
+        {emoji:'😅',text:'"Era in fuorigioco." - detto da chi non sa cos\'e il fuorigioco.'},
+        {emoji:'🎭',text:'Ogni partita e un dramma in 5 atti. Solitamente con un rigore contestato al terzo.'},
+        {emoji:'🔮',text:'Pronostico: chi si scalda di piu nei commenti, perde sul campo.'},
+        {emoji:'📱',text:'Il VAR del campetto e il video su WhatsApp registrato di traverso.'},
+        {emoji:'⏱️',text:'"Ancora 5 minuti!" - frase di chi sta perdendo da 40 minuti.'},
+        {emoji:'🥅',text:'Un portiere non si cambia mai. Si incolpa sempre.'},
+        {emoji:'💪',text:'"Stavo per segnare" e la frase piu pronunciata da chi non segna mai.'},
+        {emoji:'🌧️',text:'Campo bagnato? Alibi perfetto. Campo asciutto? Altro alibi.'},
+      ];
+      const _wfi=Math.floor(Date.now()/90000)%_wowP.length;
+      finalItems.push(_wowP[_wfi]);
+      if(finalItems.length>5)finalItems.push(_wowP[(_wfi+5)%_wowP.length]);
       // Se ci sono poche notizie, aggiungi comunque una frase
       if (items.length > 0 && phraseIdx === 0) {
         const _fi=Math.floor(Date.now()/300000); finalItems.push(funnyPhrases[_fi % funnyPhrases.length]);
@@ -9082,8 +8963,15 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       });
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
-      // Home hero carousel auto-rotate
-      setInterval(() => { homeHeroIdx.value = (homeHeroIdx.value+1) % 4; }, 4000);
+      // Unified hero start
+      setTimeout(() => heroGo(0), 1200);
+      // Restart hero when newsItems populate (they load after 1s delay)
+      watch(newsItems, (newVal) => {
+        if (newVal && newVal.length > 0) {
+          clearTimeout(_heroTimerRef);
+          heroGo(heroUnifiedIdx.value); // recompute current slide timing
+        }
+      });
       // Compute initial news items
       setTimeout(_scheduleNewsCompute, 1000);
 
@@ -9257,6 +9145,76 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     };
 
     // ── Stats Hero Carousel (auto-rotate, independent from tabs) ──
+
+    // ── HERO UNIFICATO ──
+    const heroUnifiedData = computed(() => {
+      if (!currentGroup.value) return [];
+      const players=groupPlayers.value, matches=groupMatches.value, slides=[];
+      const el=players.filter(p=>(p.partiteTotali||0)>=3);
+      // 1. DUEL
+      if(el.length>=2){let best=null,minD=999;for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){const d=Math.abs((el[i].goalTotali||0)-(el[j].goalTotali||0));if(d<minD&&((el[i].goalTotali||0)+(el[j].goalTotali||0))>0){minD=d;best=[el[i],el[j]];}}if(best){const[a,b]=best,na=a.soprannome||a.nome,nb=b.soprannome||b.nome,oa=((a.mediaPunti||0)*(a.partiteTotali||1)).toFixed(0),ob=((b.mediaPunti||0)*(b.partiteTotali||1)).toFixed(0);const titles=['SFIDA','DERBY','DUELLO','RIVALITA'];const sfide=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});let wa=0,wb=0;sfide.forEach(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((ia&&gA>gB)||(!ia&&gB>gA))wa++;else if((ia&&gB>gA)||(!ia&&gA>gB))wb++;});slides.push({type:'duel',dur:6000,label:titles[Math.floor(Date.now()/3600000)%titles.length]+' della Settimana',val:(a.goalTotali||0)+'-'+(b.goalTotali||0),name:na+' vs '+nb,sub:'Overall '+oa+' vs '+ob,bg:'linear-gradient(145deg,#1a0800,#7c2d00 60%,#c2410c)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,rec:[{l:'Sfide',v:sfide.length},{l:'Record',v:wa+'-'+wb},{l:'UoM',v:(a.uomoPartitaTotali||0)+'-'+(b.uomoPartitaTotali||0)}]});}}
+      // 2. STORYLINE
+      if(el.length>=2&&matches.length>=5){let bRiv=null,maxM=0;for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){const a=el[i],b=el[j],ms=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});if(ms.length>maxM){maxM=ms.length;bRiv=[a,b,ms];}}if(bRiv&&maxM>=4){const[a,b,ms]=bRiv,na=a.soprannome||a.nome,nb=b.soprannome||b.nome;let wa=0,wb=0;const bars=ms.slice(-9).map(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0,aw=(ia&&gA>gB)||(!ia&&gB>gA),bw=(ia&&gB>gA)||(!ia&&gA>gB);if(aw)wa++;if(bw)wb++;return{h:aw?100:bw?80:30,c:aw?'#FF6B35':bw?'#3b82f6':'#374151'};});const phase=wa>wb+2?'Dominio di '+na:wb>wa+2?'Dominio di '+nb:Math.abs(wa-wb)<=1?'Equilibrio totale':'Rimonta in corso';slides.push({type:'story',dur:7000,label:'Rivalita in corso',phase,title:na+' vs '+nb,txt:phase+' '+wa+'-'+wb,bars,legend:[{c:'#FF6B35',l:na},{c:'#3b82f6',l:nb},{c:'#374151',l:'Pari'}],bg:'linear-gradient(145deg,#0f0a2e,#3c1c8c 60%,#7c3aed)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,na,nb});}}
+      // 3. CRONACA (stile Gazzetta)
+      if(el.length>=1&&matches.length>=2){
+        const cronItems=[];
+        const sorted3=[...el].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0));
+        const topS=sorted3[0];
+        if(topS){
+          const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
+          const streak=l3.filter(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(topS.id)&&(s.goal||0)>0)).length;
+          if(streak>=2)cronItems.push({kicker:'LAMPO DI '+(topS.soprannome||topS.nome).toUpperCase(),headline:(topS.soprannome||topS.nome)+' non si ferma',body:streak+' partite consecutive con almeno un gol. Una forma straordinaria. Gli avversari sono avvisati.',sub:'Media: '+((topS.goalTotali||0)/Math.max(topS.partiteTotali||1,1)).toFixed(2)+' gol/p'});
+        }
+        const inCrisi=el.filter(p=>{const l4=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,4);const hasGol=l4.some(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(p.id)&&(s.goal||0)>0));return !hasGol&&(p.goalTotali||0)>2&&l4.length>=3;});
+        if(inCrisi.length){const p=inCrisi[0],n=p.soprannome||p.nome;cronItems.push({kicker:'IL SILENZIO DI '+n.toUpperCase(),headline:'Dove sono finiti i gol di '+n+'?',body:'0 gol nelle ultime 4 partite per un giocatore che ne ha segnati '+(p.goalTotali||0)+' in carriera. Crisi passeggera o cambio di registro?',sub:'Si aspetta il ritorno'});}
+        const milestones=[10,25,50,75,100,150];const nextM=milestones.find(n=>n>matches.length&&n-matches.length<=5);
+        if(nextM)cronItems.push({kicker:'TRAGUARDO IN ARRIVO',headline:'Solo '+(nextM-matches.length)+' partite alla #'+nextM,body:'Il gruppo si avvicina a un traguardo storico. '+(nextM-matches.length===1?'La prossima e quella che vale.':'Ancora qualche sfida e si fa la storia.'),sub:matches.length+' partite giocate finora'});
+        if(matches.length>0){const lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];const hat=(lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);if(hat){const hp2=players.find(p=>String(p.id)===String(hat.playerId));if(hp2)cronItems.push({kicker:'IMPRESA!',headline:'Hat-trick di '+(hp2.soprannome||hp2.nome),body:hat.goal+' gol in una sola partita. Un\'esibizione da ricordare per sempre. Leggendario.',sub:'Ultima partita - '+formatDate(lm.data)});}}
+        const totG2=players.reduce((s,p)=>s+(p.goalTotali||0),0);
+        if(totG2>0&&sorted3.length>=2){const top2g=sorted3.slice(0,2).reduce((s,p)=>s+(p.goalTotali||0),0);const pct=Math.round(top2g/totG2*100);if(pct>=60)cronItems.push({kicker:'DATO SHOCK',headline:'Il '+pct+'% dei gol viene da 2 persone',body:(sorted3[0].soprannome||sorted3[0].nome)+' e '+(sorted3[1].soprannome||sorted3[1].nome)+' dominano i marcatori. Il gruppo dipende da loro.',sub:'Su '+totG2+' gol totali'});}
+        const maiVinto=el.filter(p=>{const myW=matches.filter(m=>{const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;return(inA&&gA>gB)||(inB&&gB>gA);});return myW.length===0&&(p.partiteTotali||0)>=5;});
+        if(maiVinto.length){const p=maiVinto[0];cronItems.push({kicker:'LEGGENDA NERA',headline:(p.soprannome||p.nome)+': 0 vittorie su '+(p.partiteTotali||0),body:'Una striscia senza vittorie che ha del clamoroso. '+(p.soprannome||p.nome)+' sfida le leggi della probabilita.',sub:'I numeri non mentono'});}
+        if(cronItems.length>0){const ci=cronItems[Math.floor(Date.now()/120000)%cronItems.length];slides.push({type:'cronaca',dur:8000,label:'Cronaca',kicker:ci.kicker,headline:ci.headline,body:ci.body,sub:ci.sub||'',bg:'linear-gradient(145deg,#1a0a00,#4a1500 60%,#7c2d12)'});}
+      }
+      // 4. NEWS — 8 distribuite
+      const nq=newsItems.value||[];if(nq.length){const step=Math.max(1,Math.floor(nq.length/8)),picked=[];for(let i=0;i<nq.length&&picked.length<8;i+=step)picked.push(nq[i]);for(const n of picked)slides.push({type:'news',dur:Math.max(4000,Math.min(8000,(n.text||'').length*60)),badge:(n.emoji||''),quote:n.text||'',cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)',foto:n.foto,uid:n.uid});}
+      // 5. RECAP ultima partita (stile telecronista)
+      if(matches.length>0){
+        const last=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];
+        const gA=last.risultato?.goalA||0,gB=last.risultato?.goalB||0;
+        const tA=last.nomeSquadraA||'Squadra A',tB=last.nomeSquadraB||'Squadra B';
+        const scorers=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).map(s=>{const p=players.find(x=>String(x.id)===String(s.playerId));return(p?.soprannome||p?.nome||'?')+'\u00a0\u26bd\xd7'+s.goal;}).slice(0,4).join(', ');
+        const ri=Math.floor(Date.now()/86400000);
+        const intros=gA===gB?['Un pareggio che lascia l\'amaro in bocca a entrambe le parti.','Nessun vincitore, ma tanto spettacolo.']:gA>gB?[tA+' ha dominato dall\'inizio alla fine.',tA+' ha meritato ogni goal.']:[tB+' ha dimostrato la propria qualita.',tB+' non lascia spazio ai dubbi.'];
+        const intro=intros[ri%intros.length];
+        const bodies=[scorers?'Marcatori: '+scorers+(last.uomoPartita?'. Uomo partita: '+last.uomoPartita+'. Una prestazione da incorniciare.':'.'):(gA===gB?'0-0 non significa noia: ogni pallone e stato combattuto.':'Il risultato parla chiaro.'),last.note?'"'+last.note+'" \u2014 le parole che raccontano questa serata.':'Una partita da ricordare, nel bene o nel male.',gA+gB>=6?''+(gA+gB)+' gol totali. Serata di gala per il reparto offensivo.':(gA+gB===0)?'Zero gol, massima tensione. Portieri implacabili.':'Un match tosto. Ogni goal e costato caro.'];
+        slides.push({type:'recap',dur:7000,label:'Rivivi la Partita',gA,gB,tA,tB,intro,body:bodies[ri%bodies.length],sub:formatDate(last.data)+(last.uomoPartita?' \xb7 Uomo partita: '+last.uomoPartita:''),bg:'linear-gradient(145deg,#0a0a1a,#1e1b4b 60%,#3730a3)'});
+      }
+      // 6. GOAL
+      const topG=[...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];const totG=players.reduce((s,p)=>s+(p.goalTotali||0),0);const _actP=players.filter(p=>(p.partiteTotali||0)>0);const mediaGolGrp=_actP.length?(totG/_actP.length).toFixed(1):'0';if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
+      // 7. TRENDING
+      if(matches.length>=3){const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3),rg={};for(const m of l3)for(const s of m.statisticheGiocatori||[]){rg[s.playerId]=(rg[s.playerId]||0)+(s.goal||0);}let best=null,bestD=-999;for(const p of el){const pg=rg[p.id]||0,avg=(p.goalTotali||0)/Math.max(p.partiteTotali||1,1),ro=l3.reduce((s,m)=>{const st=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.id));return s+(st?((st.goal||0)*3+(st.assist||0)*1.5+(st.uomoPartita?3:0)):0);},0)/3,cd=(pg/3-avg)*2+(ro-(p.mediaPunti||0));if(cd>bestD){bestD=cd;best={p,pg,ro,delta:cd};}}if(best&&bestD>0.1){const{p,pg,ro}=best,mgol=((p.goalTotali||0)/Math.max(p.partiteTotali||1,1)).toFixed(2);slides.push({type:'trend',dur:5000,label:'Trending ora',name:(p.soprannome||p.nome)+' in gran forma!',sub:pg+' gol nelle ultime 3',delta:'+'+best.delta.toFixed(1),foto:p.foto,uid:p.uid,bg:'linear-gradient(145deg,#052e16,#065f46 60%,#059669)',cmp:[{l:'Media stagione',v:mgol+' gol/p'},{l:'Ultime 3',v:(pg/3).toFixed(1)+' gol/p'},{l:'Overall rec.',v:ro.toFixed(1)+' pts'}]});}}
+      // 8. STAGIONE
+      const lastM=matches.length?[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0]:null;slides.push({type:'stat',dur:2500,label:'Stagione',val:matches.length,col:'#4ade80',bg:'linear-gradient(145deg,#052e16,#166534 60%,#22C55E)',name:players.length+' giocatori \xb7 '+matches.length+' partite',sub:lastM?'Ultima: '+lastM.data.split('-').reverse().join('/'):'Inizia a registrare!',dest:'history'});
+      // 9. GIOCATORI (ultima)
+      slides.push({type:'stat',dur:2500,label:'Giocatori',val:players.length,col:'#60a5fa',bg:'linear-gradient(145deg,#0c1a3a,#1e3a8a 60%,#3b82f6)',name:'Rosa completa',sub:'Premi per vedere tutti i profili',dest:'players'});
+      return slides;
+    })
+
+    // Hero swipe
+    let _hsx=0, _hdrag=false;
+    const heroTS=(e)=>{_hsx=e.touches[0].clientX;_hdrag=true;heroSwipeDragging.value=true;heroSwipeDelta.value=0;stopHeroTimer();};
+    const heroTM=(e)=>{if(!_hdrag)return;heroSwipeDelta.value=e.touches[0].clientX-_hsx;};
+    const heroTE=(e)=>{if(!_hdrag)return;_hdrag=false;heroSwipeDragging.value=false;const dx=heroSwipeDelta.value;heroSwipeDelta.value=0;if(dx<-40)heroGo(heroUnifiedIdx.value+1);else if(dx>40)heroGo(heroUnifiedIdx.value-1);else heroGo(heroUnifiedIdx.value);};
+    const heroMD=(e)=>{_hsx=e.clientX;_hdrag=true;heroSwipeDragging.value=true;heroSwipeDelta.value=0;stopHeroTimer();};
+    const heroMM=(e)=>{if(e.buttons&&_hdrag)heroSwipeDelta.value=e.clientX-_hsx;};
+    const heroMU=(e)=>{if(!_hdrag)return;_hdrag=false;heroSwipeDragging.value=false;const dx=heroSwipeDelta.value;heroSwipeDelta.value=0;if(Math.abs(dx)>40){if(dx<0)heroGo(heroUnifiedIdx.value+1);else heroGo(heroUnifiedIdx.value-1);}else heroGo(heroUnifiedIdx.value);};
+    const heroClick=()=>{if(Math.abs(heroSwipeDelta.value)>10)return;const s=heroUnifiedData.value[heroUnifiedIdx.value];if(s?.dest){currentView.value=s.dest;if(s.statsTab)statsTab.value=s.statsTab;}};
+    let _heroTimerRef=null;
+    const stopHeroTimer=()=>{clearTimeout(_heroTimerRef);const f=document.getElementById('hpf'+heroUnifiedIdx.value);if(f){f.style.transition='none';}};
+    const heroGo=(n)=>{const data=heroUnifiedData.value;if(!data.length)return;if(n<0)n=data.length-1;if(n>=data.length)n=0;heroUnifiedIdx.value=n;clearTimeout(_heroTimerRef);const slide=data[n];const dur=slide.dur||4000;const fill=document.getElementById('hpf'+n);if(fill){fill.style.transition='none';fill.style.width='0%';requestAnimationFrame(()=>requestAnimationFrame(()=>{fill.style.transition='width '+dur+'ms linear';fill.style.width='100%';}));}; _heroTimerRef=setTimeout(()=>heroGo(n+1),dur);};
+    const setHomeSeg=(idx)=>{homeSegIdx.value=idx;const pct=(idx*(100/3))+'%';const w=(100/3)+'%';homeSegHL.value={left:'calc('+pct+' + 3px)',width:'calc('+w+' - 6px)'};if(idx===0)currentView.value='stats';else if(idx===1)currentView.value='players';else currentView.value='history';};
+
     const statsHeroData = computed(() => {
       const p0 = topOverall.value[0], p1 = topScorers.value[0],
             p2 = topPoints.value[0],  p3 = topRated.value[0];
@@ -9669,7 +9627,7 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
-      shareStatsPNG, openSendFormation, showLogModal, appLogs, clearLogs, copyLogs, logEvent, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
+      shareStatsPNG, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
@@ -9679,7 +9637,8 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
       regenerateFormations, getFormationBalance,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
-      statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed
+      statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
+      heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick
     };
   }
 }).mount('#app');
