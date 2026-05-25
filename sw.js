@@ -1,5 +1,5 @@
-// Amici FC Service Worker v1149
-const CACHE = 'amicifc-v1149';
+// Amici FC Service Worker v1258
+const CACHE = 'amicifc-v1258';
 const ASSETS = [
   './',
   './amici-fc.html',
@@ -26,7 +26,6 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  // Cache Google Fonts
   if (e.request.url.includes('fonts.googleapis.com') || e.request.url.includes('fonts.gstatic.com')) {
     e.respondWith(
       caches.open('amicifc-fonts').then(cache =>
@@ -44,9 +43,10 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith('http')) return;
   const url = new URL(e.request.url);
-  if (url.pathname.endsWith('version.json')) {
+  // version.json: always network-first
+  if (url.pathname.endsWith('version.json') || url.pathname.endsWith('amici-fc.html')) {
     e.respondWith(
-      fetch(e.request)
+      fetch(e.request, { cache: 'no-store' })
         .then(r => {
           if (r && r.status === 200) {
             const rc = r.clone();
