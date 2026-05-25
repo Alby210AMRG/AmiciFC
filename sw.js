@@ -1,5 +1,5 @@
-// Amici FC Service Worker v1262
-const CACHE = 'amicifc-v1262';
+// Amici FC Service Worker v1265
+const CACHE = 'amicifc-v1265';
 const ASSETS = ['./', './amici-fc.html', './version.json'];
 
 self.addEventListener('install', e => {
@@ -21,33 +21,81 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('fonts.googleapis.com') || e.request.url.includes('fonts.gstatic.com')) {
-    e.respondWith(caches.open('amicifc-fonts').then(cache =>
-      cache.match(e.request).then(cached => {
-        if (cached) return cached;
-        return fetch(e.request).then(resp => { if (resp.ok) cache.put(e.request, resp.clone()); return resp; }).catch(() => cached);
-      })
-    )); return;
+  const url = e.request.url;
+
+  // ── BYPASS COMPLETO: mai intercettare richieste esterne (Firebase, API, CDN dati) ──
+  if (
+    url.includes('firebaseio.com') ||
+    url.includes('firebasestorage') ||
+    url.includes('googleapis.com/identitytoolkit') ||
+    url.includes('securetoken.googleapis.com') ||
+    url.includes('anthropic.com') ||
+    url.includes('generativelanguage.googleapis.com') ||
+    url.includes('api.openai.com')
+  ) {
+    return; // lascia passare senza intercettare
   }
-  if (e.request.method !== 'GET' || !e.request.url.startsWith('http')) return;
-  const url = new URL(e.request.url);
-  // HTML e version.json sempre network-first (no cache stantia)
-  if (url.pathname.endsWith('amici-fc.html') || url.pathname.endsWith('version.json') || url.pathname.endsWith('/')) {
+
+  // Font Google: cache-first
+  if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
     e.respondWith(
-      fetch(e.request, {cache: 'no-store'})
-        .then(r => { if (r?.ok) caches.open(CACHE).then(c => c.put(e.request, r.clone())); return r; })
-        .catch(() => caches.match(e.request))
-    ); return;
+      caches.open('amicifc-fonts').then(cache =>
+        cache.match(e.request).then(cached => {
+          if (cached) return cached;
+          return fetch(e.request).then(resp => {
+            if (resp && resp.ok) cache.put(e.request, resp.clone());
+            return resp;
+          }).catch(() => cached || new Response('', {status: 503}));
+        })
+      )
+    );
+    return;
   }
+
+  // Solo GET, solo http
+  if (e.request.method !== 'GET' || !url.startsWith('http')) return;
+
+  const parsedUrl = new URL(url);
+
+  // HTML e version.json: sempre network-first (no cache stantia)
+  if (
+    parsedUrl.pathname.endsWith('amici-fc.html') ||
+    parsedUrl.pathname.endsWith('version.json') ||
+    parsedUrl.pathname === '/' ||
+    parsedUrl.pathname.endsWith('/index.html')
+  ) {
+    e.respondWith(
+      fetch(e.request, { cache: 'no-store' })
+        .then(r => {
+          if (r && r.ok && r.type === 'basic') {
+            caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+          }
+          return r;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Tutto il resto (JS, CSS, immagini statiche): cache-first, network fallback
+  // MA solo se same-origin o CORS esplicito (mai opaque)
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(r => {
-        if (r?.ok && r.type !== 'opaque') caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+        // Cacha solo risposte basic (same-origin) o cors — mai opaque
+        if (r && r.ok && (r.type === 'basic' || r.type === 'cors')) {
+          caches.open(CACHE).then(c => c.put(e.request, r.clone()));
+        }
         return r;
-      }).catch(() => e.request.mode === 'navigate' ? caches.match('./amici-fc.html') : new Response('Offline', {status:503}));
+      }).catch(() => {
+        if (e.request.mode === 'navigate') return caches.match('./amici-fc.html');
+        return new Response('Offline', { status: 503 });
+      });
     })
   );
 });
 
-self.addEventListener('message', e => { if (e.data === 'SKIP_WAITING') self.skipWaiting(); });
+self.addEventListener('message', e => {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
+});
