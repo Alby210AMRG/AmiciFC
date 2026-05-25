@@ -229,27 +229,25 @@ body {
   color: var(--text2);
 }
 .nav-item svg { width: 22px; height: 22px; }
-.nav-item.nav-home { color: #60a5fa; }
-.nav-item.nav-stats { color: #4ade80; }
+.nav-item.nav-home { color: #4ade80; }
+.nav-item.nav-stats { color: #60a5fa; }
 .nav-item.nav-history { color: #fbbf24; }
 .nav-item.nav-altro { color: #c084fc; }
-.nav-fab {
-  flex: none;
-  width: 52px; height: 52px;
-  border-radius: 50%;
+.nav-item.center-btn {
   background: var(--lime);
-  color: #111;
-  border: none;
-  cursor: pointer;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 2px;
-  font-size: 0.55rem; font-weight: 800;
-  box-shadow: 0 4px 16px rgba(166,255,77,.35);
-  -webkit-tap-highlight-color: transparent;
-  outline: none;
-  margin: 0 6px;
+  color: var(--dark);
+  border-radius: 50%;
+  width: 56px; height: 56px;
+  flex: none;
+  margin: 0 8px;
+  box-shadow: 0 4px 16px rgba(166,255,77,0.4);
+  transition: transform 0.2s, box-shadow 0.2s;
 }
-.nav-fab svg { width: 22px; height: 22px; }
+.nav-item.center-btn:active {
+  transform: scale(0.93);
+  box-shadow: 0 2px 8px rgba(166,255,77,0.3);
+}
+.nav-item.center-btn svg { width: 28px; height: 28px; }
 @keyframes play-pulse {
   0%   { box-shadow: 0 0 0 0 rgba(166,255,77,0.7), 0 4px 15px rgba(166,255,77,0.4); }
   60%  { box-shadow: 0 0 0 12px rgba(166,255,77,0), 0 4px 22px rgba(166,255,77,0.6); }
@@ -3020,9 +3018,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       Stats
     </button>
     <!-- FAB Play -->
-    <button class="nav-fab" @click="startNewMatch" title="Nuova Partita">
+    <button class="nav-item center-btn" @click="startNewMatch" title="Formazioni &amp; Partite">
       <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
-      GIOCA
     </button>
     <!-- Storico -->
     <button class="nav-item nav-history" @click="currentView='history'" style="-webkit-tap-highlight-color:transparent">
@@ -4138,7 +4135,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4613,7 +4610,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.258');
+    const appVersion = ref('1.259');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -9171,54 +9168,137 @@ Rispondi SOLO con: TITOLO (riga 1) + testo articolo (righe seguenti). Niente alt
     const heroUnifiedData = computed(() => {
       if (!currentGroup.value) return [];
       const players=groupPlayers.value, matches=groupMatches.value, slides=[];
-      const el=players.filter(p=>(p.partiteTotali||0)>=3);
-      // 1. DUEL
-      if(el.length>=2){let best=null,minD=999;for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){const d=Math.abs((el[i].goalTotali||0)-(el[j].goalTotali||0));if(d<minD&&((el[i].goalTotali||0)+(el[j].goalTotali||0))>0){minD=d;best=[el[i],el[j]];}}if(best){const[a,b]=best,na=a.soprannome||a.nome,nb=b.soprannome||b.nome,oa=((a.mediaPunti||0)*(a.partiteTotali||1)).toFixed(0),ob=((b.mediaPunti||0)*(b.partiteTotali||1)).toFixed(0);const titles=['SFIDA','DERBY','DUELLO','RIVALITA'];const sfide=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});let wa=0,wb=0;sfide.forEach(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((ia&&gA>gB)||(!ia&&gB>gA))wa++;else if((ia&&gB>gA)||(!ia&&gA>gB))wb++;});slides.push({type:'duel',dur:6000,label:titles[Math.floor(Date.now()/3600000)%titles.length]+' della Settimana',val:(a.goalTotali||0)+'-'+(b.goalTotali||0),name:na+' vs '+nb,sub:'Overall '+oa+' vs '+ob,bg:'linear-gradient(145deg,#1a0800,#7c2d00 60%,#c2410c)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,rec:[{l:'Sfide',v:sfide.length},{l:'Record',v:wa+'-'+wb},{l:'UoM',v:(a.uomoPartitaTotali||0)+'-'+(b.uomoPartitaTotali||0)}]});}}
-      // 2. STORYLINE
-      if(el.length>=2&&matches.length>=5){let bRiv=null,maxM=0;for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){const a=el[i],b=el[j],ms=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});if(ms.length>maxM){maxM=ms.length;bRiv=[a,b,ms];}}if(bRiv&&maxM>=4){const[a,b,ms]=bRiv,na=a.soprannome||a.nome,nb=b.soprannome||b.nome;let wa=0,wb=0;const bars=ms.slice(-9).map(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0,aw=(ia&&gA>gB)||(!ia&&gB>gA),bw=(ia&&gB>gA)||(!ia&&gA>gB);if(aw)wa++;if(bw)wb++;return{h:aw?100:bw?80:30,c:aw?'#FF6B35':bw?'#3b82f6':'#374151'};});const phase=wa>wb+2?'Dominio di '+na:wb>wa+2?'Dominio di '+nb:Math.abs(wa-wb)<=1?'Equilibrio totale':'Rimonta in corso';slides.push({type:'story',dur:7000,label:'Rivalita in corso',phase,title:na+' vs '+nb,txt:phase+' '+wa+'-'+wb,bars,legend:[{c:'#FF6B35',l:na},{c:'#3b82f6',l:nb},{c:'#374151',l:'Pari'}],bg:'linear-gradient(145deg,#0f0a2e,#3c1c8c 60%,#7c3aed)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,na,nb});}}
-      // 3. CRONACA (stile Gazzetta)
-      if(el.length>=1&&matches.length>=2){
+      const el=players.filter(p=>(p.partiteTotali||0)>=1);
+
+      // ── MOTIVAZIONALI FISSI (sempre 2, ruotano ogni 5 min) ──
+      const motivazionali=[
+        {q:'"Il campo non mente mai. Le scarpe sì."',e:'🏟️'},
+        {q:'"Non è importante chi vince, è importante chi sbaglia il rigore."',e:'😅'},
+        {q:'"Il VAR del campetto è il video su WhatsApp registrato di traverso."',e:'📱'},
+        {q:'"Ancora 5 minuti!" — frase di chi sta perdendo da 40 minuti.',e:'⏱️'},
+        {q:'Il calcetto insegna tattica, umiltà e come litigare con stile.',e:'🧠'},
+        {q:'Un portiere non si cambia mai. Si incolpa sempre.',e:'🥅'},
+        {q:'Pronostico: chi protesta di più prima, perde dopo.',e:'🔮'},
+        {q:'"Stavo per segnare" — la frase preferita di chi non segna mai.',e:'💪'},
+        {q:'Campo bagnato? Alibi pre-partita. Campo asciutto? Alibi post-partita.',e:'🌧️'},
+        {q:'Ogni grande carriera inizia con un calcetto il martedì sera.',e:'⚽'},
+        {q:'"Era in fuorigioco!" — detto da chi non sa cos\'è il fuorigioco.',e:'🚩'},
+        {q:'La tattica migliore? Correre verso la palla e sperare.',e:'🎯'},
+      ];
+      const _mvi=Math.floor(Date.now()/300000);
+      slides.push({type:'news',dur:5000,badge:motivazionali[_mvi%motivazionali.length].e,quote:motivazionali[_mvi%motivazionali.length].q,cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)'});
+      slides.push({type:'news',dur:5000,badge:motivazionali[(_mvi+6)%motivazionali.length].e,quote:motivazionali[(_mvi+6)%motivazionali.length].q,cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)'});
+
+      // 1. DUEL (soglia: 1 partita)
+      if(el.length>=2){
+        let best=null,minD=999;
+        for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){
+          const d=Math.abs((el[i].goalTotali||0)-(el[j].goalTotali||0));
+          if(d<minD){minD=d;best=[el[i],el[j]];}
+        }
+        if(best){
+          const[a,b]=best,na=a.soprannome||a.nome,nb=b.soprannome||b.nome;
+          const oa=((a.mediaPunti||0)*(a.partiteTotali||1)).toFixed(0),ob=((b.mediaPunti||0)*(b.partiteTotali||1)).toFixed(0);
+          const titles=['SFIDA','DERBY','DUELLO','RIVALITA'];
+          const sfide=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});
+          let wa=0,wb=0;sfide.forEach(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((ia&&gA>gB)||(!ia&&gB>gA))wa++;else if((ia&&gB>gA)||(!ia&&gA>gB))wb++;});
+          slides.push({type:'duel',dur:6000,label:titles[Math.floor(Date.now()/3600000)%titles.length]+' della Settimana',val:(a.goalTotali||0)+'-'+(b.goalTotali||0),name:na+' vs '+nb,sub:'Overall '+oa+' vs '+ob,bg:'linear-gradient(145deg,#1a0800,#7c2d00 60%,#c2410c)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,rec:[{l:'Sfide',v:sfide.length},{l:'Record',v:wa+'-'+wb},{l:'UoM',v:(a.uomoPartitaTotali||0)+'-'+(b.uomoPartitaTotali||0)}]});
+        }
+      }
+
+      // 2. STORYLINE (sempre, anche senza sfide dirette)
+      if(el.length>=2&&matches.length>=1){
+        let bRiv=null,maxM=0;
+        for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){
+          const a=el[i],b=el[j];
+          const ms=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});
+          if(ms.length>maxM){maxM=ms.length;bRiv=[a,b,ms];}
+        }
+        if(!bRiv||maxM===0){const s=[...el].sort((a,b)=>(b.partiteTotali||0)-(a.partiteTotali||0));bRiv=[s[0],s[1],[]];maxM=0;}
+        if(bRiv){
+          const[a,b,ms]=bRiv,na=a.soprannome||a.nome,nb=b.soprannome||b.nome;let wa=0,wb=0;
+          const bars=(ms.length>0?ms:matches).slice(-9).map(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0,aw=(ia&&gA>gB)||(!ia&&gB>gA),bw=(ia&&gB>gA)||(!ia&&gA>gB);if(aw)wa++;if(bw)wb++;return{h:aw?100:bw?80:30,c:aw?'#FF6B35':bw?'#3b82f6':'#374151'};});
+          const phase=wa>wb+1?'Dominio di '+na:wb>wa+1?'Dominio di '+nb:wa===wb?'Equilibrio totale':'Rimonta in corso';
+          const txt=maxM>0?phase+' in '+maxM+' sfide dirette.':(na+' e '+nb+': i protagonisti da seguire.');
+          slides.push({type:'story',dur:7000,label:'Rivalita',phase,title:na+' vs '+nb,txt,bars,legend:[{c:'#FF6B35',l:na},{c:'#3b82f6',l:nb},{c:'#374151',l:'Pari'}],bg:'linear-gradient(145deg,#0f0a2e,#3c1c8c 60%,#7c3aed)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,na,nb});
+        }
+        // Storyline 2: classifica marcatori
+        if(el.length>=2){
+          const byG=[...el].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0));
+          const a=byG[0],b=byG[1],na2=a.soprannome||a.nome,nb2=b.soprannome||b.nome;
+          const diff=(a.goalTotali||0)-(b.goalTotali||0);
+          const phase2=diff>3?'Dominio di '+na2:diff>0?na2+' avanti di '+diff+' gol':diff===0?'Pareggio in cima':'';
+          if(phase2)slides.push({type:'story',dur:6000,label:'Classifica Marcatori',phase:phase2,title:na2+' vs '+nb2,txt:'La corsa al gol: '+na2+' con '+(a.goalTotali||0)+' gol, '+nb2+' con '+(b.goalTotali||0)+'. Chi la spunterà?',bars:[],legend:[{c:'#FF6B35',l:na2},{c:'#3b82f6',l:nb2}],bg:'linear-gradient(145deg,#1a0f00,#7c3a00 60%,#d97706)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,na:na2,nb:nb2});
+        }
+      }
+
+      // 3. CRONACA (sempre, con fallback)
+      if(players.length>=1){
         const cronItems=[];
-        const sorted3=[...el].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0));
-        const topS=sorted3[0];
-        if(topS){
+        const elAll=el.length?el:players;
+        const sorted3=[...elAll].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0));
+        if(matches.length>=1&&sorted3.length>0){
+          const topS=sorted3[0];
           const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
           const streak=l3.filter(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(topS.id)&&(s.goal||0)>0)).length;
-          if(streak>=2)cronItems.push({kicker:'LAMPO DI '+(topS.soprannome||topS.nome).toUpperCase(),headline:(topS.soprannome||topS.nome)+' non si ferma',body:streak+' partite consecutive con almeno un gol. Una forma straordinaria. Gli avversari sono avvisati.',sub:'Media: '+((topS.goalTotali||0)/Math.max(topS.partiteTotali||1,1)).toFixed(2)+' gol/p'});
+          cronItems.push({kicker:streak>=2?'FORMA SMAGLIANTE':'TOP SCORER',headline:(topS.soprannome||topS.nome)+' guida la classifica',body:(topS.soprannome||topS.nome)+' in cima con '+(topS.goalTotali||0)+' gol in '+(topS.partiteTotali||0)+' partite. Media: '+((topS.goalTotali||0)/Math.max(topS.partiteTotali||1,1)).toFixed(2)+' gol/p.',sub:'Top scorer del gruppo'});
         }
-        const inCrisi=el.filter(p=>{const l4=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,4);const hasGol=l4.some(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(p.id)&&(s.goal||0)>0));return !hasGol&&(p.goalTotali||0)>2&&l4.length>=3;});
-        if(inCrisi.length){const p=inCrisi[0],n=p.soprannome||p.nome;cronItems.push({kicker:'IL SILENZIO DI '+n.toUpperCase(),headline:'Dove sono finiti i gol di '+n+'?',body:'0 gol nelle ultime 4 partite per un giocatore che ne ha segnati '+(p.goalTotali||0)+' in carriera. Crisi passeggera o cambio di registro?',sub:'Si aspetta il ritorno'});}
-        const milestones=[10,25,50,75,100,150];const nextM=milestones.find(n=>n>matches.length&&n-matches.length<=5);
-        if(nextM)cronItems.push({kicker:'TRAGUARDO IN ARRIVO',headline:'Solo '+(nextM-matches.length)+' partite alla #'+nextM,body:'Il gruppo si avvicina a un traguardo storico. '+(nextM-matches.length===1?'La prossima e quella che vale.':'Ancora qualche sfida e si fa la storia.'),sub:matches.length+' partite giocate finora'});
-        if(matches.length>0){const lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];const hat=(lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);if(hat){const hp2=players.find(p=>String(p.id)===String(hat.playerId));if(hp2)cronItems.push({kicker:'IMPRESA!',headline:'Hat-trick di '+(hp2.soprannome||hp2.nome),body:hat.goal+' gol in una sola partita. Un\'esibizione da ricordare per sempre. Leggendario.',sub:'Ultima partita - '+formatDate(lm.data)});}}
+        if(matches.length>0){const lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];const hat=(lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);if(hat){const hp2=players.find(p=>String(p.id)===String(hat.playerId));if(hp2)cronItems.push({kicker:'IMPRESA!',headline:'Hat-trick di '+(hp2.soprannome||hp2.nome),body:hat.goal+' gol in una sola partita. Un\'esibizione da ricordare per sempre.',sub:'Ultima partita - '+formatDate(lm.data)});}}
+        const milestones=[5,10,25,50,75,100];const nextM=milestones.find(n=>n>matches.length&&n-matches.length<=5);
+        if(nextM)cronItems.push({kicker:'TRAGUARDO IN ARRIVO',headline:'Solo '+(nextM-matches.length)+' partite alla #'+nextM,body:'Il gruppo si avvicina a un traguardo storico.',sub:matches.length+' partite giocate'});
         const totG2=players.reduce((s,p)=>s+(p.goalTotali||0),0);
-        if(totG2>0&&sorted3.length>=2){const top2g=sorted3.slice(0,2).reduce((s,p)=>s+(p.goalTotali||0),0);const pct=Math.round(top2g/totG2*100);if(pct>=60)cronItems.push({kicker:'DATO SHOCK',headline:'Il '+pct+'% dei gol viene da 2 persone',body:(sorted3[0].soprannome||sorted3[0].nome)+' e '+(sorted3[1].soprannome||sorted3[1].nome)+' dominano i marcatori. Il gruppo dipende da loro.',sub:'Su '+totG2+' gol totali'});}
-        const maiVinto=el.filter(p=>{const myW=matches.filter(m=>{const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;return(inA&&gA>gB)||(inB&&gB>gA);});return myW.length===0&&(p.partiteTotali||0)>=5;});
-        if(maiVinto.length){const p=maiVinto[0];cronItems.push({kicker:'LEGGENDA NERA',headline:(p.soprannome||p.nome)+': 0 vittorie su '+(p.partiteTotali||0),body:'Una striscia senza vittorie che ha del clamoroso. '+(p.soprannome||p.nome)+' sfida le leggi della probabilita.',sub:'I numeri non mentono'});}
-        if(cronItems.length>0){const ci=cronItems[Math.floor(Date.now()/120000)%cronItems.length];slides.push({type:'cronaca',dur:8000,label:'Cronaca',kicker:ci.kicker,headline:ci.headline,body:ci.body,sub:ci.sub||'',bg:'linear-gradient(145deg,#1a0a00,#4a1500 60%,#7c2d12)'});}
+        if(totG2>0&&sorted3.length>=2){const top2g=sorted3.slice(0,2).reduce((s,p)=>s+(p.goalTotali||0),0);const pct=Math.round(top2g/totG2*100);if(pct>=50)cronItems.push({kicker:'DATO SHOCK',headline:'Il '+pct+'% dei gol da 2 giocatori',body:(sorted3[0].soprannome||sorted3[0].nome)+' e '+(sorted3[1].soprannome||sorted3[1].nome)+' dominano i marcatori.',sub:'Su '+totG2+' gol totali'});}
+        if(cronItems.length===0)cronItems.push({kicker:'IL GRUPPO',headline:'Amici FC è pronto',body:'Registra le partite per sbloccare classifiche, statistiche e pagelle. Il campetto vi aspetta!',sub:players.length+' giocatori registrati'});
+        const ci=cronItems[Math.floor(Date.now()/120000)%cronItems.length];
+        slides.push({type:'cronaca',dur:8000,label:'Cronaca',kicker:ci.kicker,headline:ci.headline,body:ci.body,sub:ci.sub||'',bg:'linear-gradient(145deg,#1a0a00,#4a1500 60%,#7c2d12)'});
       }
-      // 4. NEWS — 8 distribuite
-      const nq=newsItems.value||[];if(nq.length){const step=Math.max(1,Math.floor(nq.length/8)),picked=[];for(let i=0;i<nq.length&&picked.length<8;i+=step)picked.push(nq[i]);for(const n of picked)slides.push({type:'news',dur:Math.max(4000,Math.min(8000,(n.text||'').length*60)),badge:(n.emoji||''),quote:n.text||'',cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)',foto:n.foto,uid:n.uid});}
-      // 5. RECAP ultima partita (stile telecronista)
+
+      // 4. NEWS dal pool
+      const nq=newsItems.value||[];
+      if(nq.length>0){
+        const want=Math.min(6,nq.length);
+        const step=Math.max(1,Math.floor(nq.length/want));
+        const picked=[];
+        for(let i=0;i<nq.length&&picked.length<want;i+=step)picked.push(nq[i]);
+        if(nq.length>1&&!picked.includes(nq[nq.length-1]))picked.push(nq[nq.length-1]);
+        for(const n of picked)slides.push({type:'news',dur:Math.max(4000,Math.min(7000,(n.text||'').length*55)),badge:(n.emoji||'💬'),quote:n.text||'',cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)',foto:n.foto,uid:n.uid});
+      }
+
+      // 5. RECAP ultima partita
       if(matches.length>0){
         const last=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];
         const gA=last.risultato?.goalA||0,gB=last.risultato?.goalB||0;
         const tA=last.nomeSquadraA||'Squadra A',tB=last.nomeSquadraB||'Squadra B';
         const scorers=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).map(s=>{const p=players.find(x=>String(x.id)===String(s.playerId));return(p?.soprannome||p?.nome||'?')+'\u00a0\u26bd\xd7'+s.goal;}).slice(0,4).join(', ');
         const ri=Math.floor(Date.now()/86400000);
-        const intros=gA===gB?['Un pareggio che lascia l\'amaro in bocca a entrambe le parti.','Nessun vincitore, ma tanto spettacolo.']:gA>gB?[tA+' ha dominato dall\'inizio alla fine.',tA+' ha meritato ogni goal.']:[tB+' ha dimostrato la propria qualita.',tB+' non lascia spazio ai dubbi.'];
-        const intro=intros[ri%intros.length];
-        const bodies=[scorers?'Marcatori: '+scorers+(last.uomoPartita?'. Uomo partita: '+last.uomoPartita+'. Una prestazione da incorniciare.':'.'):(gA===gB?'0-0 non significa noia: ogni pallone e stato combattuto.':'Il risultato parla chiaro.'),last.note?'"'+last.note+'" \u2014 le parole che raccontano questa serata.':'Una partita da ricordare, nel bene o nel male.',gA+gB>=6?''+(gA+gB)+' gol totali. Serata di gala per il reparto offensivo.':(gA+gB===0)?'Zero gol, massima tensione. Portieri implacabili.':'Un match tosto. Ogni goal e costato caro.'];
-        slides.push({type:'recap',dur:7000,label:'Rivivi la Partita',gA,gB,tA,tB,intro,body:bodies[ri%bodies.length],sub:formatDate(last.data)+(last.uomoPartita?' \xb7 Uomo partita: '+last.uomoPartita:''),bg:'linear-gradient(145deg,#0a0a1a,#1e1b4b 60%,#3730a3)'});
+        const intros=gA===gB?['Un pareggio che lascia l\'amaro in bocca.','Nessun vincitore, ma tanto spettacolo.']:gA>gB?[tA+' ha dominato dall\'inizio.',tA+' ha meritato ogni goal.']:[tB+' ha dimostrato la propria qualità.',tB+' non lascia spazio ai dubbi.'];
+        const bodies=[scorers?'Marcatori: '+scorers+(last.uomoPartita?'. UoM: '+last.uomoPartita+'.':'.'):'Il risultato parla chiaro.',last.note?'"'+last.note+'"':'Una partita da ricordare.',gA+gB>=6?''+(gA+gB)+' gol totali. Serata di gala!':(gA+gB===0)?'Zero gol, massima tensione.':'Ogni goal è costato caro.'];
+        slides.push({type:'recap',dur:7000,label:'Rivivi la Partita',gA,gB,tA,tB,intro:intros[ri%intros.length],body:bodies[ri%bodies.length],sub:formatDate(last.data)+(last.uomoPartita?' \xb7 UoM: '+last.uomoPartita:''),bg:'linear-gradient(145deg,#0a0a1a,#1e1b4b 60%,#3730a3)'});
       }
-      // 6. GOAL
-      const topG=[...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];const totG=players.reduce((s,p)=>s+(p.goalTotali||0),0);const _actP=players.filter(p=>(p.partiteTotali||0)>0);const mediaGolGrp=_actP.length?(totG/_actP.length).toFixed(1):'0';if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
-      // 7. TRENDING
-      if(matches.length>=3){const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3),rg={};for(const m of l3)for(const s of m.statisticheGiocatori||[]){rg[s.playerId]=(rg[s.playerId]||0)+(s.goal||0);}let best=null,bestD=-999;for(const p of el){const pg=rg[p.id]||0,avg=(p.goalTotali||0)/Math.max(p.partiteTotali||1,1),ro=l3.reduce((s,m)=>{const st=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.id));return s+(st?((st.goal||0)*3+(st.assist||0)*1.5+(st.uomoPartita?3:0)):0);},0)/3,cd=(pg/3-avg)*2+(ro-(p.mediaPunti||0));if(cd>bestD){bestD=cd;best={p,pg,ro,delta:cd};}}if(best&&bestD>0.1){const{p,pg,ro}=best,mgol=((p.goalTotali||0)/Math.max(p.partiteTotali||1,1)).toFixed(2);slides.push({type:'trend',dur:5000,label:'Trending ora',name:(p.soprannome||p.nome)+' in gran forma!',sub:pg+' gol nelle ultime 3',delta:'+'+best.delta.toFixed(1),foto:p.foto,uid:p.uid,bg:'linear-gradient(145deg,#052e16,#065f46 60%,#059669)',cmp:[{l:'Media stagione',v:mgol+' gol/p'},{l:'Ultime 3',v:(pg/3).toFixed(1)+' gol/p'},{l:'Overall rec.',v:ro.toFixed(1)+' pts'}]});}}
+
+      // 6. GOAL TOTALI
+      const topG=[...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];
+      const totG=players.reduce((s,p)=>s+(p.goalTotali||0),0);
+      const _actP=players.filter(p=>(p.partiteTotali||0)>0);
+      const mediaGolGrp=_actP.length?(totG/_actP.length).toFixed(1):'0';
+      if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
+
+      // 7. TRENDING (soglia: matches>=2)
+      if(matches.length>=2&&el.length>=1){
+        const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3),rg={};
+        for(const m of l3)for(const s of m.statisticheGiocatori||[]){rg[s.playerId]=(rg[s.playerId]||0)+(s.goal||0);}
+        let best=null,bestD=-999;
+        for(const p of el){const pg=rg[p.id]||0,avg=(p.goalTotali||0)/Math.max(p.partiteTotali||1,1),ro=l3.reduce((s,m)=>{const st=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.id));return s+(st?((st.goal||0)*3+(st.assist||0)*1.5+(st.uomoPartita?3:0)):0);},0)/3,cd=(pg/3-avg)*2+(ro-(p.mediaPunti||0));if(cd>bestD){bestD=cd;best={p,pg,ro,delta:cd};}}
+        if(best){const{p,pg,ro}=best,mgol=((p.goalTotali||0)/Math.max(p.partiteTotali||1,1)).toFixed(2);slides.push({type:'trend',dur:5000,label:'Trending ora',name:(p.soprannome||p.nome)+' in gran forma!',sub:pg+' gol nelle ultime 3',delta:'+'+(best.delta>0?best.delta.toFixed(1):'0.1'),foto:p.foto,uid:p.uid,bg:'linear-gradient(145deg,#052e16,#065f46 60%,#059669)',cmp:[{l:'Media stagione',v:mgol+' gol/p'},{l:'Ultime 3',v:(pg/3).toFixed(1)+' gol/p'},{l:'Overall rec.',v:ro.toFixed(1)+' pts'}]});}
+      }
+
       // 8. STAGIONE
-      const lastM=matches.length?[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0]:null;slides.push({type:'stat',dur:2500,label:'Stagione',val:matches.length,col:'#4ade80',bg:'linear-gradient(145deg,#052e16,#166534 60%,#22C55E)',name:players.length+' giocatori \xb7 '+matches.length+' partite',sub:lastM?'Ultima: '+lastM.data.split('-').reverse().join('/'):'Inizia a registrare!',dest:'history'});
+      const lastM=matches.length?[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0]:null;
+      slides.push({type:'stat',dur:2500,label:'Stagione',val:matches.length,col:'#4ade80',bg:'linear-gradient(145deg,#052e16,#166534 60%,#22C55E)',name:players.length+' giocatori \xb7 '+matches.length+' partite',sub:lastM?'Ultima: '+lastM.data.split('-').reverse().join('/'):'Inizia a registrare!',dest:'history'});
+
       // 9. GIOCATORI (ultima)
       slides.push({type:'stat',dur:2500,label:'Giocatori',val:players.length,col:'#60a5fa',bg:'linear-gradient(145deg,#0c1a3a,#1e3a8a 60%,#3b82f6)',name:'Rosa completa',sub:'Premi per vedere tutti i profili',dest:'players'});
+
       return slides;
     })
 
