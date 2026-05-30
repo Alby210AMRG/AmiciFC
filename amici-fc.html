@@ -1498,6 +1498,45 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.7);line-height:1.55;text-align:center">{{s.txt}}</div>
               <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.4);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);text-align:center">Premi per l'Overall completo</div>
             </template>
+            <template v-else-if="s.type==='ovr3'">
+              <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:8px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;gap:8px;flex:1">
+                <!-- 2° posto (sinistra, leggermente più basso) -->
+                <div v-if="s.podio&&s.podio[1]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
+                  <div style="font-size:18px">🥈</div>
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #94a3b8;box-shadow:0 0 14px rgba(148,163,184,.3);background:rgba(255,255,255,.08)">
+                    <img :src="getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.8);max-width:74px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[1].nome}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.podio[1].ruolo}}</div>
+                  <div style="font-size:28px;font-weight:900;color:#94a3b8;line-height:1">{{s.podio[1].ovr}}</div>
+                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.3)">OVR</div>
+                </div>
+                <!-- 1° posto (centro, più grande) -->
+                <div v-if="s.podio&&s.podio[0]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:12px">
+                  <div style="font-size:22px">🥇</div>
+                  <div style="width:88px;height:88px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 20px rgba(251,191,36,.45);background:rgba(255,255,255,.08)">
+                    <img :src="getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:13px;font-weight:800;color:#fff;max-width:90px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[0].nome}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.45)">{{s.podio[0].ruolo}}</div>
+                  <div style="font-size:36px;font-weight:900;color:#fbbf24;line-height:1;text-shadow:0 0 16px rgba(251,191,36,.5)">{{s.podio[0].ovr}}</div>
+                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.35)">OVR</div>
+                </div>
+                <!-- 3° posto (destra, più basso) -->
+                <div v-if="s.podio&&s.podio[2]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
+                  <div style="font-size:18px">🥉</div>
+                  <div style="width:62px;height:62px;border-radius:50%;overflow:hidden;border:2.5px solid #cd7c3d;box-shadow:0 0 12px rgba(205,124,61,.3);background:rgba(255,255,255,.08)">
+                    <img :src="getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.75);max-width:64px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[2].nome}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.podio[2].ruolo}}</div>
+                  <div style="font-size:24px;font-weight:900;color:#cd7c3d;line-height:1">{{s.podio[2].ovr}}</div>
+                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.3)">OVR</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.35);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);text-align:center">Premi per la classifica Overall completa</div>
+            </template>
           </div>
         </div>
         <div style="position:absolute;bottom:9px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5;pointer-events:none">
@@ -2379,25 +2418,35 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- OVERALL -->
         <template v-if="statsTab==='overall'">
           <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🥇 Migliori in Campo</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div class="card-title" style="margin-bottom:0">🥇 Overall Rating</div>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button>
+            </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
-              Come si calcola l'<strong style="color:var(--lime)">Overall</strong>? Punteggio composito per partita (min. 25% delle partite del gruppo, almeno 2):<br>
-              🏆 <strong>Media punti ×10</strong> · ⚽ <strong>Gol/partita ×8</strong> · 🅰️ <strong>Assist/partita ×4</strong> · 🏅 <strong>Uomo partita/g ×10</strong> · 🧤 <strong>CS/g ×8</strong> (portieri) · 🛡️ <strong>Vittorie/g ×4</strong> (difensori) · ⭐ <strong>Voto ×2</strong> · ❌ <strong>Autogol −6</strong> · 📅 <strong>Costanza +5</strong> (top-3 livelli presenze)
+              <strong style="color:var(--lime)">OVR 50–99</strong> · Formula differenziata per ruolo · min. 25% partite del gruppo (almeno 2)<br>
+              ⚽ <strong>Att / Cen / Jolly</strong> → Base: Voto×45% + Gol/p×45% + UoM×10% · Bonus: Gol/p smorzato (pieno con 8+ partite)<br>
+              🛡️ <strong>Difensore</strong> → Base: Voto×65% + Vittorie/p×25% + UoM×10% · <em>avg punti escluso</em> (misura il team, non il singolo)<br>
+              🧤 <strong>Portiere</strong> → Base: AvgPt×55% + Voto×30% + UoM×15% · Bonus: CS×50% + Voto×30% + AvgPt×20%<br>
+              📅 <strong>+Costanza</strong> fino a +5 proporzionale alle presenze · ❌ <strong>−Autogol</strong> ×6 per partita
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
-            <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row" style="align-items:center">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
                 <div class="stats-name">{{p.soprannome||p.nome}}</div>
                 <div class="stats-sub" style="display:flex;gap:5px;flex-wrap:wrap">
+                  <span style="font-size:0.7rem;padding:1px 5px;border-radius:6px;background:rgba(255,255,255,.07);color:var(--text2)">{{p.ruolo||'—'}}</span>
                   <span>⚽{{p.goalTotali||0}}</span>
                   <span v-if="p.uomoPartitaTotali">🏅{{p.uomoPartitaTotali}}</span>
                   <span v-if="p._cs&&p.ruolo==='Portiere'">🧤{{p._cs}}CS</span>
                   <span v-if="p.autogolTotali" style="color:var(--red)">OG{{p.autogolTotali}}</span>
                 </div>
               </div>
-              <div class="stats-val" style="color:var(--yellow);font-size:1.1rem">{{p._score.toFixed(1)}}</div>
+              <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;min-width:52px">
+                <div style="font-size:1.5rem;font-weight:900;line-height:1;" :style="p._score>=85?'color:#fbbf24':p._score>=75?'color:#a3e635':p._score>=65?'color:#4ade80':'color:#94a3b8'">{{p._score}}</div>
+                <div style="font-size:0.6rem;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.35);margin-top:1px">OVR</div>
+              </div>
             </div>
           </div>
           
@@ -3922,7 +3971,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
 <script>
 /* ═══════════════════════════════════════════════════
-   AMICI FC – Main App v1.278
+   AMICI FC – Main App v1.281
    Vue 3 + Dexie (IndexedDB) + AI + PNG Generation
    Creato da Alby
    ═══════════════════════════════════════════════════ */
@@ -3979,7 +4028,7 @@ const hashCode = s => [...s].reduce((h,c) => (Math.imul(31,h)+c.charCodeAt(0))|0
 // ──────────────────────────────────────
 // VUE APP
 // ──────────────────────────────────────
-/* AmiciFC v1.278 - loaded: 2026-05-30 */
+/* AmiciFC v1.281 - loaded: 2026-05-30 */
 const { createApp, ref, computed, reactive, onMounted, watch, nextTick, watchEffect } = Vue;
 
 let _syncNavigated = false;
@@ -4190,7 +4239,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.278',date:'2026-05-30',items:['Fix: notizie telecronista aprono la partita al click','Fix: slide Recap ultima partita apre la partita al click','Fix: soglia rivalità storica abbassata (matches≥3, incontri≥2)','Fix: Dream Team senza VS — griglia 4 foto calciatori','Fix: lucchetto rimosso dalle Ultime Partite in home']},{version:'v1.277',date:'2026-05-30',items:['Fix: rimosso blocco duplicato nel return{} Vue (heroUnifiedData e altri esportati due volte)','Fix: drawStatsCanvas aveva try/catch annidato che chiamava drawFormationCanvas con variabile non definita','Fix: rimossi alias generateFormationsRandom e generateMultipleFormations (non usati, stessa funzione)','Cleanup: codice più leggero e stabile']},{version:'v1.276',date:'2026-05-26',items:['Fix AI: max_tokens 300->600 (articolo completo invece di tronco)','Fix AI: estrai titolo dalla prima riga MAIUSCOLO della risposta','Rimosso tasto extra AI dal dettaglio partita']},{version:'v1.275',date:'2026-05-26',items:['Nuovo: pulsante Rigenera AI nelle partite storiche','Commento AI visibile nel dettaglio partita','Fix: regenerateCommentForMatch carica tutti i dati storici prima di chiamare AI']},{version:'v1.274',date:'2026-05-26',items:['AI: nuovo prompt stile Gianni Brera/Mura per articolo e commento partita','Struttura: titolo+sottotitolo+articolo+chiusura ironica','Dati: soprannomi, storico giocatori, note dal campo, uomo partita']},{version:'v1.273',date:'2026-05-26',items:['Email modificatore offuscata con X (mario.rossi -> mxxxo.xxsxx@xmxxx.cxm)']},{version:'v1.272',date:'2026-05-26',items:['Fix critico: openEditIfUnlocked e toggleMatchLock aggiunti al return Vue','Fix: partite ora si aprono su mobile','Email modificatore: mostra solo nome utente senza dominio']},{version:'v1.271',date:'2026-05-26',items:['Fix critico: schermata nera su mobile aprendo partita (virgolette nel template)']},{version:'v1.270',date:'2026-05-26',items:['Email ultimo modificatore mascherata (m***o@g***l.com)']},{version:'v1.269',date:'2026-05-25',items:['Fix: sync Firebase immediato al salvataggio partita (non fire-and-forget)','Nuovo: Ultimo modificatore (email + data/ora) salvato in ogni modifica partita','Nuovo: Lucchetto partite — blocca modifica con icona 🔒 nella lista e dettaglio']},{version:'v1.268',date:'2026-05-25',items:['Fix: storyline 2B Marcatori, 2C Punti, 2D Dream Team ripristinate','Fix: _mot2 ora viene pushata alle slide','Fix: txt in Rivalita Reale ora e una variabile esplicita']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi Identita (3 sconfitte), Infallibile (2+gol/p), Re Pareggio','Hero: Il Guascone (striscia positiva con sfida), Rivali/Affinita profili']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi d Identita (3 sconfitte di fila) con foto e frase','Hero: L Infallibile (media 2+ gol) con foto e frase ironica','Hero: Re del Pareggio (3 pareggi consecutivi)','Hero: Il Guascone (striscia positiva) con sfida all utente','Hero: Affinita e Rivali dai profili giocatori con duel card']},{version:'v1.266',date:'2026-05-25',items:['Fix: WOW news erano perse (push dopo finalItems) — ora nel pool','Fix: el non definito in news fn — ora el3/el1','Aggiunto: punti totali, media punti, media gol, mot.personalizzata','Fix: interleave frasi ogni 4 items invece di 3']},{version:'v1.265',date:'2026-05-25',items:['CRITICAL: SW non intercetta Firebase (risolve abort sync cloud)','Fix frasi celebri hero: 1 slide per ora']},{version:'v1.264',date:'2026-05-25',items:['Hero: frasi celebri giocatori come slide dedicate (solo se presenti)']},{version:'v1.262',date:'2026-05-25',items:['SW v{sw_ver}: forza refresh — elimina cache vecchia','Stats: Media Gol diventa tab separata accanto a Gol']},{version:'v1.261',date:'2026-05-25',items:['FAB Play: animazione verde fluo ripristinata','Hero news: distribuite casualmente (shuffle orario), motivazionali sparse','Storyline: aggiunto Classifica Punti + Dream Team formazione','Stats: aggiunta Media Gol/partita con condivisione PNG']},{version:'v1.260',date:'2026-05-25',items:['Fix FAB: touch-action+classe pressed per effetto su iOS/Android','Fix Duel: solo giocatori con min 2 partite e almeno 1 gol','Fix Storyline: rivalità reale solo se ≥2 sfide dirette, altrimenti classifica marcatori']},{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.281',date:'2026-05-30',items:['Hero: card OVR podio top-3 con foto, medaglie e punteggio (🥇🥈🥉)','Stats Overall: descrizione formula aggiornata con regole dettagliate per ruolo','OVR ricalcolato automaticamente ad ogni salvataggio partita (computed reattivo)']},{version:'v1.280',date:'2026-05-30',items:['OVR v3: formula differenziata per ruolo basata su analisi dati reali','Att/Cen: gol/partita smorzato (8+ partite pieno) — non avg punti squadra','Difensore: voto individuale dominante + vittorie reali smorzate (avg punti scartata perché gonfiata dal team)','Portiere: avg punti neutro + CS + voto','Smorzamento universale sqrt(n/8): evita OVR gonfiati su 1-2 partite']},{version:'v1.279',date:'2026-05-30',items:['Overall: nuova formula OVR 50-99 stile FIFA ibrida','OVR = BASE(Voto 55%+Punti 35%+UoM 10%)×70% + BonusRuolo×30% + Costanza − Autogol','Bonus Ruolo differenziato: Att/Cen→Gol/partita · Difensore→Punti+Vittorie · Portiere→Voto+CleanSheet','Costanza proporzionale a P_max (non più binaria top-3)','OVR visualizzato come intero colorato (oro≥85 · verde≥75 · teal≥65 · grigio<65)']},{version:'v1.278',date:'2026-05-30',items:['Fix: notizie telecronista aprono la partita al click','Fix: slide Recap ultima partita apre la partita al click','Fix: soglia rivalità storica abbassata (matches≥3, incontri≥2)','Fix: Dream Team senza VS — griglia 4 foto calciatori','Fix: lucchetto rimosso dalle Ultime Partite in home']},{version:'v1.277',date:'2026-05-30',items:['Fix: rimosso blocco duplicato nel return{} Vue (heroUnifiedData e altri esportati due volte)','Fix: drawStatsCanvas aveva try/catch annidato che chiamava drawFormationCanvas con variabile non definita','Fix: rimossi alias generateFormationsRandom e generateMultipleFormations (non usati, stessa funzione)','Cleanup: codice più leggero e stabile']},{version:'v1.276',date:'2026-05-26',items:['Fix AI: max_tokens 300->600 (articolo completo invece di tronco)','Fix AI: estrai titolo dalla prima riga MAIUSCOLO della risposta','Rimosso tasto extra AI dal dettaglio partita']},{version:'v1.275',date:'2026-05-26',items:['Nuovo: pulsante Rigenera AI nelle partite storiche','Commento AI visibile nel dettaglio partita','Fix: regenerateCommentForMatch carica tutti i dati storici prima di chiamare AI']},{version:'v1.274',date:'2026-05-26',items:['AI: nuovo prompt stile Gianni Brera/Mura per articolo e commento partita','Struttura: titolo+sottotitolo+articolo+chiusura ironica','Dati: soprannomi, storico giocatori, note dal campo, uomo partita']},{version:'v1.273',date:'2026-05-26',items:['Email modificatore offuscata con X (mario.rossi -> mxxxo.xxsxx@xmxxx.cxm)']},{version:'v1.272',date:'2026-05-26',items:['Fix critico: openEditIfUnlocked e toggleMatchLock aggiunti al return Vue','Fix: partite ora si aprono su mobile','Email modificatore: mostra solo nome utente senza dominio']},{version:'v1.271',date:'2026-05-26',items:['Fix critico: schermata nera su mobile aprendo partita (virgolette nel template)']},{version:'v1.270',date:'2026-05-26',items:['Email ultimo modificatore mascherata (m***o@g***l.com)']},{version:'v1.269',date:'2026-05-25',items:['Fix: sync Firebase immediato al salvataggio partita (non fire-and-forget)','Nuovo: Ultimo modificatore (email + data/ora) salvato in ogni modifica partita','Nuovo: Lucchetto partite — blocca modifica con icona 🔒 nella lista e dettaglio']},{version:'v1.268',date:'2026-05-25',items:['Fix: storyline 2B Marcatori, 2C Punti, 2D Dream Team ripristinate','Fix: _mot2 ora viene pushata alle slide','Fix: txt in Rivalita Reale ora e una variabile esplicita']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi Identita (3 sconfitte), Infallibile (2+gol/p), Re Pareggio','Hero: Il Guascone (striscia positiva con sfida), Rivali/Affinita profili']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi d Identita (3 sconfitte di fila) con foto e frase','Hero: L Infallibile (media 2+ gol) con foto e frase ironica','Hero: Re del Pareggio (3 pareggi consecutivi)','Hero: Il Guascone (striscia positiva) con sfida all utente','Hero: Affinita e Rivali dai profili giocatori con duel card']},{version:'v1.266',date:'2026-05-25',items:['Fix: WOW news erano perse (push dopo finalItems) — ora nel pool','Fix: el non definito in news fn — ora el3/el1','Aggiunto: punti totali, media punti, media gol, mot.personalizzata','Fix: interleave frasi ogni 4 items invece di 3']},{version:'v1.265',date:'2026-05-25',items:['CRITICAL: SW non intercetta Firebase (risolve abort sync cloud)','Fix frasi celebri hero: 1 slide per ora']},{version:'v1.264',date:'2026-05-25',items:['Hero: frasi celebri giocatori come slide dedicate (solo se presenti)']},{version:'v1.262',date:'2026-05-25',items:['SW v{sw_ver}: forza refresh — elimina cache vecchia','Stats: Media Gol diventa tab separata accanto a Gol']},{version:'v1.261',date:'2026-05-25',items:['FAB Play: animazione verde fluo ripristinata','Hero news: distribuite casualmente (shuffle orario), motivazionali sparse','Storyline: aggiunto Classifica Punti + Dream Team formazione','Stats: aggiunta Media Gol/partita con condivisione PNG']},{version:'v1.260',date:'2026-05-25',items:['Fix FAB: touch-action+classe pressed per effetto su iOS/Android','Fix Duel: solo giocatori con min 2 partite e almeno 1 gol','Fix Storyline: rivalità reale solo se ≥2 sfide dirette, altrimenti classifica marcatori']},{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4665,7 +4714,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.278');
+    const appVersion = ref('1.281');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -4763,44 +4812,67 @@ createApp({
     };
 
     // Overall composite score
-    const overallScore = (p) => {
-      const n = Math.max(p.partiteTotali||1, 1);
-      const hasMatches = groupMatches.value.length > 0;
-      const cs  = (hasMatches && p.ruolo === 'Portiere') ? calcCleanSheets(p.id) : 0;
-      const upm = hasMatches ? (p.uomoPartitaTotali||0) : 0;
-      const totalMatches = groupMatches.value.length || 1;
-      // Costanza: bonus proporzionale alle presenze sul totale partite del gruppo
-      // Max +5 punti per chi ha giocato tutte le partite, scalato linearmente
-      // Min 3 partite per ricevere bonus costanza
-      // FIX5: Costanza bonus - top 3 LEVELS of presence get bonus
-      // Find the 3 unique highest presence counts among all players
-      const allPresenze = [...new Set(groupPlayers.value.map(x => x.partiteTotali||0))].sort((a,b)=>b-a);
-      const top3Levels = allPresenze.slice(0,3); // e.g. [16,15,14]
-      // If player's presence == one of top3 levels → full bonus (5)
-      // Else → no bonus
-      const costanzaBonus = top3Levels.includes(n) ? 5 : 0;
-      // Bonus difensore: vittorie collettive /partita ×4
-      const winsBonus = (hasMatches && p.ruolo === 'Difensore')
-        ? (calcPlayerWins(p.id) / n) * 4 : 0;
-      return (
-        (p.mediaPunti||0) * 10 +
-        (p.goalTotali||0) / n * 8 +
-        (p.assistTotali||0) / n * 4 +
-        upm / n * 10 +
-        cs / n * 8 -
-        (p.autogolTotali||0) / n * 6 +
-        ((p.mediaVoto||0) > 0 ? ((p.mediaVoto||0) - 6) * 2 : 0) +
-        costanzaBonus + winsBonus
-      );
+    // ── OVR (50-99, stile FIFA ibrido v3) ──
+    // Insight chiave: mediaPunti = 3/1/0 (risultato squadra, NON performance individuale)
+    // → per Att/Cen usa gol/partita; per Difensori usa voto+vittorie reali; per Portieri avg punti+CS
+    const overallScore = (p, pMax) => {
+      const n      = Math.max(p.partiteTotali||1, 1);
+      const mp     = p.mediaPunti||0;
+      const mv     = p.mediaVoto||0;
+      const ruolo  = (p.ruolo||'').trim();
+      const gol    = p.goalTotali||0;
+      const ag     = p.autogolTotali||0;
+      const uom    = p.uomoPartitaTotali||0;
+
+      const pVoto   = mv > 0 ? mv * 10 : 60;
+      const pPunti  = 50 + (mp * 16.33);
+      const uomBonus = (uom / n) * 40;
+      // Smorzamento universale: bonus a pieno regime con 8+ partite
+      const smorzamento = Math.min(1.0, Math.sqrt(n / 8));
+
+      const _pMax = pMax || Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
+
+      let baseOvr, bonusRuolo;
+
+      if (ruolo === 'Portiere') {
+        // Portieri: avg punti è l'unico indicatore neutro (non gonfiabile dal ruolo)
+        // voto individuale + clean sheet
+        const cs = calcCleanSheets(p.id);
+        const pCS = Math.min(50 + (cs / n * 49), 99);
+        baseOvr    = (pPunti * 0.55) + (pVoto * 0.30) + (uomBonus * 0.15);
+        bonusRuolo = (pCS * 0.50) + (pVoto * 0.30) + (pPunti * 0.20);
+
+      } else if (ruolo === 'Difensore') {
+        // Difensori: avg punti scartato (gonfiato dal risultato squadra)
+        // Usa voto individuale (dominante) + vittorie reali smorzate
+        const wins  = calcPlayerWins(p.id);
+        const pVit  = Math.min(50 + (wins / n * 49) * smorzamento, 99);
+        baseOvr    = (pVoto * 0.65) + (pVit * 0.25) + (uomBonus * 0.10);
+        bonusRuolo = (pVit * 0.55) + (pVoto * 0.40) + (Math.min(50+(gol/n*40.83),99)-50)*0.05;
+
+      } else {
+        // Attaccante / Centrocampista / Jolly / non specificato
+        // Gol/partita è il dato più onesto — smorzato per campioni piccoli
+        const pGolS = 50 + (gol / n * 40.83) * smorzamento;
+        baseOvr    = (pVoto * 0.45) + (pGolS * 0.45) + (uomBonus * 0.10);
+        bonusRuolo = pGolS;
+      }
+
+      const costanza = (n / _pMax) * 5;
+      const malusAg  = (ag / n) * 6;
+      const raw = (baseOvr * 0.70) + (bonusRuolo * 0.30) + costanza - malusAg;
+      return Math.min(99, Math.max(50, Math.round(raw)));
     };
 
-    const topOverall = computed(() =>
-      [...groupPlayers.value]
-        .filter(p => { const minP = Math.max(2, Math.floor((groupMatches.value.length||0) * 0.25)); return (p.partiteTotali||0) >= minP; })
-        .map(p => ({ ...p, _score: overallScore(p), _cs: calcCleanSheets(p.id) }))
+    const topOverall = computed(() => {
+      const minP = Math.max(2, Math.floor((groupMatches.value.length||0) * 0.25));
+      const pMax = Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
+      return [...groupPlayers.value]
+        .filter(p => (p.partiteTotali||0) >= minP)
+        .map(p => ({ ...p, _score: overallScore(p, pMax), _cs: calcCleanSheets(p.id) }))
         .sort((a,b) => b._score - a._score)
-        .slice(0, 12)
-    );
+        .slice(0, 12);
+    });
 
     // ── Top Formation by size ──
     const FORMATION_SCHEMAS = {
@@ -4825,7 +4897,8 @@ createApp({
         (p.partiteTotali||0) >= 5 && last10Pids.has(p.id)
       );
       // Score per player using overallScore logic
-      const scored = players.map(p => ({ ...p, _score: overallScore(p) }))
+      const pMaxBTF = Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
+      const scored = players.map(p => ({ ...p, _score: overallScore(p, pMaxBTF) }))
                              .sort((a,b) => b._score - a._score);
       const result = [];
       const used = new Set();
@@ -9304,6 +9377,31 @@ Niente altro, nessuna spiegazione.`;
       const _actP=players.filter(p=>(p.partiteTotali||0)>0);
       const mediaGolGrp=_actP.length?(totG/_actP.length).toFixed(1):'0';
       if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
+
+      // 6B. OVR TOP-3
+      if(matches.length>=2){
+        const _pMaxOvr=Math.max(...players.map(x=>x.partiteTotali||0),1);
+        const minPOvr=Math.max(2,Math.floor(matches.length*0.25));
+        const _topOvr=[...players]
+          .filter(p=>(p.partiteTotali||0)>=minPOvr)
+          .map(p=>({...p,_ovr:overallScore(p,_pMaxOvr)}))
+          .sort((a,b)=>b._ovr-a._ovr)
+          .slice(0,3);
+        if(_topOvr.length>=2){
+          slides.push({
+            type:'ovr3',dur:6000,
+            label:'Overall Rating',
+            podio:_topOvr.map(p=>({
+              nome:p.soprannome||p.nome,
+              foto:p.foto,uid:p.uid,
+              ovr:p._ovr,
+              ruolo:p.ruolo||''
+            })),
+            bg:'linear-gradient(145deg,#0a0a1a,#1a1040 60%,#3b1d8a)',
+            dest:'stats',statsTab:'overall'
+          });
+        }
+      }
 
       // 7. TRENDING (soglia: matches>=2)
       if(matches.length>=2&&el.length>=1){
