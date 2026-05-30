@@ -3094,107 +3094,114 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           Usa il pulsante <strong style="color:var(--lime)">☁️</strong> accanto al nome del gruppo in cima all'app.
         </div>
 <!-- CREDITI -->
-      <!-- ── Ottimizza Foto ── -->
-      <div class="card" style="border-color:rgba(58,123,255,0.3)">
-        <div class="card-title" style="color:var(--blue)">🖼️ Ottimizza Foto Giocatori</div>
-        <div style="font-size:0.8rem;color:var(--text2);margin-bottom:12px">
-          Ridimensiona le foto caricate da file a max 400px e qualità 75%.<br>
-          Riduce lo spazio su Firebase e migliora la sincronizzazione.
+      <!-- ── ZONA PERICOLO (collassabile, contiene tutto il contenuto avanzato) ── -->
+      <div class="card" style="border-color:rgba(255,77,77,0.35);padding:0;overflow:hidden">
+        <!-- Header cliccabile -->
+        <div @click="zonaPericoloExpanded=!zonaPericoloExpanded"
+          style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem">⚠️</span>
+            <span style="font-weight:700;color:var(--red);font-size:0.95rem">Zona Pericolo</span>
+            <span v-if="appLogs.filter(l=>l.level==='error').length>0"
+              style="background:var(--red);color:#fff;border-radius:10px;padding:1px 8px;font-size:0.68rem;font-weight:700">
+              {{appLogs.filter(l=>l.level==='error').length}} err
+            </span>
+          </div>
+          <span style="color:var(--text2);font-size:0.85rem;transition:transform .25s"
+            :style="zonaPericoloExpanded?'transform:rotate(180deg)':''">▼</span>
         </div>
-        <button class="btn btn-primary btn-full" @click="optimizePlayerPhotos" :disabled="optimizingPhotos">
-          {{ optimizingPhotos ? '⏳ Ottimizzazione in corso...' : '✨ Ottimizza Foto' }}
-        </button>
-        <div v-if="optimizeResult" style="margin-top:8px;font-size:0.82rem;color:var(--lime)">
-          {{ optimizeResult }}
-        </div>
-      </div>
 
-      <!-- ── Debug AI Cards ── -->
-      <div class="card" style="border-color:rgba(13,148,136,0.3);background:rgba(13,148,136,0.04)">
-        <div class="card-title" style="color:#2dd4bf">🤖 Debug AI Cards</div>
-        <div style="font-size:0.74rem;color:var(--text2);margin-bottom:10px">
-          Verifica lo stato delle AI Card in tempo reale. Se non vedi card nell'home, usa i bottoni qui sotto.
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px">
-          <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;font-size:0.7rem">
-            <div style="color:rgba(255,100,100,.7);font-weight:700;margin-bottom:2px">🔥 Trash Talk</div>
-            <div :style="aiCardsTrashTalk.length?'color:#4ade80':'color:#f87171'">
-              {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card' : '— nessuna'}}
-            </div>
-          </div>
-          <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;font-size:0.7rem">
-            <div style="color:rgba(251,191,36,.7);font-weight:700;margin-bottom:2px">👑 Hall of Fame</div>
-            <div :style="aiCardsHallOfFame?'color:#4ade80':'color:#f87171'">
-              {{aiCardsHallOfFame ? aiCardsHallOfFame.mese : '— non generata'}}
-            </div>
-          </div>
-          <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;font-size:0.7rem">
-            <div style="color:rgba(45,212,191,.7);font-weight:700;margin-bottom:2px">🧬 Soprannomi</div>
-            <div :style="Object.keys(aiNicknames).length?'color:#4ade80':'color:#f87171'">
-              {{Object.keys(aiNicknames).length}} giocatori
-            </div>
-          </div>
-          <div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px;font-size:0.7rem">
-            <div style="color:rgba(255,255,255,.4);font-weight:700;margin-bottom:2px">🔌 AI Key</div>
-            <div :style="settings.apiKey?'color:#4ade80':'color:#f87171'">
-              {{settings.apiKey ? (settings.aiProvider+' ✅') : 'Mancante ❌'}}
-            </div>
-          </div>
-        </div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px">
-          <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(255,100,100,.35)"
-            @click="groupMatches.length&&_generateTrashTalk([...groupMatches].sort((a,b)=>b.data.localeCompare(a.data))[0]).catch(console.warn)">
-            🔥 Rigenera Trash Talk
-          </button>
-          <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(251,191,36,.35)"
-            @click="_generateHallOfFame().catch(console.warn)">
-            👑 Forza Hall of Fame
-          </button>
-          <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(45,212,191,.35)"
-            @click="_generateNicknames().catch(console.warn)">
-            🧬 Rigenera Soprannomi
-          </button>
-          <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(255,255,255,.15)"
-            @click="aiCardsDebugLog=[]">
-            🗑️ Pulisci log
-          </button>
-        </div>
-        <div style="font-size:0.68rem;font-weight:700;color:var(--text2);margin-bottom:4px;letter-spacing:1px">LOG ATTIVITÀ</div>
-        <div style="background:rgba(0,0,0,.35);border-radius:8px;padding:8px;max-height:200px;overflow-y:auto;font-family:monospace">
-          <div v-if="!aiCardsDebugLog.length" style="color:rgba(255,255,255,.25);font-size:0.65rem;text-align:center;padding:8px 0">
-            Nessuna attività — salva una partita o premi un bottone sopra
-          </div>
-          <div v-for="(l,li) in aiCardsDebugLog" :key="li"
-            style="font-size:0.63rem;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:6px;align-items:flex-start;line-height:1.4">
-            <span style="color:rgba(255,255,255,.25);flex-shrink:0;font-size:0.6rem">{{l.ts}}</span>
-            <span :style="l.ok?'color:#2dd4bf':'color:#f87171'" style="flex-shrink:0;font-weight:700">[{{l.tipo}}]</span>
-            <span style="color:rgba(255,255,255,.7)">{{l.msg}}</span>
-          </div>
-        </div>
-      </div>
+        <!-- Contenuto espandibile -->
+        <div v-show="zonaPericoloExpanded" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:14px">
 
-      <!-- ── Zona Pericolo ── -->
-      <div class="card" style="border-color:rgba(255,77,77,0.3)">
-        <div class="card-title" style="color:var(--red)">⚠️ Zona Pericolo</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
+          <!-- ── Log di sistema ── -->
           <button class="btn btn-ghost btn-full" @click="showLogModal=true"
             style="display:flex;align-items:center;justify-content:space-between;border-color:rgba(255,255,255,0.15)">
             <span>📋 Log di sistema</span>
-            <span style="display:flex;align-items:center;gap:6px">
-              <span v-if="appLogs.filter(l=>l.level==='error').length > 0"
-                style="background:var(--red);color:#fff;border-radius:10px;padding:1px 7px;font-size:0.72rem;font-weight:700">
-                {{appLogs.filter(l=>l.level==='error').length}} err
-              </span>
-              <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}} voci →</span>
-            </span>
+            <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}} voci →</span>
           </button>
-          <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
-          <button class="btn btn-full" style="background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
-            ☢️ Reset Totale (come nuova installazione)
-          </button>
-          <div style="font-size:0.72rem;color:var(--text2);line-height:1.4">
-            ⚠️ Reset Totale cancella tutto localmente. I dati su Firebase <strong>non</strong> vengono toccati.
+
+          <!-- ── Ottimizza Foto ── -->
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--blue);margin-bottom:6px">🖼️ Ottimizza Foto Giocatori</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+              Ridimensiona le foto a max 400px · qualità 75% · riduce spazio Firebase.
+            </div>
+            <button class="btn btn-primary btn-full" @click="optimizePlayerPhotos" :disabled="optimizingPhotos">
+              {{ optimizingPhotos ? '⏳ Ottimizzazione in corso...' : '✨ Ottimizza Foto' }}
+            </button>
+            <div v-if="optimizeResult" style="margin-top:6px;font-size:0.78rem;color:var(--lime)">{{ optimizeResult }}</div>
           </div>
+
+          <!-- ── Debug AI Cards ── -->
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:700;color:#2dd4bf;margin-bottom:8px">🤖 Debug AI Cards</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+                <div style="color:rgba(255,100,100,.7);font-weight:700;margin-bottom:2px">🔥 Trash Talk</div>
+                <div :style="aiCardsTrashTalk.length?'color:#4ade80':'color:#f87171'">
+                  {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card' : '— nessuna'}}
+                </div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+                <div style="color:rgba(251,191,36,.7);font-weight:700;margin-bottom:2px">👑 Hall of Fame</div>
+                <div :style="aiCardsHallOfFame?'color:#4ade80':'color:#f87171'">
+                  {{aiCardsHallOfFame ? aiCardsHallOfFame.mese : '— non generata'}}
+                </div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+                <div style="color:rgba(45,212,191,.7);font-weight:700;margin-bottom:2px">🧬 Soprannomi</div>
+                <div :style="Object.keys(aiNicknames).length?'color:#4ade80':'color:#f87171'">
+                  {{Object.keys(aiNicknames).length}} giocatori
+                </div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+                <div style="color:rgba(255,255,255,.4);font-weight:700;margin-bottom:2px">🔌 AI Key</div>
+                <div :style="settings.apiKey?'color:#4ade80':'color:#f87171'">
+                  {{settings.apiKey ? settings.aiProvider+' ✅' : 'Mancante ❌'}}
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(255,100,100,.35)"
+                @click="groupMatches.length&&_generateTrashTalk([...groupMatches].sort((a,b)=>b.data.localeCompare(a.data))[0]).catch(e=>_aiLog('UI','❌ '+e.message,false))">
+                🔥 Trash Talk
+              </button>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(251,191,36,.35)"
+                @click="_generateHallOfFame().catch(e=>_aiLog('UI','❌ '+e.message,false))">
+                👑 Hall of Fame
+              </button>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(45,212,191,.35)"
+                @click="_generateNicknames().catch(e=>_aiLog('UI','❌ '+e.message,false))">
+                🧬 Soprannomi
+              </button>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(255,255,255,.15)"
+                @click="aiCardsDebugLog=[]">🗑️ Log</button>
+            </div>
+            <div style="background:rgba(0,0,0,.35);border-radius:8px;padding:8px;max-height:180px;overflow-y:auto;font-family:monospace">
+              <div v-if="!aiCardsDebugLog.length" style="color:rgba(255,255,255,.25);font-size:0.63rem;text-align:center;padding:6px 0">
+                Nessuna attività — salva una partita o premi un bottone
+              </div>
+              <div v-for="(l,li) in aiCardsDebugLog" :key="li"
+                style="font-size:0.62rem;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:5px;align-items:flex-start;line-height:1.4">
+                <span style="color:rgba(255,255,255,.22);flex-shrink:0">{{l.ts}}</span>
+                <span :style="l.ok?'color:#2dd4bf':'color:#f87171'" style="flex-shrink:0;font-weight:700">[{{l.tipo}}]</span>
+                <span style="color:rgba(255,255,255,.7)">{{l.msg}}</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Reset ── -->
+          <div style="border-top:1px solid rgba(255,77,77,.2);padding-top:12px;display:flex;flex-direction:column;gap:8px">
+            <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
+            <button class="btn btn-full" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
+              ☢️ Reset Totale (come nuova installazione)
+            </button>
+            <div style="font-size:0.7rem;color:var(--text2);line-height:1.4">
+              ⚠️ Reset Totale cancella tutto localmente. I dati su Firebase <strong>non</strong> vengono toccati.
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -4109,7 +4116,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
 <script>
 /* ═══════════════════════════════════════════════════
-   AMICI FC – Main App v1.283
+   AMICI FC – Main App v1.284
    Vue 3 + Dexie (IndexedDB) + AI + PNG Generation
    Creato da Alby
    ═══════════════════════════════════════════════════ */
@@ -4166,7 +4173,7 @@ const hashCode = s => [...s].reduce((h,c) => (Math.imul(31,h)+c.charCodeAt(0))|0
 // ──────────────────────────────────────
 // VUE APP
 // ──────────────────────────────────────
-/* AmiciFC v1.283 - loaded: 2026-05-30 */
+/* AmiciFC v1.284 - loaded: 2026-05-30 */
 const { createApp, ref, computed, reactive, onMounted, watch, nextTick, watchEffect } = Vue;
 
 let _syncNavigated = false;
@@ -4377,7 +4384,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.283',date:'2026-05-30',items:['Fix: storico recente Trash Talk esclude partita corrente (ha_vinto/ha_pareggiato ora corretti)','Fix: aggiunto storico_risultati (VVPSS...) e streak_negativa/positiva nel profilo giocatori','Fix: nickCard font dinamico — testo lungo non schiaccia più la foto del giocatore','Nuovo: pannello Debug AI Cards in Impostazioni con stato card e log attività in tempo reale','Nuovo: bottoni forza-generazione Trash Talk / Hall of Fame / Soprannomi per test']},{version:'v1.282',date:'2026-05-30',items:['AI Cards: Trash Talk generato ad ogni nuova partita (pool 3 card a rotazione nell\'hero)','AI Cards: Hall of Fame/Shame mensile con logica anti-sovrascrittura Firebase (ETag conditional write)','AI Cards: Soprannomi dinamici AI per giocatore (rigenerati ogni 5 partite)','Anti-sovrascrittura: lock Firebase con ETag + polling per gruppi multi-device','Funziona offline (localStorage) per gruppi senza Firebase']},{version:'v1.281',date:'2026-05-30',items:['Hero: card OVR podio top-3 con foto, medaglie e punteggio (🥇🥈🥉)','Stats Overall: descrizione formula aggiornata con regole dettagliate per ruolo','OVR ricalcolato automaticamente ad ogni salvataggio partita (computed reattivo)']},{version:'v1.280',date:'2026-05-30',items:['OVR v3: formula differenziata per ruolo basata su analisi dati reali','Att/Cen: gol/partita smorzato (8+ partite pieno) — non avg punti squadra','Difensore: voto individuale dominante + vittorie reali smorzate (avg punti scartata perché gonfiata dal team)','Portiere: avg punti neutro + CS + voto','Smorzamento universale sqrt(n/8): evita OVR gonfiati su 1-2 partite']},{version:'v1.279',date:'2026-05-30',items:['Overall: nuova formula OVR 50-99 stile FIFA ibrida','OVR = BASE(Voto 55%+Punti 35%+UoM 10%)×70% + BonusRuolo×30% + Costanza − Autogol','Bonus Ruolo differenziato: Att/Cen→Gol/partita · Difensore→Punti+Vittorie · Portiere→Voto+CleanSheet','Costanza proporzionale a P_max (non più binaria top-3)','OVR visualizzato come intero colorato (oro≥85 · verde≥75 · teal≥65 · grigio<65)']},{version:'v1.278',date:'2026-05-30',items:['Fix: notizie telecronista aprono la partita al click','Fix: slide Recap ultima partita apre la partita al click','Fix: soglia rivalità storica abbassata (matches≥3, incontri≥2)','Fix: Dream Team senza VS — griglia 4 foto calciatori','Fix: lucchetto rimosso dalle Ultime Partite in home']},{version:'v1.277',date:'2026-05-30',items:['Fix: rimosso blocco duplicato nel return{} Vue (heroUnifiedData e altri esportati due volte)','Fix: drawStatsCanvas aveva try/catch annidato che chiamava drawFormationCanvas con variabile non definita','Fix: rimossi alias generateFormationsRandom e generateMultipleFormations (non usati, stessa funzione)','Cleanup: codice più leggero e stabile']},{version:'v1.276',date:'2026-05-26',items:['Fix AI: max_tokens 300->600 (articolo completo invece di tronco)','Fix AI: estrai titolo dalla prima riga MAIUSCOLO della risposta','Rimosso tasto extra AI dal dettaglio partita']},{version:'v1.275',date:'2026-05-26',items:['Nuovo: pulsante Rigenera AI nelle partite storiche','Commento AI visibile nel dettaglio partita','Fix: regenerateCommentForMatch carica tutti i dati storici prima di chiamare AI']},{version:'v1.274',date:'2026-05-26',items:['AI: nuovo prompt stile Gianni Brera/Mura per articolo e commento partita','Struttura: titolo+sottotitolo+articolo+chiusura ironica','Dati: soprannomi, storico giocatori, note dal campo, uomo partita']},{version:'v1.273',date:'2026-05-26',items:['Email modificatore offuscata con X (mario.rossi -> mxxxo.xxsxx@xmxxx.cxm)']},{version:'v1.272',date:'2026-05-26',items:['Fix critico: openEditIfUnlocked e toggleMatchLock aggiunti al return Vue','Fix: partite ora si aprono su mobile','Email modificatore: mostra solo nome utente senza dominio']},{version:'v1.271',date:'2026-05-26',items:['Fix critico: schermata nera su mobile aprendo partita (virgolette nel template)']},{version:'v1.270',date:'2026-05-26',items:['Email ultimo modificatore mascherata (m***o@g***l.com)']},{version:'v1.269',date:'2026-05-25',items:['Fix: sync Firebase immediato al salvataggio partita (non fire-and-forget)','Nuovo: Ultimo modificatore (email + data/ora) salvato in ogni modifica partita','Nuovo: Lucchetto partite — blocca modifica con icona 🔒 nella lista e dettaglio']},{version:'v1.268',date:'2026-05-25',items:['Fix: storyline 2B Marcatori, 2C Punti, 2D Dream Team ripristinate','Fix: _mot2 ora viene pushata alle slide','Fix: txt in Rivalita Reale ora e una variabile esplicita']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi Identita (3 sconfitte), Infallibile (2+gol/p), Re Pareggio','Hero: Il Guascone (striscia positiva con sfida), Rivali/Affinita profili']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi d Identita (3 sconfitte di fila) con foto e frase','Hero: L Infallibile (media 2+ gol) con foto e frase ironica','Hero: Re del Pareggio (3 pareggi consecutivi)','Hero: Il Guascone (striscia positiva) con sfida all utente','Hero: Affinita e Rivali dai profili giocatori con duel card']},{version:'v1.266',date:'2026-05-25',items:['Fix: WOW news erano perse (push dopo finalItems) — ora nel pool','Fix: el non definito in news fn — ora el3/el1','Aggiunto: punti totali, media punti, media gol, mot.personalizzata','Fix: interleave frasi ogni 4 items invece di 3']},{version:'v1.265',date:'2026-05-25',items:['CRITICAL: SW non intercetta Firebase (risolve abort sync cloud)','Fix frasi celebri hero: 1 slide per ora']},{version:'v1.264',date:'2026-05-25',items:['Hero: frasi celebri giocatori come slide dedicate (solo se presenti)']},{version:'v1.262',date:'2026-05-25',items:['SW v{sw_ver}: forza refresh — elimina cache vecchia','Stats: Media Gol diventa tab separata accanto a Gol']},{version:'v1.261',date:'2026-05-25',items:['FAB Play: animazione verde fluo ripristinata','Hero news: distribuite casualmente (shuffle orario), motivazionali sparse','Storyline: aggiunto Classifica Punti + Dream Team formazione','Stats: aggiunta Media Gol/partita con condivisione PNG']},{version:'v1.260',date:'2026-05-25',items:['Fix FAB: touch-action+classe pressed per effetto su iOS/Android','Fix Duel: solo giocatori con min 2 partite e almeno 1 gol','Fix Storyline: rivalità reale solo se ≥2 sfide dirette, altrimenti classifica marcatori']},{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.284',date:'2026-05-30',items:['Fix: Zona Pericolo collassabile (tap per espandere) con Debug AI + Ottimizza Foto dentro','Fix: AI Cards non generavano — logica Firebase ETag sostituita con lock semplice a prova di errore','Fix: TrashTalk/HallOfFame/Soprannomi ora generano anche senza token Firebase (localStorage fallback)','Fix: log dettagliato in ogni step AI Cards — debug panel mostra esattamente dove si blocca','Fix: bottoni debug panel ora loggano anche gli errori']},{version:'v1.283',date:'2026-05-30',items:['Fix: storico recente Trash Talk esclude partita corrente (ha_vinto/ha_pareggiato ora corretti)','Fix: aggiunto storico_risultati (VVPSS...) e streak_negativa/positiva nel profilo giocatori','Fix: nickCard font dinamico — testo lungo non schiaccia più la foto del giocatore','Nuovo: pannello Debug AI Cards in Impostazioni con stato card e log attività in tempo reale','Nuovo: bottoni forza-generazione Trash Talk / Hall of Fame / Soprannomi per test']},{version:'v1.282',date:'2026-05-30',items:['AI Cards: Trash Talk generato ad ogni nuova partita (pool 3 card a rotazione nell\'hero)','AI Cards: Hall of Fame/Shame mensile con logica anti-sovrascrittura Firebase (ETag conditional write)','AI Cards: Soprannomi dinamici AI per giocatore (rigenerati ogni 5 partite)','Anti-sovrascrittura: lock Firebase con ETag + polling per gruppi multi-device','Funziona offline (localStorage) per gruppi senza Firebase']},{version:'v1.281',date:'2026-05-30',items:['Hero: card OVR podio top-3 con foto, medaglie e punteggio (🥇🥈🥉)','Stats Overall: descrizione formula aggiornata con regole dettagliate per ruolo','OVR ricalcolato automaticamente ad ogni salvataggio partita (computed reattivo)']},{version:'v1.280',date:'2026-05-30',items:['OVR v3: formula differenziata per ruolo basata su analisi dati reali','Att/Cen: gol/partita smorzato (8+ partite pieno) — non avg punti squadra','Difensore: voto individuale dominante + vittorie reali smorzate (avg punti scartata perché gonfiata dal team)','Portiere: avg punti neutro + CS + voto','Smorzamento universale sqrt(n/8): evita OVR gonfiati su 1-2 partite']},{version:'v1.279',date:'2026-05-30',items:['Overall: nuova formula OVR 50-99 stile FIFA ibrida','OVR = BASE(Voto 55%+Punti 35%+UoM 10%)×70% + BonusRuolo×30% + Costanza − Autogol','Bonus Ruolo differenziato: Att/Cen→Gol/partita · Difensore→Punti+Vittorie · Portiere→Voto+CleanSheet','Costanza proporzionale a P_max (non più binaria top-3)','OVR visualizzato come intero colorato (oro≥85 · verde≥75 · teal≥65 · grigio<65)']},{version:'v1.278',date:'2026-05-30',items:['Fix: notizie telecronista aprono la partita al click','Fix: slide Recap ultima partita apre la partita al click','Fix: soglia rivalità storica abbassata (matches≥3, incontri≥2)','Fix: Dream Team senza VS — griglia 4 foto calciatori','Fix: lucchetto rimosso dalle Ultime Partite in home']},{version:'v1.277',date:'2026-05-30',items:['Fix: rimosso blocco duplicato nel return{} Vue (heroUnifiedData e altri esportati due volte)','Fix: drawStatsCanvas aveva try/catch annidato che chiamava drawFormationCanvas con variabile non definita','Fix: rimossi alias generateFormationsRandom e generateMultipleFormations (non usati, stessa funzione)','Cleanup: codice più leggero e stabile']},{version:'v1.276',date:'2026-05-26',items:['Fix AI: max_tokens 300->600 (articolo completo invece di tronco)','Fix AI: estrai titolo dalla prima riga MAIUSCOLO della risposta','Rimosso tasto extra AI dal dettaglio partita']},{version:'v1.275',date:'2026-05-26',items:['Nuovo: pulsante Rigenera AI nelle partite storiche','Commento AI visibile nel dettaglio partita','Fix: regenerateCommentForMatch carica tutti i dati storici prima di chiamare AI']},{version:'v1.274',date:'2026-05-26',items:['AI: nuovo prompt stile Gianni Brera/Mura per articolo e commento partita','Struttura: titolo+sottotitolo+articolo+chiusura ironica','Dati: soprannomi, storico giocatori, note dal campo, uomo partita']},{version:'v1.273',date:'2026-05-26',items:['Email modificatore offuscata con X (mario.rossi -> mxxxo.xxsxx@xmxxx.cxm)']},{version:'v1.272',date:'2026-05-26',items:['Fix critico: openEditIfUnlocked e toggleMatchLock aggiunti al return Vue','Fix: partite ora si aprono su mobile','Email modificatore: mostra solo nome utente senza dominio']},{version:'v1.271',date:'2026-05-26',items:['Fix critico: schermata nera su mobile aprendo partita (virgolette nel template)']},{version:'v1.270',date:'2026-05-26',items:['Email ultimo modificatore mascherata (m***o@g***l.com)']},{version:'v1.269',date:'2026-05-25',items:['Fix: sync Firebase immediato al salvataggio partita (non fire-and-forget)','Nuovo: Ultimo modificatore (email + data/ora) salvato in ogni modifica partita','Nuovo: Lucchetto partite — blocca modifica con icona 🔒 nella lista e dettaglio']},{version:'v1.268',date:'2026-05-25',items:['Fix: storyline 2B Marcatori, 2C Punti, 2D Dream Team ripristinate','Fix: _mot2 ora viene pushata alle slide','Fix: txt in Rivalita Reale ora e una variabile esplicita']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi Identita (3 sconfitte), Infallibile (2+gol/p), Re Pareggio','Hero: Il Guascone (striscia positiva con sfida), Rivali/Affinita profili']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi d Identita (3 sconfitte di fila) con foto e frase','Hero: L Infallibile (media 2+ gol) con foto e frase ironica','Hero: Re del Pareggio (3 pareggi consecutivi)','Hero: Il Guascone (striscia positiva) con sfida all utente','Hero: Affinita e Rivali dai profili giocatori con duel card']},{version:'v1.266',date:'2026-05-25',items:['Fix: WOW news erano perse (push dopo finalItems) — ora nel pool','Fix: el non definito in news fn — ora el3/el1','Aggiunto: punti totali, media punti, media gol, mot.personalizzata','Fix: interleave frasi ogni 4 items invece di 3']},{version:'v1.265',date:'2026-05-25',items:['CRITICAL: SW non intercetta Firebase (risolve abort sync cloud)','Fix frasi celebri hero: 1 slide per ora']},{version:'v1.264',date:'2026-05-25',items:['Hero: frasi celebri giocatori come slide dedicate (solo se presenti)']},{version:'v1.262',date:'2026-05-25',items:['SW v{sw_ver}: forza refresh — elimina cache vecchia','Stats: Media Gol diventa tab separata accanto a Gol']},{version:'v1.261',date:'2026-05-25',items:['FAB Play: animazione verde fluo ripristinata','Hero news: distribuite casualmente (shuffle orario), motivazionali sparse','Storyline: aggiunto Classifica Punti + Dream Team formazione','Stats: aggiunta Media Gol/partita con condivisione PNG']},{version:'v1.260',date:'2026-05-25',items:['Fix FAB: touch-action+classe pressed per effetto su iOS/Android','Fix Duel: solo giocatori con min 2 partite e almeno 1 gol','Fix Storyline: rivalità reale solo se ≥2 sfide dirette, altrimenti classifica marcatori']},{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag </template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4852,7 +4859,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.283');
+    const appVersion = ref('1.284');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6548,27 +6555,38 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       } catch(e) { console.warn('[_parseAIJson] Parse fallito:', e.message); return null; }
     };
 
-    // ── Helper: conditional write Firebase con ETag (anti-sovrascrittura) ──
-    // Ritorna { ok: true } se ha scritto, { ok: false, exists: true } se già esiste/locked,
-    // { ok: false, conflict: true } se 412 (qualcun altro ha scritto prima)
+    // ── Helper: lock semplice Firebase (read-then-write con controllo timestamp) ──
+    // Ritorna { ok: true } se può procedere a generare
+    // Ritorna { ok: false, exists: true, data } se i dati sono già pronti
+    // Ritorna { ok: false, locked: true } se un altro client sta generando
     const _fbConditionalWrite = async (path, data, token) => {
       const base = getFirebaseBase();
-      if (!base) return { ok: false };
-      const url = `${base}/${path}.json?auth=${token}`;
-      // Prima leggi l'ETag attuale
-      const getResp = await fetch(url, { headers: { 'X-Firebase-ETag': 'true' } });
-      const etag = getResp.headers.get('ETag') || '';
-      const existing = await getResp.json();
-      if (existing !== null) return { ok: false, exists: true, data: existing };
-      // Nodo assente → scrivi con condizione "solo se ancora null"
-      const putResp = await fetch(url, {
-        method: 'PUT',
-        headers: { 'Content-Type':'application/json', 'if-match': etag||'null_etag' },
-        body: JSON.stringify(data)
-      });
-      if (putResp.status === 412) return { ok: false, conflict: true }; // qualcun altro ci ha battuto
-      if (!putResp.ok) return { ok: false };
-      return { ok: true };
+      if (!base) return { ok: true }; // no Firebase → procedi sempre
+      if (!token) return { ok: true }; // no token → procedi in locale
+      try {
+        const url = `${base}/${path}.json?auth=${token}`;
+        const getResp = await fetch(url);
+        if (!getResp.ok) return { ok: true }; // errore lettura → procedi
+        const existing = await getResp.json();
+        // Dati già pronti (non lock)
+        if (existing !== null && existing.cards !== undefined) {
+          return { ok: false, exists: true, data: existing };
+        }
+        // Lock attivo e non scaduto
+        if (existing?.is_generating && (Date.now() - (existing.ts||0)) < 180000) {
+          return { ok: false, locked: true };
+        }
+        // Scrivi il lock (non atomico ma sufficiente per uso amatoriale)
+        await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type':'application/json', ...(token?{'Authorization':'Bearer '+token}:{}) },
+          body: JSON.stringify(data)
+        });
+        return { ok: true };
+      } catch(e) {
+        _aiLog('Lock','⚠️ Lock Firebase fallito: '+e.message+' — procedo in locale',false);
+        return { ok: true }; // fallback: procedi comunque
+      }
     };
 
     // ── Helper: leggi nodo Firebase con polling (aspetta che il generatore finisca) ──
@@ -6615,6 +6633,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     // ══════════════════════════════════════════════════════════════
     const aiCardsTrashTalk    = ref([]);  // pool 3 card
     const aiCardsDebugLog     = ref([]);  // log debug AI cards
+    const zonaPericoloExpanded = ref(false);  // collapsible zona pericolo
 
     const _aiLog = (tipo, msg, ok=true) => {
       const entry = { ts: new Date().toLocaleTimeString('it-IT'), tipo, msg, ok };
@@ -6625,14 +6644,19 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     const aiCardsTrashTalkIdx = ref(0);   // indice slide corrente
 
     const _generateTrashTalk = async (match) => {
-      if (!settings.value.apiKey) return;
+      if (!settings.value.apiKey) { _aiLog('TrashTalk','⚠️ Nessuna API key — configurala in Impostazioni',false); return; }
+      if (!match) { _aiLog('TrashTalk','⚠️ Nessuna partita passata',false); return; }
+      _aiLog('TrashTalk','▶️ Avvio generazione per partita '+match.id);
+
       const players = groupPlayers.value;
       const allMatches = groupMatches.value;
       const statsArr = match.statisticheGiocatori || [];
 
+      if (!statsArr.length) { _aiLog('TrashTalk','⚠️ Nessuna statistica giocatori nella partita',false); return; }
+
       // Ultime 5 partite PRECEDENTI (escludi la partita appena salvata)
       const recent = [...allMatches]
-        .filter(m => String(m.id) !== String(match.id)) // <-- FIX: escludi partita corrente
+        .filter(m => String(m.id) !== String(match.id)) // escludi partita corrente
         .sort((a,b) => b.data.localeCompare(a.data))
         .slice(0, 5);
 
@@ -6723,38 +6747,37 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 }`;
 
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      const lockPath = `aiCards/locks/trashTalk_${match.id}`;
       const dataPath = `aiCards/trashTalk/${match.id}`;
+      const lockPath = `aiCards/locks/trashTalk_${match.id}`;
       let token = '';
 
+      // Controlla Firebase solo se configurato
       if (hasFirebase) {
         token = await getValidToken() || '';
-        // Leggi se esiste già
-        const existing = await _fbRead(dataPath, token);
-        if (existing?.cards) {
-          aiCardsTrashTalk.value = existing.cards;
-          return;
-        }
-        // Tenta lock atomico
-        const lockData = { is_generating: true, ts: Date.now(), by: firebaseUser.value?.email || 'anon' };
-        const lockResult = await _fbConditionalWrite(lockPath, lockData, token);
-        if (lockResult.conflict) {
-          // Qualcun altro sta generando → polling
-          const ready = await _fbPollUntilReady(dataPath, token);
-          if (ready?.cards) aiCardsTrashTalk.value = ready.cards;
-          return;
-        }
-        if (lockResult.exists) {
-          // Lock già presente: controlla se scaduto (>3 min)
-          const lockAge = Date.now() - (lockResult.data?.ts || 0);
-          if (lockAge < 180000) {
-            const ready = await _fbPollUntilReady(dataPath, token);
-            if (ready?.cards) aiCardsTrashTalk.value = ready.cards;
+        if (token) {
+          _aiLog('TrashTalk','☁️ Controllo Firebase...');
+          // Leggi se esiste già
+          const existing = await _fbRead(dataPath, token);
+          if (existing?.cards?.length) {
+            _aiLog('TrashTalk','☁️ Card già presenti su Firebase, carico');
+            aiCardsTrashTalk.value = existing.cards;
             return;
           }
-          // Lock scaduto → forza reset e riprova
-          await _fbWrite(lockPath, null, token);
-          await new Promise(r => setTimeout(r, 500));
+          // Verifica lock
+          const lockResult = await _fbConditionalWrite(lockPath,
+            { is_generating:true, ts:Date.now(), by: firebaseUser.value?.email||'anon' }, token);
+          if (lockResult.locked) {
+            _aiLog('TrashTalk','⏳ Altro client sta generando, polling...');
+            const ready = await _fbPollUntilReady(dataPath, token);
+            if (ready?.cards) { aiCardsTrashTalk.value = ready.cards; return; }
+          }
+          if (lockResult.exists) {
+            _aiLog('TrashTalk','☁️ Dati esistenti trovati');
+            aiCardsTrashTalk.value = lockResult.data.cards || [];
+            return;
+          }
+        } else {
+          _aiLog('TrashTalk','⚠️ Firebase configurato ma nessun token — genero in locale');
         }
       }
 
@@ -6771,6 +6794,11 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         await _fbWrite(lockPath, null, token); // rimuovi lock
         _aiLog('TrashTalk','☁️ Salvato su Firebase');
       }
+      // Salva sempre in localStorage come fallback offline
+      if (cards.length) {
+        const _lsKey = 'amicifc_tt_' + (currentGroup.value?.id||'');
+        localStorage.setItem(_lsKey, JSON.stringify({ cards, generatedAt: Date.now() }));
+      }
       aiCardsTrashTalk.value = cards;
     };
 
@@ -6780,7 +6808,8 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const aiCardsHallOfFame = ref(null); // { fame: {...}, shame: {...}, mese: 'YYYY-MM' }
 
     const _generateHallOfFame = async () => {
-      if (!settings.value.apiKey) return;
+      if (!settings.value.apiKey) { _aiLog('HallOfFame','⚠️ Nessuna API key',false); return; }
+      _aiLog('HallOfFame','▶️ Avvio generazione Hall of Fame...');
       const oggi = new Date();
       const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1);
       const meseKey = `${mesePrecedente.getFullYear()}-${String(mesePrecedente.getMonth()+1).padStart(2,'0')}`;
@@ -6792,19 +6821,23 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 
       if (hasFirebase) {
         token = await getValidToken() || '';
-        // Leggi se esiste già per questo mese
-        const existing = await _fbRead(dataPath, token);
-        if (existing?.fame) { aiCardsHallOfFame.value = existing; return; }
-        // Tenta lock
-        const lockResult = await _fbConditionalWrite(lockPath,
-          { is_generating:true, ts:Date.now() }, token);
-        if (lockResult.conflict || (lockResult.exists && Date.now()-(lockResult.data?.ts||0)<180000)) {
-          // Polling
-          const ready = await _fbPollUntilReady(dataPath, token);
-          if (ready?.fame) aiCardsHallOfFame.value = ready;
-          return;
+        if (token) {
+          const existing = await _fbRead(dataPath, token);
+          if (existing?.fame) {
+            _aiLog('HallOfFame','☁️ Dati già presenti per '+meseKey);
+            aiCardsHallOfFame.value = existing; return;
+          }
+          const lockResult = await _fbConditionalWrite(lockPath, { is_generating:true, ts:Date.now() }, token);
+          if (lockResult.locked) {
+            const ready = await _fbPollUntilReady(dataPath, token);
+            if (ready?.fame) { aiCardsHallOfFame.value = ready; return; }
+          }
+          if (lockResult.exists) {
+            aiCardsHallOfFame.value = lockResult.data; return;
+          }
+        } else {
+          _aiLog('HallOfFame','⚠️ Nessun token Firebase — genero in locale');
         }
-        if (lockResult.exists) await _fbWrite(lockPath, null, token); // lock scaduto
       } else {
         // No Firebase: controlla localStorage
         const cached = JSON.parse(localStorage.getItem(`amicifc_hof_${meseKey}`) || 'null');
@@ -6818,9 +6851,11 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         return mese === meseKey;
       });
       if (partiteMese.length < 3) {
+        _aiLog('HallOfFame','⚠️ Troppo poche partite in '+meseKey+': '+partiteMese.length+' (min 3)',false);
         if (hasFirebase && token) await _fbWrite(lockPath, null, token);
-        return; // troppo poche partite
+        return;
       }
+      _aiLog('HallOfFame','📊 Analisi '+partiteMese.length+' partite di '+meseKey);
 
       // Aggrega statistiche mensili per giocatore
       const statsMap = {};
@@ -6921,7 +6956,9 @@ OUTPUT: Rispondi SOLO con JSON valido:
     };
 
     const _generateNicknames = async () => {
-      if (!settings.value.apiKey || !currentGroup.value) return;
+      if (!settings.value.apiKey) { _aiLog('Soprannomi','⚠️ Nessuna API key',false); return; }
+      if (!currentGroup.value) { _aiLog('Soprannomi','⚠️ Nessun gruppo attivo',false); return; }
+      _aiLog('Soprannomi','▶️ Verifica soprannomi da aggiornare...');
       const players = groupPlayers.value.filter(p => (p.partiteTotali||0) >= 3);
       if (!players.length) return;
 
@@ -6934,7 +6971,8 @@ OUTPUT: Rispondi SOLO con JSON valido:
         const partiteDa = (p.partiteTotali||0) - (existing.partiteAl||0);
         return partiteDa >= 5;
       });
-      if (!toGenerate.length) return;
+      if (!toGenerate.length) { _aiLog('Soprannomi','✅ Tutti i soprannomi sono aggiornati'); return; }
+      _aiLog('Soprannomi','📝 Da generare: '+toGenerate.map(p=>p.soprannome||p.nome).join(', '));
 
       const profili = toGenerate.map(p => ({
         id: p.id,
@@ -7020,7 +7058,10 @@ OUTPUT: Rispondi SOLO con JSON valido:
     const _checkHallOfFame = async () => {
       if (!currentGroup.value) return;
       const oggi = new Date();
-      if (oggi.getDate() !== 1) return; // solo il primo del mese
+      if (oggi.getDate() !== 1) {
+        _aiLog('HallOfFame','⏭️ Non è il 1° del mese (oggi è il '+oggi.getDate()+'). Usa il bottone per forzare.');
+        return;
+      }
       await _generateHallOfFame();
     };
 
@@ -7040,8 +7081,16 @@ OUTPUT: Rispondi SOLO con JSON valido:
           if (d?.cards) aiCardsTrashTalk.value = d.cards;
         }
       }
+      // Carica trash talk dell'ultima partita anche senza Firebase (localStorage)
+      const _lsKey = 'amicifc_tt_' + (currentGroup.value?.id||'');
+      const _cached = JSON.parse(localStorage.getItem(_lsKey)||'null');
+      if (_cached?.cards?.length && !aiCardsTrashTalk.value.length) {
+        aiCardsTrashTalk.value = _cached.cards;
+        _aiLog('Init','💾 Trash Talk caricato da localStorage');
+      }
       // Genera soprannomi se necessario (in background, non blocca)
-      _generateNicknames().catch(console.warn);
+      _generateNicknames().catch(e => _aiLog('Init','❌ Soprannomi: '+e.message,false));
+      _aiLog('Init','✅ Inizializzazione AI Cards completata');
     };
 
     const generateCommentAI = async () => {
@@ -10593,7 +10642,7 @@ Niente altro, nessuna spiegazione.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _generateTrashTalk, _generateHallOfFame, _generateNicknames,
+      aiCardsDebugLog, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded,
     };
   }
 }).mount('#app');
