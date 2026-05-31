@@ -758,8 +758,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 .bounce { animation: bounce 0.5s cubic-bezier(0.34,1.56,0.64,1); }
 @keyframes bounce { 0% { transform: scale(0.8); } 100% { transform: scale(1); } }
 
-.fade-slide { animation: fadeSlide 0.35s ease; }
-@keyframes fadeSlide { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.fade-slide { animation: fadeSlide 0.22s ease; }
+@keyframes fadeSlide { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 .pulse { animation: pulse 2s infinite; }
 @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(166,255,77,0.4); } 50% { box-shadow: 0 0 0 8px transparent; } }
@@ -815,14 +815,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
    CREDITS
    ═══════════════════════════════════════ */
 .credits-card {
-  text-align: center; padding: 40px 20px;
+  text-align: center; padding: 20px 16px;
+  background: linear-gradient(135deg,rgba(58,123,255,.08),rgba(166,255,77,.06));
+  border-color: rgba(166,255,77,.2) !important;
 }
-.credits-ball { font-size: 4rem; display: block; margin-bottom: 16px;
+.credits-logo { font-size: 2.2rem; display: block; margin-bottom: 8px;
   animation: wobble 3s ease-in-out infinite;
 }
-@keyframes wobble { 0%,100% { transform: rotate(-8deg); } 50% { transform: rotate(8deg); } }
-.credits-main { font-family: var(--font-title); font-size: 1.5rem; color: var(--lime); margin-bottom: 8px; }
-.credits-by   { font-size: 1.1rem; color: var(--yellow); font-weight: 800; }
+@keyframes wobble { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+.credits-main { font-family: var(--font-title); font-size: 1.3rem; color: var(--lime); margin-bottom: 4px; font-weight: 900; }
+.credits-sub-tag { font-size: 0.8rem; color: var(--text2); margin-bottom: 6px; font-style: italic; }
+.credits-by   { font-size: 0.78rem; color: var(--text2); }
 
 /* ═══════════════════════════════════════
    UPDATE BANNER
@@ -1600,9 +1603,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="font-size:13px;color:rgba(74,222,128,.5)">{{s.soprannome_ai}}</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
-                <div style="font-size:15px;color:rgba(255,255,255,.88);line-height:1.55;flex:1;overflow:hidden">{{s.confronto}}</div>
-                <div v-if="s.motivazione" style="font-size:13px;color:rgba(74,222,128,.55);margin-top:8px;font-style:italic;flex-shrink:0">{{s.motivazione}}</div>
+              <div style="position:relative;z-index:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
+                <div style="font-size:15px;color:rgba(255,255,255,.88);line-height:1.55;overflow:hidden;flex:1">{{s.confronto}}</div>
+                <div v-if="s.motivazione" style="font-size:13px;color:rgba(74,222,128,.6);margin-top:6px;font-style:italic">{{s.motivazione}}</div>
               </div>
             </template>
 
@@ -3083,12 +3086,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       
 
-        <!-- Firebase moved to per-group cloud config -->
-        <div style="font-size:0.8rem;color:var(--text2);padding:10px 0">
-          ☁️ La configurazione Firebase è ora per ogni gruppo.<br>
-          Usa il pulsante <strong style="color:var(--lime)">☁️</strong> accanto al nome del gruppo in cima all'app.
-        </div>
+
 <!-- CREDITI -->
+      <!-- ── Versione App ── -->
+      <div class="card">
+        <div class="card-title">ℹ️ Versione App</div>
+        <div style="font-size:0.85rem;color:var(--text2)">
+          <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
+          <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--yellow)" @click="forceUpdate">⚡ Forza Aggiornamento</button>
+        </div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:6px;line-height:1.5">
+          💡 <strong>I dati non vengono cancellati.</strong> Svuota solo la cache dell'app.<br>
+          Utile se l'app installata su mobile non si aggiorna automaticamente.
+        </div>
+      </div>
+
       <!-- ── ZONA PERICOLO (collassabile, contiene tutto il contenuto avanzato) ── -->
       <div class="card" style="border-color:rgba(255,77,77,0.35);padding:0;overflow:hidden">
         <!-- Header cliccabile -->
@@ -3200,31 +3217,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- ── Versione App ── -->
-      <div class="card">
-        <div class="card-title">ℹ️ Versione App</div>
-        <div style="font-size:0.85rem;color:var(--text2)">
-          <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
-          <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
-        </div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--yellow)" @click="forceUpdate">⚡ Forza Aggiornamento</button>
-        </div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:6px;line-height:1.5">
-          💡 <strong>I dati non vengono cancellati.</strong> Svuota solo la cache dell'app.<br>
-          Utile se l'app installata su mobile non si aggiorna automaticamente.
-        </div>
-      </div>
 
 <!-- CREDITI -->
       <div class="card credits-card">
-        <span class="credits-ball">⚽</span>
+        <span class="credits-logo">⚽</span>
         <div class="credits-main">Amici FC</div>
-        <div class="credits-sub">Il Calcetto Manager Definitivo</div>
-        <div class="credits-author">Creato e sviluppato con ❤️ da <strong>Alby</strong></div>
-        <span class="credits-icon">🎮</span>
+        <div class="credits-sub-tag">Il Calcetto Manager Definitivo<br>dove i campioni nascono… e litigano!</div>
+        <div class="credits-by">Creato e sviluppato con ❤️ da <strong style="color:var(--text1)">Alby</strong></div>
       </div>
 
 </template>
@@ -4855,7 +4854,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.298');
+    const appVersion = ref('1.299');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
