@@ -1589,34 +1589,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- SOPRANNOME / IDENTIKIT AI -->
             <template v-else-if="s.type==='nickCard'">
-              <div style="position:relative;z-index:1;font-size:14px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(100,220,210,.8);margin-bottom:10px">{{s.label}}</div>
-              <!-- Header: foto fissa + testo a destra con overflow controllato -->
-              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px;min-height:72px">
-                <!-- foto: dimensione fissa, non si riduce MAI -->
-                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(13,148,136,.7);box-shadow:0 0 16px rgba(13,148,136,.3);background:rgba(255,255,255,.06)">
+              <div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(74,222,128,.7);margin-bottom:10px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
+                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25);background:rgba(255,255,255,.06)">
                   <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
                 </div>
-                <!-- testo: occupa lo spazio rimanente, font scalato sulla lunghezza -->
-                <div style="flex:1;min-width:0;overflow:hidden">
-                  <div style="font-weight:900;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
-                       :style="s.nome.length>12?'font-size:15px':'font-size:18px'">{{s.nome}}</div>
-                  <div style="font-size:13px;color:rgba(100,220,210,.65);margin-bottom:4px">{{s.ruolo}}</div>
-                  <div style="font-weight:800;color:#2dd4bf;line-height:1.2;overflow:hidden;"
-                       :style="s.soprannome_ai.length>20?'font-size:15px':s.soprannome_ai.length>14?'font-size:17px':'font-size:19px'">
-                    {{s.soprannome_ai}}
-                  </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:22px;margin-bottom:2px">🧬</div>
+                  <div style="font-size:20px;font-weight:900;color:#4ade80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{s.nome}}</div>
+                  <div style="font-size:13px;color:rgba(74,222,128,.5)">{{s.soprannome_ai}}</div>
                 </div>
               </div>
-              <!-- Box scout: altezza fissa calcolata per riempire la card -->
-              <div style="position:relative;z-index:1;background:rgba(13,148,136,.13);border:1px solid rgba(13,148,136,.3);border-radius:10px;padding:12px 14px;height:130px;display:flex;flex-direction:column;">
-                <div style="font-size:14px;font-weight:700;color:rgba(100,220,210,.9);margin-bottom:6px;flex-shrink:0">🔍 L'analisi dello scout</div>
-                <div style="color:rgba(255,255,255,.88);line-height:1.5;overflow:hidden;flex:1;"
-                     :style="s.confronto.length>100?'font-size:14px':'font-size:15px'">
-                  {{s.confronto}}
-                </div>
-                <div v-if="s.motivazione" style="font-size:12px;color:rgba(100,220,210,.65);margin-top:5px;font-style:italic;flex-shrink:0;line-height:1.3">
-                  {{s.motivazione}}
-                </div>
+              <div style="position:relative;z-index:1;background:rgba(74,222,128,.08);border:1px solid rgba(74,222,128,.2);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
+                <div style="font-size:15px;color:rgba(255,255,255,.88);line-height:1.55;flex:1;overflow:hidden">{{s.confronto}}</div>
+                <div v-if="s.motivazione" style="font-size:13px;color:rgba(74,222,128,.55);margin-top:8px;font-style:italic;flex-shrink:0">{{s.motivazione}}</div>
               </div>
             </template>
 
@@ -4869,7 +4855,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.296');
+    const appVersion = ref('1.298');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6633,11 +6619,13 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const base = getFirebaseBase();
       if (!base) return false;
       try {
-        const r = await fetch(`${base}/${path}.json?auth=${token}`, {
+        const url = token ? `${base}/${path}.json?auth=${token}` : `${base}/${path}.json`;
+        const r = await fetch(url, {
           method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
         });
+        if (!r.ok) _aiLog('Firebase','⚠️ Scrittura fallita su '+path+' (status '+r.status+')',false);
         return r.ok;
-      } catch(e) { return false; }
+      } catch(e) { _aiLog('Firebase','❌ Errore scrittura: '+e.message,false); return false; }
     };
 
     const _fbRead = async (path, token) => {
@@ -6968,9 +6956,20 @@ OUTPUT: Rispondi SOLO con JSON valido:
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
       const dataPath = `aiCards/soprannomi/${currentGroup.value.id}`;
       if (hasFirebase) {
+        // Prova prima con token, poi senza (lettura pubblica)
         const token = await getValidToken() || '';
         const d = await _fbRead(dataPath, token);
-        if (d) aiNicknames.value = d;
+        if (d && Object.keys(d).length > 0) {
+          aiNicknames.value = d;
+          _aiLog('Init','☁️ Soprannomi caricati da Firebase: '+Object.keys(d).length);
+        } else {
+          // Fallback localStorage
+          const cached = JSON.parse(localStorage.getItem('amicifc_nicks_'+currentGroup.value.id) || '{}');
+          if (Object.keys(cached).length > 0) {
+            aiNicknames.value = cached;
+            _aiLog('Init','💾 Soprannomi da localStorage: '+Object.keys(cached).length);
+          }
+        }
       } else {
         const cached = JSON.parse(localStorage.getItem(`amicifc_nicks_${currentGroup.value.id}`) || '{}');
         aiNicknames.value = cached;
@@ -7129,14 +7128,12 @@ OUTPUT: Rispondi SOLO con JSON valido:
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
       if (hasFirebase) {
         const token = await getValidToken() || '';
-        if (token) {
-          const dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+meseKey;
-          const d = await _fbRead(dataPath, token);
-          if (d?.fame) {
-            aiCardsHallOfFame.value = d;
-            _aiLog('Init','☁️ Hall of Fame caricata da Firebase ('+meseKey+')');
-            return;
-          }
+        const dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+meseKey;
+        const d = await _fbRead(dataPath, token);
+        if (d?.fame) {
+          aiCardsHallOfFame.value = d;
+          _aiLog('Init','☁️ Hall of Fame caricata da Firebase ('+meseKey+')');
+          return;
         }
       }
       // Fallback localStorage
@@ -7156,12 +7153,19 @@ OUTPUT: Rispondi SOLO con JSON valido:
       await _loadHallOfFame();
       await _checkHallOfFame();
       // Carica l'ultimo trash talk disponibile
+      const _lsKeyTT = 'amicifc_tt_' + (currentGroup.value?.id||'');
       if (currentGroup.value?.firebaseUrl) {
         const token = await getValidToken() || '';
         const lastMatch = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
         if (lastMatch) {
           const d = await _fbRead(`aiCards/trashTalk/${lastMatch.id}`, token);
-          if (d?.cards) aiCardsTrashTalk.value = d.cards;
+          if (d?.cards) {
+            aiCardsTrashTalk.value = d.cards;
+            _aiLog('Init','☁️ Trash Talk caricato da Firebase');
+          } else {
+            const lsCached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
+            if (lsCached?.cards) { aiCardsTrashTalk.value = lsCached.cards; _aiLog('Init','💾 Trash Talk da localStorage'); }
+          }
         }
       }
       // Carica trash talk dell'ultima partita anche senza Firebase (localStorage)
@@ -8192,6 +8196,15 @@ Niente altro, nessuna spiegazione.`;
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
+        // Ricarica aiCards da Firebase dopo sync
+        await _loadHallOfFame();
+        await _loadAiNicknames();
+        const _lastM = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
+        if (_lastM) {
+          const _tok = await getValidToken() || '';
+          const _tt = await _fbRead(`aiCards/trashTalk/${_lastM.id}`, _tok);
+          if (_tt?.cards) aiCardsTrashTalk.value = _tt.cards;
+        }
       } catch (e) {
         const errMsg = e.message || 'Errore sconosciuto';
         lastSyncError.value = errMsg;
@@ -10265,7 +10278,7 @@ Niente altro, nessuna spiegazione.`;
           nome:nsP.soprannome||nsP.nome,ruolo:nsP.ruolo||'',
           soprannome_ai:ns.soprannome_ai,confronto:ns.confronto,motivazione:ns.motivazione,
           foto:nsP.foto,uid:nsP.uid,
-          bg:'linear-gradient(145deg,#001a1a,#0f4040 60%,#0d9488)'});
+          bg:'linear-gradient(145deg,#001a0a,#0f2d1a 60%,#166534)'});
       }
 
       // 7. TRENDING (soglia: matches>=2)
