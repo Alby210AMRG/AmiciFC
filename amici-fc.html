@@ -4495,7 +4495,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.307',date:'2026-05-31',items:['Fix CRITICO card AI: _initAiCards era dentro il blocco if(matches>0) — su dispositivi senza partite locali non veniva mai chiamato','Fix: dopo syncFromCloud chiama _initAiCards completo invece di loader parziali']},{version:'v1.306',date:'2026-05-31',items:['Fix sync PWA: aggiunto mode:cors + credentials:omit a tutte le fetch Firebase (risolve Failed to fetch su PWA installata)','Fix: _fbRead e _fbWrite usano stesse opzioni CORS']},{version:'v1.305',date:'2026-05-31',items:['Fix sync: lettura pubblica prima del token — risolve Failed to fetch dal modale cloud','Fix: changelog aggiornato con tutte le versioni dalla 1.285 alla 1.305']},{version:'v1.304',date:'2026-05-31',items:['Debug sync: aggiunto log URL per diagnosticare Failed to fetch']},
+    const changelogEntries = [{version:'v1.308',date:'2026-05-31',items:[
+  'Fix sync DEFINITIVO: syncFromCloud ora usa ?shallow=false come il wizard che funzionava — era lunica differenza nella fetch',
+  'Fix sync: startup sync ora parte sempre senza richiedere token (prima saltava se non loggati)',
+  'Fix: rimosso mode:cors che causava preflight OPTIONS non necessario',
+  'Fix card AI: _initAiCards sempre chiamato dopo loadGroupData, non solo se ci sono partite locali'
+]},{version:'v1.307',date:'2026-05-31',items:['Fix CRITICO card AI: _initAiCards era dentro il blocco if(matches>0) — su dispositivi senza partite locali non veniva mai chiamato','Fix: dopo syncFromCloud chiama _initAiCards completo invece di loader parziali']},{version:'v1.306',date:'2026-05-31',items:['Fix sync PWA: aggiunto mode:cors + credentials:omit a tutte le fetch Firebase (risolve Failed to fetch su PWA installata)','Fix: _fbRead e _fbWrite usano stesse opzioni CORS']},{version:'v1.305',date:'2026-05-31',items:['Fix sync: lettura pubblica prima del token — risolve Failed to fetch dal modale cloud','Fix: changelog aggiornato con tutte le versioni dalla 1.285 alla 1.305']},{version:'v1.304',date:'2026-05-31',items:['Debug sync: aggiunto log URL per diagnosticare Failed to fetch']},
 {version:'v1.303',date:'2026-05-31',items:['Fix CRITICO: wizard onboarding non appariva — race condition dbLoaded (il controllo scattava prima che il DB fosse pronto)']},
 {version:'v1.302',date:'2026-05-31',items:['Fix: rimosso AbortController che causava errore abort su Firefox','Nuovo: wizard onboarding per nuovi utenti — scelta tra Nuovo Gruppo, Gruppo Esistente (Firebase), Import JSON','Wizard: guida Firebase con spiegazione login, testo simpatico']},
 {version:'v1.301',date:'2026-05-31',items:['Fix sync Firefox: AbortController con timeout 30s aggiunto (poi rimosso in v1.302)','Fix: aiCards reload in try/catch separato']},
@@ -4992,7 +4997,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.307');
+    const appVersion = ref('1.308');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6760,7 +6765,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
         const url = token ? `${base}/${path}.json?auth=${token}` : `${base}/${path}.json`;
         const r = await fetch(url, {
           method:'PUT', headers:{'Content-Type':'application/json'},
-          mode:'cors', credentials:'omit', body: JSON.stringify(data)
+          body: JSON.stringify(data)
         });
         if (!r.ok) _aiLog('Firebase','⚠️ Scrittura fallita su '+path+' (status '+r.status+')',false);
         return r.ok;
@@ -6772,7 +6777,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       if (!base) return null;
       try {
         const r = await fetch(`${base}/${path}.json${token?'?auth='+token:''}`,
-          { cache: 'no-store', mode: 'cors', credentials: 'omit' });
+          { cache: 'no-store' });
         const d = await r.json();
         return d !== null && d !== undefined ? d : null;
       } catch(e) { return null; }
@@ -8182,14 +8187,13 @@ Niente altro, nessuna spiegazione.`;
         // Prima prova lettura pubblica (come il wizard che funziona)
         // poi con token se serve autenticazione
         logEvent('info', 'sync', 'Fetch: ' + base + '.json');
-        const _fetchOpts = { cache: 'no-store', mode: 'cors', credentials: 'omit' };
-        let resp = await fetch(`${base}.json`, _fetchOpts);
+        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
         if (resp.status === 401) {
           if (!_token) {
             throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
           }
           logEvent('info', 'sync', 'Riprovo con token auth...');
-          resp = await fetch(`${base}.json?auth=${_token}`, _fetchOpts);
+          resp = await fetch(`${base}.json?auth=${_token}`, { cache: 'no-store' });
           if (resp.status === 401) {
             throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
           }
@@ -8449,9 +8453,9 @@ Niente altro, nessuna spiegazione.`;
       toast('⏳ Connessione a Firebase...', 'info', 8000);
       try {
         // Try public read first; if 401, try with existing token
-        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store', mode: 'cors', credentials: 'omit' });
+        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
         if (resp.status === 401 && fbIdToken.value) {
-          resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, { cache: 'no-store', mode: 'cors', credentials: 'omit' });
+          resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, { cache: 'no-store' });
         }
         if (resp.status === 401) {
           syncLoading.value = false;
@@ -9972,8 +9976,7 @@ Niente altro, nessuna spiegazione.`;
       // ── Startup sync: direct await after group confirmed loaded ──
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
         try {
-          const _startToken = await getValidToken();
-          if (_startToken) await syncFromCloud(false);
+          await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
 
