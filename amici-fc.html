@@ -1351,6 +1351,123 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   <!-- ── MAIN CONTENT ── -->
   <main class="main-content fade-slide" :key="currentView">
 
+
+    <!-- ════ ONBOARDING WIZARD ════ -->
+    <template v-if="currentView === 'onboarding'">
+
+      <!-- Titolo -->
+      <div style="text-align:center;padding:24px 0 8px">
+        <div style="font-size:3rem;margin-bottom:8px;animation:ball-roll 3s linear infinite;display:inline-block">⚽</div>
+        <div style="font-family:var(--font-title);font-size:1.6rem;color:var(--lime);font-weight:900;margin-bottom:4px">Amici FC</div>
+        <div style="font-size:0.85rem;color:var(--text2);font-style:italic">Dove i campioni nascono… e litigano!</div>
+      </div>
+
+      <!-- Scelta iniziale -->
+      <div v-if="!onboardingStep" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
+        <div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
+          Ciao! 👋 Da dove vuoi partire?
+        </div>
+
+        <!-- Nuovo gruppo -->
+        <div class="onboard-card" @click="onboardingStep='new'" style="cursor:pointer">
+          <div class="onboard-header">
+            <div class="onboard-icon">🆕</div>
+            <div>
+              <div class="onboard-title">Crea un nuovo gruppo</div>
+              <div class="onboard-sub">Sei il fondatore! Dai un nome alla tua squadra di criminali calcistici e inizia a registrare le partite. Potrai aggiungere giocatori, tenere le statistiche e umiliare i tuoi amici con i dati alla mano.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Gruppo esistente -->
+        <div class="onboard-card" @click="onboardingStep='existing'" style="cursor:pointer">
+          <div class="onboard-header">
+            <div class="onboard-icon">☁️</div>
+            <div>
+              <div class="onboard-title">Unisciti a un gruppo esistente</div>
+              <div class="onboard-sub">Il tuo capo-ultras ha già configurato tutto? Inserisci il link Firebase che ti ha dato e scarica i dati. In alternativa importa il file JSON di backup.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Import JSON -->
+        <div class="onboard-card" @click="$refs.onboardImport.click()" style="cursor:pointer">
+          <div class="onboard-header">
+            <div class="onboard-icon">📁</div>
+            <div>
+              <div class="onboard-title">Importa un backup JSON</div>
+              <div class="onboard-sub">Hai già un file di esportazione? Caricalo direttamente e ritrovi tutto come prima.</div>
+            </div>
+          </div>
+        </div>
+        <input ref="onboardImport" type="file" accept=".json" style="display:none" @change="importDataAndGo">
+      </div>
+
+      <!-- Step: Nuovo gruppo -->
+      <div v-else-if="onboardingStep==='new'" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
+        <button @click="onboardingStep=null" style="background:none;border:none;color:var(--text2);cursor:pointer;text-align:left;font-size:0.82rem;padding:0">← Indietro</button>
+        <div class="card">
+          <div class="card-title">🆕 Nuovo Gruppo</div>
+          <div style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;line-height:1.5">
+            Dai un nome al tuo gruppo — il nome apparirà in tutte le schermate. Potrai sempre rinominarlo dopo dalle impostazioni del gruppo.
+          </div>
+          <div style="display:flex;gap:8px">
+            <input class="input-field" v-model="newGroupName" placeholder="Es: Calcetto del Giovedì" style="flex:1" @keyup.enter="createGroupAndGo">
+            <button class="btn btn-primary" @click="createGroupAndGo" :disabled="!newGroupName.trim()">Crea ➕</button>
+          </div>
+        </div>
+        <div class="card" style="border-color:rgba(166,255,77,.15);background:rgba(166,255,77,.04)">
+          <div style="font-size:0.82rem;color:var(--text2);line-height:1.6">
+            <div style="font-weight:700;color:var(--lime);margin-bottom:6px">💡 Come funziona Amici FC?</div>
+            • <strong>Giocatori</strong> — aggiungi i tuoi amici con ruolo e foto<br>
+            • <strong>Partite</strong> — genera le squadre, inserisci gol, assist e voti<br>
+            • <strong>Statistiche</strong> — la classifica aggiornata automaticamente<br>
+            • <strong>Card AI</strong> — commenti irriverenti generati dall'intelligenza artificiale<br>
+            • <strong>Firebase</strong> — sincronizza i dati su tutti i dispositivi del gruppo (opzionale)<br>
+            <div style="margin-top:8px;font-size:0.75rem;color:var(--text2)">Puoi sempre configurare Firebase in seguito dalla gestione gruppo ☁️</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-full" @click="currentView='groups'">⚙️ Vai alla Gestione Gruppi completa</button>
+      </div>
+
+      <!-- Step: Gruppo esistente -->
+      <div v-else-if="onboardingStep==='existing'" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
+        <button @click="onboardingStep=null" style="background:none;border:none;color:var(--text2);cursor:pointer;text-align:left;font-size:0.82rem;padding:0">← Indietro</button>
+        <div class="card">
+          <div class="card-title">☁️ Connetti a Firebase</div>
+          <div style="font-size:0.82rem;color:var(--text2);margin-bottom:12px;line-height:1.5">
+            Inserisci il link Firebase che ti ha fornito il tuo amico. Di solito ha questa forma:<br>
+            <code style="font-size:0.75rem;color:var(--lime);word-break:break-all">https://nome-db.firebaseio.com</code>
+          </div>
+          <input class="input-field" v-model="onboardingFirebaseUrl" placeholder="https://nome-db.firebaseio.com" type="url" style="margin-bottom:10px">
+          <button class="btn btn-primary btn-full" @click="syncFromCloudAndGo" :disabled="syncLoading||!onboardingFirebaseUrl.trim()">
+            {{ syncLoading ? '⏳ Connessione...' : '☁️ Scarica e Connetti' }}
+          </button>
+          <div v-if="showOnboardingLogin" style="margin-top:10px;padding:12px;background:rgba(255,211,61,0.08);border:1px solid rgba(255,211,61,0.3);border-radius:10px;display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:0.8rem;color:var(--yellow);font-weight:700">🔐 Il database richiede login</div>
+            <input class="input-field" v-model="fbLoginEmail" placeholder="Email" type="email">
+            <input class="input-field" v-model="fbLoginPwd" type="password" placeholder="Password">
+            <button class="btn btn-primary" @click="firebaseLoginThenSync" :disabled="fbAuthLoading||syncLoading">
+              {{ fbAuthLoading ? '⏳ Login...' : '🔑 Accedi e Sincronizza' }}
+            </button>
+          </div>
+        </div>
+        <div class="card" style="border-color:rgba(58,123,255,.15);background:rgba(58,123,255,.04)">
+          <div style="font-size:0.8rem;color:var(--text2);line-height:1.55">
+            <div style="font-weight:700;color:var(--blue);margin-bottom:6px">ℹ️ Login Firebase — quando serve?</div>
+            Se il database è pubblico in lettura, puoi scaricare i dati senza login. Per <strong>aggiungere o modificare</strong> dati (partite, giocatori...) serve il login con le credenziali che ti fornisce l'amministratore del gruppo. Trovi il pulsante di login nell'icona <strong>☁️</strong> in alto a destra una volta connesso.
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">📁 In alternativa: importa JSON</div>
+          <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">Hai un file di backup .json? Caricalo direttamente.</div>
+          <button class="btn btn-ghost btn-full" @click="$refs.onboardImport2.click()">📂 Scegli file JSON</button>
+          <input ref="onboardImport2" type="file" accept=".json" style="display:none" @change="importDataAndGo">
+        </div>
+      </div>
+
+    </template>
+
     <!-- ════ HOME ════ -->
     <template v-if="currentView === 'home'">
 
@@ -1368,7 +1485,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+s.bg"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
@@ -1616,11 +1733,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <div v-if="!currentGroup" class="hero-card">
+      <div v-if="!currentGroup" class="hero-card" @click="currentView='onboarding';onboardingStep=null">
         <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.4rem;line-height:1;animation:ball-roll 3s linear infinite;display:inline-block">⚽</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
           <div class="hero-title">Amici FC</div>
-          <div class="hero-sub">Dove i campioni nascono… e litigano! 😂</div>
+          <div class="hero-sub">Tocca per iniziare → 👋</div>
         </div>
       </div>
 
@@ -4378,7 +4495,27 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.284',date:'2026-05-30',items:['Fix: Zona Pericolo collassabile (tap per espandere) con Debug AI + Ottimizza Foto dentro','Fix: AI Cards non generavano — logica Firebase ETag sostituita con lock semplice a prova di errore','Fix: TrashTalk/HallOfFame/Soprannomi ora generano anche senza token Firebase (localStorage fallback)','Fix: log dettagliato in ogni step AI Cards — debug panel mostra esattamente dove si blocca','Fix: bottoni debug panel ora loggano anche gli errori']},{version:'v1.283',date:'2026-05-30',items:['Fix: storico recente Trash Talk esclude partita corrente (ha_vinto/ha_pareggiato ora corretti)','Fix: aggiunto storico_risultati (VVPSS...) e streak_negativa/positiva nel profilo giocatori','Fix: nickCard font dinamico — testo lungo non schiaccia più la foto del giocatore','Nuovo: pannello Debug AI Cards in Impostazioni con stato card e log attività in tempo reale','Nuovo: bottoni forza-generazione Trash Talk / Hall of Fame / Soprannomi per test']},{version:'v1.282',date:'2026-05-30',items:['AI Cards: Trash Talk generato ad ogni nuova partita (pool 3 card a rotazione nell\'hero)','AI Cards: Hall of Fame/Shame mensile con logica anti-sovrascrittura Firebase (ETag conditional write)','AI Cards: Soprannomi dinamici AI per giocatore (rigenerati ogni 5 partite)','Anti-sovrascrittura: lock Firebase con ETag + polling per gruppi multi-device','Funziona offline (localStorage) per gruppi senza Firebase']},{version:'v1.281',date:'2026-05-30',items:['Hero: card OVR podio top-3 con foto, medaglie e punteggio (🥇🥈🥉)','Stats Overall: descrizione formula aggiornata con regole dettagliate per ruolo','OVR ricalcolato automaticamente ad ogni salvataggio partita (computed reattivo)']},{version:'v1.280',date:'2026-05-30',items:['OVR v3: formula differenziata per ruolo basata su analisi dati reali','Att/Cen: gol/partita smorzato (8+ partite pieno) — non avg punti squadra','Difensore: voto individuale dominante + vittorie reali smorzate (avg punti scartata perché gonfiata dal team)','Portiere: avg punti neutro + CS + voto','Smorzamento universale sqrt(n/8): evita OVR gonfiati su 1-2 partite']},{version:'v1.279',date:'2026-05-30',items:['Overall: nuova formula OVR 50-99 stile FIFA ibrida','OVR = BASE(Voto 55%+Punti 35%+UoM 10%)×70% + BonusRuolo×30% + Costanza − Autogol','Bonus Ruolo differenziato: Att/Cen→Gol/partita · Difensore→Punti+Vittorie · Portiere→Voto+CleanSheet','Costanza proporzionale a P_max (non più binaria top-3)','OVR visualizzato come intero colorato (oro≥85 · verde≥75 · teal≥65 · grigio<65)']},{version:'v1.278',date:'2026-05-30',items:['Fix: notizie telecronista aprono la partita al click','Fix: slide Recap ultima partita apre la partita al click','Fix: soglia rivalità storica abbassata (matches≥3, incontri≥2)','Fix: Dream Team senza VS — griglia 4 foto calciatori','Fix: lucchetto rimosso dalle Ultime Partite in home']},{version:'v1.277',date:'2026-05-30',items:['Fix: rimosso blocco duplicato nel return{} Vue (heroUnifiedData e altri esportati due volte)','Fix: drawStatsCanvas aveva try/catch annidato che chiamava drawFormationCanvas con variabile non definita','Fix: rimossi alias generateFormationsRandom e generateMultipleFormations (non usati, stessa funzione)','Cleanup: codice più leggero e stabile']},{version:'v1.276',date:'2026-05-26',items:['Fix AI: max_tokens 300->600 (articolo completo invece di tronco)','Fix AI: estrai titolo dalla prima riga MAIUSCOLO della risposta','Rimosso tasto extra AI dal dettaglio partita']},{version:'v1.275',date:'2026-05-26',items:['Nuovo: pulsante Rigenera AI nelle partite storiche','Commento AI visibile nel dettaglio partita','Fix: regenerateCommentForMatch carica tutti i dati storici prima di chiamare AI']},{version:'v1.274',date:'2026-05-26',items:['AI: nuovo prompt stile Gianni Brera/Mura per articolo e commento partita','Struttura: titolo+sottotitolo+articolo+chiusura ironica','Dati: soprannomi, storico giocatori, note dal campo, uomo partita']},{version:'v1.273',date:'2026-05-26',items:['Email modificatore offuscata con X (mario.rossi -> mxxxo.xxsxx@xmxxx.cxm)']},{version:'v1.272',date:'2026-05-26',items:['Fix critico: openEditIfUnlocked e toggleMatchLock aggiunti al return Vue','Fix: partite ora si aprono su mobile','Email modificatore: mostra solo nome utente senza dominio']},{version:'v1.271',date:'2026-05-26',items:['Fix critico: schermata nera su mobile aprendo partita (virgolette nel template)']},{version:'v1.270',date:'2026-05-26',items:['Email ultimo modificatore mascherata (m***o@g***l.com)']},{version:'v1.269',date:'2026-05-25',items:['Fix: sync Firebase immediato al salvataggio partita (non fire-and-forget)','Nuovo: Ultimo modificatore (email + data/ora) salvato in ogni modifica partita','Nuovo: Lucchetto partite — blocca modifica con icona 🔒 nella lista e dettaglio']},{version:'v1.268',date:'2026-05-25',items:['Fix: storyline 2B Marcatori, 2C Punti, 2D Dream Team ripristinate','Fix: _mot2 ora viene pushata alle slide','Fix: txt in Rivalita Reale ora e una variabile esplicita']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi Identita (3 sconfitte), Infallibile (2+gol/p), Re Pareggio','Hero: Il Guascone (striscia positiva con sfida), Rivali/Affinita profili']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi d Identita (3 sconfitte di fila) con foto e frase','Hero: L Infallibile (media 2+ gol) con foto e frase ironica','Hero: Re del Pareggio (3 pareggi consecutivi)','Hero: Il Guascone (striscia positiva) con sfida all utente','Hero: Affinita e Rivali dai profili giocatori con duel card']},{version:'v1.266',date:'2026-05-25',items:['Fix: WOW news erano perse (push dopo finalItems) — ora nel pool','Fix: el non definito in news fn — ora el3/el1','Aggiunto: punti totali, media punti, media gol, mot.personalizzata','Fix: interleave frasi ogni 4 items invece di 3']},{version:'v1.265',date:'2026-05-25',items:['CRITICAL: SW non intercetta Firebase (risolve abort sync cloud)','Fix frasi celebri hero: 1 slide per ora']},{version:'v1.264',date:'2026-05-25',items:['Hero: frasi celebri giocatori come slide dedicate (solo se presenti)']},{version:'v1.262',date:'2026-05-25',items:['SW v{sw_ver}: forza refresh — elimina cache vecchia','Stats: Media Gol diventa tab separata accanto a Gol']},{version:'v1.261',date:'2026-05-25',items:['FAB Play: animazione verde fluo ripristinata','Hero news: distribuite casualmente (shuffle orario), motivazionali sparse','Storyline: aggiunto Classifica Punti + Dream Team formazione','Stats: aggiunta Media Gol/partita con condivisione PNG']},{version:'v1.260',date:'2026-05-25',items:['Fix FAB: touch-action+classe pressed per effetto su iOS/Android','Fix Duel: solo giocatori con min 2 partite e almeno 1 gol','Fix Storyline: rivalità reale solo se ≥2 sfide dirette, altrimenti classifica marcatori']},{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag <\/template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
+    const changelogEntries = [{version:'v1.305',date:'2026-05-31',items:['Fix sync: lettura pubblica prima del token — risolve Failed to fetch dal modale cloud','Fix: changelog aggiornato con tutte le versioni dalla 1.285 alla 1.305']},{version:'v1.304',date:'2026-05-31',items:['Debug sync: aggiunto log URL per diagnosticare Failed to fetch']},
+{version:'v1.303',date:'2026-05-31',items:['Fix CRITICO: wizard onboarding non appariva — race condition dbLoaded (il controllo scattava prima che il DB fosse pronto)']},
+{version:'v1.302',date:'2026-05-31',items:['Fix: rimosso AbortController che causava errore abort su Firefox','Nuovo: wizard onboarding per nuovi utenti — scelta tra Nuovo Gruppo, Gruppo Esistente (Firebase), Import JSON','Wizard: guida Firebase con spiegazione login, testo simpatico']},
+{version:'v1.301',date:'2026-05-31',items:['Fix sync Firefox: AbortController con timeout 30s aggiunto (poi rimosso in v1.302)','Fix: aiCards reload in try/catch separato']},
+{version:'v1.300',date:'2026-05-31',items:['Fix DEFINITIVO spazio vuoto nickCard/hallFame/hallShame: il container usava justify-content:flex-end — aggiunto ai tipi con flex-start','Fix sync: aiCards scaricate senza token su altri dispositivi']},
+{version:'v1.299',date:'2026-05-31',items:['Fix: nickCard spazio vuoto nel box analisi rimosso','Fix: animazione cambio view più discreta (6px invece di 16px, 0.22s)','Fix: rimosso messaggio Firebase ridondante nelle Impostazioni','Fix: Versione App spostata prima di Zona Pericolo nelle Impostazioni','Fix: box Crediti ridisegnato — logo, tagline completa, font più compatto']},
+{version:'v1.298',date:'2026-05-31',items:['Fix: _loadHallOfFame non richiedeva token per la lettura — ora funziona su tutti i dispositivi','Fix: aiCards ricaricate dopo ogni syncFromCloud']},
+{version:'v1.297',date:'2026-05-30',items:['Identikit AI: layout verde stile Hall of Shame con foto, nome grande, soprannome, box commento','Fix sync Firebase: soprannomi e TrashTalk caricano da Firebase con fallback localStorage']},
+{version:'v1.296',date:'2026-05-30',items:['Hall of Fame: due card separate con foto — Fame (oro) e Shame (grigio)','Hall of Fame: caricata all avvio da Firebase e localStorage — persiste tra sessioni','nickCard: box scout usa tutto lo spazio disponibile senza clamp artificiale']},
+{version:'v1.295',date:'2026-05-30',items:['nickCard: box scout con altezza ottimizzata per mostrare più testo','nickCard: font aumentati (nome 16-19px, confronto 15-16px)']},
+{version:'v1.294',date:'2026-05-30',items:['Fix: quota429 non dichiarata in _callAI — ReferenceError su Trash Talk e Hall of Fame','Fix: nickCard tutti i font aumentati proporzionalmente (14-16px)']},
+{version:'v1.293',date:'2026-05-30',items:['Fix CRITICO impostazioni: estratti _aiLog dagli @click inline — usati metodi wrapper Vue puliti (forceTrashTalk/forceHallOfFame/forceSoprannomi)']},
+{version:'v1.292',date:'2026-05-30',items:['Fix CRITICO: <\/template> nel changelog veniva interpretato dal browser come chiusura del template Vue — impostazioni invisibili']},
+{version:'v1.291',date:'2026-05-30',items:['Fix crash: newline letterale in copyAiLog rompeva il parser JS']},
+{version:'v1.290',date:'2026-05-30',items:['Fix crash impostazioni: bottone Copia Log aveva \\n inline nel template Vue — spostato in metodo copyAiLog']},
+{version:'v1.289',date:'2026-05-30',items:['Fix crash: _aiLog aggiunto al return{} Vue (era undefined nel template)','Fix crash: bottone Hall of Fame usava virgola operator non supportata — riscritto in IIFE','Fix: nickCard tutti i font aumentati proporzionalmente']},
+{version:'v1.288',date:'2026-05-30',items:['Fix: TrashTalk prompt ridotto (chiavi corte + no pretty-print) — eliminato MAX_TOKENS','Fix: HallOfFame dati compatti + log dettagliato giocatori qualificati','Fix: bottoni debug ora loggano partita/mese usato','Fix: font L\'analisi dello scout più grande']},
+{version:'v1.287',date:'2026-05-30',items:['Fix: modelli Gemini aggiornati — rimossi 1.5 deprecati, aggiunti 2.5-flash-lite e 2.0-flash-lite','Fix: circuit breaker quota — stop dopo 3×429 consecutivi','Fix: soprannomi batch da 4 con stop dopo 2 batch falliti','Fix: soglia minima partite abbassata a 2','Fix: guard anti-doppia chiamata _initAiCards','Fix: bottone Copia Log con fallback execCommand']},
+{version:'v1.286',date:'2026-05-30',items:['Fix CRITICO soprannomi: 19 giocatori mandavano MAX_TOKENS — ora batch da 5 con pausa 1.5s tra batch','Fix: ogni batch salvato subito (nessun risultato perso)','Nuovo: bottone Copia Log nel debug panel']},
+{version:'v1.285',date:'2026-05-30',items:['Fix: _callAI ora logga ogni step Gemini (modello, errore, chars risposta)','Fix: _parseAIJson più robusto — trova il JSON anche se Gemini aggiunge testo prima','Fix: JSON output istruzione più forte in tutti i prompt','Fix: log debug panel più leggibile','Fix: aggiunto gemini-2.5-flash-lite come fallback modello']},
+{version:'v1.284',date:'2026-05-30',items:['Fix: Zona Pericolo collassabile (tap per espandere) con Debug AI + Ottimizza Foto dentro','Fix: AI Cards non generavano — logica Firebase ETag sostituita con lock semplice a prova di errore','Fix: TrashTalk/HallOfFame/Soprannomi ora generano anche senza token Firebase (localStorage fallback)','Fix: log dettagliato in ogni step AI Cards — debug panel mostra esattamente dove si blocca','Fix: bottoni debug panel ora loggano anche gli errori']},{version:'v1.283',date:'2026-05-30',items:['Fix: storico recente Trash Talk esclude partita corrente (ha_vinto/ha_pareggiato ora corretti)','Fix: aggiunto storico_risultati (VVPSS...) e streak_negativa/positiva nel profilo giocatori','Fix: nickCard font dinamico — testo lungo non schiaccia più la foto del giocatore','Nuovo: pannello Debug AI Cards in Impostazioni con stato card e log attività in tempo reale','Nuovo: bottoni forza-generazione Trash Talk / Hall of Fame / Soprannomi per test']},{version:'v1.282',date:'2026-05-30',items:['AI Cards: Trash Talk generato ad ogni nuova partita (pool 3 card a rotazione nell\'hero)','AI Cards: Hall of Fame/Shame mensile con logica anti-sovrascrittura Firebase (ETag conditional write)','AI Cards: Soprannomi dinamici AI per giocatore (rigenerati ogni 5 partite)','Anti-sovrascrittura: lock Firebase con ETag + polling per gruppi multi-device','Funziona offline (localStorage) per gruppi senza Firebase']},{version:'v1.281',date:'2026-05-30',items:['Hero: card OVR podio top-3 con foto, medaglie e punteggio (🥇🥈🥉)','Stats Overall: descrizione formula aggiornata con regole dettagliate per ruolo','OVR ricalcolato automaticamente ad ogni salvataggio partita (computed reattivo)']},{version:'v1.280',date:'2026-05-30',items:['OVR v3: formula differenziata per ruolo basata su analisi dati reali','Att/Cen: gol/partita smorzato (8+ partite pieno) — non avg punti squadra','Difensore: voto individuale dominante + vittorie reali smorzate (avg punti scartata perché gonfiata dal team)','Portiere: avg punti neutro + CS + voto','Smorzamento universale sqrt(n/8): evita OVR gonfiati su 1-2 partite']},{version:'v1.279',date:'2026-05-30',items:['Overall: nuova formula OVR 50-99 stile FIFA ibrida','OVR = BASE(Voto 55%+Punti 35%+UoM 10%)×70% + BonusRuolo×30% + Costanza − Autogol','Bonus Ruolo differenziato: Att/Cen→Gol/partita · Difensore→Punti+Vittorie · Portiere→Voto+CleanSheet','Costanza proporzionale a P_max (non più binaria top-3)','OVR visualizzato come intero colorato (oro≥85 · verde≥75 · teal≥65 · grigio<65)']},{version:'v1.278',date:'2026-05-30',items:['Fix: notizie telecronista aprono la partita al click','Fix: slide Recap ultima partita apre la partita al click','Fix: soglia rivalità storica abbassata (matches≥3, incontri≥2)','Fix: Dream Team senza VS — griglia 4 foto calciatori','Fix: lucchetto rimosso dalle Ultime Partite in home']},{version:'v1.277',date:'2026-05-30',items:['Fix: rimosso blocco duplicato nel return{} Vue (heroUnifiedData e altri esportati due volte)','Fix: drawStatsCanvas aveva try/catch annidato che chiamava drawFormationCanvas con variabile non definita','Fix: rimossi alias generateFormationsRandom e generateMultipleFormations (non usati, stessa funzione)','Cleanup: codice più leggero e stabile']},{version:'v1.276',date:'2026-05-26',items:['Fix AI: max_tokens 300->600 (articolo completo invece di tronco)','Fix AI: estrai titolo dalla prima riga MAIUSCOLO della risposta','Rimosso tasto extra AI dal dettaglio partita']},{version:'v1.275',date:'2026-05-26',items:['Nuovo: pulsante Rigenera AI nelle partite storiche','Commento AI visibile nel dettaglio partita','Fix: regenerateCommentForMatch carica tutti i dati storici prima di chiamare AI']},{version:'v1.274',date:'2026-05-26',items:['AI: nuovo prompt stile Gianni Brera/Mura per articolo e commento partita','Struttura: titolo+sottotitolo+articolo+chiusura ironica','Dati: soprannomi, storico giocatori, note dal campo, uomo partita']},{version:'v1.273',date:'2026-05-26',items:['Email modificatore offuscata con X (mario.rossi -> mxxxo.xxsxx@xmxxx.cxm)']},{version:'v1.272',date:'2026-05-26',items:['Fix critico: openEditIfUnlocked e toggleMatchLock aggiunti al return Vue','Fix: partite ora si aprono su mobile','Email modificatore: mostra solo nome utente senza dominio']},{version:'v1.271',date:'2026-05-26',items:['Fix critico: schermata nera su mobile aprendo partita (virgolette nel template)']},{version:'v1.270',date:'2026-05-26',items:['Email ultimo modificatore mascherata (m***o@g***l.com)']},{version:'v1.269',date:'2026-05-25',items:['Fix: sync Firebase immediato al salvataggio partita (non fire-and-forget)','Nuovo: Ultimo modificatore (email + data/ora) salvato in ogni modifica partita','Nuovo: Lucchetto partite — blocca modifica con icona 🔒 nella lista e dettaglio']},{version:'v1.268',date:'2026-05-25',items:['Fix: storyline 2B Marcatori, 2C Punti, 2D Dream Team ripristinate','Fix: _mot2 ora viene pushata alle slide','Fix: txt in Rivalita Reale ora e una variabile esplicita']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi Identita (3 sconfitte), Infallibile (2+gol/p), Re Pareggio','Hero: Il Guascone (striscia positiva con sfida), Rivali/Affinita profili']},{version:'v1.267',date:'2026-05-25',items:['Hero: Crisi d Identita (3 sconfitte di fila) con foto e frase','Hero: L Infallibile (media 2+ gol) con foto e frase ironica','Hero: Re del Pareggio (3 pareggi consecutivi)','Hero: Il Guascone (striscia positiva) con sfida all utente','Hero: Affinita e Rivali dai profili giocatori con duel card']},{version:'v1.266',date:'2026-05-25',items:['Fix: WOW news erano perse (push dopo finalItems) — ora nel pool','Fix: el non definito in news fn — ora el3/el1','Aggiunto: punti totali, media punti, media gol, mot.personalizzata','Fix: interleave frasi ogni 4 items invece di 3']},{version:'v1.265',date:'2026-05-25',items:['CRITICAL: SW non intercetta Firebase (risolve abort sync cloud)','Fix frasi celebri hero: 1 slide per ora']},{version:'v1.264',date:'2026-05-25',items:['Hero: frasi celebri giocatori come slide dedicate (solo se presenti)']},{version:'v1.262',date:'2026-05-25',items:['SW v{sw_ver}: forza refresh — elimina cache vecchia','Stats: Media Gol diventa tab separata accanto a Gol']},{version:'v1.261',date:'2026-05-25',items:['FAB Play: animazione verde fluo ripristinata','Hero news: distribuite casualmente (shuffle orario), motivazionali sparse','Storyline: aggiunto Classifica Punti + Dream Team formazione','Stats: aggiunta Media Gol/partita con condivisione PNG']},{version:'v1.260',date:'2026-05-25',items:['Fix FAB: touch-action+classe pressed per effetto su iOS/Android','Fix Duel: solo giocatori con min 2 partite e almeno 1 gol','Fix Storyline: rivalità reale solo se ≥2 sfide dirette, altrimenti classifica marcatori']},{version:'v1.259',date:'2026-05-25',items:['Fix: FAB Play ripristinato stile originale con effetto :active','Fix: Home=verde, Stats=azzurro','Fix: hero motivazionali sempre presenti, storyline e cronaca senza soglie']},{version:'v1.258',date:'2026-05-25',items:['SW: amici-fc.html network-first per eliminare cache stantia','Navbar: Home(blu) Stats(verde) FAB-Play Storico(giallo) Altro(viola)','Menu Altro: Giocatori, Gestione Gruppi, Impostazioni con icone colorate']},{version:'v1.256',date:'2026-05-25',items:['Fix: hero progress bar — anima solo la slide corrente','Fix: segmented Stats/Giocatori/Storico — colori per tab, no tap flash','Fix: auto-sync Firebase al ritorno della connessione internet']},{version:'v1.255',date:'2026-05-24',items:['Hero: slide Cronaca stile Gazzetta con titolo e cappello','Hero: slide Recap ultima partita stile telecronista','Notizie WOW: streak, hat-trick, anniversario, record, stat dominanza']},{version:'v1.254',date:'2026-05-24',items:['Ultime partite: squadre 14px, risultato 22px, MVP 9px più piccolo']},{version:'v1.253',date:'2026-05-23',items:['🆕 Hero: stile unificato tutte le card','🆕 Card goal con foto/silhouette top-right','🆕 Ordine: Duel→Story→News(x8)→Goal→Trend→Stagione→Giocatori','🆕 Ultime partite: A arancione, B blu']},{version:'v1.252',date:'2026-05-23',items:['🆕 Hero storyline: foto A vs B + VS + fase narrativa','🆕 Hero notizie: In Diretta dallo Spogliatoio + foto 88px centrata','🆕 Media gol in slide Goal Totali']},{version:'v1.251',date:'2026-05-23',items:['🔧 Hero notizie: centrate con foto grande (72px) e testo 20px','🔧 Stat hero: numero 80px','🔧 Ultime 5 partite con font ridotto su nomi/date']},{version:'v1.250',date:'2026-05-23',items:['🔧 Hero: notizie distribuite (frasi motivazionali, telecronista, rivalita, ecc.)','🔧 Hero: testi più grandi in tutte le slide']},{version:'v1.249',date:'2026-05-23',items:['🔧 FIX CRITICO: Quote HTML rotte nelle ultime partite (app non partiva)','🔧 Notizie hero: tutte le notizie incluse come nel box originale','🔧 Ultime partite: vincitore verde, risultato centrato']},{version:'v1.248',date:'2026-05-23',items:['🔧 Hero notizie: header Notizie dallo Spogliatoio + foto giocatori','🔧 Hero: fino a 4 notizie miste (con foto, motivazionali, frasi celebri)','🔧 Ultime partite: layout migliorato, vincitore in verde, risultato centrato']},{version:'v1.247',date:'2026-05-23',items:['🔧 Hero: altezza aumentata a 320px (copre spazio ex-spogliatoio)','🔧 FIX: Notizie spogliatoio ora visibili nell hero (watch su newsItems)']},{version:'v1.246',date:'2026-05-23',items:['🔧 FIX: Home template corretta, hero slides visibili, firebase login box riparato']},{version:'v1.245',date:'2026-05-23',items:['🔧 FIX: Rinominate funzioni hero (Vue 3 riserva prefisso _ per uso interno)']},{version:'v1.244',date:'2026-05-23',items:['🆕 Hero unificato: carosello orizzontale con swipe (stat+duel+story+news+trend)','🆕 Timing variabile: 3s stat, 5.5s duel, 7s storyline, 5s news, progress bar','🆕 Segmented Stats/Giocatori/Storico + ultime 3 partite']},{version:'v1.243',date:'2026-05-22',items:['🆕 Slide Sfida: layout A sinistra vs B destra con foto, gol e VS centrale']},{version:'v1.242',date:'2026-05-22',items:['🆕 Hero carosello: slide Sfida della Settimana e Trending alternati (dinamici)','🆕 Notizie: rivalità, faide, striscia vincente con rivale coerente','🔧 Frase celebre: formato cit. Nome invece di Nome dice sempre']},{version:'v1.241',date:'2026-05-22',items:['🔧 FIX: Giornale partita ora mostra i nomi corretti delle squadre','🔧 FIX: Condivisione immagine senza testo aggiuntivo (solo immagine)']},{version:'v1.240',date:'2026-05-22',items:['🔧 FIX CRITICO: Sync Firebase ora aggiorna le partite se cambia commentoAI o altri campi testuali','🔧 FIX: Condizione aggiornamento partita corretta (operator precedence && vs || sbagliata)']},{version:'v1.239',date:'2026-05-22',items:['🔧 Rimosso logging debug da saveEditMatch (salvataggio partita confermato funzionante)']},{version:'v1.238',date:'2026-05-22',items:['🔧 DEBUG: Log dettagliato salvataggio partita per diagnosticare problema Firefox']},{version:'v1.237',date:'2026-05-22',items:['🔧 FIX CRITICO: Commento AI ora salvato in Dexie dopo rigenerazione (non si perdeva piu al refresh)','🔧 FIX: Modifica commento persiste su Firefox, reload e riavvio app']},{version:'v1.236',date:'2026-05-22',items:['🔧 FIX: Sync non mostra piu aggiornato se cambia solo la foto (esclusa dalla firma comparazione)','🔧 FIX: Foto giocatori nel giornale ora non schiacciate (cover crop da centro immagine)']},{version:'v1.235',date:'2026-05-22',items:['🆕 Log di sistema (Impostazioni → Zona Pericolo): 50 voci max, deduplicazione, Copia Log','🆕 Avvio app loggato con data/ora per verifica funzionamento','🔧 Log automatico: errori sync, token scaduto, import formazione']},{version:'v1.234',date:'2026-05-22',items:['🔧 FIX iOS: token Firebase salvato anche in sessionStorage (resistente a pulizia localStorage)','🔧 FIX: Token scaduto ora viene pulito e non blocca il sync successivo','🆕 Indicatore errore sync visibile in Impostazioni con guida alla soluzione','🆕 Badge ⚠️ sull header quando sync in errore','🔧 FIX: Errore sync non più silenzioso - compare anche dopo riavvio app']},{version:'v1.233',date:'2026-05-22',items:['🔧 FIX: Sync non mostra più toast se nessun dato è cambiato (conteggio corretto)','🔧 FIX iOS: pageshow + visibilitychange forzano sync dopo >10min in background','🔧 FIX: Toast aggiornamento mostra solo gioc./partite effettivamente cambiati']},{version:'v1.232',date:'2026-05-21',items:['🆕 Condivisione formazione: invia con codice 6 cifre (Firebase) o testo AMFC: (offline)','🆕 Ricevi formazione: importa da codice o testo, matching automatico giocatori per uid','🆕 Bottone Nuova con menu a tendina: Nuova Formazione / Ricevi Formazione']},{version:'v1.231',date:'2026-05-21',items:['🔧 PTR: soglia trascinamento aumentata a 120px (~3cm) per evitare attivazioni accidentali']},{version:'v1.230',date:'2026-05-21',items:['🆕 Pull-to-refresh: serve tenere premuto 1.5s dopo aver trascinato (evita attivazioni accidentali)']},{version:'v1.229',date:'2026-05-21',items:['🔧 FIX CRITICO: Indicatore PTR nascosto con display:none (non più translateY che falliva)']},{version:'v1.228',date:'2026-05-21',items:['🔧 FIX: Pull-to-refresh non resta visibile se touch perso o navigazione cambiata','🔧 FIX: PTR si nasconde su touchcancel e cambio view']},{version:'v1.227',date:'2026-05-21',items:['🔧 FIX: News Leggi tutto ora espande correttamente il testo','🆕 Pull-to-refresh: trascina verso il basso sulla home per sync immediato']},{version:'v1.226',date:'2026-05-21',items:['🆕 Sync lazy: scarico silenzioso Firebase quando si apre Statistiche/Storico/Giocatori (max 1 volta ogni 5 min)']},{version:'v1.225',date:'2026-05-21',items:['🆕 Frasi Celebri: campo opzionale per giocatore, appare nelle notizie','✅ Sincronizzato con Firebase, nessuna modifica al DB']},{version:'v1.224',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora visibile - il tag <\/template> della sezione Voti era spostato dopo H2H']},{version:'v1.223',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H ora mostra i risultati (ID stringa/numero risolto)','🔧 FIX: News estesa a 3 righe visibili, Leggi tutto solo > 120 chars']},{version:'v1.222',date:'2026-05-21',items:['🔧 FIX CRITICO: H2H spostato dentro la sezione statistiche (non appare più fuori)','🆕 H2H: foto giocatori nei box vittorie','🔧 FIX: News Leggi tutto solo quando serve (soglia 75 chars)']},
       { version:'v1.221', date:'2026-05-20', items:[
         '🔧 FIX CRITICO: Frasi simpatiche finalmente visibili nelle notizie',
         '🆕 40 frasi totali: VAR, rigori, pizza, calzettoni, WhatsApp e altro',
@@ -4705,7 +4842,8 @@ createApp({
     const syncLoading       = ref(false);
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
-    const onboardingFirebaseUrl = ref(''); // separate from settings - never pre-filled
+    const onboardingFirebaseUrl = ref('');
+    const onboardingStep = ref(null); // null | 'new' | 'existing' // separate from settings - never pre-filled
 
     // ── Test AI connection ──
     const testAI = async () => {
@@ -4854,7 +4992,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.299');
+    const appVersion = ref('1.305');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7148,8 +7286,19 @@ OUTPUT: Rispondi SOLO con JSON valido:
       _aiLog('Init','🚀 Inizializzazione AI Cards per: '+currentGroup.value.nome);
       await _loadAiNicknames();
       _aiLog('Init','📥 Soprannomi caricati: '+Object.keys(aiNicknames.value).length);
-      // Carica HallOfFame salvata (Firebase o localStorage)
+      // Carica HallOfFame salvata (Firebase o localStorage) — funziona anche senza login
       await _loadHallOfFame();
+      // Carica anche TrashTalk dell'ultima partita senza richiedere token
+      if (currentGroup.value?.firebaseUrl && !aiCardsTrashTalk.value.length) {
+        const _lastM = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
+        if (_lastM) {
+          const _tt = await _fbRead(`aiCards/trashTalk/${_lastM.id}`, '');
+          if (_tt?.cards) {
+            aiCardsTrashTalk.value = _tt.cards;
+            _aiLog('Init','☁️ Trash Talk caricato (pubblica)');
+          }
+        }
+      }
       await _checkHallOfFame();
       // Carica l'ultimo trash talk disponibile
       const _lsKeyTT = 'amicifc_tt_' + (currentGroup.value?.id||'');
@@ -8022,17 +8171,24 @@ Niente altro, nessuna spiegazione.`;
         const syncFromCloud = async (force=false) => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
+      logEvent('info', 'sync', 'URL: ' + base);
       syncLoading.value = true;
       try {
         // Try with auth token first, fall back to public read
         const _token = await getValidToken();
-        let resp = await fetch(
-          _token ? `${base}.json?auth=${_token}` : `${base}.json`,
-          { cache: 'no-store' }
-        );
-        // If public read fails with 401, we can't download without login
-        if (resp.status === 401 && !fbIdToken.value) {
-          throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
+        // Prima prova lettura pubblica (come il wizard che funziona)
+        // poi con token se serve autenticazione
+        logEvent('info', 'sync', 'Fetch: ' + base + '.json');
+        let resp = await fetch(`${base}.json`, { cache: 'no-store' });
+        if (resp.status === 401) {
+          if (!_token) {
+            throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
+          }
+          logEvent('info', 'sync', 'Riprovo con token auth...');
+          resp = await fetch(`${base}.json?auth=${_token}`, { cache: 'no-store' });
+          if (resp.status === 401) {
+            throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
+          }
         }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -8195,15 +8351,16 @@ Niente altro, nessuna spiegazione.`;
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
-        // Ricarica aiCards da Firebase dopo sync
-        await _loadHallOfFame();
-        await _loadAiNicknames();
-        const _lastM = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
-        if (_lastM) {
-          const _tok = await getValidToken() || '';
-          const _tt = await _fbRead(`aiCards/trashTalk/${_lastM.id}`, _tok);
-          if (_tt?.cards) aiCardsTrashTalk.value = _tt.cards;
-        }
+        // Ricarica aiCards da Firebase dopo sync (nodi separati, leggeri)
+        try {
+          await _loadHallOfFame();
+          await _loadAiNicknames();
+          const _lastM = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
+          if (_lastM) {
+            const _tt = await _fbRead(`aiCards/trashTalk/${_lastM.id}`, '');
+            if (_tt?.cards) aiCardsTrashTalk.value = _tt.cards;
+          }
+        } catch(_e) { _aiLog('Sync','⚠️ Errore reload aiCards: '+_e.message,false); }
       } catch (e) {
         const errMsg = e.message || 'Errore sconosciuto';
         lastSyncError.value = errMsg;
@@ -8260,6 +8417,7 @@ Niente altro, nessuna spiegazione.`;
       if (newGroups.length === 0 && !_syncNavigated) {
         // No groups and sync didn't navigate → show onboarding
         currentView.value = 'onboarding';
+        onboardingStep.value = null;
       } else if (newGroups.length > 0 && currentView.value === 'onboarding' && !_syncNavigated) {
         // Groups appeared (e.g. after import) but still on onboarding → go home
         currentView.value = 'home';
@@ -9750,7 +9908,11 @@ Niente altro, nessuna spiegazione.`;
 
       // DB caricato: attiva il watch e controlla se serve onboarding
       dbLoaded.value = true;
-      // Navigation handled by watch(groups) below - don't override sync navigation
+      // Controllo esplicito onboarding dopo caricamento DB
+      if (groups.value.length === 0 && !_syncNavigated) {
+        currentView.value = 'onboarding';
+        onboardingStep.value = null;
+      }
 
       // Load logo
       loadLogo();
@@ -10698,7 +10860,7 @@ Niente altro, nessuna spiegazione.`;
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
       matchInfo, getPlayerRows,
-      onboardingFirebaseUrl,
+      onboardingFirebaseUrl, onboardingStep,
       updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
