@@ -4495,7 +4495,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.310',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.311',date:'2026-05-31',items:[
+  'Fix DEFINITIVO card AI: il TrashTalk era salvato con ID Dexie (locale a ogni dispositivo) — ora usa la data della partita come chiave stabile cross-device',
+  'Diagnosi: ID Dexie ++ è autoincrementale — la stessa partita ha ID diversi su dispositivi diversi'
+]},{version:'v1.310',date:'2026-05-31',items:[
   'Fix SW: sw.js aggiornato con bypass firebasedatabase.app (causa definitiva del Failed to fetch)',
   'Fix soprannomi: batch da 4 giocatori (prima mandava tutti in un prompt → MAX_TOKENS garantito)',
   'Fix HallOfFame: salva sempre su localStorage oltre che Firebase (nessuna perdita se token assente)',
@@ -5006,7 +5009,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.310');
+    const appVersion = ref('1.311');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6911,8 +6914,10 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 }`;
 
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      const dataPath = `aiCards/trashTalk/${match.id}`;
-      const lockPath = `aiCards/locks/trashTalk_${match.id}`;
+      // Usa data partita come chiave stabile (l'ID Dexie è locale a ogni dispositivo)
+      const _ttKey = (match.data||'unknown').replace(/-/g,'');
+      const dataPath = `aiCards/trashTalk/${currentGroup.value.id}/${_ttKey}`;
+      const lockPath = `aiCards/locks/trashTalk_${currentGroup.value.id}_${_ttKey}`;
       let token = '';
 
       // Controlla Firebase solo se configurato
@@ -7311,7 +7316,10 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           const _allMatches = await db.matches.where('groupId').equals(_gid).toArray();
           const _lastM = _allMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
           if (_lastM) {
-            const _tt = await _fbRead('aiCards/trashTalk/'+_lastM.id, '');
+            // Usa data partita come chiave stabile (non ID Dexie locale)
+            const _ttKey = (_lastM.data||'').replace(/-/g,'');
+            const _ttPath = 'aiCards/trashTalk/'+_gid+'/'+_ttKey;
+            const _tt = await _fbRead(_ttPath, '');
             if (_tt?.cards?.length) {
               aiCardsTrashTalk.value = _tt.cards;
               localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
