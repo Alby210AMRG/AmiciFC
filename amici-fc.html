@@ -3222,10 +3222,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
           <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
         </div>
-        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-          <button class="btn btn-ghost btn-sm" @click="checkForUpdates">🔄 Controlla aggiornamenti</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--lime)" @click="showChangelog=true">📋 Cosa è cambiato?</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--yellow)" @click="forceUpdate">⚡ Forza Aggiornamento</button>
+        <div style="display:flex;gap:6px;margin-top:12px">
+          <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:0.72rem" @click="checkForUpdates">🔄 Aggiornamenti</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:0.72rem;color:var(--lime)" @click="showChangelog=true">📋 Novità</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:0.72rem;color:var(--yellow)" @click="forceUpdate">⚡ Forza</button>
         </div>
         <div style="font-size:0.72rem;color:var(--text2);margin-top:6px;line-height:1.5">
           💡 <strong>I dati non vengono cancellati.</strong> Svuota solo la cache dell'app.<br>
@@ -4505,7 +4505,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.313',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.314',date:'2026-05-31',items:[
+  'Fix Claude Failed to fetch: bumped versione SW a v1314 — forza reinstallazione del Service Worker su PWA installate (il vecchio SW senza bypass anthropic.com restava in cache)',
+  'Fix layout: pulsanti Versione App (Aggiornamenti/Novità/Forza) su una sola riga'
+]},{version:'v1.313',date:'2026-05-31',items:[
   'Fix AI: chiavi separate per provider — Claude/ChatGPT/Gemini salvate indipendentemente',
   'Nuovo: fallback automatico Claude → ChatGPT → Gemini se un provider non funziona o quota esaurita',
   'UI AI: badge chiavi salvate visibili + info catena fallback',
@@ -5029,7 +5032,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.313');
+    const appVersion = ref('1.314');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10076,7 +10079,7 @@ Niente altro, nessuna spiegazione.`;
       // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js?v=1309', { scope: './' });
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1314', { scope: './' });
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
