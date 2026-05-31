@@ -4495,7 +4495,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.305',date:'2026-05-31',items:['Fix sync: lettura pubblica prima del token — risolve Failed to fetch dal modale cloud','Fix: changelog aggiornato con tutte le versioni dalla 1.285 alla 1.305']},{version:'v1.304',date:'2026-05-31',items:['Debug sync: aggiunto log URL per diagnosticare Failed to fetch']},
+    const changelogEntries = [{version:'v1.307',date:'2026-05-31',items:['Fix CRITICO card AI: _initAiCards era dentro il blocco if(matches>0) — su dispositivi senza partite locali non veniva mai chiamato','Fix: dopo syncFromCloud chiama _initAiCards completo invece di loader parziali']},{version:'v1.306',date:'2026-05-31',items:['Fix sync PWA: aggiunto mode:cors + credentials:omit a tutte le fetch Firebase (risolve Failed to fetch su PWA installata)','Fix: _fbRead e _fbWrite usano stesse opzioni CORS']},{version:'v1.305',date:'2026-05-31',items:['Fix sync: lettura pubblica prima del token — risolve Failed to fetch dal modale cloud','Fix: changelog aggiornato con tutte le versioni dalla 1.285 alla 1.305']},{version:'v1.304',date:'2026-05-31',items:['Debug sync: aggiunto log URL per diagnosticare Failed to fetch']},
 {version:'v1.303',date:'2026-05-31',items:['Fix CRITICO: wizard onboarding non appariva — race condition dbLoaded (il controllo scattava prima che il DB fosse pronto)']},
 {version:'v1.302',date:'2026-05-31',items:['Fix: rimosso AbortController che causava errore abort su Firefox','Nuovo: wizard onboarding per nuovi utenti — scelta tra Nuovo Gruppo, Gruppo Esistente (Firebase), Import JSON','Wizard: guida Firebase con spiegazione login, testo simpatico']},
 {version:'v1.301',date:'2026-05-31',items:['Fix sync Firefox: AbortController con timeout 30s aggiunto (poi rimosso in v1.302)','Fix: aiCards reload in try/catch separato']},
@@ -4992,7 +4992,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.305');
+    const appVersion = ref('1.307');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5241,9 +5241,10 @@ createApp({
         try { await recomputeStats(); } catch(e) { console.warn('recomputeStats error:', e); }
         try { await repairMatchPlayerIds(); } catch(e) {}
         _scheduleNewsCompute();
-      // Inizializza AI Cards (soprannomi, HoF, ultimo trash talk)
-      _initAiCards().catch(console.warn);
       }
+      // Inizializza AI Cards — sempre, anche senza partite locali
+      // (potrebbero esserci card generate su altri dispositivi e salvate su Firebase)
+      _initAiCards().catch(console.warn);
     };
 
     const selectGroup = async g => {
@@ -6758,7 +6759,8 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       try {
         const url = token ? `${base}/${path}.json?auth=${token}` : `${base}/${path}.json`;
         const r = await fetch(url, {
-          method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(data)
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          mode:'cors', credentials:'omit', body: JSON.stringify(data)
         });
         if (!r.ok) _aiLog('Firebase','⚠️ Scrittura fallita su '+path+' (status '+r.status+')',false);
         return r.ok;
@@ -6769,7 +6771,8 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const base = getFirebaseBase();
       if (!base) return null;
       try {
-        const r = await fetch(`${base}/${path}.json${token?'?auth='+token:''}`);
+        const r = await fetch(`${base}/${path}.json${token?'?auth='+token:''}`,
+          { cache: 'no-store', mode: 'cors', credentials: 'omit' });
         const d = await r.json();
         return d !== null && d !== undefined ? d : null;
       } catch(e) { return null; }
@@ -8171,7 +8174,7 @@ Niente altro, nessuna spiegazione.`;
         const syncFromCloud = async (force=false) => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
-      logEvent('info', 'sync', 'URL: ' + base);
+      logEvent('info', 'sync', 'URL: ' + base + (navigator.serviceWorker?.controller ? ' [SW attivo]' : ' [no SW]'));
       syncLoading.value = true;
       try {
         // Try with auth token first, fall back to public read
@@ -8179,13 +8182,14 @@ Niente altro, nessuna spiegazione.`;
         // Prima prova lettura pubblica (come il wizard che funziona)
         // poi con token se serve autenticazione
         logEvent('info', 'sync', 'Fetch: ' + base + '.json');
-        let resp = await fetch(`${base}.json`, { cache: 'no-store' });
+        const _fetchOpts = { cache: 'no-store', mode: 'cors', credentials: 'omit' };
+        let resp = await fetch(`${base}.json`, _fetchOpts);
         if (resp.status === 401) {
           if (!_token) {
             throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
           }
           logEvent('info', 'sync', 'Riprovo con token auth...');
-          resp = await fetch(`${base}.json?auth=${_token}`, { cache: 'no-store' });
+          resp = await fetch(`${base}.json?auth=${_token}`, _fetchOpts);
           if (resp.status === 401) {
             throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
           }
@@ -8351,16 +8355,8 @@ Niente altro, nessuna spiegazione.`;
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
-        // Ricarica aiCards da Firebase dopo sync (nodi separati, leggeri)
-        try {
-          await _loadHallOfFame();
-          await _loadAiNicknames();
-          const _lastM = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
-          if (_lastM) {
-            const _tt = await _fbRead(`aiCards/trashTalk/${_lastM.id}`, '');
-            if (_tt?.cards) aiCardsTrashTalk.value = _tt.cards;
-          }
-        } catch(_e) { _aiLog('Sync','⚠️ Errore reload aiCards: '+_e.message,false); }
+        // Ricarica aiCards da Firebase dopo sync
+        try { await _initAiCards(); } catch(_e) { _aiLog('Sync','⚠️ Errore reload aiCards: '+_e.message,false); }
       } catch (e) {
         const errMsg = e.message || 'Errore sconosciuto';
         lastSyncError.value = errMsg;
@@ -8453,9 +8449,9 @@ Niente altro, nessuna spiegazione.`;
       toast('⏳ Connessione a Firebase...', 'info', 8000);
       try {
         // Try public read first; if 401, try with existing token
-        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store', mode: 'cors', credentials: 'omit' });
         if (resp.status === 401 && fbIdToken.value) {
-          resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, { cache: 'no-store' });
+          resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, { cache: 'no-store', mode: 'cors', credentials: 'omit' });
         }
         if (resp.status === 401) {
           syncLoading.value = false;
