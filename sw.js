@@ -1,5 +1,5 @@
-// Amici FC Service Worker v1265
-const CACHE = 'amicifc-v1265';
+// Amici FC Service Worker v1309
+const CACHE = 'amicifc-v1309';
 const ASSETS = ['./', './amici-fc.html', './version.json'];
 
 self.addEventListener('install', e => {
@@ -23,17 +23,20 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // ── BYPASS COMPLETO: mai intercettare richieste esterne (Firebase, API, CDN dati) ──
+  // ── BYPASS COMPLETO: mai intercettare richieste esterne ──
+  // Firebase Realtime Database (tutti i domini, incluso europe-west1)
   if (
     url.includes('firebaseio.com') ||
+    url.includes('firebasedatabase.app') ||
     url.includes('firebasestorage') ||
     url.includes('googleapis.com/identitytoolkit') ||
     url.includes('securetoken.googleapis.com') ||
+    url.includes('identitytoolkit.googleapis.com') ||
     url.includes('anthropic.com') ||
     url.includes('generativelanguage.googleapis.com') ||
     url.includes('api.openai.com')
   ) {
-    return; // lascia passare senza intercettare
+    return; // lascia passare direttamente alla rete senza intercettare
   }
 
   // Font Google: cache-first
@@ -77,13 +80,11 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Tutto il resto (JS, CSS, immagini statiche): cache-first, network fallback
-  // MA solo se same-origin o CORS esplicito (mai opaque)
+  // Tutto il resto: cache-first, network fallback
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
       return fetch(e.request).then(r => {
-        // Cacha solo risposte basic (same-origin) o cors — mai opaque
         if (r && r.ok && (r.type === 'basic' || r.type === 'cors')) {
           caches.open(CACHE).then(c => c.put(e.request, r.clone()));
         }

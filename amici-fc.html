@@ -4495,7 +4495,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.308',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.309',date:'2026-05-31',items:[
+  'Fix DEFINITIVO sync: sw.js aggiornato con bypass per firebasedatabase.app (il vecchio SW intercettava le fetch Firebase europe-west1 perché controllava solo firebaseio.com)',
+  'Aggiornata registrazione SW a v=1309 per forzare installazione del nuovo SW'
+]},{version:'v1.308',date:'2026-05-31',items:[
   'Fix sync DEFINITIVO: syncFromCloud ora usa ?shallow=false come il wizard che funzionava — era lunica differenza nella fetch',
   'Fix sync: startup sync ora parte sempre senza richiedere token (prima saltava se non loggati)',
   'Fix: rimosso mode:cors che causava preflight OPTIONS non necessario',
@@ -4997,7 +5000,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.308');
+    const appVersion = ref('1.309');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -9999,7 +10002,7 @@ Niente altro, nessuna spiegazione.`;
       // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js?v=1153', { scope: './' });
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1309', { scope: './' });
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
