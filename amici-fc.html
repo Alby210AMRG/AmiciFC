@@ -3147,17 +3147,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <div class="input-group">
-          <label class="input-label">🔑 API Key
+          <label class="input-label">🔑 API Key — <span style="color:var(--lime)">{{ settings.aiProvider==='claude'?'Claude':settings.aiProvider==='gemini'?'Gemini':'ChatGPT' }}</span>
             <span style="font-size:0.7rem;color:var(--text2);font-weight:400;margin-left:6px">(salvata solo sul tuo dispositivo)</span>
           </label>
           <div style="display:flex;gap:8px">
             <input class="input-field" :type="showApiKey?'text':'password'"
-              v-model="settings.apiKey"
+              v-model="settings.apiKey" @input="saveSettings"
               :placeholder="settings.aiProvider==='gemini' ? 'AIzaSy...' : settings.aiProvider==='claude' ? 'sk-ant-...' : 'sk-proj-...'"
               style="flex:1">
             <button class="btn btn-ghost btn-sm" @click="showApiKey=!showApiKey" style="flex-shrink:0">
               {{ showApiKey ? '🙈' : '👁️' }}
             </button>
+          </div>
+          <!-- Stato chiavi salvate -->
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <span v-if="settings.apiKeyClaude" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(255,140,60,.15);color:#ff8c3c">🟠 Claude ✓</span>
+            <span v-if="settings.apiKeyGemini" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(58,123,255,.15);color:var(--blue)">✨ Gemini ✓</span>
+            <span v-if="settings.apiKeyChatgpt" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(16,163,127,.15);color:#10a37f">🟢 ChatGPT ✓</span>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
+            Se hai più chiavi, l'app usa automaticamente: <strong style="color:var(--text1)">Claude → ChatGPT → Gemini</strong>
           </div>
         </div>
 
@@ -3175,13 +3184,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <p style="font-size:0.82rem;color:var(--text2);margin-bottom:14px">
           Esporta uno o più gruppi in JSON (include foto giocatori). Importa salvataggi ricevuti da altri utenti.
         </p>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button class="btn btn-blue" @click="openExportModal">📤 Esporta Gruppi</button>
-          <label class="btn btn-ghost" style="cursor:pointer">
-            📥 Importa JSON
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-blue btn-sm" @click="openExportModal" style="flex:1;justify-content:center">📤 Esporta</button>
+          <label class="btn btn-ghost btn-sm" style="cursor:pointer;flex:1;justify-content:center;display:flex;align-items:center">
+            📥 Importa
             <input type="file" accept=".json" style="display:none" @change="importData">
           </label>
-          <button class="btn btn-ghost" style="color:var(--lime)" @click="exportExcel" v-if="currentGroup">📊 Esporta Excel</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--lime);flex:1;justify-content:center" @click="exportExcel" v-if="currentGroup">📊 Excel</button>
+          <button class="btn btn-ghost btn-sm" style="color:var(--lime);flex:1;justify-content:center" @click="exportExcel" v-else disabled>📊 Excel</button>
         </div>
       </div>
 
@@ -4495,7 +4505,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.312',date:'2026-05-31',items:['Fix: modello Claude aggiornato a claude-haiku-4-5 (il precedente claude-haiku-4-5-20251001 è deprecato)']},{version:'v1.311',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.313',date:'2026-05-31',items:[
+  'Fix AI: chiavi separate per provider — Claude/ChatGPT/Gemini salvate indipendentemente',
+  'Nuovo: fallback automatico Claude → ChatGPT → Gemini se un provider non funziona o quota esaurita',
+  'UI AI: badge chiavi salvate visibili + info catena fallback',
+  'Fix Import/Export: 3 pulsanti su una riga (Esporta/Importa/Excel)'
+]},{version:'v1.312',date:'2026-05-31',items:['Fix: modello Claude aggiornato a claude-haiku-4-5 (il precedente claude-haiku-4-5-20251001 è deprecato)']},{version:'v1.311',date:'2026-05-31',items:[
   'Fix DEFINITIVO card AI: il TrashTalk era salvato con ID Dexie (locale a ogni dispositivo) — ora usa la data della partita come chiave stabile cross-device',
   'Diagnosi: ID Dexie ++ è autoincrementale — la stessa partita ha ID diversi su dispositivi diversi'
 ]},{version:'v1.310',date:'2026-05-31',items:[
@@ -4827,7 +4842,7 @@ createApp({
         '🔧 FIX: Log versioni aggiornato dalla v1.089 alla v1.109',
       ]},
     ];
-    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
+    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', apiKeyClaude: '', apiKeyGemini: '', apiKeyChatgpt: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -4859,6 +4874,11 @@ createApp({
     const syncLoading       = ref(false);
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
+    // Watch: quando cambia provider, mostra la chiave di quel provider
+    watch(() => settings.value.aiProvider, (prov) => {
+      const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
+      settings.value.apiKey = settings.value[_pk[prov]||'apiKeyClaude'] || '';
+    });
     const onboardingFirebaseUrl = ref('');
     const onboardingStep = ref(null); // null | 'new' | 'existing' // separate from settings - never pre-filled
 
@@ -5009,7 +5029,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.312');
+    const appVersion = ref('1.313');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6656,57 +6676,99 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
 
     // ── Helper: chiama l'AI e restituisce testo grezzo (riusa infra esistente) ──
     const _callAI = async (prompt, maxTokens = 600) => {
-      const prov = settings.value.aiProvider;
-      const key  = settings.value.apiKey;
-      if (!key) { _aiLog('_callAI','⚠️ Nessuna API key configurata',false); return null; }
-      _aiLog('_callAI',`📡 Chiamata AI (${prov}) — ${maxTokens} token max`);
-      try {
-        if (prov === 'gemini') {
-          const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
-          let quota429 = 0;
-          for (const model of models) {
-            const r = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-              { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ contents:[{parts:[{text:prompt}]}],
-                  generationConfig:{maxOutputTokens:maxTokens,temperature:0.9,topP:0.95} }) }
-            );
-            const d = await r.json();
-            if (!d.error) {
-              const text = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-              const fin = d.candidates?.[0]?.finishReason;
-              if (fin && fin !== 'STOP') { _aiLog('_callAI','⚠️ Gemini bloccato: '+fin,false); return null; }
-              if (!text) { _aiLog('_callAI','⚠️ '+model+' risposta vuota',false); return null; }
-              _aiLog('_callAI','✅ '+model+' OK — '+text.length+' chars');
-              return text;
+      // Chiavi per provider
+      const _keys = {
+        claude:  settings.value.apiKeyClaude  || '',
+        chatgpt: settings.value.apiKeyChatgpt || '',
+        gemini:  settings.value.apiKeyGemini  || ''
+      };
+
+      // Fallback chain: provider scelto → altri con chiave disponibile
+      // Ordine preferenza: claude → chatgpt → gemini
+      const _pref = settings.value.aiProvider || 'claude';
+      const _chain = [_pref, ...['claude','chatgpt','gemini'].filter(p => p !== _pref)];
+      const _available = _chain.filter(p => _keys[p]);
+
+      if (!_available.length) {
+        _aiLog('_callAI','⚠️ Nessuna API key configurata per nessun provider',false);
+        return null;
+      }
+
+      // Funzione per chiamare ogni provider
+      const _tryProvider = async (prov) => {
+        const key = _keys[prov];
+        _aiLog('_callAI',`📡 Chiamata AI (${prov}) — ${maxTokens} token max`);
+        try {
+          if (prov === 'gemini') {
+            const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+            let quota429 = 0;
+            for (const model of models) {
+              const r = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+                { method:'POST', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ contents:[{parts:[{text:prompt}]}],
+                    generationConfig:{maxOutputTokens:maxTokens,temperature:0.9,topP:0.95} }) }
+              );
+              const d = await r.json();
+              if (!d.error) {
+                const text = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+                const fin  = d.candidates?.[0]?.finishReason;
+                if (fin && fin !== 'STOP') { _aiLog('_callAI','⚠️ Gemini bloccato: '+fin,false); return null; }
+                if (!text) { _aiLog('_callAI','⚠️ '+model+' risposta vuota',false); return null; }
+                _aiLog('_callAI','✅ '+model+' OK — '+text.length+' chars');
+                return text;
+              }
+              const c = d.error?.code||0, emsg=(d.error?.message||'').slice(0,80);
+              _aiLog('_callAI','⚠️ '+model+': errore '+c+' — '+emsg,false);
+              if (c===429) { quota429++; if (quota429>=3) return '__QUOTA__'; continue; }
+              if (c===404||emsg.includes('not found')||emsg.includes('deprecated')) continue;
+              return null;
             }
-            const c = d.error?.code||0, emsg=(d.error?.message||'').slice(0,80);
-            _aiLog('_callAI','⚠️ '+model+': errore '+c+' — '+emsg,false);
-            if(c===429){quota429++;if(quota429>=3){_aiLog('_callAI','🛑 Quota esaurita su 3 modelli — stop',false);return null;}continue;}
-            if(c===404||emsg.includes('not found')||emsg.includes('deprecated'))continue;
-            break;
+            return null;
+          } else if (prov === 'claude') {
+            const r = await fetch('https://api.anthropic.com/v1/messages', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
+              body: JSON.stringify({model:'claude-haiku-4-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
+            });
+            const d = await r.json();
+            if (d.error) {
+              _aiLog('_callAI','⚠️ Claude errore: '+( d.error?.message||'').slice(0,80),false);
+              return null;
+            }
+            const text = d.content?.[0]?.text?.trim() || null;
+            if (text) _aiLog('_callAI','✅ Claude OK — '+text.length+' chars');
+            return text;
+          } else {
+            const r = await fetch('https://api.openai.com/v1/chat/completions', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+              body: JSON.stringify({model:'gpt-4o-mini',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
+            });
+            const d = await r.json();
+            if (d.error) {
+              _aiLog('_callAI','⚠️ ChatGPT errore: '+(d.error?.message||'').slice(0,80),false);
+              return null;
+            }
+            const text = d.choices?.[0]?.message?.content?.trim() || null;
+            if (text) _aiLog('_callAI','✅ ChatGPT OK — '+text.length+' chars');
+            return text;
           }
-          return null;
-        } else if (prov === 'claude') {
-          const r = await fetch('https://api.anthropic.com/v1/messages', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-            body: JSON.stringify({model:'claude-haiku-4-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
-          });
-          const d = await r.json();
-          if (d.error) return null;
-          return d.content?.[0]?.text?.trim() || null;
-        } else {
-          const r = await fetch('https://api.openai.com/v1/chat/completions', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-            body: JSON.stringify({model:'gpt-4o-mini',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
-          });
-          const d = await r.json();
-          if (d.error) return null;
-          return d.choices?.[0]?.message?.content?.trim() || null;
+        } catch(e) { _aiLog('_callAI','❌ '+prov+' eccezione: '+e.message,false); return null; }
+      };
+
+      // Esegui la chain con fallback
+      for (const prov of _available) {
+        const result = await _tryProvider(prov);
+        if (result && result !== '__QUOTA__') return result;
+        if (result === '__QUOTA__' || result === null) {
+          if (prov !== _available[_available.length-1]) {
+            _aiLog('_callAI',`⚡ Fallback: ${prov} → prossimo provider`,false);
+          }
         }
-      } catch(e) { _aiLog('_callAI','❌ Errore: '+e.message,false); return null; }
+      }
+      _aiLog('_callAI','🛑 Tutti i provider hanno fallito',false);
+      return null;
     };
 
     // ── Helper: parse JSON da risposta AI (rimuove eventuali ```json) ──
@@ -9482,6 +9544,10 @@ Niente altro, nessuna spiegazione.`;
 
     // ── Settings ──
     const saveSettings = () => {
+      // Salva la chiave nel campo specifico del provider corrente
+      const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
+      const _field = _pk[settings.value.aiProvider] || 'apiKeyClaude';
+      settings.value[_field] = settings.value.apiKey;
       localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
       toast('✅ Impostazioni salvate!');
     };
@@ -9872,6 +9938,16 @@ Niente altro, nessuna spiegazione.`;
         // darkTheme defaults to true if not set
         if (s.darkTheme === undefined) s.darkTheme = true;
         Object.assign(settings.value, s);
+        // Migrazione: apiKey legacy → chiave specifica del provider
+        if (s.apiKey && !s.apiKeyClaude && !s.apiKeyGemini && !s.apiKeyChatgpt) {
+          const _p = s.aiProvider || 'claude';
+          if (_p==='claude') settings.value.apiKeyClaude = s.apiKey;
+          else if (_p==='gemini') settings.value.apiKeyGemini = s.apiKey;
+          else if (_p==='chatgpt') settings.value.apiKeyChatgpt = s.apiKey;
+        }
+        // apiKey computed = chiave del provider attivo
+        const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
+        settings.value.apiKey = settings.value[_pk[settings.value.aiProvider]||'apiKeyClaude'] || '';
         document.documentElement.setAttribute('data-theme', settings.value.darkTheme ? 'dark' : 'light');
         if (settings.value.fontLarge) {
           document.documentElement.style.setProperty('--font-scale','1.18');
