@@ -4495,7 +4495,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.309',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.310',date:'2026-05-31',items:[
+  'Fix SW: sw.js aggiornato con bypass firebasedatabase.app (causa definitiva del Failed to fetch)',
+  'Fix soprannomi: batch da 4 giocatori (prima mandava tutti in un prompt → MAX_TOKENS garantito)',
+  'Fix HallOfFame: salva sempre su localStorage oltre che Firebase (nessuna perdita se token assente)',
+  'Fix _initAiCards: riscritto pulito — eliminati blocchi duplicati che causavano errore const ridichiarata',
+  'Fix TrashTalk: carica prima da localStorage poi aggiorna da Firebase (ordine corretto)'
+]},{version:'v1.309',date:'2026-05-31',items:[
   'Fix DEFINITIVO sync: sw.js aggiornato con bypass per firebasedatabase.app (il vecchio SW intercettava le fetch Firebase europe-west1 perché controllava solo firebaseio.com)',
   'Aggiornata registrazione SW a v=1309 per forzare installazione del nuovo SW'
 ]},{version:'v1.308',date:'2026-05-31',items:[
@@ -5000,7 +5006,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.309');
+    const appVersion = ref('1.310');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7085,11 +7091,15 @@ OUTPUT: Rispondi SOLO con JSON valido:
         return;
       }
 
+      // Salva sempre su localStorage (backup garantito)
+      localStorage.setItem(`amicifc_hof_${meseKey}`, JSON.stringify(parsed));
+      // Salva su Firebase se loggato
       if (hasFirebase && token) {
         await _fbWrite(dataPath, parsed, token);
         await _fbWrite(lockPath, null, token);
-      } else {
-        localStorage.setItem(`amicifc_hof_${meseKey}`, JSON.stringify(parsed));
+        _aiLog('HallOfFame','☁️ Salvato su Firebase');
+      } else if (hasFirebase) {
+        _aiLog('HallOfFame','💾 Salvato solo su localStorage (no token)');
       }
       _aiLog('HallOfFame','✅ Generazione completata: '+parsed.fame.nome+' vs '+parsed.shame.nome);
       aiCardsHallOfFame.value = parsed;
@@ -7143,70 +7153,55 @@ OUTPUT: Rispondi SOLO con JSON valido:
       if (!toGenerate.length) { _aiLog('Soprannomi','✅ Tutti i soprannomi sono aggiornati'); return; }
       _aiLog('Soprannomi','📝 Da generare: '+toGenerate.map(p=>p.soprannome||p.nome).join(', '));
 
-      const profili = toGenerate.map(p => ({
-        id: p.id,
-        nome: p.soprannome || p.nome,
-        ruolo: p.ruolo || 'Jolly',
-        partite: p.partiteTotali||0,
-        gol: p.goalTotali||0,
-        assist: p.assistTotali||0,
-        gol_per_partita: ((p.goalTotali||0)/(Math.max(p.partiteTotali||1,1))).toFixed(2),
-        media_voto: (p.mediaVoto||0).toFixed(1),
-        media_punti: (p.mediaPunti||0).toFixed(2),
-        uom: p.uomoPartitaTotali||0,
-        autogol: p.autogolTotali||0
-      }));
-
-      const prompt = `Sei uno scout calcistico con l'ironia di un tifoso da curva. 
-Per ogni giocatore genera un soprannome giornalistico e un confronto con un calciatore famoso (reale, presente o storico).
-
-GIOCATORI DA ANALIZZARE:
-${JSON.stringify(profili, null, 2)}
-
-REGOLE:
-- Il soprannome deve rispecchiare le statistiche (es: chi fa molti gol → bomber, chi difende → roccioso)
-- Il confronto deve essere ironico ma calcisticamente sensato (es: "Il Gattuso della periferia", "Inzaghi dei poveri", "Il Messi del giovedì")
-- Mai offensivo, sempre divertente
-- Usa ruolo e statistiche come base: un attaccante con 0 gol NON sarà paragonato a Ronaldo
-
-OUTPUT: Rispondi SOLO con JSON valido:
-{
-  "soprannomi": [
-    {
-      "id": "...",
-      "soprannome_ai": "...",
-      "confronto": "...",
-      "motivazione": "..."
-    }
-  ]
-}`;
-
-      const raw = await _callAI(prompt, 900);
-      const parsed = _parseAIJson(raw);
-      if (!parsed?.soprannomi?.length) return;
-
+      // Batch da 4 giocatori per evitare MAX_TOKENS
+      const BATCH = 4;
       const updated = { ...aiNicknames.value };
-      for (const s of parsed.soprannomi) {
-        const p = players.find(x => String(x.id) === String(s.id));
-        if (!p) continue;
-        updated[s.id] = {
-          soprannome_ai: s.soprannome_ai,
-          confronto: s.confronto,
-          motivazione: s.motivazione,
-          generatedAt: Date.now(),
-          partiteAl: p.partiteTotali||0
-        };
-      }
-      _aiLog('Soprannomi','✅ Generati per: '+parsed.soprannomi.map(x=>x.id).join(', '));
-      aiNicknames.value = updated;
+      let failedBatches = 0;
 
-      const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      if (hasFirebase) {
-        const token = await getValidToken() || '';
-        const dataPath = `aiCards/soprannomi/${currentGroup.value.id}`;
-        await _fbWrite(dataPath, updated, token);
-      } else {
-        localStorage.setItem(`amicifc_nicks_${currentGroup.value.id}`, JSON.stringify(updated));
+      for (let bi = 0; bi < toGenerate.length; bi += BATCH) {
+        if (failedBatches >= 2) { _aiLog('Soprannomi','⛔ Troppi errori, stop batch'); break; }
+        const batch = toGenerate.slice(bi, bi + BATCH);
+        const profili = batch.map(p => ({
+          id: p.id,
+          nome: p.soprannome || p.nome,
+          ruolo: p.ruolo || 'Jolly',
+          g: p.partiteTotali||0,
+          gol: p.goalTotali||0,
+          ast: p.assistTotali||0,
+          voto: (p.mediaVoto||0).toFixed(1),
+          uom: p.uomoPartitaTotali||0
+        }));
+
+        const prompt = `Scout calcistico ironico. Per ogni giocatore: soprannome e confronto con calciatore famoso reale.
+GIOCATORI: ${JSON.stringify(profili)}
+REGOLE: soprannome basato su stats, confronto ironico (es:"Il Gattuso della periferia"), mai offensivo.
+JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
+
+        const raw = await _callAI(prompt, 600);
+        if (!raw) { failedBatches++; continue; }
+        const parsed = _parseAIJson(raw);
+        if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
+        failedBatches = 0;
+
+        for (const s of parsed.soprannomi) {
+          const p = batch.find(x => String(x.id) === String(s.id));
+          if (!p || !s.soprannome_ai) continue;
+          updated[s.id] = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
+        }
+        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
+        aiNicknames.value = { ...updated };
+
+        // Salva subito dopo ogni batch — localStorage sempre, Firebase se token
+        const _lsNK = `amicifc_nicks_${currentGroup.value.id}`;
+        localStorage.setItem(_lsNK, JSON.stringify(updated));
+        if (currentGroup.value?.firebaseUrl) {
+          const token = await getValidToken() || '';
+          if (token) {
+            await _fbWrite(`aiCards/soprannomi/${currentGroup.value.id}`, updated, token);
+            _aiLog('Soprannomi','☁️ Salvato su Firebase');
+          }
+        }
+        if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, 1500));
       }
     };
 
@@ -7294,49 +7289,44 @@ OUTPUT: Rispondi SOLO con JSON valido:
 
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
-      _aiLog('Init','🚀 Inizializzazione AI Cards per: '+currentGroup.value.nome);
+      _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
+      const _gid = currentGroup.value.id;
+      const _lsKeyTT = 'amicifc_tt_' + _gid;
+
+      // 1. Soprannomi
       await _loadAiNicknames();
-      _aiLog('Init','📥 Soprannomi caricati: '+Object.keys(aiNicknames.value).length);
-      // Carica HallOfFame salvata (Firebase o localStorage) — funziona anche senza login
+      _aiLog('Init','📥 Soprannomi: '+Object.keys(aiNicknames.value).length);
+
+      // 2. Hall of Fame
       await _loadHallOfFame();
-      // Carica anche TrashTalk dell'ultima partita senza richiedere token
-      if (currentGroup.value?.firebaseUrl && !aiCardsTrashTalk.value.length) {
-        const _lastM = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
-        if (_lastM) {
-          const _tt = await _fbRead(`aiCards/trashTalk/${_lastM.id}`, '');
-          if (_tt?.cards) {
-            aiCardsTrashTalk.value = _tt.cards;
-            _aiLog('Init','☁️ Trash Talk caricato (pubblica)');
-          }
-        }
+
+      // 3. TrashTalk — localStorage prima (immediato), poi Firebase aggiorna
+      const _lsCached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
+      if (_lsCached?.cards?.length) {
+        aiCardsTrashTalk.value = _lsCached.cards;
+        _aiLog('Init','💾 Trash Talk da localStorage ('+_lsCached.cards.length+' card)');
       }
-      await _checkHallOfFame();
-      // Carica l'ultimo trash talk disponibile
-      const _lsKeyTT = 'amicifc_tt_' + (currentGroup.value?.id||'');
       if (currentGroup.value?.firebaseUrl) {
-        const token = await getValidToken() || '';
-        const lastMatch = [...groupMatches.value].sort((a,b)=>b.data.localeCompare(a.data))[0];
-        if (lastMatch) {
-          const d = await _fbRead(`aiCards/trashTalk/${lastMatch.id}`, token);
-          if (d?.cards) {
-            aiCardsTrashTalk.value = d.cards;
-            _aiLog('Init','☁️ Trash Talk caricato da Firebase');
-          } else {
-            const lsCached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
-            if (lsCached?.cards) { aiCardsTrashTalk.value = lsCached.cards; _aiLog('Init','💾 Trash Talk da localStorage'); }
+        try {
+          const _allMatches = await db.matches.where('groupId').equals(_gid).toArray();
+          const _lastM = _allMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
+          if (_lastM) {
+            const _tt = await _fbRead('aiCards/trashTalk/'+_lastM.id, '');
+            if (_tt?.cards?.length) {
+              aiCardsTrashTalk.value = _tt.cards;
+              localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
+              _aiLog('Init','☁️ Trash Talk aggiornato da Firebase ('+_tt.cards.length+' card)');
+            }
           }
-        }
+        } catch(_e) { _aiLog('Init','⚠️ Trash Talk Firebase: '+_e.message,false); }
       }
-      // Carica trash talk dell'ultima partita anche senza Firebase (localStorage)
-      const _lsKey = 'amicifc_tt_' + (currentGroup.value?.id||'');
-      const _cached = JSON.parse(localStorage.getItem(_lsKey)||'null');
-      if (_cached?.cards?.length && !aiCardsTrashTalk.value.length) {
-        aiCardsTrashTalk.value = _cached.cards;
-        _aiLog('Init','💾 Trash Talk caricato da localStorage');
-      }
-      // Genera soprannomi se necessario (in background, non blocca)
+
+      // 4. Verifica HoF e genera se necessario
+      await _checkHallOfFame();
+
+      // 5. Genera soprannomi in background
       _generateNicknames().catch(e => _aiLog('Init','❌ Soprannomi: '+e.message,false));
-      _aiLog('Init','✅ Inizializzazione AI Cards completata');
+      _aiLog('Init','✅ AI Cards pronte');
     };
 
     const generateCommentAI = async () => {
