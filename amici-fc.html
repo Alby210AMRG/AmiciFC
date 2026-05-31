@@ -4495,7 +4495,7 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.311',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.312',date:'2026-05-31',items:['Fix: modello Claude aggiornato a claude-haiku-4-5 (il precedente claude-haiku-4-5-20251001 è deprecato)']},{version:'v1.311',date:'2026-05-31',items:[
   'Fix DEFINITIVO card AI: il TrashTalk era salvato con ID Dexie (locale a ogni dispositivo) — ora usa la data della partita come chiave stabile cross-device',
   'Diagnosi: ID Dexie ++ è autoincrementale — la stessa partita ha ID diversi su dispositivi diversi'
 ]},{version:'v1.310',date:'2026-05-31',items:[
@@ -4917,7 +4917,7 @@ createApp({
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method:'POST',
             headers:{'Content-Type':'application/json','x-api-key':settings.value.apiKey,'anthropic-version':'2023-06-01'},
-            body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:50,messages:[{role:'user',content:prompt}]})
+            body: JSON.stringify({model:'claude-haiku-4-5',max_tokens:50,messages:[{role:'user',content:prompt}]})
           });
           const d = await r.json();
           if (d.error) {
@@ -5009,7 +5009,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.311');
+    const appVersion = ref('1.312');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5615,7 +5615,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method:'POST',
             headers:{'Content-Type':'application/json','x-api-key':settings.value.apiKey,'anthropic-version':'2023-06-01'},
-            body: JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:1500, messages:[{role:'user',content:prompt}] })
+            body: JSON.stringify({ model:'claude-haiku-4-5', max_tokens:1500, messages:[{role:'user',content:prompt}] })
           });
           const d = await r.json();
           if (d.error) throw new Error(d.error?.message||'Errore Claude');
@@ -6691,7 +6691,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
           const r = await fetch('https://api.anthropic.com/v1/messages', {
             method:'POST',
             headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-            body: JSON.stringify({model:'claude-haiku-4-5-20251001',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
+            body: JSON.stringify({model:'claude-haiku-4-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
           });
           const d = await r.json();
           if (d.error) return null;
