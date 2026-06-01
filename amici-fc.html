@@ -1591,6 +1591,29 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">Premi per le statistiche complete</div>
             </template>
+
+            <template v-else-if="s.type==='news2'">
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:16px 14px">
+                <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:12px;text-align:center">📻 In Diretta dallo Spogliatoio</div>
+                <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-bottom:12px;width:100%">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
+                    <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 16px rgba(255,107,53,.35);background:rgba(255,255,255,.08)">
+                      <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:SILHOUETTE" style="width:100%;height:100%;object-fit:cover">
+                    </div>
+                    <div style="font-size:12px;font-weight:800;color:#FF6B35;text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.na}}</div>
+                  </div>
+                  <div style="font-size:20px;font-weight:900;color:rgba(255,255,255,.5);flex-shrink:0">VS</div>
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
+                    <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 16px rgba(59,130,246,.35);background:rgba(255,255,255,.08)">
+                      <img :src="s.foto2&&s.foto2.startsWith('data:')?s.foto2:SILHOUETTE" style="width:100%;height:100%;object-fit:cover">
+                    </div>
+                    <div style="font-size:12px;font-weight:800;color:#3b82f6;text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.nb}}</div>
+                  </div>
+                </div>
+                <div style="position:relative;z-index:1;font-size:17px;font-weight:700;color:#fff;line-height:1.5;text-align:center">{{s.quote}}</div>
+              </div>
+            </template>
+
             <template v-else-if="s.type==='cronaca'">
               <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1">
@@ -4529,7 +4552,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.326',date:'2026-06-01',items:[
+    const changelogEntries = [{version:'v1.327',date:'2026-06-01',items:[
+  'Fix DEFINITIVO Battaglia Overall e Rivalità Storica: create come slide news2 con due foto e VS invece di news con foto singola',
+  'Aggiunto template news2 con layout due giocatori affiancati',
+  'Fix rimosso doppio indicatore carosello (pallini bottom)'
+]},{version:'v1.326',date:'2026-06-01',items:[
   'Fix duel: layout VS riscritto — foto sempre visibili (SILHOUETTE se mancante), non più v-if che nascondeva',
   'Fix story: stesso layout duel con foto garantite per entrambi i giocatori',
   'Fix: rimosso doppio indicatore pallini bottom del carosello'
@@ -5102,7 +5129,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.326');
+    const appVersion = ref('1.327');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10606,7 +10633,19 @@ Niente altro, nessuna spiegazione.`;
         const step=Math.max(1,Math.floor(_shuffled.length/want));
         const picked=[];
         for(let i=0;i<_shuffled.length&&picked.length<want;i+=step)picked.push(_shuffled[i]);
-        for(const n of picked)slides.push({type:'news',dur:Math.max(4000,Math.min(7000,(n.text||'').length*55)),badge:(n.emoji||'💬'),quote:n.text||'',cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)',foto:n.foto,uid:n.uid});
+        for(const n of picked){
+          const _dur=Math.max(4000,Math.min(7000,(n.text||'').length*55));
+          const _bg='linear-gradient(145deg,#0d2818,#14532D 60%,#166534)';
+          if(n.type2&&n.foto2!==undefined){
+            // Slide con 2 giocatori → layout VS
+            slides.push({type:'news2',dur:_dur,badge:n.emoji||'💬',quote:n.text||'',
+              na:n.na||'',nb:n.nb||'',
+              foto:n.foto,uid:n.uid||'',foto2:n.foto2,uid2:n.uid2||'',
+              bg:_bg});
+          } else {
+            slides.push({type:'news',dur:_dur,badge:n.emoji||'💬',quote:n.text||'',cit:'',bg:_bg,foto:n.foto,uid:n.uid});
+          }
+        }
       }
 
       // 5. RECAP ultima partita
