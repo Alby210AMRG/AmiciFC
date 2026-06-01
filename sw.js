@@ -1,5 +1,5 @@
-// Amici FC Service Worker v1321
-const CACHE = 'amicifc-v1321';
+// Amici FC Service Worker v1330
+const CACHE = 'amicifc-v1330';
 const ASSETS = ['./', './amici-fc.html', './version.json'];
 
 self.addEventListener('install', e => {
