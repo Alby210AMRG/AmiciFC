@@ -4510,7 +4510,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.320',date:'2026-06-01',items:[
+    const changelogEntries = [{version:'v1.321',date:'2026-06-01',items:[
+  'Fix Claude mobile: ripristinata fetch() — XHR non bypassa il Service Worker, la soluzione corretta è aggiornare il SW',
+  'Fix: SW bumped a v1321 per forzare installazione del SW aggiornato con bypass anthropic.com su tutti i dispositivi',
+  'Nota: dopo aggiornamento app, il test Claude funzionerà correttamente'
+]},{version:'v1.320',date:'2026-06-01',items:[
   'Fix CRITICO: SyntaxError avvio app — if(fixed>0) rimasto senza body dopo rimozione console.log',
   'Verifica: ChatGPT implementato correttamente con gpt-4o-mini e error handling',
   'Nota: test Claude da app mobile usa XHR per bypassare SW — dovrebbe funzionare'
@@ -4971,30 +4975,17 @@ createApp({
           }
           if (!success) throw new Error(lastError || '❌ Nessun modello Gemini disponibile con questa chiave.');
         } else if (settings.value.aiProvider === 'claude') {
-          // Usa XHR per bypassare il Service Worker (che blocca fetch cross-origin su PWA)
-          const claudeResult = await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'https://api.anthropic.com/v1/messages');
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            xhr.setRequestHeader('x-api-key', settings.value.apiKey);
-            xhr.setRequestHeader('anthropic-version', '2023-06-01');
-            xhr.timeout = 20000;
-            xhr.onload = () => {
-              try {
-                const d = JSON.parse(xhr.responseText);
-                if (d.error) {
-                  if (d.error.type === 'authentication_error') reject(new Error('Chiave API Claude non valida'));
-                  else reject(new Error(d.error.message?.slice(0,120)||'Errore Claude'));
-                } else {
-                  resolve(d.content?.[0]?.text?.trim() || 'Risposta vuota');
-                }
-              } catch(e) { reject(new Error('Risposta non valida')); }
-            };
-            xhr.onerror = () => reject(new Error('Errore di rete. Se usi il file in locale (file://), apri l\'app da GitHub Pages (https://).'));
-            xhr.ontimeout = () => reject(new Error('Timeout'));
-            xhr.send(JSON.stringify({model:'claude-haiku-4-5',max_tokens:50,messages:[{role:'user',content:prompt}]}));
+          const _tr = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': settings.value.apiKey, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: prompt }] })
           });
-          result = claudeResult;
+          const _td = await _tr.json();
+          if (_td.error) {
+            if (_td.error.type === 'authentication_error') throw new Error('Chiave API Claude non valida');
+            throw new Error(_td.error.message?.slice(0,120) || 'Errore Claude');
+          }
+          result = _td.content?.[0]?.text?.trim() || 'Risposta vuota';
         } else {
           const r = await fetch('https://api.openai.com/v1/chat/completions', {
             method:'POST',
@@ -5079,7 +5070,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.320');
+    const appVersion = ref('1.321');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6776,27 +6767,16 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             }
             return null;
           } else if (prov === 'claude') {
-            // Usa XMLHttpRequest per bypassare il Service Worker (che può bloccare fetch cross-origin)
-            const _claudeResult = await new Promise((resolve) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open('POST', 'https://api.anthropic.com/v1/messages');
-              xhr.setRequestHeader('Content-Type', 'application/json');
-              xhr.setRequestHeader('x-api-key', key);
-              xhr.setRequestHeader('anthropic-version', '2023-06-01');
-              xhr.timeout = 30000;
-              xhr.onload = () => {
-                try {
-                  const d = JSON.parse(xhr.responseText);
-                  if (d.error) { _aiLog('_callAI','⚠️ Claude: '+(d.error?.message||'').slice(0,80),false); resolve(null); return; }
-                  resolve(d.content?.[0]?.text?.trim() || null);
-                } catch(e) { resolve(null); }
-              };
-              xhr.onerror = () => { _aiLog('_callAI','⚠️ Claude XHR errore',false); resolve(null); };
-              xhr.ontimeout = () => { _aiLog('_callAI','⚠️ Claude timeout',false); resolve(null); };
-              xhr.send(JSON.stringify({model:'claude-haiku-4-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]}));
+            const _cr = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
+              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] })
             });
-            if (_claudeResult) _aiLog('_callAI','✅ Claude OK — '+_claudeResult.length+' chars');
-            return _claudeResult;
+            const _cd = await _cr.json();
+            if (_cd.error) { _aiLog('_callAI','⚠️ Claude: '+(_cd.error?.message||'').slice(0,80),false); return null; }
+            const _ct = _cd.content?.[0]?.text?.trim() || null;
+            if (_ct) _aiLog('_callAI','✅ Claude OK — '+_ct.length+' chars');
+            return _ct;
           } else {
             const r = await fetch('https://api.openai.com/v1/chat/completions', {
               method:'POST',
@@ -10222,7 +10202,7 @@ Niente altro, nessuna spiegazione.`;
       // Register external sw.js for offline support
       if ('serviceWorker' in navigator) {
         try {
-          const reg = await navigator.serviceWorker.register('./sw.js?v=1314', { scope: './' });
+          const reg = await navigator.serviceWorker.register('./sw.js?v=1321', { scope: './' });
           if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
           reg.addEventListener('updatefound', () => {
             const nw = reg.installing;
