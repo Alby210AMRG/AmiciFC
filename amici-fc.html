@@ -4505,7 +4505,17 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.316',date:'2026-06-01',items:[
+    const changelogEntries = [{version:'v1.318',date:'2026-06-01',items:[
+  'Fix: card vuote nel carosello rimosse (OVR duplicato errato eliminato)',
+  'Fix: OVR TOP-3 portata in cima al carosello riordinando il return slides',
+  'Fix: test connessione Claude usa XHR invece di fetch (bypassa Service Worker)'
+]},{version:'v1.317',date:'2026-06-01',items:[
+  'Fix TrashTalk: 3 card ruotano ad ogni passaggio sulla slide (non sempre la stessa)',
+  'Fix soprannomi cross-device: chiave = nome giocatore invece di ID Dexie',
+  'Nuovo: 2 card soprannomi nel carosello (giocatori diversi)',
+  'Fix: OVR TOP-3 inserita tra le primissime card del carosello',
+  'Fix sync PC Failed to fetch: usa XMLHttpRequest (bypassa Service Worker)'
+]},{version:'v1.316',date:'2026-06-01',items:[
   'Fix DEFINITIVO card AI: tutti i path Firebase ora usano il nome del gruppo (sluggificato) invece dell ID Dexie locale — risolve la mancata corrispondenza tra dispositivi diversi',
   'Fix 3: forzatura Debug AI Cards ora rigenera sempre le card ignorando quelle esistenti su Firebase',
   'Fix 2: Claude usa XMLHttpRequest invece di fetch per bypassare il Service Worker'
@@ -4947,17 +4957,30 @@ createApp({
           }
           if (!success) throw new Error(lastError || '❌ Nessun modello Gemini disponibile con questa chiave.');
         } else if (settings.value.aiProvider === 'claude') {
-          const r = await fetch('https://api.anthropic.com/v1/messages', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','x-api-key':settings.value.apiKey,'anthropic-version':'2023-06-01'},
-            body: JSON.stringify({model:'claude-haiku-4-5',max_tokens:50,messages:[{role:'user',content:prompt}]})
+          // Usa XHR per bypassare il Service Worker (che blocca fetch cross-origin su PWA)
+          const claudeResult = await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', 'https://api.anthropic.com/v1/messages');
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.setRequestHeader('x-api-key', settings.value.apiKey);
+            xhr.setRequestHeader('anthropic-version', '2023-06-01');
+            xhr.timeout = 20000;
+            xhr.onload = () => {
+              try {
+                const d = JSON.parse(xhr.responseText);
+                if (d.error) {
+                  if (d.error.type === 'authentication_error') reject(new Error('Chiave API Claude non valida'));
+                  else reject(new Error(d.error.message?.slice(0,120)||'Errore Claude'));
+                } else {
+                  resolve(d.content?.[0]?.text?.trim() || 'Risposta vuota');
+                }
+              } catch(e) { reject(new Error('Risposta non valida')); }
+            };
+            xhr.onerror = () => reject(new Error('Failed to fetch — verifica connessione'));
+            xhr.ontimeout = () => reject(new Error('Timeout'));
+            xhr.send(JSON.stringify({model:'claude-haiku-4-5',max_tokens:50,messages:[{role:'user',content:prompt}]}));
           });
-          const d = await r.json();
-          if (d.error) {
-            if (d.error.type === 'authentication_error') throw new Error('Chiave API Claude non valida');
-            throw new Error(d.error.message?.slice(0,120)||'Errore Claude');
-          }
-          result = d.content?.[0]?.text?.trim() || 'Risposta vuota';
+          result = claudeResult;
         } else {
           const r = await fetch('https://api.openai.com/v1/chat/completions', {
             method:'POST',
@@ -5042,7 +5065,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.316');
+    const appVersion = ref('1.318');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7319,7 +7342,8 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         for (const s of parsed.soprannomi) {
           const p = batch.find(x => String(x.id) === String(s.id));
           if (!p || !s.soprannome_ai) continue;
-          updated[s.id] = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
+          const _nKey=(p.soprannome||p.nome||String(p.id)).toLowerCase().trim();
+          updated[_nKey] = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
         }
         _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
         aiNicknames.value = { ...updated };
@@ -7342,12 +7366,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     const aiNicknameSlide = computed(() => {
       const nicks = aiNicknames.value;
       const players = groupPlayers.value;
-      const entries = Object.entries(nicks)
-        .map(([id, n]) => ({ ...n, player: players.find(p => String(p.id)===String(id)) }))
-        .filter(x => x.player && x.soprannome_ai);
+      const entries = Object.entries(nicks).map(([key,n])=>{
+        const player=players.find(p=>(p.soprannome||p.nome||'').toLowerCase().trim()===key||String(p.id)===String(key));
+        return player?{...n,player}:null;
+      }).filter(x=>x&&x.player&&x.soprannome_ai);
       if (!entries.length) return null;
-      // Ruota in base all'ora per variare senza essere random puro
-      const idx = Math.floor(Date.now() / 600000) % entries.length; // cambia ogni 10min
+      const idx = Math.floor(Date.now() / 600000) % entries.length;
       return entries[idx];
     });
 
@@ -8342,16 +8366,13 @@ Niente altro, nessuna spiegazione.`;
         // Prima prova lettura pubblica (come il wizard che funziona)
         // poi con token se serve autenticazione
         logEvent('info', 'sync', 'Fetch: ' + base + '.json');
-        let resp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+        const _xhrFetch=(url)=>new Promise((res,rej)=>{const x=new XMLHttpRequest();x.open('GET',url);x.timeout=30000;x.onload=()=>res({ok:x.status<400,status:x.status,json:()=>Promise.resolve(JSON.parse(x.responseText))});x.onerror=()=>rej(new Error('Failed to fetch'));x.ontimeout=()=>rej(new Error('Timeout'));x.send();});
+        let resp = await _xhrFetch(`${base}.json?shallow=false`);
         if (resp.status === 401) {
-          if (!_token) {
-            throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
-          }
+          if (!_token) throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
           logEvent('info', 'sync', 'Riprovo con token auth...');
-          resp = await fetch(`${base}.json?auth=${_token}`, { cache: 'no-store' });
-          if (resp.status === 401) {
-            throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
-          }
+          resp = await _xhrFetch(`${base}.json?auth=${_token}`);
+          if (resp.status === 401) throw new Error('Database protetto. Accedi tramite il pulsante ☁️ per sincronizzare.');
         }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         const data = await resp.json();
@@ -10337,6 +10358,21 @@ Niente altro, nessuna spiegazione.`;
       const players=groupPlayers.value, matches=groupMatches.value, slides=[];
       const el=players.filter(p=>(p.partiteTotali||0)>=1);
 
+      const _buildNick=(off)=>{
+        const ns_all=Object.entries(aiNicknames.value).map(([key,n])=>{
+          const pl=groupPlayers.value.find(p=>(p.soprannome||p.nome||'').toLowerCase().trim()===key||String(p.id)===String(key));
+          return pl?{...n,player:pl}:null;
+        }).filter(x=>x&&x.player&&x.soprannome_ai);
+        if(!ns_all.length) return null;
+        const idx=(Math.floor(Date.now()/600000)+off)%ns_all.length;
+        const ns=ns_all[idx];
+        return {type:'nickCard',dur:6000,label:'Identikit AI',
+          nome:ns.player.soprannome||ns.player.nome,ruolo:ns.player.ruolo||'',
+          soprannome_ai:ns.soprannome_ai,confronto:ns.confronto,motivazione:ns.motivazione,
+          foto:ns.player.foto,uid:ns.player.uid||ns.player.id,
+          bg:'linear-gradient(145deg,#001a0a,#0f2d1a 60%,#166534)'};
+      };
+
       // ── MOTIVAZIONALI FISSI (sempre 2, ruotano ogni 5 min) ──
       const motivazionali=[
         {q:'"Il campo non mente mai. Le scarpe sì."',e:'🏟️'},
@@ -10601,6 +10637,9 @@ Niente altro, nessuna spiegazione.`;
           bg:'linear-gradient(145deg,#1a0008,#7f1d1d 60%,#ef4444)'});
       }
 
+      // 6C-bis. SECONDA NICKCARD
+      const _nc2=_buildNick(1); if(_nc2) slides.push(_nc2);
+
       // 6D. HALL OF FAME / SHAME (mensile)
       if(aiCardsHallOfFame.value?.fame){
         const hof=aiCardsHallOfFame.value;
@@ -10618,16 +10657,9 @@ Niente altro, nessuna spiegazione.`;
           bg:'linear-gradient(145deg,#0f0f0f,#1f2937 60%,#374151)'});
       }
 
-      // 6E. SOPRANNOMI AI (un giocatore a rotazione ogni 10 min)
-      if(aiNicknameSlide.value){
-        const ns=aiNicknameSlide.value;
-        const nsP=ns.player;
-        slides.push({type:'nickCard',dur:6000,label:'Identikit AI',
-          nome:nsP.soprannome||nsP.nome,ruolo:nsP.ruolo||'',
-          soprannome_ai:ns.soprannome_ai,confronto:ns.confronto,motivazione:ns.motivazione,
-          foto:nsP.foto,uid:nsP.uid,
-          bg:'linear-gradient(145deg,#001a0a,#0f2d1a 60%,#166534)'});
-      }
+      // 6E. SOPRANNOMI AI — 2 card (giocatori diversi)
+
+      const _nc1=_buildNick(0); if(_nc1) slides.push(_nc1);
 
       // 7. TRENDING (soglia: matches>=2)
       if(matches.length>=2&&el.length>=1){
@@ -10645,7 +10677,10 @@ Niente altro, nessuna spiegazione.`;
       // 9. GIOCATORI (ultima)
       slides.push({type:'stat',dur:2500,label:'Giocatori',val:players.length,col:'#60a5fa',bg:'linear-gradient(145deg,#0c1a3a,#1e3a8a 60%,#3b82f6)',name:'Rosa completa',sub:'Premi per vedere tutti i profili',dest:'players'});
 
-      return slides;
+      // Riordino: porta le slide ovr3 in cima (OVR sempre tra le prime)
+      const _ovrSlides = slides.filter(s => s.type === 'ovr3');
+      const _restSlides = slides.filter(s => s.type !== 'ovr3');
+      return [..._ovrSlides, ..._restSlides];
     })
 
     // Hero swipe
@@ -10660,6 +10695,7 @@ Niente altro, nessuna spiegazione.`;
     let _heroTimerRef=null;
     const stopHeroTimer=()=>{clearTimeout(_heroTimerRef);const f=document.getElementById('hpf'+heroUnifiedIdx.value);if(f){f.style.transition='none';}};
     const heroGo=(n)=>{const data=heroUnifiedData.value;if(!data.length)return;if(n<0)n=data.length-1;if(n>=data.length)n=0;const prev=heroUnifiedIdx.value;heroUnifiedIdx.value=n;clearTimeout(_heroTimerRef);const slide=data[n];const dur=slide.dur||4000;
+      if(slide.type==='trashTalk'&&n!==prev&&aiCardsTrashTalk.value.length>1){aiCardsTrashTalkIdx.value=(aiCardsTrashTalkIdx.value+1)%aiCardsTrashTalk.value.length;}
       // Reset ONLY bars that were already filled (previous slides), freeze others
       data.forEach((_,i)=>{const f=document.getElementById('hpf'+i);if(!f)return;if(i<n){f.style.transition='none';f.style.width='100%';}else if(i>n){f.style.transition='none';f.style.width='0%';}});
       // Animate current bar
