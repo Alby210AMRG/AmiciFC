@@ -1816,14 +1816,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <span style="font-size:9px;color:var(--text2);font-weight:600">{{formatDate(m.data)}}</span>
               <span v-if="m.uomoPartita||m.mvp" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FEF3C7;color:#92400E;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⭐ {{m.uomoPartita||m.mvp}}</span>
             </div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="flex:1;font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#FF6B35">{{m.nomeSquadraA||'Squadra A'}}</span>
-              <div style="padding:6px 14px;border-radius:10px;background:var(--bg3);display:flex;align-items:center;gap:10px;flex-shrink:0;min-width:80px;justify-content:center">
+            <div style="display:flex;flex-direction:column;gap:2px">
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="flex:1;font-size:14px;font-weight:800;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#FF6B35">{{m.nomeSquadraA||'Squadra A'}}</span>
+                <span style="flex:1;font-size:14px;font-weight:800;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#60a5fa">{{m.nomeSquadraB||'Squadra B'}}</span>
+              </div>
+              <div style="display:flex;justify-content:center;align-items:center;gap:10px;padding:4px 0">
                 <span style="font-size:22px;font-weight:900;color:#FF6B35">{{m.risultato?.goalA||0}}</span>
                 <span style="font-size:13px;color:var(--text2)">—</span>
                 <span style="font-size:22px;font-weight:900;color:#60a5fa">{{m.risultato?.goalB||0}}</span>
               </div>
-              <span style="flex:1;font-size:14px;font-weight:800;text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#60a5fa">{{m.nomeSquadraB||'Squadra B'}}</span>
             </div>
         </div>
         <div v-if="showOnboardingLogin" style="display:flex;flex-direction:column;gap:8px;margin-top:10px;padding:12px;background:rgba(255,211,61,0.08);border:1px solid rgba(255,211,61,0.3);border-radius:10px">
@@ -2458,12 +2460,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
           <div class="match-score">
             <div style="text-align:center">
-              <div style="font-size:0.7rem;color:var(--blue);margin-bottom:4px">SQD A</div>
+              <div style="font-size:0.65rem;color:var(--blue);margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{m.nomeSquadraA||'A'}}</div>
               <div class="score-num score-a">{{ m.risultato.goalA }}</div>
             </div>
             <div class="score-sep">–</div>
             <div style="text-align:center">
-              <div style="font-size:0.7rem;color:var(--red);margin-bottom:4px">SQD B</div>
+              <div style="font-size:0.65rem;color:var(--red);margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{m.nomeSquadraB||'B'}}</div>
               <div class="score-num score-b">{{ m.risultato.goalB }}</div>
             </div>
           </div>
@@ -2657,12 +2659,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="card-title" style="margin-bottom:0">🥇 Overall Rating</div>
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('overall')">📤 Condividi</button>
             </div>
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
-              <strong style="color:var(--lime)">OVR 50–99</strong> · Formula differenziata per ruolo · min. 25% partite del gruppo (almeno 2)<br>
-              ⚽ <strong>Att / Cen / Jolly</strong> → Base: Voto×45% + Gol/p×45% + UoM×10% · Bonus: Gol/p smorzato (pieno con 8+ partite)<br>
-              🛡️ <strong>Difensore</strong> → Base: Voto×65% + Vittorie/p×25% + UoM×10% · <em>avg punti escluso</em> (misura il team, non il singolo)<br>
-              🧤 <strong>Portiere</strong> → Base: AvgPt×55% + Voto×30% + UoM×15% · Bonus: CS×50% + Voto×30% + AvgPt×20%<br>
-              📅 <strong>+Costanza</strong> fino a +5 proporzionale alle presenze · ❌ <strong>−Autogol</strong> ×6 per partita
+            <div style="margin-bottom:10px">
+              <button @click="showOvrInfo=!showOvrInfo" style="background:none;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:20px;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:5px">
+                ℹ️ Come si calcola l'OVR? <span>{{showOvrInfo?'▲':'▼'}}</span>
+              </button>
+              <div v-if="showOvrInfo" style="font-size:0.72rem;color:var(--text2);margin-top:8px;line-height:1.7;padding:10px;background:var(--bg3);border-radius:8px">
+                <strong style="color:var(--lime)">OVR 50–99</strong> · Formula per ruolo · min. 2 partite<br>
+                ⚽ <strong>Att/Cen/Jolly</strong>: Voto×45% + Gol/p×45% + UoM×10%<br>
+                🛡️ <strong>Difensore</strong>: Voto×65% + Vittorie/p×25% + UoM×10%<br>
+                🧤 <strong>Portiere</strong>: AvgPt×55% + Voto×30% + UoM×15% + Clean Sheet<br>
+                📅 <strong>+Costanza</strong> (presenze) · ❌ <strong>−Autogol</strong>
+              </div>
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
             <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row" style="align-items:center">
@@ -3118,6 +3125,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
           <label class="toggle">
             <input type="checkbox" :checked="settings.fontLarge" @change="toggleFont">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Tutorial ❓</div>
+            <div class="setting-sub">Mostra i suggerimenti di utilizzo nell'app</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" v-model="tutorialEnabled">
             <span class="toggle-slider"></span>
           </label>
         </div>
@@ -3717,7 +3734,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Squadra A — sorted by role -->
       <div style="font-weight:800;color:#FF8C00;margin-bottom:8px;font-size:0.9rem">
-        🟠 Squadra A
+        🟠 {{detailMatch.nomeSquadraA||'Squadra A'}}
       </div>
       <div v-for="pid in sortedByRole(detailMatch.squadraA)" :key="'da-'+pid"
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
@@ -3747,7 +3764,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Squadra B — sorted by role -->
       <div style="font-weight:800;color:var(--blue);margin:14px 0 8px;font-size:0.9rem">
-        🔵 Squadra B
+        🔵 {{detailMatch.nomeSquadraB||'Squadra B'}}
       </div>
       <div v-for="pid in sortedByRole(detailMatch.squadraB)" :key="'db-'+pid"
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
@@ -4552,7 +4569,14 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.327',date:'2026-06-01',items:[
+    const changelogEntries = [{version:'v1.329',date:'2026-06-01',items:['Fix home partite: nomi squadre affiancati come prima, risultato su riga centrata sotto']},{version:'v1.328',date:'2026-06-01',items:[
+  'Fix 1: prompt soprannomi AI — regole anti-invenzione basate su dati reali',
+  'Fix 2: ultime partite home — layout verticale con nomi squadre sempre leggibili su mobile',
+  'Fix 3: spiegazione OVR spostata sotto icona ℹ️ collassabile',
+  'Fix 4: Storico — nomi reali squadre invece di SQD A/B',
+  'Fix 5: Dettaglio partita — nomi reali squadre invece di Squadra A/B',
+  'Nuovo 6: slide Tutorial nel box Aspetto delle Impostazioni'
+]},{version:'v1.327',date:'2026-06-01',items:[
   'Fix DEFINITIVO Battaglia Overall e Rivalità Storica: create come slide news2 con due foto e VS invece di news con foto singola',
   'Aggiunto template news2 con layout due giocatori affiancati',
   'Fix rimosso doppio indicatore carosello (pallini bottom)'
@@ -4974,6 +4998,13 @@ createApp({
     const syncLoading       = ref(false);
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
+    const showOvrInfo       = ref(false);
+    const tutorialEnabled   = ref(true); // tutorial attivo di default
+    // Watch: salva tutorialEnabled su localStorage
+    watch(tutorialEnabled, v => {
+      localStorage.setItem('amicifc_tutorial', v ? '1' : '0');
+    });
+
     // Watch: quando cambia provider, mostra la chiave di quel provider
     watch(() => settings.value.aiProvider, (prov) => {
       const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
@@ -5129,7 +5160,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.327');
+    const appVersion = ref('1.329');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7381,9 +7412,15 @@ OUTPUT: Rispondi SOLO con JSON valido:
           uom: p.uomoPartitaTotali||0
         }));
 
-        const prompt = `Scout calcistico ironico. Per ogni giocatore: soprannome e confronto con calciatore famoso reale.
-GIOCATORI: ${JSON.stringify(profili)}
-REGOLE: soprannome basato su stats, confronto ironico (es:"Il Gattuso della periferia"), mai offensivo.
+        const prompt = `Sei uno scout calcistico ironico. Per ogni giocatore genera soprannome e confronto con calciatore famoso BASANDOTI SOLO SUI DATI REALI forniti. NON inventare statistiche.
+GIOCATORI (dati reali da usare): ${JSON.stringify(profili)}
+CAMPI: g=partite, gol=goal fatti, ast=assist, voto=voto medio (0 se non votato), uom=uomo partita.
+REGOLE OBBLIGATORIE:
+- Il confronto DEVE riflettere i dati reali (es: 0 gol → NON paragonare a Ronaldo o bomber)
+- Difensore con gol subiti → NON dire che non subisce goal
+- Se voto è basso → motivazione ironica sul rendimento scarso
+- Confronto ironico ma calcisticamente sensato basato sui numeri
+- Mai offensivo, sempre divertente
 JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
 
         const raw = await _callAI(prompt, 600);
@@ -10121,6 +10158,9 @@ Niente altro, nessuna spiegazione.`;
       // Load settings
       try {
         const s = JSON.parse(localStorage.getItem('amicifc_settings')||'{}');
+        // Tutorial
+        const _tutSaved = localStorage.getItem('amicifc_tutorial');
+        if (_tutSaved !== null) tutorialEnabled.value = _tutSaved === '1';
         // darkTheme defaults to true if not set
         if (s.darkTheme === undefined) s.darkTheme = true;
         Object.assign(settings.value, s);
@@ -11197,7 +11237,7 @@ Niente altro, nessuna spiegazione.`;
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
-      showApiKey, testAI,
+      showApiKey, showOvrInfo, tutorialEnabled, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, SILHOUETTE,
       precachePlayerPhotos,
