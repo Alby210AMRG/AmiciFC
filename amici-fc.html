@@ -4505,7 +4505,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.314',date:'2026-05-31',items:[
+    const changelogEntries = [{version:'v1.315',date:'2026-06-01',items:[
+  'Fix Claude Failed to fetch: usa XMLHttpRequest invece di fetch (bypassa Service Worker che intercettava le chiamate)',
+  'Fix B: TrashTalk controlla vecchio path Firebase come fallback + migra automaticamente al nuovo path',
+  'Fix C: aiCards scaricate durante syncFromCloud (solo download, nessuna generazione)',
+  'Fix D: soprannomi generati all avvio SOLO se mancanti — nessuna chiamata inutile all AI',
+  'Fix HoF: carica mese corrente E mese precedente (prima cercava solo il mese precedente)'
+]},{version:'v1.314',date:'2026-05-31',items:[
   'Fix Claude Failed to fetch: bumped versione SW a v1314 — forza reinstallazione del Service Worker su PWA installate (il vecchio SW senza bypass anthropic.com restava in cache)',
   'Fix layout: pulsanti Versione App (Aggiornamenti/Novità/Forza) su una sola riga'
 ]},{version:'v1.313',date:'2026-05-31',items:[
@@ -5032,7 +5038,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.314');
+    const appVersion = ref('1.315');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6729,19 +6735,27 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             }
             return null;
           } else if (prov === 'claude') {
-            const r = await fetch('https://api.anthropic.com/v1/messages', {
-              method:'POST',
-              headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},
-              body: JSON.stringify({model:'claude-haiku-4-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
+            // Usa XMLHttpRequest per bypassare il Service Worker (che può bloccare fetch cross-origin)
+            const _claudeResult = await new Promise((resolve) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', 'https://api.anthropic.com/v1/messages');
+              xhr.setRequestHeader('Content-Type', 'application/json');
+              xhr.setRequestHeader('x-api-key', key);
+              xhr.setRequestHeader('anthropic-version', '2023-06-01');
+              xhr.timeout = 30000;
+              xhr.onload = () => {
+                try {
+                  const d = JSON.parse(xhr.responseText);
+                  if (d.error) { _aiLog('_callAI','⚠️ Claude: '+(d.error?.message||'').slice(0,80),false); resolve(null); return; }
+                  resolve(d.content?.[0]?.text?.trim() || null);
+                } catch(e) { resolve(null); }
+              };
+              xhr.onerror = () => { _aiLog('_callAI','⚠️ Claude XHR errore',false); resolve(null); };
+              xhr.ontimeout = () => { _aiLog('_callAI','⚠️ Claude timeout',false); resolve(null); };
+              xhr.send(JSON.stringify({model:'claude-haiku-4-5',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]}));
             });
-            const d = await r.json();
-            if (d.error) {
-              _aiLog('_callAI','⚠️ Claude errore: '+( d.error?.message||'').slice(0,80),false);
-              return null;
-            }
-            const text = d.content?.[0]?.text?.trim() || null;
-            if (text) _aiLog('_callAI','✅ Claude OK — '+text.length+' chars');
-            return text;
+            if (_claudeResult) _aiLog('_callAI','✅ Claude OK — '+_claudeResult.length+' chars');
+            return _claudeResult;
           } else {
             const r = await fetch('https://api.openai.com/v1/chat/completions', {
               method:'POST',
@@ -6993,9 +7007,22 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           // Leggi se esiste già
           const existing = await _fbRead(dataPath, token);
           if (existing?.cards?.length) {
-            _aiLog('TrashTalk','☁️ Card già presenti su Firebase, carico');
+            _aiLog('TrashTalk','☁️ Card già presenti su Firebase (nuovo path), carico');
             aiCardsTrashTalk.value = existing.cards;
+            localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(existing));
             return;
+          }
+          // Fallback: controlla anche vecchio path con match.id numerico
+          if (match.id) {
+            const existingOld = await _fbRead('aiCards/trashTalk/'+match.id, token);
+            if (existingOld?.cards?.length) {
+              _aiLog('TrashTalk','☁️ Card già presenti su Firebase (vecchio path), carico');
+              aiCardsTrashTalk.value = existingOld.cards;
+              localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(existingOld));
+              // Migra al nuovo path
+              if (token) await _fbWrite(dataPath, existingOld, token);
+              return;
+            }
           }
           // Verifica lock
           const lockResult = await _fbConditionalWrite(lockPath,
@@ -7336,13 +7363,22 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     const _loadHallOfFame = async () => {
       if (!currentGroup.value) return;
       const oggi = new Date();
-      const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1);
-      const meseKey = mesePrecedente.getFullYear()+'-'+String(mesePrecedente.getMonth()+1).padStart(2,'0');
+      // Prova mese corrente E mese precedente
+      const _mkFn = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      const meseCorrente = _mkFn(oggi);
+      const mesePrecedente = _mkFn(new Date(oggi.getFullYear(), oggi.getMonth()-1, 1));
+      const meseKey = meseCorrente; // usa mese corrente come chiave principale
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
       if (hasFirebase) {
         const token = await getValidToken() || '';
-        const dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+meseKey;
-        const d = await _fbRead(dataPath, token);
+        // Prova mese corrente prima
+        let dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+meseCorrente;
+        let d = await _fbRead(dataPath, token);
+        // Se non trovato, prova mese precedente
+        if (!d?.fame) {
+          dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+mesePrecedente;
+          d = await _fbRead(dataPath, token);
+        }
         if (d?.fame) {
           aiCardsHallOfFame.value = d;
           _aiLog('Init','☁️ Hall of Fame caricata da Firebase ('+meseKey+')');
@@ -7394,11 +7430,18 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         } catch(_e) { _aiLog('Init','⚠️ Trash Talk Firebase: '+_e.message,false); }
       }
 
-      // 4. Verifica HoF e genera se necessario
+      // 4. Verifica HoF (solo il 1° del mese)
       await _checkHallOfFame();
 
-      // 5. Genera soprannomi in background
-      _generateNicknames().catch(e => _aiLog('Init','❌ Soprannomi: '+e.message,false));
+      // 5. Soprannomi: genera in background SOLO se mancano (no chiamate inutili all'avvio)
+      const _nickPlayers = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3);
+      const _nickMissing = _nickPlayers.filter(p=>!aiNicknames.value[p.id]);
+      if (_nickMissing.length > 0 && settings.value.apiKey) {
+        _aiLog('Init','🔄 '+_nickMissing.length+' soprannomi mancanti — generazione in background');
+        _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
+      } else {
+        _aiLog('Init','✅ Soprannomi OK ('+Object.keys(aiNicknames.value).length+' presenti)');
+      }
       _aiLog('Init','✅ AI Cards pronte');
     };
 
@@ -8425,8 +8468,26 @@ Niente altro, nessuna spiegazione.`;
         // Refresh Vue reactive state so UI shows updated data
         await loadGroupData();
         await recomputeStats();
-        // Ricarica aiCards da Firebase dopo sync
-        try { await _initAiCards(); } catch(_e) { _aiLog('Sync','⚠️ Errore reload aiCards: '+_e.message,false); }
+        // Ricarica aiCards da Firebase dopo sync — solo download, no generazione
+        try {
+          await _loadAiNicknames();
+          await _loadHallOfFame();
+          // TrashTalk: scarica ultima partita
+          const _syncGid = currentGroup.value?.id;
+          if (_syncGid && currentGroup.value?.firebaseUrl) {
+            const _syncMatches = await db.matches.where('groupId').equals(_syncGid).toArray();
+            const _syncLastM = _syncMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
+            if (_syncLastM) {
+              const _ttKey = (_syncLastM.data||'').replace(/-/g,'');
+              const _tt = await _fbRead('aiCards/trashTalk/'+_syncGid+'/'+_ttKey, '');
+              if (_tt?.cards?.length) {
+                aiCardsTrashTalk.value = _tt.cards;
+                localStorage.setItem('amicifc_tt_'+_syncGid, JSON.stringify(_tt));
+                _aiLog('Sync','☁️ Trash Talk aggiornato da Firebase');
+              }
+            }
+          }
+        } catch(_e) { _aiLog('Sync','⚠️ aiCards sync: '+_e.message,false); }
       } catch (e) {
         const errMsg = e.message || 'Errore sconosciuto';
         lastSyncError.value = errMsg;
