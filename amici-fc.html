@@ -4505,7 +4505,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.315',date:'2026-06-01',items:[
+    const changelogEntries = [{version:'v1.316',date:'2026-06-01',items:[
+  'Fix DEFINITIVO card AI: tutti i path Firebase ora usano il nome del gruppo (sluggificato) invece dell ID Dexie locale — risolve la mancata corrispondenza tra dispositivi diversi',
+  'Fix 3: forzatura Debug AI Cards ora rigenera sempre le card ignorando quelle esistenti su Firebase',
+  'Fix 2: Claude usa XMLHttpRequest invece di fetch per bypassare il Service Worker'
+]},{version:'v1.315',date:'2026-06-01',items:[
   'Fix Claude Failed to fetch: usa XMLHttpRequest invece di fetch (bypassa Service Worker che intercettava le chiamate)',
   'Fix B: TrashTalk controlla vecchio path Firebase come fallback + migra automaticamente al nuovo path',
   'Fix C: aiCards scaricate durante syncFromCloud (solo download, nessuna generazione)',
@@ -5038,7 +5042,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.315');
+    const appVersion = ref('1.316');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6889,6 +6893,37 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     };
     const aiCardsTrashTalkIdx = ref(0);   // indice slide corrente
 
+    // Versione forzata: ignora card esistenti e rigenera sempre
+    const _forceGenerateTrashTalk = async (match) => {
+      if (!settings.value.apiKey || !currentGroup.value) return;
+      _aiLog('TrashTalk','🔄 Forzatura: rigenerazione card...');
+      const _ttKey = (match.data||'').replace(/-/g,'');
+      const _gKey = _aiCardGroupKey();
+      const dataPath = `aiCards/trashTalk/${_gKey}/${_ttKey}`;
+      const token = await getValidToken() || '';
+      // Genera direttamente senza check Firebase
+      const players = (match.squadraA||[]).concat(match.squadraB||[]);
+      const stats = (match.statisticheGiocatori||[]);
+      const prompt = `Sei un telecronista calcistico irriverente e divertente. Genera 3 "Trash Talk" cards per questa partita di calcetto amatoriale.
+Partita: ${match.nomeSquadraA||'Squadra A'} ${match.risultato?.goalA??0} - ${match.risultato?.goalB??0} ${match.nomeSquadraB||'Squadra B'}
+Giocatori e stats: ${JSON.stringify(stats.slice(0,8).map(s=>({n:s.nome||s.nomeGiocatore,g:s.goal||0,a:s.assist||0,v:s.voto||0})))}
+MVP: ${match.mvp||match.uomoPartita||'N/A'}
+Ogni card: emoji, titolo ironico, testo 2-3 righe, target (nome giocatore preso in giro).
+JSON ONLY: {"cards":[{"emoji":"🔥","titolo":"...","testo":"...","target_nome":"..."}]}`;
+      const raw = await _callAI(prompt, 700);
+      if (!raw) { _aiLog('TrashTalk','❌ Nessuna risposta AI'); return; }
+      const parsed = _parseAIJson(raw);
+      if (!parsed?.cards?.length) { _aiLog('TrashTalk','❌ JSON non valido — raw: '+raw.slice(0,100)); return; }
+      aiCardsTrashTalk.value = parsed.cards;
+      const ttData = { cards: parsed.cards, generatedAt: Date.now() };
+      localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(ttData));
+      if (currentGroup.value?.firebaseUrl && token) {
+        await _fbWrite(dataPath, ttData, token);
+        _aiLog('TrashTalk','☁️ Salvato su Firebase (forzatura)');
+      }
+      _aiLog('TrashTalk','✅ '+parsed.cards.length+' card rigenerate');
+    };
+
     const _generateTrashTalk = async (match) => {
       if (!settings.value.apiKey) { _aiLog('TrashTalk','⚠️ Nessuna API key — configurala in Impostazioni',false); return; }
       if (!match) { _aiLog('TrashTalk','⚠️ Nessuna partita passata',false); return; }
@@ -6993,10 +7028,11 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 }`;
 
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      // Usa data partita come chiave stabile (l'ID Dexie è locale a ogni dispositivo)
+      // Usa nome gruppo + data come chiave stabile cross-device
       const _ttKey = (match.data||'unknown').replace(/-/g,'');
-      const dataPath = `aiCards/trashTalk/${currentGroup.value.id}/${_ttKey}`;
-      const lockPath = `aiCards/locks/trashTalk_${currentGroup.value.id}_${_ttKey}`;
+      const _gKey = _aiCardGroupKey();
+      const dataPath = `aiCards/trashTalk/${_gKey}/${_ttKey}`;
+      const lockPath = `aiCards/locks/trashTalk_${_gKey}_${_ttKey}`;
       let token = '';
 
       // Controlla Firebase solo se configurato
@@ -7074,8 +7110,8 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const oggi = new Date();
       const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1);
       const meseKey = `${mesePrecedente.getFullYear()}-${String(mesePrecedente.getMonth()+1).padStart(2,'0')}`;
-      const dataPath = `aiCards/hallOfFame/${currentGroup.value.id}/${meseKey}`;
-      const lockPath = `aiCards/locks/hallOfFame_${currentGroup.value.id}_${meseKey}`;
+      const dataPath = `aiCards/hallOfFame/${_aiCardGroupKey()}/${meseKey}`;
+      const lockPath = `aiCards/locks/hallOfFame_${_aiCardGroupKey()}_${meseKey}`;
 
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
       let token = '';
@@ -7209,7 +7245,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
 
     const _loadAiNicknames = async () => {
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      const dataPath = `aiCards/soprannomi/${currentGroup.value.id}`;
+      const dataPath = `aiCards/soprannomi/${_aiCardGroupKey()}`;
       if (hasFirebase) {
         // Prova prima con token, poi senza (lettura pubblica)
         const token = await getValidToken() || '';
@@ -7294,7 +7330,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         if (currentGroup.value?.firebaseUrl) {
           const token = await getValidToken() || '';
           if (token) {
-            await _fbWrite(`aiCards/soprannomi/${currentGroup.value.id}`, updated, token);
+            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, updated, token);
             _aiLog('Soprannomi','☁️ Salvato su Firebase');
           }
         }
@@ -7372,11 +7408,11 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       if (hasFirebase) {
         const token = await getValidToken() || '';
         // Prova mese corrente prima
-        let dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+meseCorrente;
+        let dataPath = 'aiCards/hallOfFame/'+_aiCardGroupKey()+'/'+meseCorrente;
         let d = await _fbRead(dataPath, token);
         // Se non trovato, prova mese precedente
         if (!d?.fame) {
-          dataPath = 'aiCards/hallOfFame/'+currentGroup.value.id+'/'+mesePrecedente;
+          dataPath = 'aiCards/hallOfFame/'+_aiCardGroupKey()+'/'+mesePrecedente;
           d = await _fbRead(dataPath, token);
         }
         if (d?.fame) {
@@ -7419,7 +7455,8 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           if (_lastM) {
             // Usa data partita come chiave stabile (non ID Dexie locale)
             const _ttKey = (_lastM.data||'').replace(/-/g,'');
-            const _ttPath = 'aiCards/trashTalk/'+_gid+'/'+_ttKey;
+            const _gKey = _aiCardGroupKey();
+            const _ttPath = 'aiCards/trashTalk/'+_gKey+'/'+_ttKey;
             const _tt = await _fbRead(_ttPath, '');
             if (_tt?.cards?.length) {
               aiCardsTrashTalk.value = _tt.cards;
@@ -8008,6 +8045,15 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // ── Firebase Cloud Sync ──
+    // Chiave stabile per aiCards basata sul nome gruppo (uguale su tutti i dispositivi)
+    const _aiCardGroupKey = () => {
+      const nome = currentGroup.value?.nome || '';
+      return nome.toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '') // rimuovi accenti
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, '') || 'gruppo';
+    };
+
     const getFirebaseBase = () => {
       // Each group has its own Firebase — no global fallback
       const url = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
@@ -8479,7 +8525,8 @@ Niente altro, nessuna spiegazione.`;
             const _syncLastM = _syncMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
             if (_syncLastM) {
               const _ttKey = (_syncLastM.data||'').replace(/-/g,'');
-              const _tt = await _fbRead('aiCards/trashTalk/'+_syncGid+'/'+_ttKey, '');
+              const _gKey = _aiCardGroupKey();
+              const _tt = await _fbRead('aiCards/trashTalk/'+_gKey+'/'+_ttKey, '');
               if (_tt?.cards?.length) {
                 aiCardsTrashTalk.value = _tt.cards;
                 localStorage.setItem('amicifc_tt_'+_syncGid, JSON.stringify(_tt));
