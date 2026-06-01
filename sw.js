@@ -1,5 +1,5 @@
-// Amici FC Service Worker v1314
-const CACHE = 'amicifc-v1314';
+// Amici FC Service Worker v1321
+const CACHE = 'amicifc-v1321';
 const ASSETS = ['./', './amici-fc.html', './version.json'];
 
 self.addEventListener('install', e => {
@@ -20,24 +20,31 @@ self.addEventListener('activate', e => {
   );
 });
 
+// Domini da passare SEMPRE alla rete senza intercettare
+const PASSTHROUGH = [
+  'anthropic.com',
+  'api.openai.com',
+  'generativelanguage.googleapis.com',
+  'firebasedatabase.app',
+  'firebaseio.com',
+  'firebasestorage.googleapis.com',
+  'securetoken.googleapis.com',
+  'identitytoolkit.googleapis.com',
+  'googleapis.com/identitytoolkit',
+];
+
 self.addEventListener('fetch', e => {
   const url = e.request.url;
 
-  // ── BYPASS COMPLETO: mai intercettare richieste esterne ──
-  // Firebase Realtime Database (tutti i domini, incluso europe-west1)
-  if (
-    url.includes('firebaseio.com') ||
-    url.includes('firebasedatabase.app') ||
-    url.includes('firebasestorage') ||
-    url.includes('googleapis.com/identitytoolkit') ||
-    url.includes('securetoken.googleapis.com') ||
-    url.includes('identitytoolkit.googleapis.com') ||
-    url.includes('anthropic.com') ||
-    url.includes('generativelanguage.googleapis.com') ||
-    url.includes('api.openai.com')
-  ) {
-    return; // lascia passare direttamente alla rete senza intercettare
+  // ── PASSTHROUGH: richieste API → sempre rete diretta ──
+  if (PASSTHROUGH.some(d => url.includes(d))) {
+    // respondWith(fetch) esplicito — non solo return — per Chrome mobile
+    e.respondWith(fetch(e.request));
+    return;
   }
+
+  // Solo GET http/https da qui in poi
+  if (e.request.method !== 'GET' || !url.startsWith('http')) return;
 
   // Font Google: cache-first
   if (url.includes('fonts.googleapis.com') || url.includes('fonts.gstatic.com')) {
@@ -48,19 +55,16 @@ self.addEventListener('fetch', e => {
           return fetch(e.request).then(resp => {
             if (resp && resp.ok) cache.put(e.request, resp.clone());
             return resp;
-          }).catch(() => cached || new Response('', {status: 503}));
+          }).catch(() => cached || new Response('', { status: 503 }));
         })
       )
     );
     return;
   }
 
-  // Solo GET, solo http
-  if (e.request.method !== 'GET' || !url.startsWith('http')) return;
-
   const parsedUrl = new URL(url);
 
-  // HTML e version.json: sempre network-first (no cache stantia)
+  // HTML e version.json: sempre network-first
   if (
     parsedUrl.pathname.endsWith('amici-fc.html') ||
     parsedUrl.pathname.endsWith('version.json') ||
