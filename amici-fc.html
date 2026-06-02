@@ -1450,7 +1450,39 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <!-- Scelta iniziale -->
       <div v-if="!onboardingStep" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
         <div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
-          Ciao! 👋 Da dove vuoi partire?
+          Ciao! 👋 Prima cosa: scegli il tema
+        </div>
+
+        <!-- ── SCELTA TEMA ── -->
+        <div style="display:flex;gap:10px;margin-bottom:4px">
+          <!-- Light -->
+          <div @click="settings.darkTheme=false;document.documentElement.setAttribute('data-theme','light');saveSettings()"
+            :style="'flex:1;border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;border:2.5px solid '+(!settings.darkTheme?'#2F8F2F':'var(--border)')+';background:'+((!settings.darkTheme)?'#EAF6EA':'var(--card)')"
+            style="-webkit-tap-highlight-color:transparent">
+            <div style="font-size:2rem;margin-bottom:6px">☀️</div>
+            <div :style="'font-weight:900;font-size:0.95rem;color:'+(!settings.darkTheme?'#2F8F2F':'var(--text2)')">Light</div>
+            <div style="font-size:0.7rem;color:var(--text2);margin-top:2px">Verde calcio</div>
+            <div v-if="!settings.darkTheme" style="margin-top:6px;font-size:0.65rem;font-weight:800;color:#2F8F2F;background:#DFF3DF;border-radius:20px;padding:2px 8px;display:inline-block">✓ Attivo</div>
+          </div>
+          <!-- Dark -->
+          <div @click="settings.darkTheme=true;document.documentElement.setAttribute('data-theme','dark');saveSettings()"
+            :style="'flex:1;border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;border:2.5px solid '+(settings.darkTheme?'var(--lime)':'var(--border)')+';background:'+(settings.darkTheme?'rgba(166,255,77,0.08)':'var(--card)')"
+            style="-webkit-tap-highlight-color:transparent">
+            <div style="font-size:2rem;margin-bottom:6px">🌙</div>
+            <div :style="'font-weight:900;font-size:0.95rem;color:'+(settings.darkTheme?'var(--lime)':'var(--text2)')">Dark</div>
+            <div style="font-size:0.7rem;color:var(--text2);margin-top:2px">Stile notturno</div>
+            <div v-if="settings.darkTheme" style="margin-top:6px;font-size:0.65rem;font-weight:800;color:var(--dark);background:var(--lime);border-radius:20px;padding:2px 8px;display:inline-block">✓ Attivo</div>
+          </div>
+        </div>
+
+        <div style="text-align:center;font-size:0.78rem;color:var(--text2);margin-bottom:2px">
+          Puoi cambiarlo in qualsiasi momento dalle ⚙️ Impostazioni
+        </div>
+
+        <div style="height:1px;background:var(--border);margin:6px 0"></div>
+
+        <div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
+          Da dove vuoi partire?
         </div>
 
         <!-- Nuovo gruppo -->
@@ -4713,7 +4745,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.336',date:'2026-06-02',items:[
+    const changelogEntries = [{version:'v1.337',date:'2026-06-02',items:[
+  '🌗 Onboarding: scelta tema Light/Dark come primo step (prima di scegliere il gruppo)',
+  '☀️ Default tema: Light attivato di default al primo avvio',
+  '🃏 Card tema: toggle visivo con bordo colorato, badge ✓ Attivo e anteprima colore'
+]},
+{version:'v1.336',date:'2026-06-02',items:[
   '🌿 Light mode: campo formazione verde chiaro (#3aaa4a) con righe bianche visibili',
   '👤 Nomi giocatori sul campo: text-shadow rinforzato per leggibilità su verde',
   '🔳 Mini-field anteprima: verde campo più luminoso in light mode',
@@ -5151,7 +5188,7 @@ createApp({
         '🔧 FIX: Log versioni aggiornato dalla v1.089 alla v1.109',
       ]},
     ];
-    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
+    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -5361,7 +5398,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.336');
+    const appVersion = ref('1.337');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10430,7 +10467,7 @@ const toggleFont = () => {
         const _tutSaved = localStorage.getItem('amicifc_tutorial');
         if (_tutSaved !== null) tutorialEnabled.value = _tutSaved === '1';
         // darkTheme defaults to true if not set
-        if (s.darkTheme === undefined) s.darkTheme = true;
+        if (s.darkTheme === undefined) s.darkTheme = false; // Default: light
         Object.assign(settings.value, s);
         // Migrazione: apiKey legacy → chiave specifica del provider
         if (s.apiKey && !s.apiKeyGemini && !s.apiKeyChatgpt && !s.apiKeyGroq) {
