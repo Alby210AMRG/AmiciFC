@@ -1454,32 +1454,32 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <!-- ── SCELTA TEMA ── -->
-        <div style="display:flex;gap:10px;margin-bottom:4px">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
           <!-- Light -->
-          <div @click="settings.darkTheme=false;document.documentElement.setAttribute('data-theme','light');saveSettings()"
-            :style="'flex:1;border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;border:2.5px solid '+(!settings.darkTheme?'#2F8F2F':'var(--border)')+';background:'+((!settings.darkTheme)?'#EAF6EA':'var(--card)')"
+          <button @click="setTheme(false)"
+            :style="'flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:all .2s;border:2px solid '+(!settings.darkTheme?'#2F8F2F':'var(--border)')+';background:'+((!settings.darkTheme)?'#EAF6EA':'var(--card)')+';outline:none'"
             style="-webkit-tap-highlight-color:transparent">
-            <div style="font-size:2rem;margin-bottom:6px">☀️</div>
-            <div :style="'font-weight:900;font-size:0.95rem;color:'+(!settings.darkTheme?'#2F8F2F':'var(--text2)')">Light</div>
-            <div style="font-size:0.7rem;color:var(--text2);margin-top:2px">Verde calcio</div>
-            <div v-if="!settings.darkTheme" style="margin-top:6px;font-size:0.65rem;font-weight:800;color:#2F8F2F;background:#DFF3DF;border-radius:20px;padding:2px 8px;display:inline-block">✓ Attivo</div>
-          </div>
+            <span style="font-size:1.2rem">☀️</span>
+            <div style="text-align:left">
+              <div :style="'font-weight:800;font-size:0.85rem;color:'+(!settings.darkTheme?'#2F8F2F':'var(--text2)')">Light</div>
+              <div style="font-size:0.65rem;color:var(--text2)">Verde calcio</div>
+            </div>
+            <span v-if="!settings.darkTheme" style="margin-left:auto;font-size:0.7rem;font-weight:800;color:#2F8F2F">✓</span>
+          </button>
           <!-- Dark -->
-          <div @click="settings.darkTheme=true;document.documentElement.setAttribute('data-theme','dark');saveSettings()"
-            :style="'flex:1;border-radius:16px;padding:16px 12px;text-align:center;cursor:pointer;transition:all .2s;border:2.5px solid '+(settings.darkTheme?'var(--lime)':'var(--border)')+';background:'+(settings.darkTheme?'rgba(166,255,77,0.08)':'var(--card)')"
+          <button @click="setTheme(true)"
+            :style="'flex:1;display:flex;align-items:center;gap:8px;padding:10px 12px;border-radius:12px;cursor:pointer;transition:all .2s;border:2px solid '+(settings.darkTheme?'var(--lime)':'var(--border)')+';background:'+(settings.darkTheme?'rgba(166,255,77,0.08)':'var(--card)')+';outline:none'"
             style="-webkit-tap-highlight-color:transparent">
-            <div style="font-size:2rem;margin-bottom:6px">🌙</div>
-            <div :style="'font-weight:900;font-size:0.95rem;color:'+(settings.darkTheme?'var(--lime)':'var(--text2)')">Dark</div>
-            <div style="font-size:0.7rem;color:var(--text2);margin-top:2px">Stile notturno</div>
-            <div v-if="settings.darkTheme" style="margin-top:6px;font-size:0.65rem;font-weight:800;color:var(--dark);background:var(--lime);border-radius:20px;padding:2px 8px;display:inline-block">✓ Attivo</div>
-          </div>
+            <span style="font-size:1.2rem">🌙</span>
+            <div style="text-align:left">
+              <div :style="'font-weight:800;font-size:0.85rem;color:'+(settings.darkTheme?'var(--lime)':'var(--text2)')">Dark</div>
+              <div style="font-size:0.65rem;color:var(--text2)">Stile notturno</div>
+            </div>
+            <span v-if="settings.darkTheme" style="margin-left:auto;font-size:0.7rem;font-weight:800;color:var(--lime)">✓</span>
+          </button>
         </div>
 
-        <div style="text-align:center;font-size:0.78rem;color:var(--text2);margin-bottom:2px">
-          Puoi cambiarlo in qualsiasi momento dalle ⚙️ Impostazioni
-        </div>
-
-        <div style="height:1px;background:var(--border);margin:6px 0"></div>
+        <div style="height:1px;background:var(--border);margin:4px 0 10px"></div>
 
         <div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
           Da dove vuoi partire?
@@ -4745,7 +4745,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.337',date:'2026-06-02',items:[
+    const changelogEntries = [{version:'v1.338',date:'2026-06-02',items:[
+  '🔧 Fix onboarding: toggle Light/Dark ora usa setTheme() — funziona correttamente',
+  '📐 Toggle tema ridotto: layout orizzontale compatto con emoji + etichetta + spunta'
+]},
+{version:'v1.337',date:'2026-06-02',items:[
   '🌗 Onboarding: scelta tema Light/Dark come primo step (prima di scegliere il gruppo)',
   '☀️ Default tema: Light attivato di default al primo avvio',
   '🃏 Card tema: toggle visivo con bordo colorato, badge ✓ Attivo e anteprima colore'
@@ -5398,7 +5402,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.337');
+    const appVersion = ref('1.338');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10050,6 +10054,12 @@ Niente altro, nessuna spiegazione.`;
       document.documentElement.setAttribute('data-theme', settings.value.darkTheme ? 'dark' : 'light');
       saveSettings();
     };
+    // Versione senza toast — usata nell'onboarding
+    const setTheme = (dark) => {
+      settings.value.darkTheme = dark;
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+      localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
+    };
 
     
       // ── Haptic feedback (Android only) ──
@@ -11541,7 +11551,7 @@ const toggleFont = () => {
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
-      saveSettings, toggleTheme, toggleFont,
+      saveSettings, toggleTheme, setTheme, toggleFont,
       syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
