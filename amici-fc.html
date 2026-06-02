@@ -3156,50 +3156,92 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       
 
       <div class="card">
-        <div class="card-title">🤖 Configurazione AI</div>
+        <!-- Header collassabile -->
+        <div style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none" @click="showAISection=!showAISection">
+          <div class="card-title" style="margin-bottom:0">🤖 Configurazione AI
+            <span v-if="settings.apiKey" style="font-size:0.65rem;padding:2px 7px;border-radius:10px;background:rgba(166,255,77,.15);color:var(--lime);margin-left:6px;font-weight:700">✓ attiva</span>
+          </div>
+          <span style="font-size:1.1rem;transition:transform .25s" :style="showAISection?'transform:rotate(180deg)':''">⌄</span>
+        </div>
+        <div v-show="showAISection" style="margin-top:14px">
         <div class="input-group">
           <label class="input-label">Servizio AI</label>
           <select class="select-field" v-model="settings.aiProvider" @change="saveSettings">
-            <option value="gemini">✨ Gemini 2.5 Flash (Google) — Gratuito 🟢</option>
-            <option value="claude">🟠 Claude (Anthropic)</option>
-            <option value="chatgpt">🟢 ChatGPT (OpenAI)</option>
+            <option value="gemini">✨ Gemini Flash (Google) — Gratuito 🟢</option>
+            <option value="groq">⚡ Groq (Llama 3) — Gratuito 🟢</option>
+            <option value="openrouter">🌐 OpenRouter — Multi-modello 🟢</option>
+            <option value="chatgpt">🟢 ChatGPT (OpenAI) — A pagamento</option>
           </select>
         </div>
 
         <!-- Istruzioni per provider selezionato -->
         <div style="margin-bottom:14px;border-radius:12px;overflow:hidden;border:1px solid var(--border)">
 
-          <!-- GEMINI FREE -->
+          <!-- GEMINI -->
           <template v-if="settings.aiProvider==='gemini'">
             <div style="background:rgba(58,123,255,0.1);padding:12px 16px;border-bottom:1px solid var(--border)">
-              <div style="font-weight:800;font-size:0.85rem;color:var(--blue)">✨ Gemini 2.5 Flash — GRATIS</div>
-              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">Piano gratuito con 1.500 richieste/giorno</div>
+              <div style="font-weight:800;font-size:0.85rem;color:var(--blue)">✨ Gemini Flash — GRATIS</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">Piano gratuito · 1.500 richieste/giorno · Nessuna carta</div>
             </div>
             <div style="padding:12px 16px">
               <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:var(--blue)">aistudio.google.com</strong></div></div>
-              <div class="install-step"><div class="install-num">2</div><div class="install-text">Accedi con il tuo account Google</div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Accedi con account Google</div></div>
               <div class="install-step"><div class="install-num">3</div><div class="install-text">Clicca <strong>"Get API key"</strong> → <strong>"Create API key"</strong></div></div>
-              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave e incollala qui sotto</div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave (inizia con <code>AIzaSy...</code>) e incollala sotto</div></div>
               <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--lime)">
-                💡 Completamente gratuito! Nessuna carta di credito richiesta.
+                💡 100% gratuito, nessuna carta di credito richiesta.
               </div>
             </div>
           </template>
 
-          <!-- CLAUDE -->
-          <template v-if="settings.aiProvider==='claude'">
-            <div style="background:rgba(255,140,60,0.1);padding:12px 16px;border-bottom:1px solid var(--border)">
-              <div style="font-weight:800;font-size:0.85rem;color:#ff8c3c">🟠 Claude — Anthropic</div>
-              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">Piano a pagamento, molto potente</div>
+          <!-- GROQ -->
+          <template v-if="settings.aiProvider==='groq'">
+            <div style="background:rgba(166,255,77,0.08);padding:12px 16px;border-bottom:1px solid var(--border)">
+              <div style="font-weight:800;font-size:0.85rem;color:var(--lime)">⚡ Groq — GRATIS &amp; Velocissimo</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">Llama 3 · 14.400 richieste/giorno · Latenza ultra-bassa</div>
             </div>
             <div style="padding:12px 16px">
-              <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:#ff8c3c">console.anthropic.com</strong></div></div>
-              <div class="install-step"><div class="install-num">2</div><div class="install-text">Registrati e aggiungi un metodo di pagamento</div></div>
-              <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>"API Keys"</strong> → <strong>"Create Key"</strong></div></div>
-              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave e incollala qui sotto</div></div>
-              <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--yellow)">
-                ⚠️ Servizio a pagamento ~$0.003 per richiesta (pochi centesimi al mese per uso normale)
+              <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:var(--lime)">console.groq.com</strong></div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Crea account gratuito (anche con Google/GitHub)</div></div>
+              <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>"API Keys"</strong> → <strong>"Create API Key"</strong></div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave (inizia con <code>gsk_...</code>) e incollala sotto</div></div>
+              <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--lime)">
+                ⚡ Gratuito! Usa Llama 3.3 70B — ottima qualità italiana, risposta in ~1 secondo.
               </div>
+            </div>
+          </template>
+
+          <!-- OPENROUTER -->
+          <template v-if="settings.aiProvider==='openrouter'">
+            <div style="background:rgba(255,77,77,0.08);padding:12px 16px;border-bottom:1px solid var(--border)">
+              <div style="font-weight:800;font-size:0.85rem;color:#ff6b6b">🌐 OpenRouter — Multi-modello</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">50+ modelli · Molti gratuiti · Una sola chiave</div>
+            </div>
+            <div style="padding:12px 16px">
+              <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:#ff6b6b">openrouter.ai</strong></div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Crea account gratuito</div></div>
+              <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>Keys</strong> → <strong>"Create Key"</strong></div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave (inizia con <code>sk-or-...</code>) e incollala sotto</div></div>
+              <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--text2)">
+                🌐 Con un account gratuito puoi usare Mistral, Llama, Gemma e altri modelli free.
+              </div>
+            </div>
+            <!-- Selezione modello OpenRouter -->
+            <div style="padding:0 16px 12px">
+              <label class="input-label">Modello</label>
+              <select class="select-field" v-model="settings.openrouterModel" @change="saveSettings">
+                <optgroup label="🟢 Gratuiti">
+                  <option value="mistralai/mistral-7b-instruct:free">Mistral 7B Instruct — veloce</option>
+                  <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B — leggero</option>
+                  <option value="google/gemma-2-9b-it:free">Gemma 2 9B — buon italiano</option>
+                  <option value="qwen/qwen-2-7b-instruct:free">Qwen 2 7B — multilingua</option>
+                </optgroup>
+                <optgroup label="💰 A pagamento">
+                  <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                  <option value="anthropic/claude-haiku-4-5">Claude Haiku 4.5</option>
+                  <option value="meta-llama/llama-3.3-70b-instruct">Llama 3.3 70B</option>
+                </optgroup>
+              </select>
             </div>
           </template>
 
@@ -3207,15 +3249,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <template v-if="settings.aiProvider==='chatgpt'">
             <div style="background:rgba(16,163,127,0.1);padding:12px 16px;border-bottom:1px solid var(--border)">
               <div style="font-weight:800;font-size:0.85rem;color:#10a37f">🟢 ChatGPT — OpenAI</div>
-              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">GPT-4o mini, economico e veloce</div>
+              <div style="font-size:0.75rem;color:var(--text2);margin-top:2px">GPT-4o Mini · Economico · Richiede credito minimo</div>
             </div>
             <div style="padding:12px 16px">
               <div class="install-step"><div class="install-num">1</div><div class="install-text">Vai su <strong style="color:#10a37f">platform.openai.com</strong></div></div>
-              <div class="install-step"><div class="install-num">2</div><div class="install-text">Registrati e aggiungi credito (minimo $5)</div></div>
+              <div class="install-step"><div class="install-num">2</div><div class="install-text">Registrati e vai su <strong>Billing</strong> → aggiungi minimo $5 di credito</div></div>
               <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>"API Keys"</strong> → <strong>"Create new secret key"</strong></div></div>
-              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave e incollala qui sotto</div></div>
+              <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave (inizia con <code>sk-proj-...</code>) e incollala sotto</div></div>
               <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--yellow)">
-                ⚠️ Servizio a pagamento, usa GPT-4o mini (~$0.0002/richiesta — quasi gratis)
+                💰 ~$0.0002/richiesta con GPT-4o Mini — $5 durano mesi per uso normale.
               </div>
             </div>
           </template>
@@ -3223,26 +3265,32 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <div class="input-group">
-          <label class="input-label">🔑 API Key — <span style="color:var(--lime)">{{ settings.aiProvider==='claude'?'Claude':settings.aiProvider==='gemini'?'Gemini':'ChatGPT' }}</span>
-            <span style="font-size:0.7rem;color:var(--text2);font-weight:400;margin-left:6px">(salvata solo sul tuo dispositivo)</span>
+          <label class="input-label">🔑 API Key —
+            <span style="color:var(--lime)">{{
+              settings.aiProvider==='gemini'?'Gemini':
+              settings.aiProvider==='groq'?'Groq':
+              settings.aiProvider==='openrouter'?'OpenRouter':'ChatGPT'
+            }}</span>
+            <span style="font-size:0.7rem;color:var(--text2);font-weight:400;margin-left:6px">(salvata solo sul dispositivo)</span>
           </label>
           <div style="display:flex;gap:8px">
             <input class="input-field" :type="showApiKey?'text':'password'"
               v-model="settings.apiKey" @input="saveSettings"
-              :placeholder="settings.aiProvider==='gemini' ? 'AIzaSy...' : settings.aiProvider==='claude' ? 'sk-ant-...' : 'sk-proj-...'"
+              :placeholder="settings.aiProvider==='gemini'?'AIzaSy...':settings.aiProvider==='groq'?'gsk_...':settings.aiProvider==='openrouter'?'sk-or-...':'sk-proj-...'"
               style="flex:1">
             <button class="btn btn-ghost btn-sm" @click="showApiKey=!showApiKey" style="flex-shrink:0">
               {{ showApiKey ? '🙈' : '👁️' }}
             </button>
           </div>
-          <!-- Stato chiavi salvate -->
+          <!-- Badge chiavi salvate -->
           <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-            <span v-if="settings.apiKeyClaude" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(255,140,60,.15);color:#ff8c3c">🟠 Claude ✓</span>
-            <span v-if="settings.apiKeyGemini" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(58,123,255,.15);color:var(--blue)">✨ Gemini ✓</span>
-            <span v-if="settings.apiKeyChatgpt" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(16,163,127,.15);color:#10a37f">🟢 ChatGPT ✓</span>
+            <span v-if="settings.apiKeyGemini"     style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(58,123,255,.15);color:var(--blue)">✨ Gemini ✓</span>
+            <span v-if="settings.apiKeyGroq"       style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(166,255,77,.12);color:var(--lime)">⚡ Groq ✓</span>
+            <span v-if="settings.apiKeyOpenrouter" style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(255,107,107,.12);color:#ff6b6b">🌐 OpenRouter ✓</span>
+            <span v-if="settings.apiKeyChatgpt"    style="font-size:0.7rem;padding:2px 8px;border-radius:20px;background:rgba(16,163,127,.15);color:#10a37f">🟢 ChatGPT ✓</span>
           </div>
           <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
-            Se hai più chiavi, l'app usa automaticamente: <strong style="color:var(--text1)">Claude → ChatGPT → Gemini</strong>
+            Fallback automatico: usa il provider attivo, poi gli altri con chiave disponibile.
           </div>
         </div>
 
@@ -3254,6 +3302,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <button class="btn btn-primary btn-full" @click="saveSettings">💾 Salva</button>
+        </div><!-- /v-show showAISection -->
       </div>
 
       <div class="card">
@@ -4582,7 +4631,16 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.331',date:'2026-06-02',items:[
+    const changelogEntries = [{version:'v1.332',date:'2026-06-02',items:[
+  '🤖 AI: aggiunti Groq (Llama 3.3 70B, gratuito) e OpenRouter (50+ modelli, molti gratuiti)',
+  '🗑️ AI: rimosso Claude Anthropic (non supportato da PWA per CORS)',
+  '🌐 OpenRouter: selezione modello (Mistral, Llama, Gemma gratis + GPT-4o, Claude a pagamento)',
+  '⚡ Groq: ultra-veloce, 14.400 req/giorno gratis, ottimo italiano con Llama 3.3',
+  '🔽 Configurazione AI collassata di default nelle impostazioni',
+  '📋 Istruzioni passo-passo per ogni provider con placeholder chiave corretto',
+  '🔄 Migrazione automatica: provider Claude → Gemini al caricamento'
+]},
+{version:'v1.331',date:'2026-06-02',items:[
   '🎨 Avatar giocatore: anello colorato (verde ≥7 · giallo ≥5 · rosso <5) nella scheda e nella griglia',
   '🔢 Ordinamento rapido giocatori: chip A-Z / ⚽ Gol / ⭐ Voto / 🎮 Partite',
   '🌗 Dark/Light mode: transizione smooth 300ms su card e navbar',
@@ -4985,7 +5043,7 @@ createApp({
         '🔧 FIX: Log versioni aggiornato dalla v1.089 alla v1.109',
       ]},
     ];
-    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'claude', apiKey: '', apiKeyClaude: '', apiKeyGemini: '', apiKeyChatgpt: '', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
+    const settings = ref({ darkTheme: true, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -5018,6 +5076,7 @@ createApp({
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
     const showOvrInfo       = ref(false);
+    const showAISection     = ref(false); // collassato di default
     const tutorialEnabled   = ref(true); // tutorial attivo di default
     // Watch: salva tutorialEnabled su localStorage
     watch(tutorialEnabled, v => {
@@ -5026,8 +5085,8 @@ createApp({
 
     // Watch: quando cambia provider, mostra la chiave di quel provider
     watch(() => settings.value.aiProvider, (prov) => {
-      const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
-      settings.value.apiKey = settings.value[_pk[prov]||'apiKeyClaude'] || '';
+      const _pk = {'gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt','groq':'apiKeyGroq','openrouter':'apiKeyOpenrouter'};
+      settings.value.apiKey = settings.value[_pk[prov]||'apiKeyGemini'] || '';
     });
     const onboardingFirebaseUrl = ref('');
     const onboardingStep = ref(null); // null | 'new' | 'existing' // separate from settings - never pre-filled
@@ -5083,18 +5142,33 @@ createApp({
             }
           }
           if (!success) throw new Error(lastError || '❌ Nessun modello Gemini disponibile con questa chiave.');
-        } else if (settings.value.aiProvider === 'claude') {
-          const _tr = await fetch('https://api.anthropic.com/v1/messages', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-api-key': settings.value.apiKey, 'anthropic-version': '2023-06-01' },
-            body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: 50, messages: [{ role: 'user', content: prompt }] })
+        } else if (settings.value.aiProvider === 'groq') {
+          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey},
+            body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:50,messages:[{role:'user',content:prompt}]})
           });
-          const _td = await _tr.json();
-          if (_td.error) {
-            if (_td.error.type === 'authentication_error') throw new Error('Chiave API Claude non valida');
-            throw new Error(_td.error.message?.slice(0,120) || 'Errore Claude');
+          const d = await r.json();
+          if (d.error) {
+            if (d.error.code === 'invalid_api_key' || d.error.code === 'invalid_token') throw new Error('Chiave API Groq non valida');
+            throw new Error(d.error.message?.slice(0,120)||'Errore Groq');
           }
-          result = _td.content?.[0]?.text?.trim() || 'Risposta vuota';
+          result = d.choices?.[0]?.message?.content?.trim() || 'Risposta vuota';
+          toast(`✅ Groq OK (llama-3.3-70b): ${result.slice(0,80)}`, 'success', 5000);
+        } else if (settings.value.aiProvider === 'openrouter') {
+          const model = settings.value.openrouterModel || 'mistralai/mistral-7b-instruct:free';
+          const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey,
+              'HTTP-Referer':'https://alby210amrg.github.io/AmiciFC/','X-Title':'Amici FC'},
+            body: JSON.stringify({model,max_tokens:50,messages:[{role:'user',content:prompt}]})
+          });
+          const d = await r.json();
+          if (d.error) {
+            throw new Error(d.error.message?.slice(0,120)||'Errore OpenRouter');
+          }
+          result = d.choices?.[0]?.message?.content?.trim() || 'Risposta vuota';
+          toast(`✅ OpenRouter OK (${model.split('/').pop()}): ${result.slice(0,80)}`, 'success', 5000);
         } else {
           const r = await fetch('https://api.openai.com/v1/chat/completions', {
             method:'POST',
@@ -5179,7 +5253,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.331');
+    const appVersion = ref('1.332');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6841,15 +6915,16 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     const _callAI = async (prompt, maxTokens = 600) => {
       // Chiavi per provider
       const _keys = {
-        claude:  settings.value.apiKeyClaude  || '',
-        chatgpt: settings.value.apiKeyChatgpt || '',
-        gemini:  settings.value.apiKeyGemini  || ''
+        gemini:      settings.value.apiKeyGemini      || '',
+        groq:        settings.value.apiKeyGroq        || '',
+        openrouter:  settings.value.apiKeyOpenrouter  || '',
+        chatgpt:     settings.value.apiKeyChatgpt     || ''
       };
 
       // Fallback chain: provider scelto → altri con chiave disponibile
-      // Ordine preferenza: claude → chatgpt → gemini
-      const _pref = settings.value.aiProvider || 'claude';
-      const _chain = [_pref, ...['claude','chatgpt','gemini'].filter(p => p !== _pref)];
+      // Ordine preferenza configurato dall'utente
+      const _pref = settings.value.aiProvider || 'gemini';
+      const _chain = [_pref, ...['gemini','groq','openrouter','chatgpt'].filter(p => p !== _pref)];
       const _available = _chain.filter(p => _keys[p]);
 
       if (!_available.length) {
@@ -6888,22 +6963,39 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
               return null;
             }
             return null;
-          } else if (prov === 'claude') {
-            const _cr = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-              body: JSON.stringify({ model: 'claude-haiku-4-5', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] })
+          } else if (prov === 'groq') {
+            const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+              body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:maxTokens,
+                messages:[{role:'system',content:'Sei il commentatore ufficiale di Amici FC. Scrivi in italiano, stile vivace e ironico.'},{role:'user',content:prompt}]})
             });
-            const _cd = await _cr.json();
-            if (_cd.error) { _aiLog('_callAI','⚠️ Claude: '+(_cd.error?.message||'').slice(0,80),false); return null; }
-            const _ct = _cd.content?.[0]?.text?.trim() || null;
-            if (_ct) _aiLog('_callAI','✅ Claude OK — '+_ct.length+' chars');
-            return _ct;
+            const d = await r.json();
+            if (d.error) { _aiLog('_callAI','⚠️ Groq: '+(d.error?.message||'').slice(0,80),false); return null; }
+            const text = d.choices?.[0]?.message?.content?.trim() || null;
+            if (text) _aiLog('_callAI','✅ Groq OK — '+text.length+' chars');
+            return text;
+          } else if (prov === 'openrouter') {
+            const model = settings.value.openrouterModel || 'mistralai/mistral-7b-instruct:free';
+            const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,
+                'HTTP-Referer':'https://alby210amrg.github.io/AmiciFC/','X-Title':'Amici FC'},
+              body: JSON.stringify({model,max_tokens:maxTokens,
+                messages:[{role:'system',content:'Sei il commentatore ufficiale di Amici FC. Scrivi in italiano, stile vivace e ironico.'},{role:'user',content:prompt}]})
+            });
+            const d = await r.json();
+            if (d.error) { _aiLog('_callAI','⚠️ OpenRouter: '+(d.error?.message||'').slice(0,80),false); return null; }
+            const text = d.choices?.[0]?.message?.content?.trim() || null;
+            if (text) _aiLog('_callAI','✅ OpenRouter OK ('+model.split('/').pop()+') — '+text.length+' chars');
+            return text;
           } else {
+            // ChatGPT (OpenAI)
             const r = await fetch('https://api.openai.com/v1/chat/completions', {
               method:'POST',
               headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-              body: JSON.stringify({model:'gpt-4o-mini',max_tokens:maxTokens,messages:[{role:'user',content:prompt}]})
+              body: JSON.stringify({model:'gpt-4o-mini',max_tokens:maxTokens,
+                messages:[{role:'system',content:'Sei il commentatore ufficiale di Amici FC. Scrivi in italiano, stile vivace e ironico.'},{role:'user',content:prompt}]})
             });
             const d = await r.json();
             if (d.error) {
@@ -9801,8 +9893,8 @@ Niente altro, nessuna spiegazione.`;
     // ── Settings ──
     const saveSettings = () => {
       // Salva la chiave nel campo specifico del provider corrente
-      const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
-      const _field = _pk[settings.value.aiProvider] || 'apiKeyClaude';
+      const _pk = {'gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt','groq':'apiKeyGroq','openrouter':'apiKeyOpenrouter'};
+      const _field = _pk[settings.value.aiProvider] || 'apiKeyGemini';
       settings.value[_field] = settings.value.apiKey;
       localStorage.setItem('amicifc_settings', JSON.stringify(settings.value));
       toast('✅ Impostazioni salvate!');
@@ -10201,15 +10293,18 @@ const toggleFont = () => {
         if (s.darkTheme === undefined) s.darkTheme = true;
         Object.assign(settings.value, s);
         // Migrazione: apiKey legacy → chiave specifica del provider
-        if (s.apiKey && !s.apiKeyClaude && !s.apiKeyGemini && !s.apiKeyChatgpt) {
-          const _p = s.aiProvider || 'claude';
-          if (_p==='claude') settings.value.apiKeyClaude = s.apiKey;
-          else if (_p==='gemini') settings.value.apiKeyGemini = s.apiKey;
+        if (s.apiKey && !s.apiKeyGemini && !s.apiKeyChatgpt && !s.apiKeyGroq) {
+          const _p = s.aiProvider || 'gemini';
+          if (_p==='gemini') settings.value.apiKeyGemini = s.apiKey;
           else if (_p==='chatgpt') settings.value.apiKeyChatgpt = s.apiKey;
+          else if (_p==='groq') settings.value.apiKeyGroq = s.apiKey;
+          else if (_p==='openrouter') settings.value.apiKeyOpenrouter = s.apiKey;
         }
+        // Migrazione vecchie chiavi Claude → rimuovi provider claude, default a gemini
+        if (s.aiProvider === 'claude') settings.value.aiProvider = 'gemini';
         // apiKey computed = chiave del provider attivo
-        const _pk = {'claude':'apiKeyClaude','gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt'};
-        settings.value.apiKey = settings.value[_pk[settings.value.aiProvider]||'apiKeyClaude'] || '';
+        const _pk = {'gemini':'apiKeyGemini','chatgpt':'apiKeyChatgpt','groq':'apiKeyGroq','openrouter':'apiKeyOpenrouter'};
+        settings.value.apiKey = settings.value[_pk[settings.value.aiProvider]||'apiKeyGemini'] || '';
         document.documentElement.setAttribute('data-theme', settings.value.darkTheme ? 'dark' : 'light');
         if (settings.value.fontLarge) {
           document.documentElement.style.setProperty('--font-scale','1.18');
@@ -11274,7 +11369,7 @@ const toggleFont = () => {
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
-      showApiKey, showOvrInfo, tutorialEnabled, testAI,
+      showApiKey, showOvrInfo, showAISection, tutorialEnabled, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, SILHOUETTE,
       precachePlayerPhotos,
