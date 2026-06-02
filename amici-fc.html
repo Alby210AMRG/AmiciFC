@@ -134,7 +134,10 @@ body {
   color: var(--text);
   min-height: 100dvh;
   overflow-x: hidden;
-  transition: background 0.3s, color 0.3s;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+.card, .modal-sheet, .bottom-nav {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 /* ── Scrollbar ── */
@@ -1861,9 +1864,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </template>
 
-      <div v-else class="player-grid">
-        <div v-for="p in groupPlayers" :key="p.id" class="player-card" @click="openPlayerDetail(p)">
-          <div class="player-avatar">
+      <div v-else>
+        <!-- Sort chips -->
+        <div style="display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:2px">
+          <button v-for="s in [{k:'nome',l:'A–Z'},{k:'goalTotali',l:'⚽ Gol'},{k:'mediaVoto',l:'⭐ Voto'},{k:'partiteTotali',l:'🎮 Partite'}]" :key="s.k"
+            @click="playerSortBy===s.k?(playerSortDir=playerSortDir==='asc'?'desc':'asc'):(playerSortBy=s.k,playerSortDir=s.k==='nome'?'asc':'desc')"
+            :style="'flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:0.7rem;font-weight:700;border:none;cursor:pointer;transition:background .18s,color .18s;background:'+(playerSortBy===s.k?'var(--lime)':'var(--bg3)')+';color:'+(playerSortBy===s.k?'var(--dark)':'var(--text2)')">
+            {{s.l}}{{playerSortBy===s.k?(playerSortDir==='asc'?' ↑':' ↓'):''}}
+          </button>
+        </div>
+      <div class="player-grid">
+        <div v-for="p in sortedGroupPlayers" :key="p.id" class="player-card" @click="openPlayerDetail(p)">
+          <div class="player-avatar" :style="'border:2.5px solid '+((p.mediaVoto||0)>=7?'#4ade80':(p.mediaVoto||0)>=5?'#FFD93D':'var(--border)')">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
             <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
           </div>
@@ -1893,6 +1905,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       <button v-if="currentGroup" class="fab" @click="openPlayerForm(null)" title="Aggiungi Giocatore">+</button>
@@ -3634,7 +3647,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div style="text-align:center;margin-bottom:20px">
-        <div class="player-avatar" style="width:90px;height:90px;font-size:2.8rem;margin:0 auto 12px">
+        <div class="player-avatar" :style="'width:90px;height:90px;font-size:2.8rem;margin:0 auto 12px;border:3.5px solid '+((detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 3px var(--bg)'">
           <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
         <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
@@ -4569,7 +4582,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.330',date:'2026-06-01',items:['UI: navbar più grande — icone 26px (era 22px), font label 0.68rem, altezza barra 80px, pulsante centrale 64px, font grande 1.25x']},{version:'v1.329',date:'2026-06-01',items:['Fix home partite: nomi squadre affiancati come prima, risultato su riga centrata sotto']},{version:'v1.328',date:'2026-06-01',items:[
+    const changelogEntries = [{version:'v1.331',date:'2026-06-02',items:[
+  '🎨 Avatar giocatore: anello colorato (verde ≥7 · giallo ≥5 · rosso <5) nella scheda e nella griglia',
+  '🔢 Ordinamento rapido giocatori: chip A-Z / ⚽ Gol / ⭐ Voto / 🎮 Partite',
+  '🌗 Dark/Light mode: transizione smooth 300ms su card e navbar',
+  '📳 Haptic feedback su salvataggio partita (Android)'
+]},
+{version:'v1.330',date:'2026-06-01',items:['UI: navbar più grande — icone 26px (era 22px), font label 0.68rem, altezza barra 80px, pulsante centrale 64px, font grande 1.25x']},{version:'v1.329',date:'2026-06-01',items:['Fix home partite: nomi squadre affiancati come prima, risultato su riga centrata sotto']},{version:'v1.328',date:'2026-06-01',items:[
   'Fix 1: prompt soprannomi AI — regole anti-invenzione basate su dati reali',
   'Fix 2: ultime partite home — layout verticale con nomi squadre sempre leggibili su mobile',
   'Fix 3: spiegazione OVR spostata sotto icona ℹ️ collassabile',
@@ -5160,7 +5179,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.330');
+    const appVersion = ref('1.331');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5557,6 +5576,19 @@ createApp({
 
     const playerSelectSearch   = ref('');
     const manualSearch         = ref('');
+    const playerSortBy  = ref('nome');
+    const playerSortDir = ref('asc');
+
+    const sortedGroupPlayers = computed(() => {
+      const arr = [...groupPlayers.value];
+      const key = playerSortBy.value;
+      const dir = playerSortDir.value === 'asc' ? 1 : -1;
+      return arr.sort((a, b) => {
+        const av = key === 'nome' ? (a.nome||'').toLowerCase() : (Number(a[key])||0);
+        const bv = key === 'nome' ? (b.nome||'').toLowerCase() : (Number(b[key])||0);
+        return av < bv ? -dir : av > bv ? dir : 0;
+      });
+    });
 
     const filteredPlayersForSelect = computed(() => {
       const q = playerSelectSearch.value.trim().toLowerCase();
@@ -7920,6 +7952,7 @@ Niente altro, nessuna spiegazione.`;
 
       await loadGroupData();
       _scheduleNewsCompute();
+      haptic(80);
       toast('🏆 Partita salvata!');
       currentView.value = 'history';
       // Sync IMMEDIATO a Firebase (non fire-and-forget)
@@ -9781,7 +9814,10 @@ Niente altro, nessuna spiegazione.`;
       saveSettings();
     };
 
-    const toggleFont = () => {
+    
+      // ── Haptic feedback (Android only) ──
+      const haptic = (ms=50) => { try { if(navigator.vibrate) navigator.vibrate(ms); } catch(e){} };
+const toggleFont = () => {
       settings.value.fontLarge = !settings.value.fontLarge;
       const scale = settings.value.fontLarge ? '1.25' : '1';
       document.documentElement.style.setProperty('--font-scale', scale);
@@ -11210,6 +11246,7 @@ Niente altro, nessuna spiegazione.`;
       detailMatch, matchStep, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
+      playerSortBy, playerSortDir, sortedGroupPlayers, haptic,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep,
       updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
