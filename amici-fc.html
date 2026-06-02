@@ -1249,6 +1249,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 .onboard-title { font-weight: 900; font-size: 1.05rem; margin-bottom: 4px; }
 .onboard-sub   { font-size: 0.8rem; color: var(--text2); line-height: 1.5; }
 
+/* ── Install tutorial cards ── */
+.install-card { border-radius: 16px; overflow: hidden; border: 1px solid var(--border); background: var(--card); }
+.install-card-header { display: flex; align-items: center; gap: 12px; padding: 14px 16px; }
+.install-card-body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.install-card-footer { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-top: 1px solid var(--border); }
+.install-step { display: flex; align-items: flex-start; gap: 10px; }
+.install-num { min-width: 22px; height: 22px; border-radius: 50%; background: var(--lime); color: var(--dark); font-weight: 900; font-size: 0.72rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.install-text { font-size: 0.8rem; color: var(--text); line-height: 1.5; }
+
 /* ═══════════════════════════════════════
    WELCOME SCREEN (actions + install)
    ═══════════════════════════════════════ */
@@ -1449,11 +1458,155 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Scelta iniziale -->
       <div v-if="!onboardingStep" style="display:flex;flex-direction:column;gap:14px;margin-top:8px">
-        <div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
-          Ciao! 👋 Prima cosa: scegli il tema
+        <!-- ══ STEP: INSTALLAZIONE ══ -->
+        <template v-if="installStep!=='done'">
+
+          <!-- Scelta piattaforma -->
+          <template v-if="installStep==='platform'">
+            <div style="text-align:center;margin-bottom:12px">
+              <div style="font-size:1rem;font-weight:800;color:var(--text)">📲 Prima di tutto…</div>
+              <div style="font-size:0.78rem;color:var(--text2);margin-top:3px">Installiamo l'app! Dove la vuoi mettere?</div>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <!-- Android -->
+              <button @click="installStep='android'"
+                style="flex:1;padding:12px 8px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;outline:none;transition:border-color .2s">
+                <div style="font-size:1.6rem">🤖</div>
+                <div style="font-weight:800;font-size:0.82rem;color:var(--text);margin-top:4px">Android</div>
+                <div style="font-size:0.65rem;color:var(--text2)">Chrome</div>
+              </button>
+              <!-- iOS -->
+              <button @click="installStep='ios'"
+                style="flex:1;padding:12px 8px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;outline:none;transition:border-color .2s">
+                <div style="font-size:1.6rem">🍎</div>
+                <div style="font-weight:800;font-size:0.82rem;color:var(--text);margin-top:4px">iPhone</div>
+                <div style="font-size:0.65rem;color:var(--text2)">Safari</div>
+              </button>
+              <!-- PC -->
+              <button @click="installStep='pc'"
+                style="flex:1;padding:12px 8px;border-radius:14px;border:1.5px solid var(--border);background:var(--card);cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent;outline:none;transition:border-color .2s">
+                <div style="font-size:1.6rem">💻</div>
+                <div style="font-weight:800;font-size:0.82rem;color:var(--text);margin-top:4px">PC</div>
+                <div style="font-size:0.65rem;color:var(--text2)">Chrome/Edge</div>
+              </button>
+            </div>
+            <button @click="installStep='done'"
+              style="width:100%;background:none;border:none;color:var(--text2);font-size:0.75rem;cursor:pointer;padding:4px;text-decoration:underline">
+              Salta, installo dopo →
+            </button>
+          </template>
+
+          <!-- ── ANDROID ── -->
+          <template v-else-if="installStep==='android'">
+            <div class="install-card">
+              <div class="install-card-header" style="background:linear-gradient(135deg,#1a7a1a,#2F8F2F)">
+                <span style="font-size:1.5rem">🤖</span>
+                <div>
+                  <div style="font-weight:900;font-size:0.95rem;color:#fff">Android — Chrome</div>
+                  <div style="font-size:0.7rem;color:rgba(255,255,255,.75)">Installazione in un click!</div>
+                </div>
+              </div>
+              <div class="install-card-body">
+                <!-- Bottone prompt nativo se disponibile -->
+                <div v-if="deferredPrompt" style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:12px;text-align:center">
+                  <div style="font-size:0.8rem;font-weight:700;color:var(--text);margin-bottom:8px">🎉 Chrome è pronto! Installa direttamente:</div>
+                  <button @click="installApp" class="btn btn-primary" style="font-size:0.85rem;padding:10px 20px">
+                    📲 Installa Amici FC
+                  </button>
+                </div>
+                <div v-else>
+                  <div class="install-step"><div class="install-num">1</div><div class="install-text">Apri i <strong>tre puntini ⋮</strong> in alto a destra di Chrome</div></div>
+                  <div class="install-step"><div class="install-num">2</div><div class="install-text">Cerca <strong>"Aggiungi a schermata Home"</strong> o <strong>"Installa app"</strong><br><span style="font-size:0.7rem;color:var(--text2)">Sì, è lì. No, non nella sezione "Cronologia". Più su. 👀</span></div></div>
+                  <div class="install-step"><div class="install-num">3</div><div class="install-text">Tocca <strong>Installa</strong> → conferma → fatto!</div></div>
+                  <div class="install-step"><div class="install-num">4</div><div class="install-text">Riaprila dalla <strong>schermata Home</strong> — ora è una vera app, senza barra del browser!</div></div>
+                </div>
+                <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--text2);margin-top:8px">
+                  💡 Funziona offline! I dati sono salvati sul tuo dispositivo.
+                </div>
+              </div>
+              <div class="install-card-footer">
+                <button @click="installStep='platform'" style="background:none;border:none;color:var(--text2);font-size:0.78rem;cursor:pointer">← Cambia</button>
+                <button @click="installStep='done'" class="btn btn-primary" style="font-size:0.82rem;padding:8px 18px">Fatto! Continua →</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── iOS / iPhone ── -->
+          <template v-else-if="installStep==='ios'">
+            <div class="install-card">
+              <div class="install-card-header" style="background:linear-gradient(135deg,#1c1c1e,#3a3a3c)">
+                <span style="font-size:1.5rem">🍎</span>
+                <div>
+                  <div style="font-weight:900;font-size:0.95rem;color:#fff">iPhone / iPad — Safari</div>
+                  <div style="font-size:0.7rem;color:rgba(255,255,255,.75)">Solo da Safari, mi raccomando!</div>
+                </div>
+              </div>
+              <div class="install-card-body">
+                <div style="padding:8px 12px;background:rgba(255,107,107,0.1);border-radius:8px;border-left:3px solid #FF6B6B;font-size:0.75rem;color:var(--text);margin-bottom:12px">
+                  ⚠️ <strong>Attenzione:</strong> funziona <strong>solo da Safari</strong>! Se stai usando Chrome o Firefox su iPhone, apri prima questa pagina in Safari.
+                </div>
+                <div class="install-step"><div class="install-num">1</div><div class="install-text">Sei in <strong>Safari</strong>? Bene. Altrimenti copia il link e aprilo lì 🙏</div></div>
+                <div class="install-step"><div class="install-num">2</div><div class="install-text">Tocca l'icona <strong>Condividi □↑</strong> — quella in basso al centro (o in alto su iPad)</div></div>
+                <div class="install-step"><div class="install-num">3</div><div class="install-text">Scorri il menu e cerca <strong>"Aggiungi a schermata Home"</strong><br><span style="font-size:0.7rem;color:var(--text2)">È nascosta tra mille opzioni, Apple style 🎩</span></div></div>
+                <div class="install-step"><div class="install-num">4</div><div class="install-text">Dai un nome (o lascia "Amici FC") → tocca <strong>Aggiungi</strong></div></div>
+                <div class="install-step"><div class="install-num">5</div><div class="install-text">Apri l'icona dalla <strong>Home</strong> — ora funziona anche offline! ⚽</div></div>
+                <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--text2);margin-top:8px">
+                  💡 Su iOS le notifiche push non sono supportate, ma tutto il resto funziona perfettamente!
+                </div>
+              </div>
+              <div class="install-card-footer">
+                <button @click="installStep='platform'" style="background:none;border:none;color:var(--text2);font-size:0.78rem;cursor:pointer">← Cambia</button>
+                <button @click="installStep='done'" class="btn btn-primary" style="font-size:0.82rem;padding:8px 18px">Fatto! Continua →</button>
+              </div>
+            </div>
+          </template>
+
+          <!-- ── PC ── -->
+          <template v-else-if="installStep==='pc'">
+            <div class="install-card">
+              <div class="install-card-header" style="background:linear-gradient(135deg,#0d47a1,#1565C0)">
+                <span style="font-size:1.5rem">💻</span>
+                <div>
+                  <div style="font-weight:900;font-size:0.95rem;color:#fff">PC — Chrome o Edge</div>
+                  <div style="font-size:0.7rem;color:rgba(255,255,255,.75)">Firefox? Tsk tsk… 😅</div>
+                </div>
+              </div>
+              <div class="install-card-body">
+                <!-- Bottone prompt nativo se disponibile -->
+                <div v-if="deferredPrompt" style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:12px;text-align:center">
+                  <div style="font-size:0.8rem;font-weight:700;color:var(--text);margin-bottom:8px">🎉 Il browser è pronto! Installa direttamente:</div>
+                  <button @click="installApp" class="btn btn-primary" style="font-size:0.85rem;padding:10px 20px">
+                    💻 Installa Amici FC
+                  </button>
+                </div>
+                <div v-else>
+                  <div class="install-step"><div class="install-num">1</div><div class="install-text">Guarda la barra degli indirizzi in alto — c'è un'icona <strong>⊕</strong> a destra?<br><span style="font-size:0.7rem;color:var(--text2)">Sì quella! Cliccaci sopra e il gioco è fatto.</span></div></div>
+                  <div class="install-step"><div class="install-num">2</div><div class="install-text">Se non c'è: clicca i <strong>tre puntini ⋮</strong> in alto a destra</div></div>
+                  <div class="install-step"><div class="install-num">3</div><div class="install-text">Cerca <strong>"Installa Amici FC"</strong> o <strong>"Installa pagina come app"</strong></div></div>
+                  <div class="install-step"><div class="install-num">4</div><div class="install-text">Conferma → l'app apre in una <strong>finestra dedicata</strong> senza barra del browser. Professionale! 😎</div></div>
+                </div>
+                <div style="padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--text2);margin-top:8px">
+                  💡 Su PC puoi anche fissare l'app alla barra delle applicazioni dopo l'installazione!
+                </div>
+              </div>
+              <div class="install-card-footer">
+                <button @click="installStep='platform'" style="background:none;border:none;color:var(--text2);font-size:0.78rem;cursor:pointer">← Cambia</button>
+                <button @click="installStep='done'" class="btn btn-primary" style="font-size:0.82rem;padding:8px 18px">Fatto! Continua →</button>
+              </div>
+            </div>
+          </template>
+
+        </template>
+        <!-- ══ FINE INSTALLAZIONE ══ -->
+
+        <div v-if="installStep==='done'" style="height:1px;background:var(--border);margin:2px 0 10px"></div>
+
+        <div v-if="installStep==='done'" style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
+          Scegli il tema 🎨
         </div>
 
-        <!-- ── SCELTA TEMA ── -->
+        <!-- ── SCELTA TEMA (visibile solo dopo installazione) ── -->
+        <template v-if="installStep==='done'">
         <div style="display:flex;gap:8px;margin-bottom:8px">
           <!-- Light -->
           <button @click="setTheme(false)"
@@ -1480,11 +1633,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <div style="height:1px;background:var(--border);margin:4px 0 10px"></div>
+        </template><!-- /tema -->
 
-        <div style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
-          Da dove vuoi partire?
+        <div v-if="installStep==='done'" style="text-align:center;font-size:1.05rem;font-weight:700;color:var(--text1);margin-bottom:4px">
+          Da dove vuoi partire? ⚽
         </div>
 
+        <template v-if="installStep==='done'">
         <!-- Nuovo gruppo -->
         <div class="onboard-card" @click="onboardingStep='new'" style="cursor:pointer">
           <div class="onboard-header">
@@ -1518,6 +1673,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
         <input ref="onboardImport" type="file" accept=".json" style="display:none" @change="importDataAndGo">
+        </template><!-- /installStep done -->
       </div>
 
       <!-- Step: Nuovo gruppo -->
@@ -4745,7 +4901,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.338',date:'2026-06-02',items:[
+    const changelogEntries = [{version:'v1.339',date:'2026-06-02',items:[
+  '📲 Onboarding: tutorial installazione PWA come primo step',
+  '🤖 Android: istruzioni Chrome + bottone "Installa ora" con prompt nativo (BeforeInstallPrompt)',
+  '🍎 iOS: istruzioni Safari passo-passo con avviso "solo Safari"',
+  '💻 PC: istruzioni Chrome/Edge + prompt nativo se disponibile',
+  '⏭️ "Salta, installo dopo" sempre visibile',
+  '🔒 Scelta tema e gruppi visibili solo dopo aver completato (o saltato) il tutorial installazione'
+]},
+{version:'v1.338',date:'2026-06-02',items:[
   '🔧 Fix onboarding: toggle Light/Dark ora usa setTheme() — funziona correttamente',
   '📐 Toggle tema ridotto: layout orizzontale compatto con emoji + etichetta + spunta'
 ]},
@@ -5239,6 +5403,26 @@ createApp({
     });
     const onboardingFirebaseUrl = ref('');
     const onboardingStep = ref(null); // null | 'new' | 'existing' // separate from settings - never pre-filled
+    const installStep     = ref('platform'); // 'platform' | 'android' | 'ios' | 'pc' | 'done'
+    const deferredPrompt  = ref(null); // BeforeInstallPromptEvent
+
+    // Cattura evento installazione Chrome/Android/Edge
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt.value = e;
+    });
+
+    // Lancia prompt nativo (Android / Chrome Desktop)
+    const installApp = async () => {
+      if (!deferredPrompt.value) return;
+      deferredPrompt.value.prompt();
+      const { outcome } = await deferredPrompt.value.userChoice;
+      if (outcome === 'accepted') {
+        deferredPrompt.value = null;
+        installStep.value = 'done';
+        toast('🎉 Amici FC installata! Ora aprila dalla home!', 'success', 4000);
+      }
+    };
 
     // ── Test AI connection ──
     const testAI = async () => {
@@ -5402,7 +5586,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.338');
+    const appVersion = ref('1.339');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -11530,7 +11714,7 @@ const toggleFont = () => {
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
       matchInfo, getPlayerRows,
-      onboardingFirebaseUrl, onboardingStep,
+      onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
