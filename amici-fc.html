@@ -4932,7 +4932,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.347',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.348',date:'2026-06-03',items:[
+  '🧹 Pulizia log: rimossi log debug temporanei (token, HTTP status, nick keys)',
+  '✅ AI Cards: Trash Talk + Hall of Fame + Soprannomi tutti su Firebase e funzionanti'
+]},
+{version:'v1.347',date:'2026-06-03',items:[
   '🔍 Debug: _fbRead logga HTTP status in caso di errore (401/403 = regole Firebase)',
   '🔑 Debug: log presenza token prima della lettura TrashTalk da Firebase'
 ]},
@@ -5671,7 +5675,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.347');
+    const appVersion = ref('1.348');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7520,12 +7524,9 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const base = getFirebaseBase();
       if (!base) return null;
       try {
-        const url = `${base}/${path}.json${token?'?auth='+token:''}`;
-        const r = await fetch(url, { cache: 'no-store' });
-        if (!r.ok) {
-          logEvent('warn','ai','[_fbRead] HTTP '+r.status+' su '+path+(token?'' : ' (no token)'));
-          return null;
-        }
+        const r = await fetch(`${base}/${path}.json${token?'?auth='+token:''}`,
+          { cache: 'no-store' });
+        if (!r.ok) return null;
         const d = await r.json();
         return d !== null && d !== undefined ? d : null;
       } catch(e) { return null; }
@@ -7905,7 +7906,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
       const _gKey = _aiCardGroupKey();
       const dataPath = `aiCards/soprannomi/${_gKey}`;
-      _aiLog('Init','🔑 Nick path: aiCards/soprannomi/'+_gKey);
+
       if (hasFirebase) {
         // Prova prima con token, poi senza (lettura pubblica)
         const token = await getValidToken() || '';
@@ -8147,15 +8148,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
             const _ttKey = (_lastM.data||'').replace(/-/g,'');
             const _gKey = _aiCardGroupKey();
             const _ttPath = 'aiCards/trashTalk/'+_gKey+'/'+_ttKey;
-            _aiLog('Init','🔍 Leggo TT da Firebase: '+_ttPath);
             const _ttToken = await getValidToken() || '';
-            _aiLog('Init','🔑 Token TT: '+(_ttToken?'✅ presente ('+_ttToken.slice(0,8)+'...)':'❌ assente'),!!_ttToken);
             const _tt = await _fbRead(_ttPath, _ttToken);
-            _aiLog('Init', _tt ? '☁️ TT Firebase trovato: '+(_tt.cards?.length||0)+' card' : '⚠️ TT non trovato su Firebase', !!_tt);
             if (_tt?.cards?.length) {
               aiCardsTrashTalk.value = _tt.cards;
               localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
-              _aiLog('Init','☁️ Trash Talk aggiornato da Firebase ('+_tt.cards.length+' card)');
+              _aiLog('Init','☁️ Trash Talk caricato da Firebase ('+_tt.cards.length+' card)');
             }
           }
         } catch(_e) { _aiLog('Init','⚠️ Trash Talk Firebase: '+_e.message,false); }
@@ -8168,7 +8166,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       const _nickPlayers = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3);
       const _nickKeys = Object.keys(aiNicknames.value);
       // Log debug: mostra chiavi disponibili vs attese
-      _aiLog('Init','🔑 Nick keys disponibili: '+_nickKeys.length+' ['+_nickKeys.slice(0,3).join(',')+']');
+      // debug: _aiLog('Init','Nick keys: '+_nickKeys.length);
       // Controllo robusto: se le chiavi esistenti coprono i giocatori per nome O per id, skip
       const _nickMissing = _nickPlayers.filter(p => {
         const _kNome = (p.nome||'').toLowerCase().trim();
