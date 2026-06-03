@@ -4946,7 +4946,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.340',date:'2026-06-02',items:[
+    const changelogEntries = [{version:'v1.341',date:'2026-06-03',items:[
+  '🔒 Fix DEFINITIVO guard _initAiCards: Promise singleton — impossibile avviare 2 init in parallelo',
+  '🔍 Fix soprannomi: lookup su nome/soprannome/id/uid + log chiavi disponibili per debug',
+  '💾 Fix save soprannomi: salva con chiave nome E alias soprannome se diverso'
+]},
+{version:'v1.340',date:'2026-06-02',items:[
   '📲 Onboarding: "Salta, installo dopo" → "✅ Ho già installato, continua →"'
 ]},
 {version:'v1.340',date:'2026-06-02',items:[
@@ -5652,7 +5657,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.340');
+    const appVersion = ref('1.341');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7958,8 +7963,15 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         for (const s of parsed.soprannomi) {
           const p = batch.find(x => String(x.id) === String(s.id));
           if (!p || !s.soprannome_ai) continue;
-          const _nKey=(p.soprannome||p.nome||String(p.id)).toLowerCase().trim();
-          updated[_nKey] = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
+          // Salva con chiave NOME (lowercase) — chiave primaria usata per lookup
+          const _nKey = (p.nome||String(p.id)).toLowerCase().trim();
+          const _entry = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
+          updated[_nKey] = _entry;
+          // Alias con soprannome se diverso dal nome
+          if (p.soprannome && p.soprannome !== p.nome) {
+            const _sKey = p.soprannome.toLowerCase().trim();
+            updated[_sKey] = _entry;
+          }
         }
         _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
         aiNicknames.value = { ...updated };
@@ -8070,11 +8082,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       }
     };
 
-    let _initAiCardsRunning = false;
-    const _initAiCards = async () => {
-      if (!currentGroup.value) return;
-      if (_initAiCardsRunning) { _aiLog('Init','⏭️ _initAiCards già in esecuzione, skip'); return; }
-      _initAiCardsRunning = true;
+    let _initAiCardsPromise = null;
+    const _initAiCards = () => {
+      if (!currentGroup.value) return Promise.resolve();
+      // Se già in esecuzione, ritorna la stessa Promise (evita chiamate parallele)
+      if (_initAiCardsPromise) { _aiLog('Init','⏭️ _initAiCards già in esecuzione, skip'); return _initAiCardsPromise; }
+      _initAiCardsPromise = (async () => {
       _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
       try {
       const _gid = currentGroup.value.id;
@@ -8115,21 +8128,38 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       // 4. Verifica HoF (solo il 1° del mese)
       await _checkHallOfFame();
 
-      // 5. Soprannomi: genera in background SOLO se mancano (no chiamate inutili all'avvio)
+      // 5. Soprannomi: genera in background SOLO se mancano
       const _nickPlayers = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3);
-      const _nickMissing = _nickPlayers.filter(p=>{ const _k=(p.soprannome||p.nome||'').toLowerCase().trim(); return !aiNicknames.value[_k] && !aiNicknames.value[p.id]; });
+      const _nickKeys = Object.keys(aiNicknames.value);
+      // Log debug: mostra chiavi disponibili vs attese
+      _aiLog('Init','🔑 Nick keys disponibili: '+_nickKeys.length+' ['+_nickKeys.slice(0,3).join(',')+']');
+      // Controllo robusto: se le chiavi esistenti coprono i giocatori per nome O per id, skip
+      const _nickMissing = _nickPlayers.filter(p => {
+        const _kNome = (p.nome||'').toLowerCase().trim();
+        const _kSop  = (p.soprannome||'').toLowerCase().trim();
+        const _kId   = String(p.id);
+        const _kUid  = String(p.uid||'');
+        // Cerca la chiave in tutte le varianti possibili
+        return !aiNicknames.value[_kNome] &&
+               !aiNicknames.value[_kSop] &&
+               !aiNicknames.value[_kId] &&
+               !aiNicknames.value[_kUid] &&
+               !_nickKeys.some(k => k.toLowerCase() === _kNome || k.toLowerCase() === _kSop);
+      });
       if (_nickMissing.length > 0 && settings.value.apiKey) {
-        _aiLog('Init','🔄 '+_nickMissing.length+' soprannomi mancanti — generazione in background');
+        _aiLog('Init','🔄 '+_nickMissing.length+'/'+_nickPlayers.length+' soprannomi mancanti: '+_nickMissing.map(p=>p.nome).join(','));
         _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
       } else {
-        _aiLog('Init','✅ Soprannomi OK ('+Object.keys(aiNicknames.value).length+' presenti)');
+        _aiLog('Init','✅ Soprannomi OK ('+_nickKeys.length+' chiavi, '+_nickPlayers.length+' giocatori idonei)');
       }
         _aiLog('Init','✅ AI Cards pronte');
       } catch(e) {
         _aiLog('Init','❌ Errore init: '+e.message,false);
       } finally {
-        _initAiCardsRunning = false;
+        _initAiCardsPromise = null; // reset — permette nuova chiamata dopo completamento
       }
+      })();
+      return _initAiCardsPromise;
     };
 
     const generateCommentAI = async () => {
