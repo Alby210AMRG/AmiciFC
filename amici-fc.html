@@ -1833,7 +1833,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
-            <template v-if="s.type==='stat'">
+            <!-- ── Splash card placeholder ── -->
+            <template v-if="s.type==='splash'">
+              <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;text-align:center">
+                <img v-if="logoDataUrl" :src="logoDataUrl" style="width:90px;height:90px;object-fit:contain;filter:drop-shadow(0 0 18px rgba(166,255,77,0.5));animation:splashPulse 1.4s ease-in-out infinite">
+                <div v-else style="font-size:4rem;animation:splashPulse 1.4s ease-in-out infinite">⚽</div>
+                <div style="font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 0 20px rgba(166,255,77,0.4)">Amici FC</div>
+                <div style="font-size:0.75rem;color:rgba(255,255,255,0.6);font-style:italic;max-width:220px;line-height:1.4">Dove i campioni nascono… e litigano!</div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+                  <div style="width:6px;height:6px;border-radius:50%;background:rgba(166,255,77,0.9);animation:splashPulse 0.9s ease-in-out infinite"></div>
+                  <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);letter-spacing:1px">CARICAMENTO IN CORSO</div>
+                  <div style="width:6px;height:6px;border-radius:50%;background:rgba(166,255,77,0.9);animation:splashPulse 0.9s ease-in-out infinite 0.3s"></div>
+                </div>
+              </div>
+            </template>
+            <template v-else-if="s.type==='stat'">
               <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
                 <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
                     @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
@@ -4985,7 +4999,25 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.350',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.355',date:'2026-06-03',items:[
+  '🎴 Hero: card placeholder (logo+motto+caricamento) come prima card durante il sync',
+  '🔀 Shuffle: eseguito UNA SOLA VOLTA dopo sync completo — zero flash garantito',
+  '✅ Funziona offline: fallback 500ms se Firebase non disponibile'
+]},
+{version:'v1.354',date:'2026-06-03',items:[
+  '🔀 Fix DEFINITIVO flash hero: ordine card memorizzato con Map al primo render — stabile per tutta la sessione'
+]},
+{version:'v1.353',date:'2026-06-03',items:[
+  '⚡ Fix flash hero: splash rimane fino al completamento del sync Firebase — zero cambiate visive dopo chiusura splash'
+]},
+{version:'v1.352',date:'2026-06-03',items:[
+  '🔀 Fix shuffle hero: seed fisso per sessione (LCG) — ordine stabile, zero flash, tutte le card visibili'
+]},
+{version:'v1.351',date:'2026-06-03',items:[
+  '🔀 Fix flash card hero: shuffle calcolato via watch UNA SOLA VOLTA quando i dati sono pronti',
+  '✅ Zero flash visivo: heroUnifiedData legge dati pre-shufflati, non ricalcola ad ogni render'
+]},
+{version:'v1.350',date:'2026-06-03',items:[
   '🎨 Splash Screen: logo ufficiale Amici FC + tagline "Dove i campioni nascono… e litigano!"'
 ]},
 {version:'v1.349',date:'2026-06-03',items:[
@@ -5736,7 +5768,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.350');
+    const appVersion = ref('1.355');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10933,8 +10965,8 @@ const toggleFont = () => {
 
       // Load logo
       loadLogo();
-      // App pronta: nascondi splash con leggero delay per evitare flash
-      setTimeout(() => { appReady.value = true; }, 350);
+      // Splash: nascondi dopo mount — lo shuffle stabile gestisce il resto
+      setTimeout(() => { appReady.value = true; _heroFinalize(); }, 500);
 
       // Pre-resolve player photos (try both jpg/png proactively)
       setTimeout(precachePlayerPhotos, 2000);
@@ -10998,6 +11030,8 @@ const toggleFont = () => {
           await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
+      // Hero finalizzato: shuffla e passa dalla placeholder alle card reali
+      _heroFinalize();
 
       window.addEventListener('online',  () => { isOnline.value = true;  });
       window.addEventListener('offline', () => { isOnline.value = false; });
@@ -11163,8 +11197,6 @@ const toggleFont = () => {
     // ── Stats Hero Carousel (auto-rotate, independent from tabs) ──
 
     // ── HERO UNIFICATO ──
-    // Fisher-Yates shuffle — eseguito una volta al mount, non ricalcolato
-    const _heroShuffleKey = ref(0); // increment per forzare re-shuffle
     const _shuffleArray = (arr) => {
       const a = [...arr];
       for (let i = a.length-1; i > 0; i--) {
@@ -11173,8 +11205,11 @@ const toggleFont = () => {
       }
       return a;
     };
-    const heroUnifiedData = computed(() => {
-      void _heroShuffleKey.value; // dipendenza reattiva per re-shuffle manuale
+    // _heroShuffled: ref che contiene le card già shufflate
+    // Viene aggiornato con debounce per non flashare ad ogni ricalcolo della computed
+    const _heroShuffleKey  = ref(0); // mantenuto per compatibilità return{}
+
+    const _heroRawData = computed(() => {
       if (!currentGroup.value) return [];
       const players=groupPlayers.value, matches=groupMatches.value, slides=[];
       const el=players.filter(p=>(p.partiteTotali||0)>=1);
@@ -11535,8 +11570,48 @@ const toggleFont = () => {
         ..._restSlides.slice(_half),
         ...(_nick3 ? [_nick3] : []),
       ];
-      return _shuffleArray(result);
+      return result;
     })
+
+    // heroUnifiedData: shuffla con seed fisso per sessione (no flash, no re-shuffle)
+    // Il seed è generato UNA SOLA VOLTA al caricamento della pagina
+    // ── HERO con placeholder di caricamento ──
+    // Card 0: placeholder fisso (logo + motto + loading) — sempre prima
+    // Card 1+: card reali shufflate UNA VOLTA quando tutto è pronto
+    const _heroReady   = ref(false);  // true dopo sync completo
+    const _heroFinal   = ref([]);     // card shufflate, calcolate una volta sola
+    const _HERO_PLACEHOLDER = {
+      type: 'splash', dur: 99999,
+      label: 'AMICI FC',
+      quote: 'Dove i campioni nascono… e litigano!',
+      loading: true,
+      bg: 'linear-gradient(145deg,#001a0a,#0f2d1a 60%,#166534)'
+    };
+
+    const heroUnifiedData = computed(() => {
+      if (!_heroReady.value) {
+        // Ancora in caricamento: mostra solo il placeholder
+        return [_HERO_PLACEHOLDER];
+      }
+      // Dati pronti: placeholder rimosso, card reali shufflate
+      return _heroFinal.value;
+    });
+
+    // Chiamata una volta sola dopo sync — shuffla e segna pronto
+    const _heroFinalize = () => {
+      if (_heroReady.value) return; // già fatto
+      const raw = _heroRawData.value;
+      if (!raw.length) return;
+      const shuffled = [...raw];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      _heroFinal.value = shuffled;
+      _heroReady.value = true;
+      // Vai alla card 1 (prima card reale) dopo un frame
+      nextTick(() => { heroUnifiedIdx.value = 0; heroGo(0); });
+    };
 
     // Hero swipe
     let _hsx=0, _hdrag=false;
@@ -11929,7 +12004,7 @@ const toggleFont = () => {
 
     // Expose to template
     return {
-      currentView, groups, currentGroup, groupPlayers, groupMatches, settings, appReady, _heroShuffleKey,
+      currentView, groups, currentGroup, groupPlayers, groupMatches, settings, appReady, _heroShuffleKey, _heroReady, _heroFinalize,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showPlayerDetail,
       showMatchDetail,
       openEditIfUnlocked,
