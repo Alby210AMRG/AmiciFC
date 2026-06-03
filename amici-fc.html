@@ -4946,7 +4946,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.342',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.343',date:'2026-06-03',items:[
+  '🔒 Fix init AI Cards: debounce 2500ms + flag _syncInProgress — una sola init per sessione',
+  '⚡ syncFromCloud non triggera più _initAiCards (usa _loadAiNicknames direttamente dopo sync)'
+]},
+{version:'v1.342',date:'2026-06-03',items:[
   '🔒 Fix DEFINITIVO init AI Cards: debounce 800ms — tutte le loadGroupData ravvicinate generano UNA sola chiamata',
   '🚫 _initAiCards non più chiamata direttamente in loadGroupData ma via _scheduleInitAiCards()',
   '✅ Soprannomi: lookup multi-chiave funzionante (nome/soprannome/id/uid)'
@@ -5662,7 +5666,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.342');
+    const appVersion = ref('1.343');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5913,7 +5917,8 @@ createApp({
         _scheduleNewsCompute();
       }
       // Inizializza AI Cards con debounce — evita chiamate multiple in rapida successione
-      _scheduleInitAiCards();
+      // Skip se sync cloud in corso (syncFromCloud chiama _loadAiNicknames direttamente dopo)
+      if (!_syncInProgress) _scheduleInitAiCards();
     };
 
     const selectGroup = async g => {
@@ -8093,7 +8098,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       _initAiCardsTimer = setTimeout(() => {
         _initAiCardsTimer = null;
         _initAiCards().catch(console.warn);
-      }, 800);
+      }, 2500);
     };
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
@@ -9017,9 +9022,12 @@ Niente altro, nessuna spiegazione.`;
       img.src = b64;
     });
 
+        let _syncInProgress = false;
         const syncFromCloud = async (force=false) => {
+          if (_syncInProgress) return; // evita sync paralleli
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
+      _syncInProgress = true;
       logEvent('info', 'sync', 'URL: ' + base + (navigator.serviceWorker?.controller ? ' [SW attivo]' : ' [no SW]'));
       syncLoading.value = true;
       try {
@@ -9196,6 +9204,7 @@ Niente altro, nessuna spiegazione.`;
         
         // Refresh Vue reactive state so UI shows updated data (senza re-init AI Cards)
         await loadGroupData();
+        _syncInProgress = false; // sblocca trigger AI Cards
         // Ricarica aiCards da Firebase dopo sync — solo download, no generazione
         try {
           await _loadAiNicknames();
