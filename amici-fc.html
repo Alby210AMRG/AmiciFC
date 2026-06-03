@@ -4953,6 +4953,13 @@ createApp({
   '📝 Onboarding: aggiunta descrizione funzioni app sotto il titolo (4 righe ironiche)',
   '😎 Bottone "Ce l\'ho già installata" con bordo tratteggiato al posto del link "Salta"'
 ]},
+{version:'v1.340',date:'2026-06-03',items:[
+  '🐛 Fix CRITICO: soprannomi cercati con chiave nome (come salvati) invece di p.id → stop loop generazione ad ogni avvio',
+  '🛡️ Fix: _initAiCards() con guard anti-rientrata — blocca chiamate multiple simultanee (causa dei 3x burst nel log)',
+  '⏱️ Fix: delay tra batch soprannomi aumentato (3s normale, 15s dopo errori) — meno stress su quota 429',
+  '🔍 Debug: log path Firebase soprannomi visibile nel log AI',
+  '🔒 Fix: try/finally in _initAiCards — flag rilasciato anche in caso di eccezione'
+]},
 {version:'v1.339',date:'2026-06-02',items:[
   '📲 Onboarding: tutorial installazione PWA come primo step',
   '🤖 Android: istruzioni Chrome + bottone "Installa ora" con prompt nativo (BeforeInstallPrompt)',
@@ -7869,7 +7876,9 @@ OUTPUT: Rispondi SOLO con JSON valido:
 
     const _loadAiNicknames = async () => {
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      const dataPath = `aiCards/soprannomi/${_aiCardGroupKey()}`;
+      const _gKey = _aiCardGroupKey();
+      const dataPath = `aiCards/soprannomi/${_gKey}`;
+      _aiLog('Init','🔑 Nick path: aiCards/soprannomi/'+_gKey);
       if (hasFirebase) {
         // Prova prima con token, poi senza (lettura pubblica)
         const token = await getValidToken() || '';
@@ -7965,7 +7974,8 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
             _aiLog('Soprannomi','☁️ Salvato su Firebase');
           }
         }
-        if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, 1500));
+        // Attendi tra batch: 3s normale, 15s se ci sono stati errori recenti
+        if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, failedBatches > 0 ? 15000 : 3000));
       }
     };
 
@@ -8060,9 +8070,13 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       }
     };
 
+    let _initAiCardsRunning = false;
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
+      if (_initAiCardsRunning) { _aiLog('Init','⏭️ _initAiCards già in esecuzione, skip'); return; }
+      _initAiCardsRunning = true;
       _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
+      try {
       const _gid = currentGroup.value.id;
       const _lsKeyTT = 'amicifc_tt_' + _gid;
 
@@ -8103,14 +8117,19 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
 
       // 5. Soprannomi: genera in background SOLO se mancano (no chiamate inutili all'avvio)
       const _nickPlayers = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3);
-      const _nickMissing = _nickPlayers.filter(p=>!aiNicknames.value[p.id]);
+      const _nickMissing = _nickPlayers.filter(p=>{ const _k=(p.soprannome||p.nome||'').toLowerCase().trim(); return !aiNicknames.value[_k] && !aiNicknames.value[p.id]; });
       if (_nickMissing.length > 0 && settings.value.apiKey) {
         _aiLog('Init','🔄 '+_nickMissing.length+' soprannomi mancanti — generazione in background');
         _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
       } else {
         _aiLog('Init','✅ Soprannomi OK ('+Object.keys(aiNicknames.value).length+' presenti)');
       }
-      _aiLog('Init','✅ AI Cards pronte');
+        _aiLog('Init','✅ AI Cards pronte');
+      } catch(e) {
+        _aiLog('Init','❌ Errore init: '+e.message,false);
+      } finally {
+        _initAiCardsRunning = false;
+      }
     };
 
     const generateCommentAI = async () => {
