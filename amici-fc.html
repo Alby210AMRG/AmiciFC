@@ -3267,39 +3267,65 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
     <!-- ════ MODAL LOG DI SISTEMA ════ -->
     <div v-if="showLogModal" class="modal-overlay" @click.self="showLogModal=false">
-      <div class="modal-box" style="max-width:420px;max-height:85vh;display:flex;flex-direction:column">
+      <div class="modal-box" style="max-width:440px;max-height:88vh;display:flex;flex-direction:column">
+
+        <!-- Header -->
         <div class="modal-header" style="flex-shrink:0">
-          <div class="modal-title">📋 Log di sistema</div>
+          <div class="modal-title">📋 Log Unificato
+            <span style="font-size:0.7rem;font-weight:400;color:var(--text2);margin-left:6px">sistema + AI · max 150</span>
+          </div>
           <button class="modal-close" @click="showLogModal=false">✕</button>
         </div>
-        <div style="display:flex;gap:8px;padding:10px 16px;flex-shrink:0;border-bottom:1px solid var(--border)">
-          <button class="btn btn-ghost btn-sm" style="flex:1" @click="copyLogs" :disabled="!appLogs.length">📋 Copia Log</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;color:var(--red);border-color:rgba(255,77,77,0.3)" @click="clearLogs" :disabled="!appLogs.length">🗑️ Pulisci Log</button>
+
+        <!-- Contatori + Azioni -->
+        <div style="display:flex;align-items:center;gap:6px;padding:8px 12px;flex-shrink:0;border-bottom:1px solid var(--border)">
+          <span style="font-size:0.72rem;color:var(--red)">🔴 {{appLogs.filter(l=>l.level==='error').length}}</span>
+          <span style="font-size:0.72rem;color:var(--yellow)">🟡 {{appLogs.filter(l=>l.level==='warn').length}}</span>
+          <span style="font-size:0.72rem;color:var(--lime)">🟢 {{appLogs.filter(l=>l.level==='info').length}}</span>
+          <span style="font-size:0.72rem;color:var(--text2);margin-left:2px">· {{appLogs.length}}/150</span>
+          <div style="margin-left:auto;display:flex;gap:6px">
+            <button class="btn btn-ghost btn-sm" @click="copyLogs" :disabled="!appLogs.length" style="padding:4px 10px;font-size:0.72rem">📋 Copia</button>
+            <button class="btn btn-ghost btn-sm" @click="clearLogs" :disabled="!appLogs.length" style="padding:4px 10px;font-size:0.72rem;color:var(--red);border-color:rgba(255,77,77,0.3)">🗑️ Pulisci</button>
+          </div>
         </div>
-        <div v-if="appLogs.length" style="padding:7px 16px;display:flex;gap:10px;font-size:0.72rem;flex-shrink:0;border-bottom:1px solid var(--border)">
-          <span style="color:var(--red)">🔴 {{appLogs.filter(l=>l.level==='error').length}}</span>
-          <span style="color:var(--yellow)">🟡 {{appLogs.filter(l=>l.level==='warn').length}}</span>
-          <span style="color:var(--lime)">🟢 {{appLogs.filter(l=>l.level==='info').length}}</span>
-          <span style="color:var(--text2);margin-left:auto">max 50 voci</span>
+
+        <!-- Filtri categoria -->
+        <div style="display:flex;gap:5px;padding:8px 12px;flex-shrink:0;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)">
+          <button v-for="f in [{k:'all',l:'Tutti'},{k:'error',l:'🔴 Errori'},{k:'warn',l:'🟡 Avvisi'},{k:'ai',l:'🤖 AI'},{k:'sync',l:'☁️ Sync'},{k:'app',l:'⚙️ App'},{k:'match',l:'⚽ Partite'}]"
+            :key="f.k" @click="logFilter=f.k"
+            :style="'flex-shrink:0;padding:4px 10px;border-radius:16px;font-size:0.68rem;font-weight:700;border:none;cursor:pointer;transition:background .15s;background:'+(logFilter===f.k?'var(--lime)':'var(--bg3)')+';color:'+(logFilter===f.k?'var(--dark)':'var(--text2)')">
+            {{f.l}}
+          </button>
         </div>
+
+        <!-- Lista log -->
         <div style="overflow-y:auto;flex:1;padding:8px 10px">
           <div v-if="!appLogs.length" style="text-align:center;padding:32px;color:var(--text2)">
             <div style="font-size:2rem;margin-bottom:8px">✅</div>
             <div style="font-size:0.85rem">Nessun log presente</div>
           </div>
-          <div v-for="(l,i) in appLogs" :key="i"
-            style="padding:7px 10px;border-radius:8px;margin-bottom:4px;font-size:0.73rem;font-family:monospace"
-            :style="l.level==='error'?'background:rgba(255,77,77,0.08);border-left:3px solid var(--red)':
-                    l.level==='warn'?'background:rgba(255,211,61,0.08);border-left:3px solid var(--yellow)':
-                    'background:var(--bg2);border-left:3px solid var(--lime)'">
-            <div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;flex-wrap:wrap">
-              <span>{{l.level==='error'?'🔴':l.level==='warn'?'🟡':'🟢'}}</span>
-              <span style="color:var(--text2)">{{l.ts}}</span>
-              <span style="color:var(--blue);font-weight:700">[{{l.module}}]</span>
-              <span v-if="l.count > 1" style="background:var(--bg3);border-radius:8px;padding:0 5px;color:var(--text2)">×{{l.count}}</span>
+          <template v-for="(l,i) in appLogs" :key="i">
+            <div v-if="logFilter==='all'||logFilter===l.level||logFilter===l.module"
+              style="padding:6px 10px;border-radius:8px;margin-bottom:4px;font-size:0.72rem;font-family:monospace;word-break:break-word"
+              :style="l.level==='error'?'background:rgba(255,77,77,0.08);border-left:3px solid var(--red)':
+                      l.level==='warn'?'background:rgba(255,211,61,0.08);border-left:3px solid var(--yellow)':
+                      l.module==='ai'?'background:rgba(58,123,255,0.07);border-left:3px solid var(--blue)':
+                      'background:var(--bg2);border-left:3px solid var(--lime)'">
+              <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;flex-wrap:wrap">
+                <span>{{l.level==='error'?'🔴':l.level==='warn'?'🟡':l.module==='ai'?'🤖':'🟢'}}</span>
+                <span style="color:var(--text2);font-size:0.67rem">{{l.ts}}</span>
+                <span style="font-size:0.67rem;padding:1px 5px;border-radius:4px;font-weight:700"
+                  :style="l.module==='ai'?'background:rgba(58,123,255,0.15);color:var(--blue)':
+                          l.module==='sync'?'background:rgba(166,255,77,0.12);color:var(--lime)':
+                          l.module==='error'||l.level==='error'?'background:rgba(255,77,77,0.15);color:var(--red)':
+                          'background:var(--bg3);color:var(--text2)'">
+                  {{l.module}}
+                </span>
+                <span v-if="l.count > 1" style="background:var(--bg3);border-radius:8px;padding:0 5px;color:var(--text2);font-size:0.65rem">×{{l.count}}</span>
+              </div>
+              <div :style="l.level==='error'?'color:var(--red)':l.level==='warn'?'color:var(--yellow)':l.module==='ai'?'color:var(--blue)':'color:var(--text)'">{{l.msg}}</div>
             </div>
-            <div :style="l.level==='error'?'color:var(--red)':l.level==='warn'?'color:var(--yellow)':'color:var(--text)'">{{l.msg}}</div>
-          </div>
+          </template>
         </div>
       </div>
     </div>
@@ -3672,7 +3698,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="btn btn-ghost btn-full" @click="showLogModal=true"
             style="display:flex;align-items:center;justify-content:space-between;border-color:rgba(255,255,255,0.15)">
             <span>📋 Log di sistema</span>
-            <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}} voci →</span>
+            <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}}/150 voci →</span>
           </button>
 
           <!-- ── Ottimizza Foto ── -->
@@ -4934,6 +4960,13 @@ createApp({
   '💻 PC: istruzioni Chrome/Edge + prompt nativo se disponibile',
   '⏭️ "Salta, installo dopo" sempre visibile',
   '🔒 Scelta tema e gruppi visibili solo dopo aver completato (o saltato) il tutorial installazione'
+]},
+{version:'v1.339',date:'2026-06-03',items:[
+  '📋 Log unificato: sistema + AI in un unico pannello (rimosso log AI separato)',
+  '🔢 Buffer log aumentato: 50 → 150 voci',
+  '🔽 Filtri categoria: Tutti / Errori / Avvisi / AI / Sync / App / Partite',
+  '🤖 _aiLog() ora scrive su logEvent (modulo ai) invece di buffer separato',
+  '📋 Copia log rispetta il filtro attivo; label "N/150 voci" nel pulsante'
 ]},
 {version:'v1.338',date:'2026-06-02',items:[
   '🔧 Fix onboarding: toggle Light/Dark ora usa setTheme() — funziona correttamente',
@@ -7476,10 +7509,11 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     const zonaPericoloExpanded = ref(false);  // collapsible zona pericolo
 
     const _aiLog = (tipo, msg, ok=true) => {
+      // Unificato: scrive su logEvent (modulo 'ai') + mantiene aiCardsDebugLog per compatibilità
       const entry = { ts: new Date().toLocaleTimeString('it-IT'), tipo, msg, ok };
       aiCardsDebugLog.value.unshift(entry);
       if (aiCardsDebugLog.value.length > 30) aiCardsDebugLog.value.pop();
-      console.log(`[AICards][${tipo}] ${msg}`);
+      logEvent(ok ? 'info' : 'warn', 'ai', '[' + tipo + '] ' + msg);
     };
     const aiCardsTrashTalkIdx = ref(0);   // indice slide corrente
 
@@ -11550,8 +11584,9 @@ const toggleFont = () => {
 
 
     // ── LOG DI SISTEMA ──
-    const LOG_MAX = 50;
+    const LOG_MAX = 150;
     const LOG_DEDUP_MS = 10 * 60 * 1000;
+    const logFilter = ref('all'); // all | error | warn | info | ai | sync | app
 
     const logEvent = (level, module, msg) => {
       try {
@@ -11583,11 +11618,13 @@ const toggleFont = () => {
 
     const copyLogs = async () => {
       const icon = { error: '[ERRORE]', warn: '[AVVISO]', info: '[INFO]' };
-      const lines = appLogs.value.map(function(l) {
+      const filtered = logFilter.value === 'all' ? appLogs.value :
+        appLogs.value.filter(l => l.level === logFilter.value || l.module === logFilter.value);
+      const lines = filtered.map(function(l) {
         var cnt = l.count > 1 ? ' (x' + l.count + ')' : '';
         return (icon[l.level] || '[LOG]') + ' ' + l.ts + ' [' + l.module + ']' + cnt + ' ' + l.msg;
       });
-      const header = '=== Amici FC Log v' + appVersion.value + ' ===';
+      const header = '=== Amici FC Log v' + appVersion.value + ' — filtro:' + logFilter.value + ' ===';
       const text = header + String.fromCharCode(10) + lines.join(String.fromCharCode(10));
       try {
         await navigator.clipboard.writeText(text);
@@ -11776,7 +11813,7 @@ const toggleFont = () => {
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
-      shareStatsPNG, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
+      shareStatsPNG, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, logFilter, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
