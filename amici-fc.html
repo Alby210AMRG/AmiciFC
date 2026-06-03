@@ -4946,7 +4946,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.341',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.342',date:'2026-06-03',items:[
+  '🔒 Fix DEFINITIVO init AI Cards: debounce 800ms — tutte le loadGroupData ravvicinate generano UNA sola chiamata',
+  '🚫 _initAiCards non più chiamata direttamente in loadGroupData ma via _scheduleInitAiCards()',
+  '✅ Soprannomi: lookup multi-chiave funzionante (nome/soprannome/id/uid)'
+]},
+{version:'v1.341',date:'2026-06-03',items:[
   '🔒 Fix DEFINITIVO guard _initAiCards: Promise singleton — impossibile avviare 2 init in parallelo',
   '🔍 Fix soprannomi: lookup su nome/soprannome/id/uid + log chiavi disponibili per debug',
   '💾 Fix save soprannomi: salva con chiave nome E alias soprannome se diverso'
@@ -5657,7 +5662,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.341');
+    const appVersion = ref('1.342');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -5907,9 +5912,8 @@ createApp({
         try { await repairMatchPlayerIds(); } catch(e) {}
         _scheduleNewsCompute();
       }
-      // Inizializza AI Cards — sempre, anche senza partite locali
-      // (potrebbero esserci card generate su altri dispositivi e salvate su Firebase)
-      _initAiCards().catch(console.warn);
+      // Inizializza AI Cards con debounce — evita chiamate multiple in rapida successione
+      _scheduleInitAiCards();
     };
 
     const selectGroup = async g => {
@@ -8082,12 +8086,17 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       }
     };
 
-    let _initAiCardsPromise = null;
-    const _initAiCards = () => {
-      if (!currentGroup.value) return Promise.resolve();
-      // Se già in esecuzione, ritorna la stessa Promise (evita chiamate parallele)
-      if (_initAiCardsPromise) { _aiLog('Init','⏭️ _initAiCards già in esecuzione, skip'); return _initAiCardsPromise; }
-      _initAiCardsPromise = (async () => {
+    let _initAiCardsTimer = null;
+    const _scheduleInitAiCards = () => {
+      // Debounce 800ms — raggruppa tutte le chiamate ravvicinate in una sola
+      if (_initAiCardsTimer) clearTimeout(_initAiCardsTimer);
+      _initAiCardsTimer = setTimeout(() => {
+        _initAiCardsTimer = null;
+        _initAiCards().catch(console.warn);
+      }, 800);
+    };
+    const _initAiCards = async () => {
+      if (!currentGroup.value) return;
       _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
       try {
       const _gid = currentGroup.value.id;
@@ -8155,11 +8164,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         _aiLog('Init','✅ AI Cards pronte');
       } catch(e) {
         _aiLog('Init','❌ Errore init: '+e.message,false);
-      } finally {
-        _initAiCardsPromise = null; // reset — permette nuova chiamata dopo completamento
       }
-      })();
-      return _initAiCardsPromise;
     };
 
     const generateCommentAI = async () => {
@@ -9189,9 +9194,8 @@ Niente altro, nessuna spiegazione.`;
           toast('✅ Dati già aggiornati', 'success', 2000);
         }
         
-        // Refresh Vue reactive state so UI shows updated data
+        // Refresh Vue reactive state so UI shows updated data (senza re-init AI Cards)
         await loadGroupData();
-        await recomputeStats();
         // Ricarica aiCards da Firebase dopo sync — solo download, no generazione
         try {
           await _loadAiNicknames();
