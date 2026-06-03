@@ -4932,7 +4932,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.345',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.346',date:'2026-06-03',items:[
+  '🔥 Fix TrashTalk forzatura: prompt compatto (4 giocatori chiave, output 500 token) — risolve MAX_TOKENS',
+  '👑 Hall of Fame: generata e salvata su Firebase ✅'
+]},
+{version:'v1.345',date:'2026-06-03',items:[
   '🔥 Fix forceTrashTalk: usa _forceGenerateTrashTalk che sovrascrive Firebase invece di skippare',
   '👑 Fix _generateHallOfFame: parametro force=true per sovrascrivere dati esistenti',
   '🛡️ Tutti i bottoni forzatura: check API key prima di chiamare AI'
@@ -5663,7 +5667,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.345');
+    const appVersion = ref('1.346');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7543,16 +7547,17 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const _gKey = _aiCardGroupKey();
       const dataPath = `aiCards/trashTalk/${_gKey}/${_ttKey}`;
       const token = await getValidToken() || '';
-      // Genera direttamente senza check Firebase
-      const players = (match.squadraA||[]).concat(match.squadraB||[]);
+      // Genera direttamente senza check Firebase — prompt compatto per evitare MAX_TOKENS
       const stats = (match.statisticheGiocatori||[]);
-      const prompt = `Sei un telecronista calcistico irriverente e divertente. Genera 3 "Trash Talk" cards per questa partita di calcetto amatoriale.
-Partita: ${match.nomeSquadraA||'Squadra A'} ${match.risultato?.goalA??0} - ${match.risultato?.goalB??0} ${match.nomeSquadraB||'Squadra B'}
-Giocatori e stats: ${JSON.stringify(stats.slice(0,8).map(s=>({n:s.nome||s.nomeGiocatore,g:s.goal||0,a:s.assist||0,v:s.voto||0})))}
-MVP: ${match.mvp||match.uomoPartita||'N/A'}
-Ogni card: emoji, titolo ironico, testo 2-3 righe, target (nome giocatore preso in giro).
-JSON ONLY: {"cards":[{"emoji":"🔥","titolo":"...","testo":"...","target_nome":"..."}]}`;
-      const raw = await _callAI(prompt, 700);
+      // Prendi solo i 4 giocatori più "notevoli" (gol, voto basso, autogol)
+      const _notable = [...stats].sort((a,b)=>((b.goal||0)+(b.assist||0))-((a.goal||0)+(a.assist||0))).slice(0,4);
+      const _statsStr = _notable.map(s=>`${s.nome||s.nomeGiocatore||'?'}:gol${s.goal||0},v${s.voto||0}${s.autogol?',OG':''}${s.uomoPartita?',MVP':''}`).join(';');
+      const _score = `${match.nomeSquadraA||'A'} ${match.risultato?.goalA??0}-${match.risultato?.goalB??0} ${match.nomeSquadraB||'B'}`;
+      const prompt = `Telecronista ironico italiano. Genera 3 trash talk cards su questa partita di calcetto.
+Risultato: ${_score}
+Giocatori: ${_statsStr}
+JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","testo":"max 25 parole","target_nome":"nome"}]}`;
+      const raw = await _callAI(prompt, 500);
       if (!raw) { _aiLog('TrashTalk','❌ Nessuna risposta AI'); return; }
       const parsed = _parseAIJson(raw);
       if (!parsed?.cards?.length) { _aiLog('TrashTalk','❌ JSON non valido — raw: '+raw.slice(0,100)); return; }
