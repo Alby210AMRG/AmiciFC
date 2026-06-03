@@ -4932,7 +4932,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.344',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.345',date:'2026-06-03',items:[
+  '🔥 Fix forceTrashTalk: usa _forceGenerateTrashTalk che sovrascrive Firebase invece di skippare',
+  '👑 Fix _generateHallOfFame: parametro force=true per sovrascrivere dati esistenti',
+  '🛡️ Tutti i bottoni forzatura: check API key prima di chiamare AI'
+]},
+{version:'v1.344',date:'2026-06-03',items:[
   '🔇 Fix doppia lettura soprannomi: syncFromCloud non richiama più _loadAiNicknames (gestisce _initAiCards)',
   '🔍 Debug TrashTalk Firebase: ora usa token auth + log esplicito trovato/non trovato',
   '📋 Debug AI Cards semplificato: rimosso log inline, rimasti solo stato card + bottoni forzatura',
@@ -5658,7 +5663,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.344');
+    const appVersion = ref('1.345');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7741,9 +7746,9 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // ══════════════════════════════════════════════════════════════
     const aiCardsHallOfFame = ref(null); // { fame: {...}, shame: {...}, mese: 'YYYY-MM' }
 
-    const _generateHallOfFame = async () => {
+    const _generateHallOfFame = async (force=false) => {
       if (!settings.value.apiKey) { _aiLog('HallOfFame','⚠️ Nessuna API key',false); return; }
-      _aiLog('HallOfFame','▶️ Avvio generazione Hall of Fame...');
+      _aiLog('HallOfFame',(force?'🔄 Forzatura':'▶️ Avvio')+' generazione Hall of Fame...');
       const oggi = new Date();
       const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1);
       const meseKey = `${mesePrecedente.getFullYear()}-${String(mesePrecedente.getMonth()+1).padStart(2,'0')}`;
@@ -7757,9 +7762,12 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         token = await getValidToken() || '';
         if (token) {
           const existing = await _fbRead(dataPath, token);
-          if (existing?.fame) {
-            _aiLog('HallOfFame','☁️ Dati già presenti per '+meseKey);
+          if (existing?.fame && !force) {
+            _aiLog('HallOfFame','☁️ Dati già presenti per '+meseKey+' (usa forzatura per rigenerare)');
             aiCardsHallOfFame.value = existing; return;
+          }
+          if (existing?.fame && force) {
+            _aiLog('HallOfFame','🔄 Forzatura: sovrascrivo dati esistenti per '+meseKey);
           }
           const lockResult = await _fbConditionalWrite(lockPath, { is_generating:true, ts:Date.now() }, token);
           if (lockResult.locked) {
@@ -8021,14 +8029,18 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     const forceTrashTalk = () => {
       const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
       if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
-      _aiLog('UI','🔥 Forzatura Trash Talk su: '+m.data);
-      _generateTrashTalk(m).catch(e => _aiLog('UI','❌ '+e.message,false));
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      _aiLog('UI','🔥 Forzatura Trash Talk su: '+m.data+' (sovrascrive Firebase)');
+      _forceGenerateTrashTalk(m).catch(e => _aiLog('UI','❌ '+e.message,false));
     };
     const forceHallOfFame = () => {
-      _aiLog('UI','👑 Forzatura Hall of Fame...');
-      _generateHallOfFame().catch(e => _aiLog('UI','❌ '+e.message,false));
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      _aiLog('UI','👑 Forzatura Hall of Fame (sovrascrive Firebase)...');
+      _generateHallOfFame(true).catch(e => _aiLog('UI','❌ '+e.message,false));
     };
     const forceSoprannomi = () => {
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      _aiLog('UI','🧬 Forzatura soprannomi...');
       _generateNicknames().catch(e => _aiLog('UI','❌ '+e.message,false));
     };
 
