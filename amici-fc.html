@@ -129,6 +129,21 @@ function _i(e,t){const n=ns(e);class s extends xi{constructor(e){super(n,e,t)}}r
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* ── Welcome card news ticker ── */
+@keyframes newsTickerIn  { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+@keyframes newsTickerOut { from { opacity:1; transform:translateY(0); }  to { opacity:0; transform:translateY(-10px); } }
+.news-ticker-phrase {
+  animation: newsTickerIn 0.5s ease forwards;
+}
+.news-ticker-phrase.fade-out {
+  animation: newsTickerOut 0.4s ease forwards;
+}
+@keyframes livePulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.4; transform:scale(0.85); }
+}
+.live-dot { animation: livePulse 1s ease-in-out infinite; }
+
 /* ── Splash Screen ── */
 .splash-screen {
   position: fixed; inset: 0; z-index: 9999;
@@ -1822,18 +1837,49 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @touchstart.passive="heroTS" @touchmove.passive="heroTM" @touchend.passive="heroTE"
         @click="heroClick">
         <div style="position:absolute;top:9px;left:12px;right:12px;display:flex;gap:3px;z-index:10;pointer-events:none">
-          <div v-for="(s,i) in (heroUnifiedData||[])" :key="'p'+i" style="flex:1;height:2.5px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden">
-            <div :id="'hpf'+i" style="height:100%;border-radius:2px;background:#fff;width:0%"></div>
+          <div v-for="(s,i) in (heroUnifiedData||[])" :key="'p'+i"
+            :style="'flex:1;height:2.5px;border-radius:2px;overflow:hidden;background:'+(s.type==='welcome'?'transparent':'rgba(255,255,255,.2)')">
+            <div :id="'hpf'+i" :style="'height:100%;border-radius:2px;background:#fff;width:0%;'+(s.type==='welcome'?'display:none':'')"></div>
           </div>
         </div>
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
-            <template v-if="s.type==='stat'">
+            <!-- ── Welcome card (prima del caricamento dati) ── -->
+            <template v-if="s.type==='welcome'">
+              <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0;text-align:center;padding:12px 20px">
+
+                <!-- Logo -->
+                <img v-if="logoDataUrl" :src="logoDataUrl"
+                  style="width:160px;height:160px;object-fit:contain;filter:drop-shadow(0 0 28px rgba(166,255,77,0.65));animation:splashPulse 1.8s ease-in-out infinite;margin-bottom:16px">
+                <div v-else style="font-size:7rem;animation:splashPulse 1.8s ease-in-out infinite;margin-bottom:16px">⚽</div>
+
+                <!-- Badge LIVE -->
+                <div style="display:flex;align-items:center;gap:6px;background:rgba(255,77,77,0.18);border:1px solid rgba(255,77,77,0.4);border-radius:20px;padding:4px 12px;margin-bottom:14px">
+                  <div class="live-dot" style="width:8px;height:8px;border-radius:50%;background:#ff4d4d"></div>
+                  <span style="font-size:0.72rem;font-weight:800;color:#ff6b6b;letter-spacing:2px">IN DIRETTA</span>
+                </div>
+
+                <!-- Frase rotante -->
+                <div style="min-height:52px;display:flex;align-items:center;justify-content:center;width:100%">
+                  <div :key="heroNewsTickerIdx" class="news-ticker-phrase"
+                    style="font-size:0.92rem;font-weight:600;color:rgba(255,255,255,0.88);line-height:1.45;max-width:260px;text-shadow:0 1px 8px rgba(0,0,0,0.4)">
+                    {{heroNewsTicker[heroNewsTickerIdx % heroNewsTicker.length]}}
+                  </div>
+                </div>
+
+                <!-- Barra caricamento -->
+                <div style="width:120px;height:2px;background:rgba(255,255,255,0.1);border-radius:2px;margin-top:16px;overflow:hidden">
+                  <div style="height:100%;background:linear-gradient(90deg,rgba(166,255,77,0.6),rgba(166,255,77,1));border-radius:2px;animation:splashLoad 1.4s ease-in-out infinite"></div>
+                </div>
+
+              </div>
+            </template>
+            <template v-else-if="s.type==='stat'">
               <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
                 <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
                     @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
@@ -4985,7 +5031,67 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.360',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.375',date:'2026-06-03',items:[
+  '🔧 Fix: apostrofo in frase welcome card causava SyntaxError'
+]},
+{version:'v1.374',date:'2026-06-03',items:[
+  '🎙️ Welcome card: frasi notiziario sportivo rotanti ogni 2s con fade in/out',
+  '🔴 Badge IN DIRETTA pulsante + barra caricamento animata',
+  '🔤 Rimossi nome e slogan — solo logo + notiziario in caricamento'
+]},
+{version:'v1.373',date:'2026-06-03',items:[
+  '✅ Hero: singolo aggiornamento dopo sync completo — zero flickering barre',
+  '🎴 Welcome card sola fino al completamento, poi tutte le card in un colpo'
+]},
+{version:'v1.372',date:'2026-06-03',items:[
+  '🚫 Barra avanzamento nascosta sulla welcome card (niente flickering)',
+  '⏱️ Welcome card: dur infinita durante caricamento → 1s quando le card sono pronte'
+]},
+{version:'v1.371',date:'2026-06-03',items:[
+  '🎴 Fix: welcome card mostrata con heroGo(0) — avanza da sola dopo 2.5s al timer naturale'
+]},
+{version:'v1.370',date:'2026-06-03',items:[
+  '🎴 Hero a fasi: welcome(2.5s)→4 locali→AI cards→tutte le card',
+  '⚡ Zero attese: ogni fase alimenta la successiva, carosello parte in <3s',
+  '🔀 Shuffle indipendente per ogni fase'
+]},
+{version:'v1.369',date:'2026-06-03',items:[
+  '🔧 Fix CRITICO welcome card: heroGo(1) non heroGo(0) — non aspetta più dur:99999ms',
+  '⚡ Carosello parte immediatamente dalla prima card reale dopo il caricamento'
+]},
+{version:'v1.368',date:'2026-06-03',items:[
+  '⚡ Hero: _heroFinalize chiamata SUBITO dopo selectGroup (dati locali) — carosello parte in <1s',
+  '✅ Sync Firebase in background — non blocca più il carosello'
+]},
+{version:'v1.367',date:'2026-06-03',items:[
+  '🔧 Hero: finalizzazione esplicita post-sync (dati stabili) — no watch anticipato su dati parziali',
+  '⚡ Fallback offline: finalizza subito dopo loadGroupData se no Firebase'
+]},
+{version:'v1.366',date:'2026-06-03',items:[
+  '🔧 Hero v2: watch diretto su _heroRawData con immediate:true — scatta appena currentGroup ha dati',
+  '✅ No timer, no polling: il watch auto-stop dopo il primo uso garantisce zero flash e zero attesa'
+]},
+{version:'v1.365',date:'2026-06-03',items:[
+  '🔧 Fix CRITICO welcome card: se dati non pronti a 2.5s usa watch — non svuota più l\'array',
+  '✅ _heroFinalize: logica separata _heroApplyFinal + watch una tantum sui dati'
+]},
+{version:'v1.364',date:'2026-06-03',items:[
+  '⚡ Timer hero spostato all inizio di onMounted — scatta entro 2.5s dall apertura app',
+  '🔠 Welcome card: logo 180px, titolo 2.4rem, slogan 1rem, frase 0.85rem'
+]},
+{version:'v1.363',date:'2026-06-03',items:[
+  '⚡ Welcome card: max 2.5s poi parte il carosello (non aspetta più il sync completo)',
+  '🔠 Welcome card: logo 148px + font titolo 2rem + frase 0.78rem — molto più leggibili'
+]},
+{version:'v1.362',date:'2026-06-03',items:[
+  '🔧 Fix crash: apostrofo in frase caricamento hero causava SyntaxError'
+]},
+{version:'v1.361',date:'2026-06-03',items:[
+  '🎴 Hero imperativo: welcome card statica durante caricamento + shuffle unico finale',
+  '✅ Zero flash: Vue vede solo 2 aggiornamenti ([welcome] → [welcome, ...shuffled])',
+  '😄 Frasi di caricamento random a tema calcetto nella welcome card'
+]},
+{version:'v1.360',date:'2026-06-03',items:[
   '🔧 Fix CRITICO: rimosso sistema hero complesso che causava crash _heroReady not defined',
   '✅ Hero torna al funzionamento normale stabile',
   '🔴 Fix card Crisi di Forma: streak conta solo partite giocate dal giocatore'
@@ -5776,7 +5882,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.360');
+    const appVersion = ref('1.375');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -6035,6 +6141,8 @@ createApp({
       currentGroup.value = g;
       localStorage.setItem('amicifc_group', g.id);
       await loadGroupData();
+      // Fallback: se no Firebase, lancia hero dopo i dati locali
+      if (!g.firebaseUrl) setTimeout(() => _heroLaunch(), 200);
     };
 
     const createGroup = async () => {
@@ -10898,8 +11006,10 @@ const toggleFont = () => {
     };
 
         onMounted(async () => {
+      // Avvia news ticker welcome card
+      _startHeroTicker();
+
       // Schedule all startup checks IMMEDIATELY (before any await)
-      // This ensures they fire 2s/3s from app open, not from end of onMounted
       setTimeout(() => checkForUpdates(true), 2000); // silent at startup
       // Scroll to very top on startup (iOS Safari sometimes restores scroll position)
       window.scrollTo({ top: 0, behavior: 'instant' });
@@ -10949,6 +11059,7 @@ const toggleFont = () => {
       } else if (groups.value.length > 0) {
         await selectGroup(groups.value[0]);
       }
+      // hero: aspetta il sync completo prima di lanciare
 
 
       // ── MIGRATE: Move global Firebase URL to current group (one-time) ──
@@ -11020,8 +11131,7 @@ const toggleFont = () => {
       });
       // Stats hero carousel auto-rotate
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
-      // Unified hero start
-      setTimeout(() => heroGo(0), 1200);
+      // Unified hero start — gestito da _heroFinalize() dopo caricamento dati
       // Restart hero when newsItems populate
       watch(newsItems, (newVal) => {
         if (newVal && newVal.length > 0) {
@@ -11032,12 +11142,14 @@ const toggleFont = () => {
       // Compute initial news items
       setTimeout(_scheduleNewsCompute, 1000);
 
-      // ── Startup sync: direct await after group confirmed loaded ──
+      // ── Startup sync ──
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
         try {
           await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
+      // ── HERO: lancia con tutte le card disponibili dopo sync ──
+      _heroLaunch();
 
       window.addEventListener('online',  () => { isOnline.value = true;  });
       window.addEventListener('offline', () => { isOnline.value = false; });
@@ -11591,8 +11703,80 @@ const toggleFont = () => {
 
     // heroUnifiedData: shuffla con seed fisso per sessione (no flash, no re-shuffle)
     // Il seed è generato UNA SOLA VOLTA al caricamento della pagina
-    // ── HERO UNIFICATO ──
-    const heroUnifiedData = computed(() => _heroRawData.value);
+    // ═══════════════════════════════════════════════════════
+    // HERO — un solo aggiornamento reattivo dopo caricamento completo
+    // Welcome card visibile finché non arrivano TUTTE le card
+    // Poi: [welcome(1s), ...tutte shufflate] — UN SOLO assignment
+    // ═══════════════════════════════════════════════════════
+
+    // Frasi notiziario welcome card
+    const heroNewsTicker = [
+      '📡 Collegamento in corso con il campo...',
+      '🎙️ I nostri inviati raccolgono le ultime notizie...',
+      '🔴 Redazione al lavoro — aggiornamenti in arrivo...',
+      '📊 I nostri esperti stanno litigando sui dati...',
+      "⚽ L'arbitro controlla il VAR delle statistiche...",
+      '🧮 Il mister studia le formazioni sul tovagliolo...',
+      '📋 Il segnapunti sta cercando la penna...',
+      '🧤 Il portiere decide da che parte buttarsi...',
+      '⚡ FLASH — risultati in aggiornamento...',
+      '🗞️ Edizione straordinaria in preparazione...',
+      '🎯 Elaborazione pagelle — nessuno vuole il 4...',
+      '🏆 Calcolo classifiche — qualcuno protesta già...',
+      '📱 Ricezione segnale dal campo... quasi...',
+      '🏃 Qualcuno sta ancora allacciando i parastinchi...',
+    ];
+    const heroNewsTickerIdx = ref(0);
+    let _heroTickerInterval = null;
+
+    const _startHeroTicker = () => {
+      if (_heroTickerInterval) return;
+      _heroTickerInterval = setInterval(() => {
+        heroNewsTickerIdx.value++;
+      }, 2000);
+    };
+    const _stopHeroTicker = () => {
+      if (_heroTickerInterval) { clearInterval(_heroTickerInterval); _heroTickerInterval = null; }
+    };
+
+    const _heroWelcomeCard = {
+      type: 'welcome', dur: 1000,
+      bg: 'linear-gradient(145deg,#001a0a,#0f2d1a 60%,#166534)',
+    };
+
+    const _heroCards = ref([_heroWelcomeCard]);
+    const heroUnifiedData = computed(() => _heroCards.value);
+
+    const _fyShuffle = (arr) => {
+      const a = [...arr];
+      for (let i=a.length-1; i>0; i--) {
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i],a[j]] = [a[j],a[i]];
+      }
+      return a;
+    };
+
+    let _heroLaunched = false;
+
+    // Chiamata UNA SOLA VOLTA quando i dati sono pronti
+    // Aggiorna _heroCards una sola volta → zero flickering barre
+    const _heroLaunch = () => {
+      if (_heroLaunched) return;
+      _heroLaunched = true;
+      _stopHeroTicker(); // ferma il ticker welcome
+      const all = _heroRawData.value;
+      if (!all.length) return;
+      const shuffled = _fyShuffle(all);
+      _heroCards.value = [_heroWelcomeCard, ...shuffled];
+      nextTick(() => {
+        clearTimeout(_heroTimerRef);
+        heroGo(0); // welcome 1s → poi heroGo(1) automatico
+      });
+    };
+
+    // Alias per compatibilità chiamate esistenti
+    const _heroAddPhase = () => {};
+    const _heroFinalize = () => _heroLaunch();
 
         // Hero swipe
     let _hsx=0, _hdrag=false;
@@ -11985,7 +12169,7 @@ const toggleFont = () => {
 
     // Expose to template
     return {
-      currentView, groups, currentGroup, groupPlayers, groupMatches, settings, appReady,
+      currentView, groups, currentGroup, groupPlayers, groupMatches, settings, appReady, _heroCards, _heroAddPhase, _heroFinalize, _heroLaunch, heroUnifiedData, heroNewsTicker, heroNewsTickerIdx,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showPlayerDetail,
       showMatchDetail,
       openEditIfUnlocked,
