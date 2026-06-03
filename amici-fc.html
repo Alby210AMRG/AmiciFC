@@ -1833,21 +1833,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
-            <!-- ── Splash card placeholder ── -->
-            <template v-if="s.type==='splash'">
-              <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;text-align:center">
-                <img v-if="logoDataUrl" :src="logoDataUrl" style="width:90px;height:90px;object-fit:contain;filter:drop-shadow(0 0 18px rgba(166,255,77,0.5));animation:splashPulse 1.4s ease-in-out infinite">
-                <div v-else style="font-size:4rem;animation:splashPulse 1.4s ease-in-out infinite">⚽</div>
-                <div style="font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:1px;text-shadow:0 0 20px rgba(166,255,77,0.4)">Amici FC</div>
-                <div style="font-size:0.75rem;color:rgba(255,255,255,0.6);font-style:italic;max-width:220px;line-height:1.4">Dove i campioni nascono… e litigano!</div>
-                <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
-                  <div style="width:6px;height:6px;border-radius:50%;background:rgba(166,255,77,0.9);animation:splashPulse 0.9s ease-in-out infinite"></div>
-                  <div style="font-size:0.7rem;color:rgba(255,255,255,0.45);letter-spacing:1px">CARICAMENTO IN CORSO</div>
-                  <div style="width:6px;height:6px;border-radius:50%;background:rgba(166,255,77,0.9);animation:splashPulse 0.9s ease-in-out infinite 0.3s"></div>
-                </div>
-              </div>
-            </template>
-            <template v-else-if="s.type==='stat'">
+            <template v-if="s.type==='stat'">
               <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
                 <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
                     @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
@@ -4999,7 +4985,29 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.355',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.360',date:'2026-06-03',items:[
+  '🔧 Fix CRITICO: rimosso sistema hero complesso che causava crash _heroReady not defined',
+  '✅ Hero torna al funzionamento normale stabile',
+  '🔴 Fix card Crisi di Forma: streak conta solo partite giocate dal giocatore'
+]},
+{version:'v1.359',date:'2026-06-03',items:[
+  '🔧 Fix crash: _heroReady nel :style ora usa binding oggetto Vue ({opacity:...}) invece di stringa',
+  '🔴 Fix card Crisi di Forma: streak conta solo partite in cui il giocatore ha effettivamente giocato'
+]},
+{version:'v1.358',date:'2026-06-03',items:[
+  '✨ Hero: fade-in opacity dopo sync — invisibile durante caricamento, appare smooth quando pronto',
+  '🔀 Shuffle: eseguito una volta sola in _heroFinalize dopo sync completo'
+]},
+{version:'v1.357',date:'2026-06-03',items:[
+  '🎴 Fix ROOT: hero visibile anche prima del caricamento gruppo (v-if aggiornato)',
+  '🎯 Card splash: justify-content flex-start — contenuto centrato correttamente'
+]},
+{version:'v1.356',date:'2026-06-03',items:[
+  '🎴 Hero: placeholder logo+motto visibile durante caricamento (dur infinito)',
+  '🚫 Disabilitato heroGo(0) automatico — parte solo dopo _heroFinalize()',
+  '🛡️ watch(newsItems) ignorato finché hero non è pronto — elimina flash definitivamente'
+]},
+{version:'v1.355',date:'2026-06-03',items:[
   '🎴 Hero: card placeholder (logo+motto+caricamento) come prima card durante il sync',
   '🔀 Shuffle: eseguito UNA SOLA VOLTA dopo sync completo — zero flash garantito',
   '✅ Funziona offline: fallback 500ms se Firebase non disponibile'
@@ -5768,7 +5776,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.355');
+    const appVersion = ref('1.360');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10966,7 +10974,7 @@ const toggleFont = () => {
       // Load logo
       loadLogo();
       // Splash: nascondi dopo mount — lo shuffle stabile gestisce il resto
-      setTimeout(() => { appReady.value = true; _heroFinalize(); }, 500);
+      setTimeout(() => { appReady.value = true; }, 500);
 
       // Pre-resolve player photos (try both jpg/png proactively)
       setTimeout(precachePlayerPhotos, 2000);
@@ -11014,7 +11022,7 @@ const toggleFont = () => {
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
       // Unified hero start
       setTimeout(() => heroGo(0), 1200);
-      // Restart hero when newsItems populate (they load after 1s delay)
+      // Restart hero when newsItems populate
       watch(newsItems, (newVal) => {
         if (newVal && newVal.length > 0) {
           clearTimeout(_heroTimerRef);
@@ -11030,8 +11038,6 @@ const toggleFont = () => {
           await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
-      // Hero finalizzato: shuffla e passa dalla placeholder alle card reali
-      _heroFinalize();
 
       window.addEventListener('online',  () => { isOnline.value = true;  });
       window.addEventListener('offline', () => { isOnline.value = false; });
@@ -11207,7 +11213,7 @@ const toggleFont = () => {
     };
     // _heroShuffled: ref che contiene le card già shufflate
     // Viene aggiornato con debounce per non flashare ad ogni ricalcolo della computed
-    const _heroShuffleKey  = ref(0); // mantenuto per compatibilità return{}
+
 
     const _heroRawData = computed(() => {
       if (!currentGroup.value) return [];
@@ -11344,10 +11350,20 @@ const toggleFont = () => {
       const _nowH=Math.floor(Date.now()/3600000);
       const _last5=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
 
-      // 1. CRISI D'IDENTITÀ: 3+ sconfitte di fila
+      // 1. CRISI D'IDENTITÀ: 3+ sconfitte di fila (solo partite in cui ha giocato)
       for(const p of el){
         let ls=0;
-        for(const m of _last5){const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((inA&&gA<gB)||(inB&&gB<gA))ls++;else break;}
+        // Filtra PRIMA le partite in cui il giocatore ha partecipato, poi conta streak
+        const _pMatches=[...matches]
+          .sort((a,b)=>b.data.localeCompare(a.data))
+          .filter(m=>(m.squadraA||[]).map(String).includes(String(p.id))||(m.squadraB||[]).map(String).includes(String(p.id)))
+          .slice(0,5);
+        for(const m of _pMatches){
+          const inA=(m.squadraA||[]).map(String).includes(String(p.id));
+          const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;
+          if((inA&&gA<gB)||(!inA&&gB<gA))ls++;
+          else break; // streak interrotta
+        }
         if(ls>=3){
           const nome=p.soprannome||p.nome;
           const frC=['Non e una crisi, e una fase. Dicono tutti cosi.','La luce in fondo al tunnel? Un altra squadra avversaria.','Statisticamente, una vittoria prima o poi deve arrivare.','Il gruppo crede in te. Forse.'];
@@ -11575,45 +11591,10 @@ const toggleFont = () => {
 
     // heroUnifiedData: shuffla con seed fisso per sessione (no flash, no re-shuffle)
     // Il seed è generato UNA SOLA VOLTA al caricamento della pagina
-    // ── HERO con placeholder di caricamento ──
-    // Card 0: placeholder fisso (logo + motto + loading) — sempre prima
-    // Card 1+: card reali shufflate UNA VOLTA quando tutto è pronto
-    const _heroReady   = ref(false);  // true dopo sync completo
-    const _heroFinal   = ref([]);     // card shufflate, calcolate una volta sola
-    const _HERO_PLACEHOLDER = {
-      type: 'splash', dur: 99999,
-      label: 'AMICI FC',
-      quote: 'Dove i campioni nascono… e litigano!',
-      loading: true,
-      bg: 'linear-gradient(145deg,#001a0a,#0f2d1a 60%,#166534)'
-    };
+    // ── HERO UNIFICATO ──
+    const heroUnifiedData = computed(() => _heroRawData.value);
 
-    const heroUnifiedData = computed(() => {
-      if (!_heroReady.value) {
-        // Ancora in caricamento: mostra solo il placeholder
-        return [_HERO_PLACEHOLDER];
-      }
-      // Dati pronti: placeholder rimosso, card reali shufflate
-      return _heroFinal.value;
-    });
-
-    // Chiamata una volta sola dopo sync — shuffla e segna pronto
-    const _heroFinalize = () => {
-      if (_heroReady.value) return; // già fatto
-      const raw = _heroRawData.value;
-      if (!raw.length) return;
-      const shuffled = [...raw];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      _heroFinal.value = shuffled;
-      _heroReady.value = true;
-      // Vai alla card 1 (prima card reale) dopo un frame
-      nextTick(() => { heroUnifiedIdx.value = 0; heroGo(0); });
-    };
-
-    // Hero swipe
+        // Hero swipe
     let _hsx=0, _hdrag=false;
     const heroTS=(e)=>{_hsx=e.touches[0].clientX;_hdrag=true;heroSwipeDragging.value=true;heroSwipeDelta.value=0;stopHeroTimer();};
     const heroTM=(e)=>{if(!_hdrag)return;heroSwipeDelta.value=e.touches[0].clientX-_hsx;};
@@ -12004,7 +11985,7 @@ const toggleFont = () => {
 
     // Expose to template
     return {
-      currentView, groups, currentGroup, groupPlayers, groupMatches, settings, appReady, _heroShuffleKey, _heroReady, _heroFinalize,
+      currentView, groups, currentGroup, groupPlayers, groupMatches, settings, appReady,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showPlayerDetail,
       showMatchDetail,
       openEditIfUnlocked,
