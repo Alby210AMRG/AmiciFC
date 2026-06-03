@@ -3713,61 +3713,47 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div v-if="optimizeResult" style="margin-top:6px;font-size:0.78rem;color:var(--lime)">{{ optimizeResult }}</div>
           </div>
 
-          <!-- ── Debug AI Cards ── -->
+          <!-- ── Generazione AI Cards ── -->
           <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
-            <div style="font-size:0.78rem;font-weight:700;color:#2dd4bf;margin-bottom:8px">🤖 Debug AI Cards</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+            <div style="font-size:0.78rem;font-weight:700;color:#2dd4bf;margin-bottom:4px">🤖 Generazione AI Cards</div>
+            <div style="font-size:0.65rem;color:rgba(255,255,255,.4);margin-bottom:10px">
+              Forza la (ri)generazione delle card AI. Richiede API key configurata. Il log è visibile nel pannello 📋 Log.
+            </div>
+            <!-- Stato card -->
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
                 <div style="color:rgba(255,100,100,.7);font-weight:700;margin-bottom:2px">🔥 Trash Talk</div>
                 <div :style="aiCardsTrashTalk.length?'color:#4ade80':'color:#f87171'">
-                  {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card' : '— nessuna'}}
+                  {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card' : 'nessuna'}}
                 </div>
               </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
                 <div style="color:rgba(251,191,36,.7);font-weight:700;margin-bottom:2px">👑 Hall of Fame</div>
                 <div :style="aiCardsHallOfFame?'color:#4ade80':'color:#f87171'">
-                  {{aiCardsHallOfFame ? aiCardsHallOfFame.mese : '— non generata'}}
+                  {{aiCardsHallOfFame ? '✓ '+aiCardsHallOfFame.mese : 'non generata'}}
                 </div>
               </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
+              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
                 <div style="color:rgba(45,212,191,.7);font-weight:700;margin-bottom:2px">🧬 Soprannomi</div>
                 <div :style="Object.keys(aiNicknames).length?'color:#4ade80':'color:#f87171'">
-                  {{Object.keys(aiNicknames).length}} giocatori
-                </div>
-              </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:7px;font-size:0.68rem">
-                <div style="color:rgba(255,255,255,.4);font-weight:700;margin-bottom:2px">🔌 AI Key</div>
-                <div :style="settings.apiKey?'color:#4ade80':'color:#f87171'">
-                  {{settings.apiKey ? settings.aiProvider+' ✅' : 'Mancante ❌'}}
+                  {{Object.keys(aiNicknames).length}} / {{groupPlayers.filter(p=>(p.partiteTotali||0)>=3).length}}
                 </div>
               </div>
             </div>
-            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(255,100,100,.35)"
+            <!-- Bottoni forzatura -->
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(255,100,100,.35)"
                 @click="forceTrashTalk">
-                🔥 Trash Talk
+                🔥 Rigenera Trash Talk
               </button>
-              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(251,191,36,.35)"
+              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(251,191,36,.35)"
                 @click="forceHallOfFame">
-                👑 Hall of Fame
+                👑 Rigenera Hall of Fame
               </button>
-              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(45,212,191,.35)"
+              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(45,212,191,.35)"
                 @click="forceSoprannomi">
-                🧬 Soprannomi
+                🧬 Rigenera Soprannomi
               </button>
-              <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;border-color:rgba(255,255,255,.15)"
-                @click="aiCardsDebugLog=[]">🗑️ Log</button>
-            </div>
-            <div style="background:rgba(0,0,0,.35);border-radius:8px;padding:8px;max-height:180px;overflow-y:auto;font-family:monospace">
-              <div v-if="!aiCardsDebugLog.length" style="color:rgba(255,255,255,.25);font-size:0.63rem;text-align:center;padding:6px 0">
-                Nessuna attività — salva una partita o premi un bottone
-              </div>
-              <div v-for="(l,li) in aiCardsDebugLog" :key="li"
-                style="font-size:0.62rem;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:5px;align-items:flex-start;line-height:1.4">
-                <span style="color:rgba(255,255,255,.22);flex-shrink:0">{{l.ts}}</span>
-                <span :style="l.ok?'color:#2dd4bf':'color:#f87171'" style="flex-shrink:0;font-weight:700">[{{l.tipo}}]</span>
-                <span style="color:rgba(255,255,255,.7)">{{l.msg}}</span>
-              </div>
             </div>
           </div>
 
@@ -4946,7 +4932,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.343',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.344',date:'2026-06-03',items:[
+  '🔇 Fix doppia lettura soprannomi: syncFromCloud non richiama più _loadAiNicknames (gestisce _initAiCards)',
+  '🔍 Debug TrashTalk Firebase: ora usa token auth + log esplicito trovato/non trovato',
+  '📋 Debug AI Cards semplificato: rimosso log inline, rimasti solo stato card + bottoni forzatura',
+  '⚠️ Log HoF: messaggio esplicito quando Hall of Fame non trovata su Firebase'
+]},
+{version:'v1.343',date:'2026-06-03',items:[
   '🔒 Fix init AI Cards: debounce 2500ms + flag _syncInProgress — una sola init per sessione',
   '⚡ syncFromCloud non triggera più _initAiCards (usa _loadAiNicknames direttamente dopo sync)'
 ]},
@@ -5666,7 +5658,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.343');
+    const appVersion = ref('1.344');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -8083,6 +8075,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           return;
         }
       }
+      _aiLog('Init','⚠️ HoF non trovata su Firebase per '+meseCorrente+' né '+mesePrecedente,false);
       // Fallback localStorage
       const cached = JSON.parse(localStorage.getItem('amicifc_hof_'+meseKey) || 'null');
       if (cached?.fame) {
@@ -8129,7 +8122,10 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
             const _ttKey = (_lastM.data||'').replace(/-/g,'');
             const _gKey = _aiCardGroupKey();
             const _ttPath = 'aiCards/trashTalk/'+_gKey+'/'+_ttKey;
-            const _tt = await _fbRead(_ttPath, '');
+            _aiLog('Init','🔍 Leggo TT da Firebase: '+_ttPath);
+            const _ttToken = await getValidToken() || '';
+            const _tt = await _fbRead(_ttPath, _ttToken);
+            _aiLog('Init', _tt ? '☁️ TT Firebase trovato: '+(_tt.cards?.length||0)+' card' : '⚠️ TT non trovato su Firebase', !!_tt);
             if (_tt?.cards?.length) {
               aiCardsTrashTalk.value = _tt.cards;
               localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
@@ -9205,10 +9201,11 @@ Niente altro, nessuna spiegazione.`;
         // Refresh Vue reactive state so UI shows updated data (senza re-init AI Cards)
         await loadGroupData();
         _syncInProgress = false; // sblocca trigger AI Cards
+        // Schedula re-init AI Cards dopo sync — una sola chiamata con debounce
+        _scheduleInitAiCards();
         // Ricarica aiCards da Firebase dopo sync — solo download, no generazione
         try {
-          await _loadAiNicknames();
-          await _loadHallOfFame();
+          await _loadHallOfFame(); // solo HoF, i soprannomi li gestisce _initAiCards
           // TrashTalk: scarica ultima partita
           const _syncGid = currentGroup.value?.id;
           if (_syncGid && currentGroup.value?.firebaseUrl) {
