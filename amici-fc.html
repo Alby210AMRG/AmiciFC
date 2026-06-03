@@ -4932,7 +4932,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.346',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.347',date:'2026-06-03',items:[
+  '🔍 Debug: _fbRead logga HTTP status in caso di errore (401/403 = regole Firebase)',
+  '🔑 Debug: log presenza token prima della lettura TrashTalk da Firebase'
+]},
+{version:'v1.346',date:'2026-06-03',items:[
   '🔥 Fix TrashTalk forzatura: prompt compatto (4 giocatori chiave, output 500 token) — risolve MAX_TOKENS',
   '👑 Hall of Fame: generata e salvata su Firebase ✅'
 ]},
@@ -5667,7 +5671,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.346');
+    const appVersion = ref('1.347');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -7516,8 +7520,12 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const base = getFirebaseBase();
       if (!base) return null;
       try {
-        const r = await fetch(`${base}/${path}.json${token?'?auth='+token:''}`,
-          { cache: 'no-store' });
+        const url = `${base}/${path}.json${token?'?auth='+token:''}`;
+        const r = await fetch(url, { cache: 'no-store' });
+        if (!r.ok) {
+          logEvent('warn','ai','[_fbRead] HTTP '+r.status+' su '+path+(token?'' : ' (no token)'));
+          return null;
+        }
         const d = await r.json();
         return d !== null && d !== undefined ? d : null;
       } catch(e) { return null; }
@@ -8141,6 +8149,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
             const _ttPath = 'aiCards/trashTalk/'+_gKey+'/'+_ttKey;
             _aiLog('Init','🔍 Leggo TT da Firebase: '+_ttPath);
             const _ttToken = await getValidToken() || '';
+            _aiLog('Init','🔑 Token TT: '+(_ttToken?'✅ presente ('+_ttToken.slice(0,8)+'...)':'❌ assente'),!!_ttToken);
             const _tt = await _fbRead(_ttPath, _ttToken);
             _aiLog('Init', _tt ? '☁️ TT Firebase trovato: '+(_tt.cards?.length||0)+' card' : '⚠️ TT non trovato su Firebase', !!_tt);
             if (_tt?.cards?.length) {
