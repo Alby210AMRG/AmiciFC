@@ -5031,7 +5031,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.376',date:'2026-06-04',items:[
+    const changelogEntries = [{version:'v1.378',date:'2026-06-04',items:[
+  '💬 Giornale: font commento aumentato 18→21px (con MVP) e 19→22px (senza MVP)'
+]},
+{version:'v1.377',date:'2026-06-04',items:[
+  '📰 Giornale: MVP box ridotto a 1/3, Commento espanso a 2/3 — font commento 18px (era 15px)',
+  '🎯 MVP: avatar centrato con nome e voto sotto, layout compatto',
+  '💬 Commento: più spazio, testo più grande e leggibile'
+]},
+{version:'v1.376',date:'2026-06-04',items:[
   '📦 AI Cards: locale-first — usa sempre localStorage, Firebase solo se dati più recenti',
   '🔄 Timestamp check: confronta generatedAt locale vs Firebase prima di scaricare',
   '📴 Offline safe: se Firebase non raggiungibile logga warning e usa locale senza bloccare',
@@ -5888,7 +5896,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.376');
+    const appVersion = ref('1.378');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -10450,54 +10458,86 @@ Niente altro, nessuna spiegazione.`;
       }
       divider(Y+4); Y += 16;
 
-      // ════ MVP + COMMENTO side by side (like reference image) ════
+      // ════ MVP + COMMENTO side by side ════
+      // MVP: 1/3 larghezza — Commento: 2/3 larghezza
       if(mvpPlayer || aiComment.value){
-        const SIDE_H = 220;
-        const HALF = (W-PAD*2-16)/2;
-        const mvpX=PAD, commX=PAD+HALF+16;
-        // MVP left box
+        const SIDE_H = 240;
+        const TOTAL_W = W-PAD*2;
+        const GAP = 14;
+        const MVP_W  = Math.round(TOTAL_W * 0.33); // ~33%
+        const COMM_W = TOTAL_W - MVP_W - GAP;       // ~67%
+        const mvpX=PAD, commX=PAD+MVP_W+GAP;
+
+        // MVP left box (più stretto)
         if(mvpPlayer){
-          rr(mvpX, Y, HALF, SIDE_H, 14, '#0d1a2a', C_YELLOW+'88', 15, C_YELLOW);
-          // Top glow bar
-          const mvpBar=ctx.createLinearGradient(mvpX,Y,mvpX+HALF,Y);
+          rr(mvpX, Y, MVP_W, SIDE_H, 14, '#0d1a2a', C_YELLOW+'88', 15, C_YELLOW);
+          const mvpBar=ctx.createLinearGradient(mvpX,Y,mvpX+MVP_W,Y);
           mvpBar.addColorStop(0,C_YELLOW+'00'); mvpBar.addColorStop(0.5,C_YELLOW+'66'); mvpBar.addColorStop(1,C_YELLOW+'00');
-          ctx.fillStyle=mvpBar; ctx.fillRect(mvpX+14,Y,HALF-28,2);
+          ctx.fillStyle=mvpBar; ctx.fillRect(mvpX+12,Y,MVP_W-24,2);
           // Header
-          glowText('🏆 MVP DEL MATCH', mvpX+HALF/2, Y+24, '900 14px "Arial Black",Arial', C_YELLOW, 8, 'center');
-          // Photo centered
-          avatar(mvpPhoto, mvpX+70, Y+SIDE_H/2+8, 50, C_YELLOW, 20);
-          // Name + voto right of photo
-          const mtx = mvpX+130;
-          glowText((mvpPlayer.soprannome||mvpPlayer.nome).toUpperCase(), mtx, Y+85,
-            '900 24px "Arial Black",Arial', C_WHITE, 10, 'left');
-          if(mvpVoto) glowText(String(mvpVoto), mtx, Y+140,
-            '900 48px "Arial Black",Arial', C_LIME, 18, 'left');
-          ctx.font='600 12px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_YELLOW;
-          ctx.fillText('⭐ CAMPIONE!', mtx, Y+183);
+          glowText('🏆 MVP', mvpX+MVP_W/2, Y+24, '900 13px "Arial Black",Arial', C_YELLOW, 8, 'center');
+          // Avatar centrato
+          const avCX = mvpX+MVP_W/2;
+          avatar(mvpPhoto, avCX, Y+90, 44, C_YELLOW, 18);
+          // Nome sotto avatar
+          const nomeMvp = (mvpPlayer.soprannome||mvpPlayer.nome).toUpperCase();
+          ctx.font='900 13px "Arial Black",Arial'; ctx.textAlign='center'; ctx.fillStyle=C_WHITE;
+          // Spezza nome se troppo lungo
+          if(ctx.measureText(nomeMvp).width > MVP_W-20){
+            const parts = nomeMvp.split(' ');
+            ctx.fillText(parts[0]||nomeMvp, avCX, Y+148);
+            if(parts[1]) ctx.fillText(parts.slice(1).join(' '), avCX, Y+164);
+          } else {
+            ctx.fillText(nomeMvp, avCX, Y+154);
+          }
+          // Voto grande centrato
+          if(mvpVoto) glowText(String(mvpVoto), avCX, Y+202,
+            '900 38px "Arial Black",Arial', C_LIME, 16, 'center');
+          ctx.font='600 11px Arial'; ctx.textAlign='center'; ctx.fillStyle=C_YELLOW;
+          ctx.fillText('⭐ CAMPIONE!', avCX, Y+228);
         }
-        // Commento right box
+
+        // Commento right box (più largo — 2/3)
         if(aiComment.value){
-          rr(commX, Y, HALF, SIDE_H, 14, '#091428', C_BLUE+'88', 15, C_BLUE);
-          // Top glow bar
-          const commBar=ctx.createLinearGradient(commX,Y,commX+HALF,Y);
+          rr(commX, Y, COMM_W, SIDE_H, 14, '#091428', C_BLUE+'88', 15, C_BLUE);
+          const commBar=ctx.createLinearGradient(commX,Y,commX+COMM_W,Y);
           commBar.addColorStop(0,C_BLUE+'00'); commBar.addColorStop(0.5,C_LIME+'55'); commBar.addColorStop(1,C_BLUE+'00');
-          ctx.fillStyle=commBar; ctx.fillRect(commX+14,Y,HALF-28,2);
+          ctx.fillStyle=commBar; ctx.fillRect(commX+14,Y,COMM_W-28,2);
           // Header
-          glowText('💬 IL COMMENTO', commX+HALF/2, Y+24, '900 14px "Arial Black",Arial', C_LIME, 8, 'center');
-          // Text wrapped
-          ctx.font='italic 15px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.88)';
-          const cmW=HALF-32, cmX=commX+16;
+          glowText('💬 IL COMMENTO', commX+COMM_W/2, Y+24, '900 14px "Arial Black",Arial', C_LIME, 8, 'center');
+          // Testo con font più grande e più spazio
+          ctx.font='italic 21px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.92)';
+          const cmW=COMM_W-36, cmX=commX+18;
           const cwords=aiComment.value.split(' ');
-          let cline='', clineY=Y+46, clineH=24;
+          let cline='', clineY=Y+50, clineH=30;
           for(const w of cwords){
             const t=cline+w+' ';
             if(ctx.measureText(t).width>cmW&&cline){
               ctx.fillText(cline.trim(),cmX,clineY); clineY+=clineH; cline=w+' ';
-              if(clineY>Y+SIDE_H-20){ctx.fillText('…',cmX,clineY); cline=''; break;}
+              if(clineY>Y+SIDE_H-22){ctx.fillText('…',cmX,clineY); cline=''; break;}
             } else cline=t;
           }
-          if(cline.trim()&&clineY<=Y+SIDE_H-20) ctx.fillText(cline.trim(),cmX,clineY);
+          if(cline.trim()&&clineY<=Y+SIDE_H-22) ctx.fillText(cline.trim(),cmX,clineY);
         }
+
+        // Se non c'è MVP, il commento occupa tutto
+        if(!mvpPlayer && aiComment.value){
+          rr(PAD, Y, TOTAL_W, SIDE_H, 14, '#091428', C_BLUE+'88', 15, C_BLUE);
+          glowText('💬 IL COMMENTO', PAD+TOTAL_W/2, Y+24, '900 14px "Arial Black",Arial', C_LIME, 8, 'center');
+          ctx.font='italic 22px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.92)';
+          const cmW2=TOTAL_W-36, cmX2=PAD+18;
+          const cwords2=aiComment.value.split(' ');
+          let cline2='', clineY2=Y+50, clineH2=31;
+          for(const w of cwords2){
+            const t=cline2+w+' ';
+            if(ctx.measureText(t).width>cmW2&&cline2){
+              ctx.fillText(cline2.trim(),cmX2,clineY2); clineY2+=clineH2; cline2=w+' ';
+              if(clineY2>Y+SIDE_H-22){ctx.fillText('…',cmX2,clineY2); cline2=''; break;}
+            } else cline2=t;
+          }
+          if(cline2.trim()&&clineY2<=Y+SIDE_H-22) ctx.fillText(cline2.trim(),cmX2,clineY2);
+        }
+
         Y += SIDE_H+20;
         divider(Y); Y += 16;
       }
