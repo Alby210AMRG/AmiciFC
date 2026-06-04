@@ -3072,7 +3072,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
-            <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row" style="align-items:center">
+            <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -3103,7 +3103,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('classifica')">📤 Condividi</button>
             </div>
             <div v-if="!topPoints.length" class="empty-state" style="padding:16px"><p>Nessuna partita ancora.</p></div>
-            <div v-for="(p,i) in topPoints" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
@@ -3115,7 +3115,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='goal'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⚽ Classifica Marcatori</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('goal')">📤 Condividi</button></div>
-            <div v-for="(p,i) in topScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
@@ -3147,7 +3147,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🏅 Uomo Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('altri')">📤 Condividi</button></div>
             <div v-if="!topUomoPartita.length" class="empty-state" style="padding:16px"><p>Nessun dato.</p></div>
-            <div v-for="(p,i) in topUomoPartita" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topUomoPartita" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">volte premiato</div></div>
@@ -3156,7 +3156,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
           <div v-if="topAutogol.length" class="card">
             <div class="card-title" style="color:var(--red)">😬 Hall of Shame – Autogol</div>
-            <div v-for="(p,i) in topAutogol" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topAutogol" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" style="color:var(--red)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">autogol</div></div>
@@ -3171,7 +3171,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">📈 Media Punti a Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('mediapunti')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Punti medi per partita (min. 3 partite). 3=V · 1=P · 0=S</div>
             <div v-if="!topAvgPoints.length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite.</p></div>
-            <div v-for="(p,i) in topAvgPoints" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topAvgPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -3187,7 +3187,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🅰️ Classifica Assist</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('assist')">📤 Condividi</button></div>
             <div v-if="!topAssists.filter(x=>x.assistTotali>0).length" class="empty-state" style="padding:16px"><p>Nessun assist registrato.</p></div>
-            <div v-for="(p,i) in topAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
@@ -3216,7 +3216,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⭐ Media Voto</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button></div>
             <div v-if="!topRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
-            <div v-for="(p,i) in topRated" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in topRated" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.votiTotali}} partite votate</div></div>
@@ -4095,7 +4095,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div style="text-align:center;margin-bottom:20px">
-        <div class="player-avatar" :style="'width:90px;height:90px;font-size:2.8rem;margin:0 auto 12px;border:3.5px solid '+((detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 3px var(--bg)'">
+        <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;border:4px solid '+((detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+((detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')">
           <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
         <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
@@ -4163,8 +4163,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <div v-if="detailPlayer.descrizione" style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:16px;font-size:0.83rem;line-height:1.6;color:var(--text2)">
+      <div v-if="detailPlayer.descrizione" style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:12px;font-size:0.83rem;line-height:1.6;color:var(--text2)">
         <span style="color:var(--lime);font-weight:800">⭐ Qualità: </span>{{ detailPlayer.descrizione }}
+      </div>
+
+      <!-- Identikit AI — cerca per nome, soprannome, id -->
+      <div v-if="getPlayerNick(detailPlayer)"
+        style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:16px;border-left:3px solid var(--lime)">
+        <div style="font-size:0.72rem;font-weight:800;color:var(--lime);margin-bottom:6px;letter-spacing:0.5px">🧬 IDENTIKIT AI</div>
+        <div style="font-size:0.83rem;line-height:1.6;color:var(--text2);font-style:italic">
+          {{ getPlayerNick(detailPlayer)?.motivazione }}
+        </div>
+        <div v-if="getPlayerNick(detailPlayer)?.confronto"
+          style="font-size:0.75rem;color:var(--text2);margin-top:6px;opacity:0.7">
+          📊 {{ getPlayerNick(detailPlayer)?.confronto }}
+        </div>
       </div>
 
       <div style="display:flex;gap:10px">
@@ -5022,7 +5035,22 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.379',date:'2026-06-04',items:[
+    const changelogEntries = [{version:'v1.383',date:'2026-06-04',items:[
+  '🧬 Identikit AI scheda: cerca per nome, soprannome, id e uid — trova sempre il nick corretto'
+]},
+{version:'v1.382',date:'2026-06-04',items:[
+  '🔧 Fix AI cards hero: carica esplicitamente nicknames e HoF prima di _heroLaunch',
+  '🔧 Fix Identikit scheda: chiave nome.toLowerCase() (corretta, non p.id)'
+]},
+{version:'v1.381',date:'2026-06-04',items:[
+  '🔧 Fix Identikit AI: usa p.id come chiave (non nome) — ora visibile in scheda giocatore',
+  '👆 Stats: tap su giocatore in tutte le classifiche apre la scheda dettaglio'
+]},
+{version:'v1.380',date:'2026-06-04',items:[
+  '👤 Scheda giocatore: avatar 90px → 130px con glow colorato',
+  '🧬 Scheda giocatore: Identikit AI visibile sotto la sezione Qualità'
+]},
+{version:'v1.379',date:'2026-06-04',items:[
   '🧹 Pulizia codice: rimossi console.log, commenti verbose, changelog ridotto a 15 versioni',
   '📦 Riduzione file: ~40KB in meno — caricamento PWA più veloce'
 ]},
@@ -5306,7 +5334,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.379');
+    const appVersion = ref('1.383');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5655,6 +5683,22 @@ createApp({
     };
 
     const openPlayerDetail = p => { detailPlayer.value = p; showPlayerDetail.value = true; };
+
+    // Helper: trova il nick AI del giocatore cercando per tutte le chiavi possibili
+    const getPlayerNick = (p) => {
+      if (!p) return null;
+      const nicks = aiNicknames.value;
+      const keys = [
+        (p.nome||'').toLowerCase().trim(),
+        (p.soprannome||'').toLowerCase().trim(),
+        String(p.id),
+        String(p.uid||''),
+      ].filter(Boolean);
+      for (const k of keys) {
+        if (nicks[k]?.motivazione) return nicks[k];
+      }
+      return null;
+    };
 
     const handlePhotoUpload = e => {
       const file = e.target.files[0];
@@ -10211,7 +10255,12 @@ const toggleFont = () => {
           await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
-      // ── HERO: lancia con tutte le card disponibili dopo sync ──
+      // ── HERO: carica AI cards da localStorage poi lancia ──
+      // Carica esplicitamente prima del launch per avere le card AI nell'hero
+      if (currentGroup.value) {
+        try { await _loadAiNicknames(); } catch(e) {}
+        try { await _loadHallOfFame(); } catch(e) {}
+      }
       _heroLaunch();
 
       window.addEventListener('online',  () => { isOnline.value = true;  });
@@ -11190,7 +11239,7 @@ const toggleFont = () => {
       buildTopFormation, topFormationSize,
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup,
       groupPlayerCount, groupMatchCount,
-      openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, handlePhotoUpload,
+      openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, getPlayerNick, handlePhotoUpload,
       startNewMatch, startPlayerSelection, togglePlayerSelection, selectAll,
       ensureStats, setUomoPartita, getPlayer, sortByRole,
       generateFormationsAI, generateFormationsWithAI,
