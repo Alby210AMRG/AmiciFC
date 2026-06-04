@@ -5031,7 +5031,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.375',date:'2026-06-03',items:[
+    const changelogEntries = [{version:'v1.376',date:'2026-06-04',items:[
+  '📦 AI Cards: locale-first — usa sempre localStorage, Firebase solo se dati più recenti',
+  '🔄 Timestamp check: confronta generatedAt locale vs Firebase prima di scaricare',
+  '📴 Offline safe: se Firebase non raggiungibile logga warning e usa locale senza bloccare',
+  '⚠️ Badge ☁️⚠️ già esistente mostra errore Firebase anche per AI cards'
+]},
+{version:'v1.375',date:'2026-06-03',items:[
   '🔧 Fix: apostrofo in frase welcome card causava SyntaxError'
 ]},
 {version:'v1.374',date:'2026-06-03',items:[
@@ -5882,7 +5888,7 @@ createApp({
     // Update
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.375');
+    const appVersion = ref('1.376');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     // PNG Preview
@@ -8112,28 +8118,34 @@ OUTPUT: Rispondi SOLO con JSON valido:
     const aiNicknames = ref({}); // { playerId: { soprannome_ai, confronto, generatedAt, partiteAl } }
 
     const _loadAiNicknames = async () => {
-      const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      const _gKey = _aiCardGroupKey();
-      const dataPath = `aiCards/soprannomi/${_gKey}`;
-
-      if (hasFirebase) {
-        // Prova prima con token, poi senza (lettura pubblica)
+      const _gid = currentGroup.value?.id;
+      const _lsKey = 'amicifc_nicks_' + _gid;
+      // 1. SEMPRE locale prima — immediato, funziona offline
+      const _lsCached = JSON.parse(localStorage.getItem(_lsKey) || '{}');
+      if (Object.keys(_lsCached).length > 0) {
+        aiNicknames.value = _lsCached;
+        _aiLog('Init','💾 Soprannomi da localStorage: '+Object.keys(_lsCached).length);
+      }
+      // 2. Firebase solo se disponibile — aggiorna solo se più recente
+      if (!currentGroup.value?.firebaseUrl) return;
+      try {
         const token = await getValidToken() || '';
-        const d = await _fbRead(dataPath, token);
-        if (d && Object.keys(d).length > 0) {
+        const d = await _fbRead(`aiCards/soprannomi/${_aiCardGroupKey()}`, token);
+        if (!d || !Object.keys(d).length) return;
+        // Confronta timestamp massimo: scarica solo se Firebase ha dati più recenti
+        const _fbTs = Math.max(...Object.values(d).map(v => v?.generatedAt||0));
+        const _lsTs = Math.max(...Object.values(_lsCached).map(v => v?.generatedAt||0).concat([0]));
+        if (_fbTs > _lsTs || !Object.keys(_lsCached).length) {
           aiNicknames.value = d;
-          _aiLog('Init','☁️ Soprannomi caricati da Firebase: '+Object.keys(d).length);
+          localStorage.setItem(_lsKey, JSON.stringify(d));
+          _aiLog('Init','☁️ Soprannomi aggiornati da Firebase (più recenti di '+Math.round((_fbTs-_lsTs)/60000)+'min)');
         } else {
-          // Fallback localStorage
-          const cached = JSON.parse(localStorage.getItem('amicifc_nicks_'+currentGroup.value.id) || '{}');
-          if (Object.keys(cached).length > 0) {
-            aiNicknames.value = cached;
-            _aiLog('Init','💾 Soprannomi da localStorage: '+Object.keys(cached).length);
-          }
+          _aiLog('Init','✅ Soprannomi locali già aggiornati — Firebase skip');
         }
-      } else {
-        const cached = JSON.parse(localStorage.getItem(`amicifc_nicks_${currentGroup.value.id}`) || '{}');
-        aiNicknames.value = cached;
+      } catch(e) {
+        logEvent('warn','ai','[Soprannomi] Firebase non raggiungibile: '+e.message);
+        _aiLog('Init','⚠️ Firebase soprannomi offline — uso locale',false);
+        // lastSyncError già gestito da syncFromCloud
       }
     };
 
@@ -8296,34 +8308,44 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     const _loadHallOfFame = async () => {
       if (!currentGroup.value) return;
       const oggi = new Date();
-      // Prova mese corrente E mese precedente
       const _mkFn = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-      const meseCorrente = _mkFn(oggi);
+      const meseCorrente   = _mkFn(oggi);
       const mesePrecedente = _mkFn(new Date(oggi.getFullYear(), oggi.getMonth()-1, 1));
-      const meseKey = meseCorrente; // usa mese corrente come chiave principale
-      const hasFirebase = !!currentGroup.value?.firebaseUrl;
-      if (hasFirebase) {
-        const token = await getValidToken() || '';
-        // Prova mese corrente prima
-        let dataPath = 'aiCards/hallOfFame/'+_aiCardGroupKey()+'/'+meseCorrente;
-        let d = await _fbRead(dataPath, token);
-        // Se non trovato, prova mese precedente
-        if (!d?.fame) {
-          dataPath = 'aiCards/hallOfFame/'+_aiCardGroupKey()+'/'+mesePrecedente;
-          d = await _fbRead(dataPath, token);
-        }
-        if (d?.fame) {
-          aiCardsHallOfFame.value = d;
-          _aiLog('Init','☁️ Hall of Fame caricata da Firebase ('+meseKey+')');
-          return;
-        }
+
+      // 1. SEMPRE locale prima — immediato, funziona offline
+      const _lsC = JSON.parse(localStorage.getItem('amicifc_hof_'+meseCorrente) || 'null');
+      const _lsP = JSON.parse(localStorage.getItem('amicifc_hof_'+mesePrecedente) || 'null');
+      const _lsBest = _lsC?.fame ? _lsC : _lsP?.fame ? _lsP : null;
+      if (_lsBest?.fame) {
+        aiCardsHallOfFame.value = _lsBest;
+        _aiLog('Init','💾 HoF da localStorage ('+(_lsBest.mese||mesePrecedente)+')');
       }
-      _aiLog('Init','⚠️ HoF non trovata su Firebase per '+meseCorrente+' né '+mesePrecedente,false);
-      // Fallback localStorage
-      const cached = JSON.parse(localStorage.getItem('amicifc_hof_'+meseKey) || 'null');
-      if (cached?.fame) {
-        aiCardsHallOfFame.value = cached;
-        _aiLog('Init','💾 Hall of Fame caricata da localStorage ('+meseKey+')');
+
+      // 2. Firebase solo se disponibile
+      if (!currentGroup.value?.firebaseUrl) return;
+      try {
+        const token = await getValidToken() || '';
+        const _gk = _aiCardGroupKey();
+        let d = await _fbRead('aiCards/hallOfFame/'+_gk+'/'+meseCorrente, token);
+        if (!d?.fame) d = await _fbRead('aiCards/hallOfFame/'+_gk+'/'+mesePrecedente, token);
+        if (d?.fame) {
+          // Aggiorna solo se Firebase è più recente
+          const _fbTs = d.generatedAt || 0;
+          const _lsTs = _lsBest?.generatedAt || 0;
+          if (_fbTs > _lsTs || !_lsBest) {
+            aiCardsHallOfFame.value = d;
+            const _mk = d.mese || mesePrecedente;
+            localStorage.setItem('amicifc_hof_'+_mk, JSON.stringify(d));
+            _aiLog('Init','☁️ HoF aggiornata da Firebase ('+_mk+')');
+          } else {
+            _aiLog('Init','✅ HoF locale già aggiornata — Firebase skip');
+          }
+        } else {
+          _aiLog('Init','⚠️ HoF non trovata su Firebase per '+meseCorrente+' né '+mesePrecedente,false);
+        }
+      } catch(e) {
+        logEvent('warn','ai','[HoF] Firebase non raggiungibile: '+e.message);
+        _aiLog('Init','⚠️ Firebase HoF offline — uso locale',false);
       }
     };
 
@@ -8350,7 +8372,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       // 2. Hall of Fame
       await _loadHallOfFame();
 
-      // 3. TrashTalk — localStorage prima (immediato), poi Firebase aggiorna
+      // 3. TrashTalk — locale prima (immediato), Firebase solo se più recente
       const _lsCached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
       if (_lsCached?.cards?.length) {
         aiCardsTrashTalk.value = _lsCached.cards;
@@ -8361,19 +8383,27 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           const _allMatches = await db.matches.where('groupId').equals(_gid).toArray();
           const _lastM = _allMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
           if (_lastM) {
-            // Usa data partita come chiave stabile (non ID Dexie locale)
             const _ttKey = (_lastM.data||'').replace(/-/g,'');
-            const _gKey = _aiCardGroupKey();
-            const _ttPath = 'aiCards/trashTalk/'+_gKey+'/'+_ttKey;
+            const _ttPath = 'aiCards/trashTalk/'+_aiCardGroupKey()+'/'+_ttKey;
             const _ttToken = await getValidToken() || '';
             const _tt = await _fbRead(_ttPath, _ttToken);
             if (_tt?.cards?.length) {
-              aiCardsTrashTalk.value = _tt.cards;
-              localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
-              _aiLog('Init','☁️ Trash Talk caricato da Firebase ('+_tt.cards.length+' card)');
+              // Aggiorna solo se Firebase è più recente del locale
+              const _fbTs = _tt.generatedAt || 0;
+              const _lsTs = _lsCached?.generatedAt || 0;
+              if (_fbTs > _lsTs || !_lsCached?.cards?.length) {
+                aiCardsTrashTalk.value = _tt.cards;
+                localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
+                _aiLog('Init','☁️ Trash Talk aggiornato da Firebase (più recente)');
+              } else {
+                _aiLog('Init','✅ Trash Talk locale già aggiornato — Firebase skip');
+              }
             }
           }
-        } catch(_e) { _aiLog('Init','⚠️ Trash Talk Firebase: '+_e.message,false); }
+        } catch(_e) {
+          logEvent('warn','ai','[TrashTalk] Firebase non raggiungibile: '+_e.message);
+          _aiLog('Init','⚠️ Firebase TrashTalk offline — uso locale',false);
+        }
       }
 
       // 4. Verifica HoF (solo il 1° del mese)
