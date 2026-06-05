@@ -4858,6 +4858,23 @@ db.version(3).stores({
   }
 });
 
+// VERSION 4: add matchUUID index for stable cross-device identity
+db.version(4).stores({
+  groups:     '++id, nome',
+  players:    '++id, groupId, uid, nome, cognome',
+  matches:    '++id, groupId, data, matchUUID',
+  formations: '++id, groupId, stato, dataCreazione'
+}).upgrade(async tx => {
+  // Assign matchUUID to all existing matches that don't have one
+  const uuidFn = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const matches = await tx.table('matches').toArray();
+  for (const m of matches) {
+    if (!m.matchUUID) {
+      await tx.table('matches').update(m.id, { matchUUID: uuidFn() });
+    }
+  }
+});
+
 // ──────────────────────────────────────
 // HELPER: UUID
 // ──────────────────────────────────────
@@ -5426,7 +5443,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.393');
+    const appVersion = ref('1.394');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8075,6 +8092,7 @@ Niente altro, nessuna spiegazione.`;
 
       const match = {
         id:         uuid(),
+        matchUUID:  uuid(),
         updatedAt:  Date.now(),
         groupId:    currentGroup.value.id,
         data:       matchInfo.value.data || new Date().toISOString().slice(0,10),
@@ -8421,6 +8439,23 @@ Niente altro, nessuna spiegazione.`;
       }
       if (fixed > 0) logEvent('info','app',`Repaired ${fixed} player UIDs`);
     };
+    // ── One-time migration: assign matchUUID to existing matches ──
+    const _migrateMatchUUIDs = async () => {
+      try {
+        const allMatches = await db.matches.toArray();
+        const needsMigration = allMatches.filter(m => !m.matchUUID);
+        if (needsMigration.length === 0) return;
+        logEvent('info', 'migrate', `Assigning matchUUID to ${needsMigration.length} existing matches...`);
+        for (const m of needsMigration) {
+          const newUUID = uuid();
+          await db.matches.update(m.id, { matchUUID: newUUID });
+        }
+        logEvent('info', 'migrate', 'matchUUID migration complete');
+      } catch(e) {
+        logEvent('warn', 'migrate', 'matchUUID migration error: ' + e.message);
+      }
+    };
+
     const recomputeStats = async () => {
       if (!currentGroup.value) return;
       const allPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
@@ -8554,6 +8589,31 @@ Niente altro, nessuna spiegazione.`;
       }
     };
 
+    // ── PATCH helper: write a single node to Firebase ──
+    const _fbPatch = async (path, data, token) => {
+      const base = getFirebaseBase();
+      if (!base) return false;
+      const authSuffix = token ? `?auth=${token}` : '';
+      const url = `${base}/${path}.json${authSuffix}`;
+      let resp = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (resp.status === 401) {
+        const refreshed = await refreshFirebaseToken();
+        if (!refreshed) throw new Error('Token scaduto. Riesegui il login.');
+        resp = await fetch(url.replace(/\?auth=.*/, `?auth=${fbIdToken.value}`), {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      return true;
+    };
+
+    // ── syncToCloud: PATCH granulare — mai sovrascrive dati altrui ──
     const syncToCloud = async () => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
@@ -8562,42 +8622,64 @@ Niente altro, nessuna spiegazione.`;
       }
       syncLoading.value = true;
       try {
+        const token = await getValidToken();
+        if (!token) throw new Error('Token non valido. Effettua il login.');
+
+        for (const g of groups.value) {
+          const gKey = g.firebaseKey || g.nome.replace(/[^a-zA-Z0-9]/g, '_');
+
+          // PATCH group meta
+          await _fbPatch(`amicifc2/groups/${gKey}/meta`, {
+            nome: g.nome,
+            updatedAt: Date.now()
+          }, token);
+
+          // PATCH each player by UID
+          const players = await db.players.where('groupId').equals(g.id).toArray();
+          for (const p of players) {
+            const pKey = p.uid || p.id;
+            const { id: _localId, groupId: _gid, foto: _foto, ...pData } = p;
+            // strip large base64 photos from player records to save bandwidth
+            await _fbPatch(`amicifc2/groups/${gKey}/players/${pKey}`, {
+              ...pData,
+              uid: p.uid || String(p.id),
+              localId: p.id,
+              updatedAt: p.updatedAt || Date.now()
+            }, token);
+          }
+
+          // PATCH each match by matchUUID
+          const matches = await db.matches.where('groupId').equals(g.id).toArray();
+          for (const m of matches) {
+            const mKey = m.matchUUID || m.id;
+            const { id: _lid, groupId: _gid2, pngFormazione: _pF, pngRisultato: _pR, pngPagelle: _pP, ...mData } = m;
+            await _fbPatch(`amicifc2/groups/${gKey}/matches/${mKey}`, {
+              ...mData,
+              matchUUID: m.matchUUID || String(m.id),
+              localId: m.id,
+              updatedAt: m.updatedAt || Date.now()
+            }, token);
+          }
+        }
+
+        // Also keep legacy format for backward compat (other devices on old version)
         const allGroups = [];
         for (const g of groups.value) {
           const players = await db.players.where('groupId').equals(g.id).toArray();
           const matches  = await db.matches.where('groupId').equals(g.id).toArray();
           allGroups.push({ group: g, players, matches });
         }
-        const payload = { lastUpdate: new Date().toISOString(), appVersion: appVersion.value, groups: allGroups };
-
-        const doUpload = async (token) => {
-          const authSuffix = token ? `?auth=${token}` : '';
-          return fetch(`${base}.json${authSuffix}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-        };
-
-        const _uploadToken = await getValidToken();
-        if (!_uploadToken) throw new Error('Token non valido. Effettua il login.');
-        let resp = await doUpload(_uploadToken);
-
-        if (resp.status === 401) {
-          toast('⏳ Token scaduto, rinnovo automatico...', 'info', 3000);
-          const refreshed = await refreshFirebaseToken();
-          if (refreshed) {
-            resp = await doUpload(fbIdToken.value);
-          } else {
-            firebaseUser.value = null;
-            fbIdToken.value = '';
-            localStorage.removeItem('amicifc_fb_user');
-            localStorage.removeItem('amicifc_fb_token');
-            throw new Error('Sessione scaduta. Esegui nuovamente il login nelle impostazioni.');
-          }
+        const legacyPayload = { lastUpdate: new Date().toISOString(), appVersion: appVersion.value, groups: allGroups };
+        const authSuffix = token ? `?auth=${token}` : '';
+        const legacyResp = await fetch(`${base}.json${authSuffix}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(legacyPayload)
+        });
+        if (!legacyResp.ok && legacyResp.status !== 401) {
+          logEvent('warn', 'sync', 'Legacy PUT failed: ' + legacyResp.status);
         }
 
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
         toast('✅ Dati caricati sul cloud!');
@@ -8724,7 +8806,7 @@ Niente altro, nessuna spiegazione.`;
             if (!Object.values(idMap).includes(lp.id)) idMap[String(lp.id)] = lp.id;
           });
 
-          // ── MATCHES: add only truly new ones (by data+scoreA+scoreB) ──
+          // ── MATCHES: sync by matchUUID (stable cross-device key) ──
           const cloudMatches = eg.matches || [];
           const localMatches = await db.matches.where('groupId').equals(gid).toArray();
           logEvent('info','sync',`Partite cloud: ${cloudMatches.length}, locali: ${localMatches.length}`);
@@ -8734,8 +8816,12 @@ Niente altro, nessuna spiegazione.`;
           };
 
           for (const cm of cloudMatches) {
+            // Ensure cloud match has a stable UUID
+            const cmUUID = cm.matchUUID || cm.id;
+
             const remapped = {
               groupId: gid,
+              matchUUID: cmUUID,
               squadraA: (cm.squadraA||[]).map(remapId),
               squadraB: (cm.squadraB||[]).map(remapId),
               statisticheGiocatori: (cm.statisticheGiocatori||[]).map(s => ({
@@ -8758,26 +8844,36 @@ Niente altro, nessuna spiegazione.`;
               pngPagelle: cm.pngPagelle,
               appVersion: cm.appVersion,
               updatedAt: cm.updatedAt || 0,
-              firebaseKey: cm.firebaseKey || cm._fbKey || null,
+              isLocked: cm.isLocked || false,
+              lastModifiedBy: cm.lastModifiedBy || '',
+              lastModifiedAt: cm.lastModifiedAt || '',
             };
-            // Chiave univoca: data + goalA + goalB + nomeSquadraA
-            // Più robusta di data+score da soli (evita falsi positivi)
-            const existing = localMatches.find(lm =>
-              lm.data === cm.data &&
-              lm.risultato?.goalA === cm.risultato?.goalA &&
-              lm.risultato?.goalB === cm.risultato?.goalB &&
-              (lm.nomeSquadraA||'') === (cm.nomeSquadraA||'')
-            );
+
+            // PRIMARY KEY: matchUUID (stable cross-device)
+            // FALLBACK: data + goalA + goalB + nomeSquadraA (for old matches without UUID)
+            const existing = cmUUID
+              ? (localMatches.find(lm => lm.matchUUID && lm.matchUUID === cmUUID) ||
+                 localMatches.find(lm => !lm.matchUUID &&
+                   lm.data === cm.data &&
+                   lm.risultato?.goalA === cm.risultato?.goalA &&
+                   lm.risultato?.goalB === cm.risultato?.goalB &&
+                   (lm.nomeSquadraA||'') === (cm.nomeSquadraA||'')))
+              : localMatches.find(lm =>
+                   lm.data === cm.data &&
+                   lm.risultato?.goalA === cm.risultato?.goalA &&
+                   lm.risultato?.goalB === cm.risultato?.goalB &&
+                   (lm.nomeSquadraA||'') === (cm.nomeSquadraA||''));
+
             if (existing) {
-            const cloudNewer = (remapped.updatedAt||0) > (existing.updatedAt||0);
-            const risultatoDiverso = JSON.stringify(remapped.risultato) !== JSON.stringify(existing.risultato);
-            const statDiverse = JSON.stringify(remapped.statisticheGiocatori) !== JSON.stringify(existing.statisticheGiocatori);
-            const commentoDiverso = (remapped.commentoAI||'') !== (existing.commentoAI||'');
-            if (cloudNewer || risultatoDiverso || statDiverse || commentoDiverso) {
-                await db.matches.update(existing.id, remapped);
+              const cloudNewer = (remapped.updatedAt||0) > (existing.updatedAt||0);
+              const statDiverse = JSON.stringify(remapped.statisticheGiocatori) !== JSON.stringify(existing.statisticheGiocatori);
+              const commentoDiverso = (remapped.commentoAI||'') !== (existing.commentoAI||'');
+              const mancaUUID = !existing.matchUUID && cmUUID;
+              if (cloudNewer || statDiverse || commentoDiverso || mancaUUID) {
+                await db.matches.update(existing.id, { ...remapped, id: existing.id });
                 syncedMatches++;
-            }
-} else {
+              }
+            } else {
               await db.matches.add(remapped);
               syncedMatches++;
             }
@@ -8946,9 +9042,15 @@ Niente altro, nessuna spiegazione.`;
             if (_changed) syncedPlayers++;
           }
           for (const m of (eg.matches||[])) {
-            const remapped = {...m, groupId: gid, id: undefined};
-            const ex = await db.matches.where('groupId').equals(gid).and(x=>x.data===m.data).first();
+            const mUUID = m.matchUUID || m.id;
+            const remapped = {...m, groupId: gid, id: undefined, matchUUID: mUUID};
+            // Find by matchUUID first, fallback to data+score
+            const ex = mUUID
+              ? await db.matches.where('matchUUID').equals(String(mUUID)).first().catch(()=>null) ||
+                await db.matches.where('groupId').equals(gid).and(x=>x.data===m.data&&(x.risultato?.goalA||0)===(m.risultato?.goalA||0)&&(x.risultato?.goalB||0)===(m.risultato?.goalB||0)).first()
+              : await db.matches.where('groupId').equals(gid).and(x=>x.data===m.data&&(x.risultato?.goalA||0)===(m.risultato?.goalA||0)&&(x.risultato?.goalB||0)===(m.risultato?.goalB||0)).first();
             if (!ex) { await db.matches.add(remapped); syncedMatches++; }
+            else if (!ex.matchUUID && mUUID) { await db.matches.update(ex.id, { matchUUID: mUUID }); }
             else { await db.matches.update(ex.id, {...remapped, id:ex.id}); }
           }
           syncedGroups++;
@@ -10306,6 +10408,7 @@ const toggleFont = () => {
       await loadGroups();
 
       await repairPlayerUids();
+      await _migrateMatchUUIDs(); // One-time: assign matchUUID to existing matches
 
       const lastGid = localStorage.getItem('amicifc_group');
       if (lastGid) {
