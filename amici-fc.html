@@ -5084,7 +5084,24 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.389',date:'2026-06-05',items:[
+    const changelogEntries = [{version:'v1.393',date:'2026-06-05',items:[
+  '🔧 Fix CRITICO sync: salvataggio partita non salta più syncToCloud se token sembra scaduto',
+  '🔄 Sync pendente: se upload fallisce viene riprovato al prossimo avvio'
+]},
+{version:'v1.392',date:'2026-06-05',items:[
+  '🔧 Fix CRITICO: auto-refresh usa solo syncFromCloud (download) — non sovrascrive più dati altrui su Firebase',
+  '🔍 Log: conteggio partite cloud vs locali ad ogni sync per diagnostica'
+]},
+{version:'v1.391',date:'2026-06-05',items:[
+  '🔍 Sync: log conteggio partite cloud vs locali per diagnostica',
+  '⚡ Sync: skip update giocatori se firma invariata — risolve "10 giocatori aggiornati" ad ogni sync'
+]},
+{version:'v1.390',date:'2026-06-05',items:[
+  '🔄 Sync: chiave duplicati migliorata (data+score+nomeSquadra) — rileva correttamente partite nuove',
+  '🔄 Sync: aggiunto updatedAt nel remapped per aggiornamenti cloud più recenti',
+  '⏰ Auto-refresh: sync automatico ogni 3min in foreground + al ritorno da background'
+]},
+{version:'v1.389',date:'2026-06-05',items:[
   '🔧 Fix HoF: throttle giornaliero — non riprova se già tentato oggi e fallito',
   '🔧 Fix HoF: controlla localStorage prima di decidere se generare',
   '⏱️ Debounce init AI Cards aumentato a 3s'
@@ -5409,7 +5426,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.389');
+    const appVersion = ref('1.393');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8120,13 +8137,14 @@ Niente altro, nessuna spiegazione.`;
       toast('🏆 Partita salvata!');
       currentView.value = 'history';
       if (currentGroup.value?.firebaseUrl) {
-        const _tok = await getValidToken();
-        if (_tok) {
-          syncToCloud().catch(e => {
-            logEvent('warn', 'sync', 'Sync partita fallito: ' + e.message);
-            toast('⚠️ Sync cloud fallito — riprova manualmente', 'error', 4000);
-          });
-        }
+        // Sincronizza sempre — syncToCloud gestisce internamente il refresh token
+        // Non skippiamo se token sembra scaduto: potrebbe rinnovarsi automaticamente
+        syncToCloud().catch(e => {
+          logEvent('warn', 'sync', 'Sync partita fallito: ' + e.message);
+          toast('⚠️ Sync cloud fallito — riprova dalle impostazioni', 'error', 5000);
+          // Marca la partita come da sincronizzare
+          localStorage.setItem('amicifc_pending_sync_'+currentGroup.value.id, Date.now().toString());
+        });
       }
       _generateTrashTalk(match).catch(e => console.warn('[TrashTalk]', e.message));
     };
@@ -8658,9 +8676,16 @@ Niente altro, nessuna spiegazione.`;
 
             if (lp) {
               const _lpSig = [lp.nome,lp.cognome,lp.soprannome,lp.ruolo,lp.piede,lp.descrizione,
-                lp.goalTotali,lp.assistTotali,lp.mediaVoto,lp.partiteTotali,lp.mediaPunti].join('|');
+                lp.goalTotali,lp.assistTotali,lp.mediaVoto,lp.partiteTotali,lp.mediaPunti,
+                lp.puntiTotali,lp.partiteTotali].join('|');
               const _cpSig = [cp.nome,cp.cognome,cp.soprannome,cp.ruolo,cp.piede,cp.descrizione,
-                cp.goalTotali,cp.assistTotali,cp.mediaVoto,cp.partiteTotali,cp.mediaPunti].join('|');
+                cp.goalTotali,cp.assistTotali,cp.mediaVoto,cp.partiteTotali,cp.mediaPunti,
+                cp.puntiTotali,cp.partiteTotali].join('|');
+              // Skip update se nulla è cambiato (evita "10 giocatori aggiornati" ad ogni sync)
+              if (_lpSig === _cpSig && (cp.updatedAt||0) <= (lp.updatedAt||0)) {
+                if (cp.id !== undefined) idMap[String(cp.id)] = lp.id;
+                continue;
+              }
               await db.players.update(lp.id, {
                 uid:         cpUid,
                 nome:        cp.nome        ?? lp.nome,
@@ -8702,6 +8727,7 @@ Niente altro, nessuna spiegazione.`;
           // ── MATCHES: add only truly new ones (by data+scoreA+scoreB) ──
           const cloudMatches = eg.matches || [];
           const localMatches = await db.matches.where('groupId').equals(gid).toArray();
+          logEvent('info','sync',`Partite cloud: ${cloudMatches.length}, locali: ${localMatches.length}`);
           const remapId = pid => {
             const mapped = idMap[String(pid)];
             return mapped !== undefined ? mapped : pid;
@@ -8731,11 +8757,16 @@ Niente altro, nessuna spiegazione.`;
               pngRisultato: cm.pngRisultato,
               pngPagelle: cm.pngPagelle,
               appVersion: cm.appVersion,
+              updatedAt: cm.updatedAt || 0,
+              firebaseKey: cm.firebaseKey || cm._fbKey || null,
             };
+            // Chiave univoca: data + goalA + goalB + nomeSquadraA
+            // Più robusta di data+score da soli (evita falsi positivi)
             const existing = localMatches.find(lm =>
               lm.data === cm.data &&
               lm.risultato?.goalA === cm.risultato?.goalA &&
-              lm.risultato?.goalB === cm.risultato?.goalB
+              lm.risultato?.goalB === cm.risultato?.goalB &&
+              (lm.nomeSquadraA||'') === (cm.nomeSquadraA||'')
             );
             if (existing) {
             const cloudNewer = (remapped.updatedAt||0) > (existing.updatedAt||0);
@@ -10355,8 +10386,18 @@ const toggleFont = () => {
           await syncFromCloud(false);
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
+      // ── Sync pendente: se il precedente upload è fallito, riprova ──
+      if (currentGroup.value?.firebaseUrl) {
+        const _pendingKey = 'amicifc_pending_sync_'+currentGroup.value.id;
+        if (localStorage.getItem(_pendingKey)) {
+          logEvent('info','sync','🔄 Sync pendente trovato — riprovo upload...');
+          syncToCloud().then(() => {
+            localStorage.removeItem(_pendingKey);
+          }).catch(console.warn);
+        }
+      }
+
       // ── HERO: carica AI cards da localStorage poi lancia ──
-      // Carica esplicitamente prima del launch per avere le card AI nell'hero
       if (currentGroup.value) {
         try { await _loadAiNicknames(); } catch(e) {}
         try { await _loadHallOfFame(); } catch(e) {}
@@ -10375,8 +10416,20 @@ const toggleFont = () => {
             heroGo(heroUnifiedIdx.value);
           }
           if (!_heroLaunched) _startHeroTicker();
+          // Auto-sync quando l'app torna in foreground: solo download
+          if (currentGroup.value?.firebaseUrl && isOnline.value) {
+            syncFromCloud(false).catch(console.warn);
+          }
         }
       });
+
+      // Auto-refresh ogni 3 minuti: solo DOWNLOAD da Firebase (non upload)
+      // L'upload avviene solo quando l'utente salva dati esplicitamente
+      setInterval(() => {
+        if (!document.hidden && currentGroup.value?.firebaseUrl && isOnline.value) {
+          syncFromCloud(false).catch(console.warn);
+        }
+      }, 3 * 60 * 1000);
 
       let _visTimer = null;
       document.addEventListener('visibilitychange', () => {
