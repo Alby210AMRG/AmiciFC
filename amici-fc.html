@@ -2617,7 +2617,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             ⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
             <span style="color:var(--red)">OG = Autogol (nella propria porta)</span> &nbsp;·&nbsp;
             <span style="color:var(--yellow)">UoM = Uomo della Partita</span> &nbsp;·&nbsp;
-            Voto 1-10
+            Voto 1-10 &nbsp;·&nbsp;
+            <span style="color:var(--lime)">🥅 RP = Rigore Parato (+OVR)</span> &nbsp;·&nbsp;
+            <span style="color:#FF6B35">❌ RS = Rigore Sbagliato (−OVR)</span>
           </div>
           <div class="match-score" style="margin-bottom:20px">
             <div style="text-align:center">
@@ -2670,6 +2672,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol || 0 }}</span>
                   <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
                 </div>
+                <div class="counter-box" style="border:1px solid rgba(74,222,128,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅RP</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriParati > 0 ? playerStats[pid].rigoriParati-- : null">−</button>
+                  <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+                </div>
+                <div class="counter-box" style="border:1px solid rgba(255,107,53,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--orange,#FF6B35)">❌RS</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriSbagliati > 0 ? playerStats[pid].rigoriSbagliati-- : null">−</button>
+                  <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+                </div>
                 <button class="btn btn-sm" :class="playerStats[pid]?.uomoPartita ? 'btn-yellow' : 'btn-ghost'"
                   style="padding:5px 10px;font-size:0.7rem" @click="setUomoPartita(pid)">
                   {{ playerStats[pid]?.uomoPartita ? '⭐ UpM' : '🏅 UpM' }}
@@ -2708,6 +2722,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].autogol > 0 ? playerStats[pid].autogol-- : null">−</button>
                   <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol || 0 }}</span>
                   <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+                </div>
+                <div class="counter-box" style="border:1px solid rgba(74,222,128,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅RP</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriParati > 0 ? playerStats[pid].rigoriParati-- : null">−</button>
+                  <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+                </div>
+                <div class="counter-box" style="border:1px solid rgba(255,107,53,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--orange,#FF6B35)">❌RS</span>
+                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriSbagliati > 0 ? playerStats[pid].rigoriSbagliati-- : null">−</button>
+                  <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati || 0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
                 </div>
                 <button class="btn btn-sm" :class="playerStats[pid]?.uomoPartita ? 'btn-yellow' : 'btn-ghost'"
                   style="padding:5px 10px;font-size:0.7rem" @click="setUomoPartita(pid)">
@@ -3064,11 +3090,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 ℹ️ Come si calcola l'OVR? <span>{{showOvrInfo?'▲':'▼'}}</span>
               </button>
               <div v-if="showOvrInfo" style="font-size:0.72rem;color:var(--text2);margin-top:8px;line-height:1.7;padding:10px;background:var(--bg3);border-radius:8px">
-                <strong style="color:var(--lime)">OVR 50–99</strong> · Formula per ruolo · min. 2 partite<br>
-                ⚽ <strong>Att/Cen/Jolly</strong>: Voto×45% + Gol/p×45% + UoM×10%<br>
-                🛡️ <strong>Difensore</strong>: Voto×65% + Vittorie/p×25% + UoM×10%<br>
-                🧤 <strong>Portiere</strong>: AvgPt×55% + Voto×30% + UoM×15% + Clean Sheet<br>
-                📅 <strong>+Costanza</strong> (presenze) · ❌ <strong>−Autogol</strong>
+                <strong style="color:var(--lime)">OVR 50–99</strong> · Formula globale · min. 2 partite<br>
+                📊 Pt/gara×10 + Gol×0.8 + Assist×0.5 + Media×0.8 + MVP×3<br>
+                <span style="color:var(--lime)">🥅 Rigore Parato: +1.5 per evento</span><br>
+                <span style="color:#FF6B35">❌ Rigore Sbagliato: −0.8 per evento</span><br>
+                📅 <strong>+Forma</strong> (ultime partite) · 😬 <strong>−Autogol</strong>
               </div>
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
@@ -4108,30 +4134,51 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:20px">
-        <div class="quick-stat-card">
-          <div class="stat-big">{{ detailPlayer.goalTotali }}</div>
-          <div class="stat-label">⚽ Goal</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
+        <!-- Riga 1 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">⚽ Gol</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--lime)">{{ detailPlayer.goalTotali||0 }}</span>
         </div>
-        <div class="quick-stat-card">
-          <div class="stat-big">{{ detailPlayer.assistTotali }}</div>
-          <div class="stat-label">🅰️ Assist</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">🅰️ Assist</span>
+          <span style="font-size:1.2rem;font-weight:700">{{ detailPlayer.assistTotali||0 }}</span>
         </div>
-        <div class="quick-stat-card">
-          <div class="stat-big" style="color:var(--yellow)">{{ (detailPlayer.mediaVoto||0).toFixed(1) }}</div>
-          <div class="stat-label">⭐ Media Voto</div>
+        <!-- Riga 2 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">⭐ Media voto</span>
+          <span style="font-size:1.2rem;font-weight:700" :style="(detailPlayer.mediaVoto||0)>=7?'color:var(--lime)':(detailPlayer.mediaVoto||0)>=5?'color:var(--yellow)':'color:var(--red)'">{{ (detailPlayer.mediaVoto||0).toFixed(1) }}</span>
         </div>
-        <div class="quick-stat-card">
-          <div class="stat-big" style="color:var(--red)">{{ detailPlayer.autogolTotali||0 }}</div>
-          <div class="stat-label">😬 Autogol</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">🏆 Punti</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--yellow)">{{ detailPlayer.puntiTotali||0 }}</span>
         </div>
-        <div class="quick-stat-card">
-          <div class="stat-big" style="color:var(--yellow)">{{ detailPlayer.uomoPartitaTotali||0 }}</div>
-          <div class="stat-label">🏅 UpM</div>
+        <!-- Riga 3 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">📊 Pt/gara</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--yellow)">{{ detailPlayer.mediaPunti ? detailPlayer.mediaPunti.toFixed(1) : '–' }}</span>
         </div>
-        <div class="quick-stat-card">
-          <div class="stat-big" style="color:var(--text2)">{{ detailPlayer.partiteTotali||0 }}</div>
-          <div class="stat-label">🏟️ Partite</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">👑 MVP</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--yellow)">{{ detailPlayer.uomoPartitaTotali||0 }}</span>
+        </div>
+        <!-- Riga 4 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">🎮 Partite</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--text2)">{{ detailPlayer.partiteTotali||0 }}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">🥅 Rig. Parati</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--lime)">{{ detailPlayer.rigoriParatiTotali||0 }}</span>
+        </div>
+        <!-- Riga 5 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">❌ Rig. Sbagliati</span>
+          <span style="font-size:1.2rem;font-weight:700" :style="(detailPlayer.rigoriSbagliatiTotali||0)>0?'color:#FF6B35':''" >{{ detailPlayer.rigoriSbagliatiTotali||0 }}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">😬 Autogol</span>
+          <span style="font-size:1.2rem;font-weight:700" :style="(detailPlayer.autogolTotali||0)>0?'color:var(--red)':''" >{{ detailPlayer.autogolTotali||0 }}</span>
         </div>
       </div>
 
@@ -4877,16 +4924,16 @@ createApp({
 
         // ── Foglio 1: Classifica ──
         const clData = [
-          ['#','Giocatore','Ruolo','Partite','Punti','Media Pt/g','Gol','Assist','Autogol','Uomo Partita','Media Voto']
+          ['#','Giocatore','Ruolo','Partite','Punti','Media Pt/g','Gol','Assist','Autogol','Rig.Parati','Rig.Sbagliati','Uomo Partita','Media Voto']
         ];
         [...players].sort((a,b)=>(b.puntiTotali||0)-(a.puntiTotali||0)).forEach((p,i)=>{
           clData.push([i+1,p.soprannome||p.nome,p.ruolo||'',p.partiteTotali||0,p.puntiTotali||0,
             Number((p.mediaPunti||0).toFixed(3)),p.goalTotali||0,p.assistTotali||0,
-            p.autogolTotali||0,p.uomoPartitaTotali||0,
-            Number((p.mediaVoto||0).toFixed(2))]);
+            p.autogolTotali||0,p.rigoriParatiTotali||0,p.rigoriSbagliatiTotali||0,
+            p.uomoPartitaTotali||0,Number((p.mediaVoto||0).toFixed(2))]);
         });
         const wsClass = XLSX.utils.aoa_to_sheet(clData);
-        wsClass['!cols']=[{wch:4},{wch:18},{wch:14},{wch:8},{wch:7},{wch:10},{wch:6},{wch:7},{wch:8},{wch:12},{wch:10}];
+        wsClass['!cols']=[{wch:4},{wch:18},{wch:14},{wch:8},{wch:7},{wch:10},{wch:6},{wch:7},{wch:8},{wch:10},{wch:11},{wch:12},{wch:10}];
         XLSX.utils.book_append_sheet(wb, wsClass, 'Classifica');
 
         // ── Foglio 2: Marcatori ──
@@ -4898,16 +4945,18 @@ createApp({
         XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(golData), 'Marcatori');
 
         // ── Foglio 3: Storico Partite ──
-        const matchData=[['Data','Squadra A','Gol A','Gol B','Squadra B','Risultato','MVP','Gol Partita']];
+        const matchData=[['Data','Squadra A','Gol A','Gol B','Squadra B','Risultato','MVP','Gol Partita','Rigori Parati','Rigori Sbagliati']];
         for(const m of matches){
           const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;
           const res=gA>gB?'Vince A':gA<gB?'Vince B':'Pareggio';
           const scorers=(m.statisticheGiocatori||[]).filter(s=>s.goal>0)
             .map(s=>{const p=players.find(x=>x.id===s.playerId);return `${p?.soprannome||p?.nome||'?'}(${s.goal})`;}).join(', ');
-          matchData.push([m.data,m.nomeSquadraA||'Squadra A',gA,gB,m.nomeSquadraB||'Squadra B',res,m.uomoPartita||'',scorers]);
+          const rigPar=(m.statisticheGiocatori||[]).reduce((s,x)=>s+(x.rigoriParati||0),0);
+          const rigSbag=(m.statisticheGiocatori||[]).reduce((s,x)=>s+(x.rigoriSbagliati||0),0);
+          matchData.push([m.data,m.nomeSquadraA||'Squadra A',gA,gB,m.nomeSquadraB||'Squadra B',res,m.uomoPartita||'',scorers,rigPar||0,rigSbag||0]);
         }
         const wsMatch=XLSX.utils.aoa_to_sheet(matchData);
-        wsMatch['!cols']=[{wch:12},{wch:14},{wch:7},{wch:7},{wch:14},{wch:10},{wch:16},{wch:40}];
+        wsMatch['!cols']=[{wch:12},{wch:14},{wch:7},{wch:7},{wch:14},{wch:10},{wch:16},{wch:40},{wch:13},{wch:15}];
         XLSX.utils.book_append_sheet(wb, wsMatch, 'Storico Partite');
 
         // ── Foglio 4: Statistiche Complete ──
@@ -5035,7 +5084,30 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.384',date:'2026-06-04',items:[
+    const changelogEntries = [{version:'v1.389',date:'2026-06-05',items:[
+  '🔧 Fix HoF: throttle giornaliero — non riprova se già tentato oggi e fallito',
+  '🔧 Fix HoF: controlla localStorage prima di decidere se generare',
+  '⏱️ Debounce init AI Cards aumentato a 3s'
+]},
+{version:'v1.388',date:'2026-06-05',items:[
+  '📊 Excel: Classifica aggiunta colonne Rig.Parati e Rig.Sbagliati',
+  '📊 Excel: Storico Partite aggiunta colonne Rigori Parati/Sbagliati totali per partita',
+  '✅ JSON/Firebase: export/import già completo automaticamente (serializza tutto il player object)'
+]},
+{version:'v1.387',date:'2026-06-04',items:[
+  '👤 Scheda giocatore: layout 2 colonne label+valore — 5 righe simmetriche, niente spazi vuoti'
+]},
+{version:'v1.386',date:'2026-06-04',items:[
+  '📋 Legenda match: aggiunte spiegazioni 🥅 RP e ❌ RS',
+  '📊 Spiegazione OVR aggiornata con formula reale e pesi rigori'
+]},
+{version:'v1.385',date:'2026-06-04',items:[
+  '🥅 Rigori parati/sbagliati: contatore nel match form per ogni giocatore',
+  '📊 recomputeStats: calcola rigoriParatiTotali e rigoriSbagliatiTotali',
+  '💫 OVR: +1.5 rigore parato, -0.8 rigore sbagliato',
+  '👤 Scheda giocatore: 10 statistiche in griglia 3 colonne (punti, pt/gara, rigori, autogol)'
+]},
+{version:'v1.384',date:'2026-06-04',items:[
   '🔗 Configurazione AI: link provider cliccabili (aistudio, groq, openrouter, openai)'
 ]},
 {version:'v1.383',date:'2026-06-04',items:[
@@ -5337,7 +5409,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.384');
+    const appVersion = ref('1.389');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5856,7 +5928,7 @@ createApp({
     };
 
         const statsScore = p => {
-      const base = (p.mediaPunti||0)*10 + (p.goalTotali||0)*0.8 + (p.assistTotali||0)*0.5 + (p.mediaVoto||6)*0.8 + (p.uomoPartitaTotali||0)*3;
+      const base = (p.mediaPunti||0)*10 + (p.goalTotali||0)*0.8 + (p.assistTotali||0)*0.5 + (p.mediaVoto||6)*0.8 + (p.uomoPartitaTotali||0)*3 + (p.rigoriParatiTotali||0)*1.5 - (p.rigoriSbagliatiTotali||0)*0.8;
       const form = calcPlayerForm(p.id) * 1.5; // form modifier: -3 to +3
       return base + form;
     };
@@ -7533,14 +7605,34 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       if (!currentGroup.value) return;
       const oggi = new Date();
       const giorno = oggi.getDate();
+      const meseCorrente = oggi.toISOString().slice(0,7);
       const mesePrec = new Date(oggi.getFullYear(), oggi.getMonth()-1, 1).toISOString().slice(0,7);
-      const hofPresente = !!aiCardsHallOfFame.value?.mese;
-      const hofMesePrecOk = hofPresente && aiCardsHallOfFame.value?.mese === mesePrec;
+
+      // Controlla sia memoria che localStorage per non rigenerare se già esiste
+      const _lsHofC = JSON.parse(localStorage.getItem('amicifc_hof_'+meseCorrente)||'null');
+      const _lsHofP = JSON.parse(localStorage.getItem('amicifc_hof_'+mesePrec)||'null');
+      const _inMemory = aiCardsHallOfFame.value?.mese;
+
+      // HoF è già presente se: in memoria O in localStorage per il mese precedente
+      const hofOk = _inMemory === mesePrec || _inMemory === meseCorrente
+                 || _lsHofP?.fame || _lsHofC?.fame;
+
+      // Throttle: non riprovare se già tentato oggi e fallito
+      const _lastAttemptKey = 'amicifc_hof_attempt_'+mesePrec;
+      const _lastAttempt = localStorage.getItem(_lastAttemptKey);
+      const _todayStr = oggi.toISOString().slice(0,10);
+      if (_lastAttempt === _todayStr && !hofOk) {
+        _aiLog('HallOfFame','⏭️ HoF: già tentata oggi ('+_todayStr+'), riprova domani');
+        return;
+      }
+
       if (giorno === 1) {
         _aiLog('HallOfFame','📅 È il 1° del mese — generazione Hall of Fame...');
+        localStorage.setItem(_lastAttemptKey, _todayStr);
         await _generateHallOfFame();
-      } else if (giorno <= 10 && !hofMesePrecOk && settings.value.apiKey) {
+      } else if (giorno <= 10 && !hofOk && settings.value.apiKey) {
         _aiLog('HallOfFame','📅 Giorno '+giorno+' — HoF di '+mesePrec+' mancante, generazione retroattiva...');
+        localStorage.setItem(_lastAttemptKey, _todayStr);
         await _generateHallOfFame();
       } else {
         _aiLog('HallOfFame','⏭️ Non è il 1° del mese (oggi è il '+giorno+'). Usa il bottone per forzare.');
@@ -7632,7 +7724,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       _initAiCardsTimer = setTimeout(() => {
         _initAiCardsTimer = null;
         _initAiCards().catch(console.warn);
-      }, 2500);
+      }, 3000);
     };
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
@@ -8320,7 +8412,8 @@ Niente altro, nessuna spiegazione.`;
       allPlayers.forEach(p => {
         statsMap[p.id] = {
           goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
-          puntiTotali:0, partiteTotali:0, votiTotali:0, votiSum:0
+          puntiTotali:0, partiteTotali:0, votiTotali:0, votiSum:0,
+          rigoriParatiTotali:0, rigoriSbagliatiTotali:0
         };
       });
 
@@ -8340,12 +8433,14 @@ Niente altro, nessuna spiegazione.`;
             punti = isDraw ? 1 : ((inA && teamAWon) || (!inA && !teamAWon)) ? 3 : 0;
           }
 
-          st.goalTotali        += s.goal        || 0;
-          st.assistTotali      += s.assist      || 0;
-          st.autogolTotali     += s.autogol     || 0;
-          st.uomoPartitaTotali += s.uomoPartita ? 1 : 0;
-          st.puntiTotali       += punti;
-          st.partiteTotali     += 1;
+          st.goalTotali             += s.goal             || 0;
+          st.assistTotali           += s.assist           || 0;
+          st.autogolTotali          += s.autogol          || 0;
+          st.uomoPartitaTotali      += s.uomoPartita ? 1  : 0;
+          st.puntiTotali            += punti;
+          st.partiteTotali          += 1;
+          st.rigoriParatiTotali     += s.rigoriParati     || 0;
+          st.rigoriSbagliatiTotali  += s.rigoriSbagliati  || 0;
           if ((s.voto||0) > 0) {
             st.votiTotali++;
             st.votiSum += s.voto;
@@ -8358,15 +8453,17 @@ Niente altro, nessuna spiegazione.`;
         const mediaVoto = st.votiTotali > 0 ? st.votiSum / st.votiTotali : 0;
         const mediaPunti = st.partiteTotali > 0 ? st.puntiTotali / st.partiteTotali : 0;
         await db.players.update(p.id, {
-          goalTotali:        st.goalTotali || 0,
-          assistTotali:      st.assistTotali || 0,
-          autogolTotali:     st.autogolTotali || 0,
-          uomoPartitaTotali: st.uomoPartitaTotali || 0,
-          puntiTotali:       st.puntiTotali || 0,
-          partiteTotali:     st.partiteTotali || 0,
-          mediaPunti:        mediaPunti,
-          mediaVoto:         mediaVoto,
-          votiTotali:        st.votiTotali || 0
+          goalTotali:              st.goalTotali || 0,
+          assistTotali:            st.assistTotali || 0,
+          autogolTotali:           st.autogolTotali || 0,
+          uomoPartitaTotali:       st.uomoPartitaTotali || 0,
+          puntiTotali:             st.puntiTotali || 0,
+          partiteTotali:           st.partiteTotali || 0,
+          mediaPunti:              mediaPunti,
+          mediaVoto:               mediaVoto,
+          votiTotali:              st.votiTotali || 0,
+          rigoriParatiTotali:      st.rigoriParatiTotali || 0,
+          rigoriSbagliatiTotali:   st.rigoriSbagliatiTotali || 0
         });
       }
     };
