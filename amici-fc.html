@@ -10192,18 +10192,18 @@ const toggleFont = () => {
     };
 
     // ── Restore from backup JSON ──
-    const restoreStatus = ref('');
+    const restoreStatus = ref(``);
 
     const forceRecomputeStats = async () => {
       if (!currentGroup.value) return;
-      restoreStatus.value = '⏳ Ricalcolo in corso...';
+      restoreStatus.value = `⏳ Ricalcolo in corso...`;
       try {
         await recomputeStats();
         await loadGroupData();
-        restoreStatus.value = '✅ Statistiche ricalcolate correttamente!';
-        toast('✅ Statistiche ricalcolate!', 'success', 3000);
+        restoreStatus.value = `✅ Statistiche ricalcolate correttamente!`;
+        toast(`✅ Statistiche ricalcolate!`, `success`, 3000);
       } catch(e) {
-        restoreStatus.value = '❌ Errore: ' + e.message;
+        restoreStatus.value = `❌ Errore: ` + e.message;
       }
     };
 
@@ -10212,18 +10212,20 @@ const toggleFont = () => {
       if (!file) return;
       if (!currentGroup.value) { toast('Nessun gruppo attivo', 'error'); return; }
 
-      const confirmMsg =
-        '⚠️ RIPRISTINO DA BACKUP\n\n' +
-        'Questa operazione:\n' +
-        '1. Cancella partite e giocatori locali del gruppo\n' +
-        '2. Reimporta i dati dal JSON con UUID freschi\n' +
-        '3. Ricalcola le statistiche\n' +
-        '4. Carica tutto su Firebase\n\n' +
-        'File: ' + file.name + '\n\n' +
-        'Sei sicuro?';
+      const confirmMsg = `⚠️ RIPRISTINO DA BACKUP
+
+Questa operazione:
+1. Cancella partite e giocatori locali del gruppo
+2. Reimporta i dati dal JSON con UUID freschi
+3. Ricalcola le statistiche
+4. Carica tutto su Firebase
+
+File: ${file.name}
+
+Sei sicuro?`;
       if (!confirm(confirmMsg)) { event.target.value = ''; return; }
 
-      restoreStatus.value = '⏳ Lettura file...';
+      restoreStatus.value = `⏳ Lettura file...`;
       try {
         // Read file
         const text = await file.text();
@@ -10252,7 +10254,7 @@ const toggleFont = () => {
         const nowMs = Date.now();
 
         // Step 1: delete all local data for this group
-        restoreStatus.value = '⏳ Cancellazione dati locali...';
+        restoreStatus.value = `⏳ Cancellazione dati locali...`;
         await db.players.where('groupId').equals(gid).delete();
         await db.matches.where('groupId').equals(gid).delete();
 
@@ -10309,18 +10311,16 @@ Caricamento su Firebase...`;
           syncToCloud().then(() => {
             restoreStatus.value = `✅ Ripristino completato e sincronizzato!
 ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
-            toast('✅ Ripristino completato!', 'success', 5000);
+            toast(`✅ Ripristino completato!`, `success`, 5000);
           }).catch(e => {
-            restoreStatus.value += '
-⚠️ Sync Firebase fallito: ' + e.message + '
-Premi Sincronizza manualmente.';
+            restoreStatus.value += `\n⚠️ Sync Firebase fallito: ${e.message}\nPremi Sincronizza manualmente.`;
           });
         } else {
-          toast('✅ Ripristino locale completato!', 'success', 5000);
+          toast(`✅ Ripristino locale completato!`, `success`, 5000);
         }
 
       } catch(e) {
-        restoreStatus.value = '❌ Errore: ' + e.message;
+        restoreStatus.value = `❌ Errore: ${e.message}`;
         logEvent('error', 'restore', e.message);
       }
       event.target.value = ''; // reset file input
