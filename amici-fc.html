@@ -5443,7 +5443,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.394');
+    const appVersion = ref('1.395');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8590,30 +8590,7 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // ── PATCH helper: write a single node to Firebase ──
-    const _fbPatch = async (path, data, token) => {
-      const base = getFirebaseBase();
-      if (!base) return false;
-      const authSuffix = token ? `?auth=${token}` : '';
-      const url = `${base}/${path}.json${authSuffix}`;
-      let resp = await fetch(url, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (resp.status === 401) {
-        const refreshed = await refreshFirebaseToken();
-        if (!refreshed) throw new Error('Token scaduto. Riesegui il login.');
-        resp = await fetch(url.replace(/\?auth=.*/, `?auth=${fbIdToken.value}`), {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-      }
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      return true;
-    };
-
-    // ── syncToCloud: PATCH granulare — mai sovrascrive dati altrui ──
+    // ── syncToCloud: merge-safe — mai sovrascrive partite di altri utenti ──
     const syncToCloud = async () => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
@@ -8624,66 +8601,91 @@ Niente altro, nessuna spiegazione.`;
       try {
         const token = await getValidToken();
         if (!token) throw new Error('Token non valido. Effettua il login.');
-
-        for (const g of groups.value) {
-          const gKey = g.firebaseKey || g.nome.replace(/[^a-zA-Z0-9]/g, '_');
-
-          // PATCH group meta
-          await _fbPatch(`amicifc2/groups/${gKey}/meta`, {
-            nome: g.nome,
-            updatedAt: Date.now()
-          }, token);
-
-          // PATCH each player by UID
-          const players = await db.players.where('groupId').equals(g.id).toArray();
-          for (const p of players) {
-            const pKey = p.uid || p.id;
-            const { id: _localId, groupId: _gid, foto: _foto, ...pData } = p;
-            // strip large base64 photos from player records to save bandwidth
-            await _fbPatch(`amicifc2/groups/${gKey}/players/${pKey}`, {
-              ...pData,
-              uid: p.uid || String(p.id),
-              localId: p.id,
-              updatedAt: p.updatedAt || Date.now()
-            }, token);
-          }
-
-          // PATCH each match by matchUUID
-          const matches = await db.matches.where('groupId').equals(g.id).toArray();
-          for (const m of matches) {
-            const mKey = m.matchUUID || m.id;
-            const { id: _lid, groupId: _gid2, pngFormazione: _pF, pngRisultato: _pR, pngPagelle: _pP, ...mData } = m;
-            await _fbPatch(`amicifc2/groups/${gKey}/matches/${mKey}`, {
-              ...mData,
-              matchUUID: m.matchUUID || String(m.id),
-              localId: m.id,
-              updatedAt: m.updatedAt || Date.now()
-            }, token);
-          }
-        }
-
-        // Also keep legacy format for backward compat (other devices on old version)
-        const allGroups = [];
-        for (const g of groups.value) {
-          const players = await db.players.where('groupId').equals(g.id).toArray();
-          const matches  = await db.matches.where('groupId').equals(g.id).toArray();
-          allGroups.push({ group: g, players, matches });
-        }
-        const legacyPayload = { lastUpdate: new Date().toISOString(), appVersion: appVersion.value, groups: allGroups };
         const authSuffix = token ? `?auth=${token}` : '';
-        const legacyResp = await fetch(`${base}.json${authSuffix}`, {
+
+        // ── 1. Leggi stato attuale di Firebase (fonte di verità) ──
+        const cloudResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+        let cloudData = null;
+        if (cloudResp.ok) {
+          try { cloudData = await cloudResp.json(); } catch { cloudData = null; }
+        }
+        const cloudGroups = cloudData?.groups
+          ? (Array.isArray(cloudData.groups) ? cloudData.groups : Object.values(cloudData.groups))
+          : [];
+
+        // ── 2. Costruisci payload locale ──
+        const localGroups = [];
+        for (const g of groups.value) {
+          const localPlayers = await db.players.where('groupId').equals(g.id).toArray();
+          const localMatches = await db.matches.where('groupId').equals(g.id).toArray();
+
+          // Costruisci set di matchUUID locali per lookup rapido
+          const localMatchUUIDs = new Set(localMatches.map(m => m.matchUUID).filter(Boolean));
+
+          // Trova il gruppo cloud corrispondente (stesso nome)
+          const cloudEntry = cloudGroups.find(e => (e.group?.nome || e.nome) === g.nome);
+          const cloudMatches = cloudEntry
+            ? (Array.isArray(cloudEntry.matches) ? cloudEntry.matches : Object.values(cloudEntry.matches || {}))
+            : [];
+
+          // ── MERGE: aggiungi partite cloud che non ho in locale ──
+          // Queste sono partite inserite da altri utenti che non ho ancora scaricato
+          const mergedMatches = [...localMatches];
+          for (const cm of cloudMatches) {
+            if (!cm) continue;
+            const cmUUID = cm.matchUUID;
+            // Se la partita cloud ha matchUUID e non ce l'ho in locale → la aggiungo al payload
+            if (cmUUID && !localMatchUUIDs.has(cmUUID)) {
+              mergedMatches.push(cm);
+              logEvent('info', 'sync', `Merge: partita cloud ${cmUUID.slice(0,8)} aggiunta al payload`);
+            }
+            // Fallback per partite senza matchUUID: confronto data+score
+            if (!cmUUID) {
+              const exists = localMatches.some(lm =>
+                lm.data === cm.data &&
+                lm.risultato?.goalA === cm.risultato?.goalA &&
+                lm.risultato?.goalB === cm.risultato?.goalB &&
+                (lm.nomeSquadraA||'') === (cm.nomeSquadraA||'')
+              );
+              if (!exists) mergedMatches.push(cm);
+            }
+          }
+
+          localGroups.push({ group: g, players: localPlayers, matches: mergedMatches });
+        }
+
+        // ── 3. PUT del payload unito ──
+        const payload = {
+          lastUpdate: new Date().toISOString(),
+          appVersion: appVersion.value,
+          groups: localGroups,
+          aiCards: cloudData?.aiCards || {}  // preserva sempre le AI cards cloud
+        };
+
+        let resp = await fetch(`${base}.json${authSuffix}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(legacyPayload)
+          body: JSON.stringify(payload)
         });
-        if (!legacyResp.ok && legacyResp.status !== 401) {
-          logEvent('warn', 'sync', 'Legacy PUT failed: ' + legacyResp.status);
+
+        if (resp.status === 401) {
+          logEvent('info', 'sync', 'Token scaduto, rinnovo...');
+          const refreshed = await refreshFirebaseToken();
+          if (!refreshed) throw new Error('Sessione scaduta. Esegui nuovamente il login.');
+          resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
         }
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
+        logEvent('info', 'sync', `Upload OK: ${localGroups.reduce((s,g)=>s+g.matches.length,0)} partite su Firebase`);
         toast('✅ Dati caricati sul cloud!');
       } catch (e) {
+        logEvent('error', 'sync', 'syncToCloud: ' + e.message);
         toast('❌ ' + e.message, 'error', 8000);
       }
       syncLoading.value = false;
