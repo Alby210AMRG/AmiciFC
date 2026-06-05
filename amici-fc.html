@@ -3881,6 +3881,36 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
 
+          <!-- ── Ripristino da Backup ── -->
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--orange);margin-bottom:4px">♻️ Ripristina da Backup JSON</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+              Importa un JSON esportato dall'app e sovrascrive Firebase con i dati puliti.
+              Usa se le statistiche sono gonfiate o i dati sono corrotti.
+            </div>
+            <button class="btn btn-full btn-sm" style="background:rgba(255,140,60,0.15);border:1.5px solid var(--orange);color:var(--orange);margin-bottom:6px"
+              @click="$refs.restoreFileInput.click()">
+              📂 Seleziona JSON di backup
+            </button>
+            <input type="file" ref="restoreFileInput" accept=".json" style="display:none" @change="restoreFromBackup($event)">
+            <div v-if="restoreStatus" style="font-size:0.72rem;margin-top:4px;line-height:1.5;white-space:pre-wrap"
+              :style="restoreStatus.startsWith('❌')?'color:var(--red)':restoreStatus.startsWith('✅')?'color:var(--lime)':'color:var(--text2)'">
+              {{ restoreStatus }}
+            </div>
+          </div>
+
+          <!-- ── Ricalcola Statistiche ── -->
+          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--yellow);margin-bottom:4px">📊 Ricalcola Statistiche</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+              Ricalcola goal, assist, voti e tutti i contatori da zero partendo dalle partite locali.
+            </div>
+            <button class="btn btn-full btn-sm" style="background:rgba(255,217,61,0.12);border:1.5px solid var(--yellow);color:var(--yellow)"
+              @click="forceRecomputeStats">
+              📊 Ricalcola Statistiche
+            </button>
+          </div>
+
           <!-- ── Reset ── -->
           <div style="border-top:1px solid rgba(255,77,77,.2);padding-top:12px;display:flex;flex-direction:column;gap:8px">
             <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
@@ -5443,7 +5473,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.395');
+    const appVersion = ref('1.396');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8590,7 +8620,9 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // ── PATCH helper: write a single node to Firebase ──
-    // ── syncToCloud: merge-safe — mai sovrascrive partite di altri utenti ──
+    // ── syncToCloud: scrittura locale su Firebase ──
+    // Prima legge Firebase, poi scrive solo i dati locali (no merge che duplica)
+    // Il sync in lettura (syncFromCloud) si occupa di scaricare le partite altrui
     const syncToCloud = async () => {
       const base = getFirebaseBase();
       if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
@@ -8603,63 +8635,33 @@ Niente altro, nessuna spiegazione.`;
         if (!token) throw new Error('Token non valido. Effettua il login.');
         const authSuffix = token ? `?auth=${token}` : '';
 
-        // ── 1. Leggi stato attuale di Firebase (fonte di verità) ──
-        const cloudResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
-        let cloudData = null;
-        if (cloudResp.ok) {
-          try { cloudData = await cloudResp.json(); } catch { cloudData = null; }
+        // Leggi aiCards da Firebase per preservarle (non sono locali)
+        let cloudAiCards = {};
+        try {
+          const aiResp = await fetch(`${base}/amicifc/aiCards.json`, { cache: 'no-store' });
+          if (aiResp.ok) cloudAiCards = await aiResp.json() || {};
+        } catch {}
+        // Fallback: leggi dal root
+        if (!Object.keys(cloudAiCards).length) {
+          try {
+            const rootResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+            if (rootResp.ok) { const d = await rootResp.json(); cloudAiCards = d?.aiCards || {}; }
+          } catch {}
         }
-        const cloudGroups = cloudData?.groups
-          ? (Array.isArray(cloudData.groups) ? cloudData.groups : Object.values(cloudData.groups))
-          : [];
 
-        // ── 2. Costruisci payload locale ──
-        const localGroups = [];
+        // Costruisci payload con i dati locali
+        const allGroups = [];
         for (const g of groups.value) {
-          const localPlayers = await db.players.where('groupId').equals(g.id).toArray();
-          const localMatches = await db.matches.where('groupId').equals(g.id).toArray();
-
-          // Costruisci set di matchUUID locali per lookup rapido
-          const localMatchUUIDs = new Set(localMatches.map(m => m.matchUUID).filter(Boolean));
-
-          // Trova il gruppo cloud corrispondente (stesso nome)
-          const cloudEntry = cloudGroups.find(e => (e.group?.nome || e.nome) === g.nome);
-          const cloudMatches = cloudEntry
-            ? (Array.isArray(cloudEntry.matches) ? cloudEntry.matches : Object.values(cloudEntry.matches || {}))
-            : [];
-
-          // ── MERGE: aggiungi partite cloud che non ho in locale ──
-          // Queste sono partite inserite da altri utenti che non ho ancora scaricato
-          const mergedMatches = [...localMatches];
-          for (const cm of cloudMatches) {
-            if (!cm) continue;
-            const cmUUID = cm.matchUUID;
-            // Se la partita cloud ha matchUUID e non ce l'ho in locale → la aggiungo al payload
-            if (cmUUID && !localMatchUUIDs.has(cmUUID)) {
-              mergedMatches.push(cm);
-              logEvent('info', 'sync', `Merge: partita cloud ${cmUUID.slice(0,8)} aggiunta al payload`);
-            }
-            // Fallback per partite senza matchUUID: confronto data+score
-            if (!cmUUID) {
-              const exists = localMatches.some(lm =>
-                lm.data === cm.data &&
-                lm.risultato?.goalA === cm.risultato?.goalA &&
-                lm.risultato?.goalB === cm.risultato?.goalB &&
-                (lm.nomeSquadraA||'') === (cm.nomeSquadraA||'')
-              );
-              if (!exists) mergedMatches.push(cm);
-            }
-          }
-
-          localGroups.push({ group: g, players: localPlayers, matches: mergedMatches });
+          const players = await db.players.where('groupId').equals(g.id).toArray();
+          const matches  = await db.matches.where('groupId').equals(g.id).toArray();
+          allGroups.push({ group: g, players, matches });
         }
 
-        // ── 3. PUT del payload unito ──
         const payload = {
           lastUpdate: new Date().toISOString(),
           appVersion: appVersion.value,
-          groups: localGroups,
-          aiCards: cloudData?.aiCards || {}  // preserva sempre le AI cards cloud
+          groups: allGroups,
+          aiCards: cloudAiCards
         };
 
         let resp = await fetch(`${base}.json${authSuffix}`, {
@@ -8669,9 +8671,13 @@ Niente altro, nessuna spiegazione.`;
         });
 
         if (resp.status === 401) {
-          logEvent('info', 'sync', 'Token scaduto, rinnovo...');
           const refreshed = await refreshFirebaseToken();
-          if (!refreshed) throw new Error('Sessione scaduta. Esegui nuovamente il login.');
+          if (!refreshed) {
+            firebaseUser.value = null; fbIdToken.value = '';
+            localStorage.removeItem('amicifc_fb_user');
+            localStorage.removeItem('amicifc_fb_token');
+            throw new Error('Sessione scaduta. Esegui nuovamente il login.');
+          }
           resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -8682,7 +8688,7 @@ Niente altro, nessuna spiegazione.`;
 
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
-        logEvent('info', 'sync', `Upload OK: ${localGroups.reduce((s,g)=>s+g.matches.length,0)} partite su Firebase`);
+        logEvent('info', 'sync', `Upload OK: ${allGroups.reduce((s,g)=>s+g.matches.length,0)} partite`);
         toast('✅ Dati caricati sul cloud!');
       } catch (e) {
         logEvent('error', 'sync', 'syncToCloud: ' + e.message);
@@ -10185,6 +10191,151 @@ const toggleFont = () => {
       }
     };
 
+    // ── Restore from backup JSON ──
+    const restoreStatus = ref('');
+
+    const forceRecomputeStats = async () => {
+      if (!currentGroup.value) return;
+      restoreStatus.value = '⏳ Ricalcolo in corso...';
+      try {
+        await recomputeStats();
+        await loadGroupData();
+        restoreStatus.value = '✅ Statistiche ricalcolate correttamente!';
+        toast('✅ Statistiche ricalcolate!', 'success', 3000);
+      } catch(e) {
+        restoreStatus.value = '❌ Errore: ' + e.message;
+      }
+    };
+
+    const restoreFromBackup = async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+      if (!currentGroup.value) { toast('Nessun gruppo attivo', 'error'); return; }
+
+      const confirmMsg =
+        '⚠️ RIPRISTINO DA BACKUP
+
+' +
+        'Questa operazione:
+' +
+        '1. Cancella tutte le partite e i giocatori locali del gruppo
+' +
+        '2. Reimporta i dati dal file JSON con UUID freschi
+' +
+        '3. Ricalcola le statistiche
+' +
+        '4. Carica tutto su Firebase
+
+' +
+        'File: ' + file.name + '
+
+' +
+        'Sei sicuro?';
+      if (!confirm(confirmMsg)) { event.target.value = ''; return; }
+
+      restoreStatus.value = '⏳ Lettura file...';
+      try {
+        // Read file
+        const text = await file.text();
+        const backup = JSON.parse(text);
+
+        // Find the group data in backup
+        const rawGroups = backup.groups
+          ? (Array.isArray(backup.groups) ? backup.groups : Object.values(backup.groups))
+          : [];
+        if (!rawGroups.length) throw new Error('Nessun gruppo nel file JSON');
+
+        // Find matching group (by name) or use first
+        const gNome = currentGroup.value.nome;
+        const backupEntry = rawGroups.find(e => (e.group?.nome || e.nome) === gNome)
+          || rawGroups[0];
+
+        const backupGroup  = backupEntry.group || backupEntry;
+        const backupPlayers = Array.isArray(backupEntry.players) ? backupEntry.players
+          : Object.values(backupEntry.players || {});
+        const backupMatches = Array.isArray(backupEntry.matches) ? backupEntry.matches
+          : Object.values(backupEntry.matches || {});
+
+        restoreStatus.value = `⏳ Trovati ${backupPlayers.length} giocatori e ${backupMatches.length} partite...`;
+
+        const gid = currentGroup.value.id;
+        const nowMs = Date.now();
+
+        // Step 1: delete all local data for this group
+        restoreStatus.value = '⏳ Cancellazione dati locali...';
+        await db.players.where('groupId').equals(gid).delete();
+        await db.matches.where('groupId').equals(gid).delete();
+
+        // Step 2: reimport players with fresh uid if missing
+        const uidMap = {}; // old id → new local id
+        for (const p of backupPlayers) {
+          if (!p) continue;
+          const freshUid = p.uid || uuid();
+          const { id: _oldId, groupId: _gid, ...pRest } = p;
+          const newId = await db.players.add({
+            ...pRest,
+            uid: freshUid,
+            groupId: gid,
+            updatedAt: p.updatedAt || nowMs
+          });
+          if (_oldId !== undefined) uidMap[String(_oldId)] = newId;
+        }
+
+        restoreStatus.value = `⏳ ${backupPlayers.length} giocatori importati. Importo partite...`;
+
+        // Step 3: reimport matches with fresh matchUUID, remap player IDs
+        const remapId = pid => uidMap[String(pid)] !== undefined ? uidMap[String(pid)] : pid;
+        let importedMatches = 0;
+        for (const m of backupMatches) {
+          if (!m) continue;
+          const { id: _oldId, groupId: _gid, ...mRest } = m;
+          await db.matches.add({
+            ...mRest,
+            matchUUID: uuid(), // always fresh UUID to avoid any duplicate
+            groupId: gid,
+            updatedAt: nowMs,
+            squadraA: (mRest.squadraA || []).map(remapId),
+            squadraB: (mRest.squadraB || []).map(remapId),
+            statisticheGiocatori: (mRest.statisticheGiocatori || []).map(s => ({
+              ...s, playerId: remapId(s.playerId)
+            }))
+          });
+          importedMatches++;
+        }
+
+        restoreStatus.value = `⏳ ${importedMatches} partite importate. Ricalcolo statistiche...`;
+
+        // Step 4: recompute stats from scratch
+        await recomputeStats();
+        await loadGroups();
+        await loadGroupData();
+
+        restoreStatus.value = `✅ Ripristino completato!
+${backupPlayers.length} giocatori · ${importedMatches} partite
+Caricamento su Firebase...`;
+
+        // Step 5: upload to Firebase
+        if (currentGroup.value?.firebaseUrl) {
+          syncToCloud().then(() => {
+            restoreStatus.value = `✅ Ripristino completato e sincronizzato!
+${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
+            toast('✅ Ripristino completato!', 'success', 5000);
+          }).catch(e => {
+            restoreStatus.value += '
+⚠️ Sync Firebase fallito: ' + e.message + '
+Premi Sincronizza manualmente.';
+          });
+        } else {
+          toast('✅ Ripristino locale completato!', 'success', 5000);
+        }
+
+      } catch(e) {
+        restoreStatus.value = '❌ Errore: ' + e.message;
+        logEvent('error', 'restore', e.message);
+      }
+      event.target.value = ''; // reset file input
+    };
+
     const resetData = async () => {
       if (!currentGroup.value) return;
       const nome = currentGroup.value.nome;
@@ -11512,6 +11663,7 @@ const toggleFont = () => {
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
       syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
+      restoreStatus, restoreFromBackup, forceRecomputeStats,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
