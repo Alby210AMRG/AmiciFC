@@ -8237,8 +8237,8 @@ Niente altro, nessuna spiegazione.`;
           titoloGiornale:         m.titoloGiornale,
           commentoAI:             m.commentoAI,
           noteAI:                 m.noteAI || '',
-          uomoPartita:            m.uomoPartita || null,
-          mvp:                    m.mvp || null,
+          uomoPartita:            m.uomoPartita ?? null,
+          mvp:                    m.mvp ?? null,
         });
         if (!updated) {
           logEvent('warn', 'match', 'Match update fallback a put per id=' + m.id);
@@ -8247,9 +8247,10 @@ Niente altro, nessuna spiegazione.`;
         showEditMatch.value = false;
         editingMatch.value  = null;
         toast('✅ Partita aggiornata', 'success');
-        autoSyncToCloud();
-        recomputeStats().catch(console.warn);
-        loadGroupData().catch(console.warn);
+        // Prima carica su Firebase, poi ricarica locale (evita che syncFromCloud sovrascriva)
+        try { await syncToCloud(); } catch(e) { logEvent('warn', 'match', 'sync dopo edit: ' + e.message); }
+        await recomputeStats().catch(console.warn);
+        await loadGroupData().catch(console.warn);
       } catch(e) {
         logEvent('error', 'match', 'saveEditMatch fallito: ' + e.message);
         console.error('saveEditMatch error:', e);
