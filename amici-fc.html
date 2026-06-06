@@ -5305,7 +5305,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.417',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.418',date:'2026-06-06',items:[
+      'Fix: toast "Inserisci URL Firebase" non appare più all avvio — migrazione eseguita dopo selectGroup',
+      'Fix: syncToCloud e syncFromCloud silenziosamente ignorati se Firebase non configurato',
+    ]},{version:'v1.417',date:'2026-06-06',items:[
       'Fix DEFINITIVO: migrazione automatica playerId numerici → uid in tutte le partite (locale + Firebase)',
       'Fix: recomputeStats semplificato — nessuna patch, solo uid ovunque',
       'Migrazione eseguita una volta al primo avvio, poi dati sempre coerenti',
@@ -5723,7 +5726,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.417');
+    const appVersion = ref('1.418');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8909,8 +8912,10 @@ Niente altro, nessuna spiegazione.`;
 
         if (migrated > 0) {
           logEvent('info', 'migrate', `✅ Migrati ${migrated} match: playerId → uid`);
-          // Aggiorna anche Firebase se configurato
-          try { await syncToCloud(); } catch(e) {}
+          // Aggiorna Firebase solo se configurato — silenzioso, no toast
+          if (currentGroup.value?.firebaseUrl) {
+            try { await syncToCloud(); } catch(e) {}
+          }
         } else {
           logEvent('info', 'migrate', '✅ Nessuna migrazione playerId necessaria');
         }
@@ -9075,7 +9080,7 @@ Niente altro, nessuna spiegazione.`;
     // Il sync in lettura (syncFromCloud) si occupa di scaricare le partite altrui
     const syncToCloud = async () => {
       const base = getFirebaseBase();
-      if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
+      if (!base) return; // Firebase non configurato — silenzioso
       if (!fbIdToken.value && !firebaseUser.value) {
         return toast('⚠️ Devi fare il login per caricare dati.', 'error');
       }
@@ -9174,7 +9179,7 @@ Niente altro, nessuna spiegazione.`;
         const syncFromCloud = async (force=false) => {
           if (_syncInProgress) return;
           const base = getFirebaseBase();
-          if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
+          if (!base) return; // Firebase non configurato — silenzioso
           _syncInProgress = true;
           syncLoading.value = true;
           setSyncStatus('syncing');
@@ -10886,7 +10891,6 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
       await repairPlayerUids();
       await _migrateMatchUUIDs();
-      await _migratePlayerIdsToUid(); // One-time: converte playerId → uid in tutte le partite // One-time: assign matchUUID to existing matches
 
       const lastGid = localStorage.getItem('amicifc_group');
       if (lastGid) {
@@ -10895,6 +10899,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       } else if (groups.value.length > 0) {
         await selectGroup(groups.value[0]);
       }
+
+      // Migrazione DOPO selectGroup — currentGroup è già caricato con firebaseUrl
+      await _migratePlayerIdsToUid();
 
 
       // ── MIGRATE: Move global Firebase URL to current group (one-time) ──
