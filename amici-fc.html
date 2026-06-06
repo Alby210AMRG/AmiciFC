@@ -5305,7 +5305,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.424',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.425',date:'2026-06-06',items:[
+      'Fix DEFINITIVO statistiche: rimossa repairPlayerUids che sovrascriveva uid Firebase con uuid casuali',
+      'Fix: uid giocatori sempre coerenti con Firebase dopo sync — statistiche ora corrette',
+    ]},{version:'v1.424',date:'2026-06-06',items:[
       'Debug: stack trace nel log sync per identificare doppio sync',
     ]},{version:'v1.423',date:'2026-06-06',items:[
       'Fix CRITICO: repairPlayerUids spostata dopo syncFromCloud — uid coerenti con Firebase',
@@ -5742,7 +5745,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.424');
+    const appVersion = ref('1.425');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9213,8 +9216,7 @@ Niente altro, nessuna spiegazione.`;
           _syncInProgress = true;
           syncLoading.value = true;
           setSyncStatus('syncing');
-          const _caller = new Error().stack.split('\n').slice(1,3).join(' | ').substring(0,120);
-          logEvent('info', 'sync', 'Sync da Firebase — caller: ' + _caller);
+          logEvent('info', 'sync', 'Sync da Firebase (firebase è la fonte di verità)');
           try {
             const _token = await getValidToken();
             const _xhrFetch = (url) => new Promise((res, rej) => {
@@ -9284,12 +9286,7 @@ Niente altro, nessuna spiegazione.`;
                 const _sqA = toArr(cm.squadraA);
                 const _sqB = toArr(cm.squadraB);
                 const _stats = toArr(cm.statisticheGiocatori);
-                // Log prima partita per debug
-                if (syncedMatches === 0) {
-                  logEvent('info','sync',`RAW squadraA tipo=${typeof cm.squadraA} isArr=${Array.isArray(cm.squadraA)} val=${JSON.stringify(cm.squadraA).substring(0,80)}`);
-                  logEvent('info','sync',`CONV squadraA len=${_sqA.length} [0]=${_sqA[0]}`);
-                  logEvent('info','sync',`RAW stats tipo=${typeof cm.statisticheGiocatori} isArr=${Array.isArray(cm.statisticheGiocatori)} len=${_stats.length}`);
-                }
+
                 await db.matches.add({
                   ...cm,
                   groupId: gid,
@@ -10584,32 +10581,12 @@ const toggleFont = () => {
       if (!currentGroup.value) return;
       restoreStatus.value = `⏳ Ricalcolo in corso...`;
       try {
-        // Diagnostica pre-ricalcolo
-        const _diagPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
-        const _diagMatches = await db.matches.where('groupId').equals(currentGroup.value.id).toArray();
-        const _m0 = _diagMatches[0];
-        const _samplePid = _m0?.statisticheGiocatori?.[0]?.playerId;
-        const _sampleUid = _diagPlayers[0]?.uid;
-        const _sqA0 = _m0?.squadraA?.[0];
-        const _sqAtype = typeof _m0?.squadraA;
-        const _sqAisArr = Array.isArray(_m0?.squadraA);
-        const _statsType = typeof _m0?.statisticheGiocatori;
-        const _statsIsArr = Array.isArray(_m0?.statisticheGiocatori);
-        logEvent('info', 'stats', `Diagnostica: ${_diagPlayers.length} giocatori, ${_diagMatches.length} partite, groupId=${currentGroup.value.id}`);
-        logEvent('info', 'stats', `uid[0]="${_sampleUid}"`);
-        logEvent('info', 'stats', `squadraA tipo=${_sqAtype} isArray=${_sqAisArr} length=${_m0?.squadraA?.length} [0]="${_sqA0}"`);
-        logEvent('info', 'stats', `statisticheGiocatori tipo=${_statsType} isArray=${_statsIsArr} length=${_m0?.statisticheGiocatori?.length} playerId[0]="${_samplePid}"`);
-        // Stampa la partita grezza completa
-        logEvent('info', 'stats', `PARTITA RAW: ${JSON.stringify(_m0).substring(0,300)}`);
+
 
         await recomputeStats();
         await loadGroupData();
 
-        // Diagnostica post-ricalcolo
-        const _postPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
-        const _totGoal = _postPlayers.reduce((s,p) => s+(p.goalTotali||0), 0);
-        const _totPartite = _postPlayers.reduce((s,p) => s+(p.partiteTotali||0), 0);
-        logEvent('info', 'stats', `Post-ricalcolo: goal totali=${_totGoal}, partite-giocatore=${_totPartite}`);
+
 
         restoreStatus.value = `✅ Statistiche ricalcolate! (${_diagPlayers.length} giocatori, ${_diagMatches.length} partite)`;
         toast(`✅ Statistiche ricalcolate!`, `success`, 3000);
@@ -11047,8 +11024,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
 
-      // repairPlayerUids DOPO sync: usa gli uid reali da Firebase
-      await repairPlayerUids();
+      // repairPlayerUids rimossa: syncFromCloud garantisce uid corretti da Firebase
       // ── Sync pendente: se il precedente upload è fallito, riprova ──
       if (currentGroup.value?.firebaseUrl) {
         const _pendingKey = 'amicifc_pending_sync_'+currentGroup.value.id;
