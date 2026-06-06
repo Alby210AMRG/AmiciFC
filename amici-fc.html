@@ -3420,7 +3420,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <span style="font-size:0.72rem;color:var(--red)">🔴 {{appLogs.filter(l=>l.level==='error').length}}</span>
           <span style="font-size:0.72rem;color:var(--yellow)">🟡 {{appLogs.filter(l=>l.level==='warn').length}}</span>
           <span style="font-size:0.72rem;color:var(--lime)">🟢 {{appLogs.filter(l=>l.level==='info').length}}</span>
-          <span style="font-size:0.72rem;color:var(--text2);margin-left:2px">· {{appLogs.length}}/150</span>
+          <span style="font-size:0.72rem;color:var(--text2);margin-left:2px">· {{appLogs.length}}/250</span>
           <div style="margin-left:auto;display:flex;gap:6px">
             <button class="btn btn-ghost btn-sm" @click="copyLogs" :disabled="!appLogs.length" style="padding:4px 10px;font-size:0.72rem">📋 Copia</button>
             <button class="btn btn-ghost btn-sm" @click="clearLogs" :disabled="!appLogs.length" style="padding:4px 10px;font-size:0.72rem;color:var(--red);border-color:rgba(255,77,77,0.3)">🗑️ Pulisci</button>
@@ -3836,7 +3836,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="btn btn-ghost btn-full" @click="showLogModal=true"
             style="display:flex;align-items:center;justify-content:space-between;border-color:rgba(255,255,255,0.15)">
             <span>📋 Log di sistema</span>
-            <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}}/150 voci →</span>
+            <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}}/250 voci →</span>
           </button>
 
           <!-- ── Ottimizza Foto ── -->
@@ -5145,7 +5145,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.405',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.406',date:'2026-06-06',items:[
+      'Fix: log di sistema — buffer reale ora 250 voci (costante LOG_MAX e UI allineate)',
+    ]},{version:'v1.405',date:'2026-06-06',items:[
       'UI: icona nuvola ☁️ con animazione durante sync (pulse), flash verde OK, shake giallo errore',
       'UI: toast di sync routine rimossi — solo log (buffer aumentato a 250 entry)',
       'Fix: syncToCloud non sovrascriveva più le aiCards — path corretto',
@@ -5520,7 +5522,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.405');
+    const appVersion = ref('1.406');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11461,7 +11463,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
 
     // ── LOG DI SISTEMA ──
-    const LOG_MAX = 150;
+    const LOG_MAX = 250;
     const LOG_DEDUP_MS = 10 * 60 * 1000;
     const logFilter = ref('all'); // all | error | warn | info | ai | sync | app
 
