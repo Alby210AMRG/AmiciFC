@@ -9211,7 +9211,8 @@ Niente altro, nessuna spiegazione.`;
           _syncInProgress = true;
           syncLoading.value = true;
           setSyncStatus('syncing');
-          logEvent('info', 'sync', 'Sync da Firebase (firebase è la fonte di verità)');
+          const _caller = new Error().stack.split('\n').slice(1,3).join(' | ').substring(0,120);
+          logEvent('info', 'sync', 'Sync da Firebase — caller: ' + _caller);
           try {
             const _token = await getValidToken();
             const _xhrFetch = (url) => new Promise((res, rej) => {
