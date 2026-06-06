@@ -5305,7 +5305,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.420',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.421',date:'2026-06-06',items:[
+      'Fix CRITICO: players e matches da Firebase erano oggetti non array — ora normalizzati con toArr()',
+      'Fix: statistiche finalmente corrette dopo sync da Firebase',
+    ]},{version:'v1.420',date:'2026-06-06',items:[
       'Fix CRITICO: Firebase restituisce array come oggetti — normalizzazione automatica al sync',
       'Fix: squadraA, squadraB, statisticheGiocatori ora sempre array dopo syncFromCloud',
       'Fix: storicoPartite, rivali, affinita giocatori normalizzati da oggetto a array',
@@ -5732,7 +5735,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.420');
+    const appVersion = ref('1.421');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9242,7 +9245,8 @@ Niente altro, nessuna spiegazione.`;
 
               // ── REIMPORTA GIOCATORI da Firebase ──
               // Conserva l'id originale di Firebase — niente rimappatura
-              const cloudPlayers = eg.players || [];
+              // toArr: Firebase converte array in oggetti {"0":..} — lo riconvertiamo
+              const cloudPlayers = toArr(eg.players);
               for (const cp of cloudPlayers) {
                 if (!cp) continue;
                 await db.players.add({
@@ -9258,7 +9262,7 @@ Niente altro, nessuna spiegazione.`;
 
               // ── REIMPORTA PARTITE da Firebase ──
               // squadraA/B e playerId rimangono identici a Firebase — niente rimappatura
-              const cloudMatches = eg.matches || [];
+              const cloudMatches = toArr(eg.matches);
               logEvent('info', 'sync', `Firebase: ${cloudPlayers.length} giocatori, ${cloudMatches.length} partite`);
 
               for (const cm of cloudMatches) {
@@ -10564,11 +10568,18 @@ const toggleFont = () => {
         // Diagnostica pre-ricalcolo
         const _diagPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
         const _diagMatches = await db.matches.where('groupId').equals(currentGroup.value.id).toArray();
-        const _samplePid = _diagMatches[0]?.statisticheGiocatori?.[0]?.playerId;
+        const _m0 = _diagMatches[0];
+        const _samplePid = _m0?.statisticheGiocatori?.[0]?.playerId;
         const _sampleUid = _diagPlayers[0]?.uid;
+        const _sqA0 = _m0?.squadraA?.[0];
+        const _sqAtype = typeof _m0?.squadraA;
+        const _sqAisArr = Array.isArray(_m0?.squadraA);
+        const _statsType = typeof _m0?.statisticheGiocatori;
+        const _statsIsArr = Array.isArray(_m0?.statisticheGiocatori);
         logEvent('info', 'stats', `Diagnostica: ${_diagPlayers.length} giocatori, ${_diagMatches.length} partite, groupId=${currentGroup.value.id}`);
-        logEvent('info', 'stats', `Sample playerId="${_samplePid}" | Sample uid="${_sampleUid}"`);
-        logEvent('info', 'stats', `squadraA[0]="${_diagMatches[0]?.squadraA?.[0]}"`);
+        logEvent('info', 'stats', `uid[0]="${_sampleUid}"`);
+        logEvent('info', 'stats', `squadraA tipo=${_sqAtype} isArray=${_sqAisArr} [0]="${_sqA0}"`);
+        logEvent('info', 'stats', `statisticheGiocatori tipo=${_statsType} isArray=${_statsIsArr} playerId[0]="${_samplePid}"`);
 
         await recomputeStats();
         await loadGroupData();
