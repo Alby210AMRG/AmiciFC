@@ -5305,7 +5305,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.426',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.427',date:'2026-06-06',items:[
+      'Fix DEFINITIVO statistiche: rimossa repairMatchPlayerIds che svuotava squadraA/B dopo il sync',
+      'Questa funzione filtrava via gli UUID dalle squadre cercando vecchi id numerici',
+    ]},{version:'v1.426',date:'2026-06-06',items:[
       'Fix: errore JS in Ricalcola Statistiche — riferimento a variabile diagnostica rimossa',
     ]},{version:'v1.425',date:'2026-06-06',items:[
       'Fix DEFINITIVO statistiche: rimossa repairPlayerUids che sovrascriveva uid Firebase con uuid casuali',
@@ -5747,7 +5750,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.426');
+    const appVersion = ref('1.427');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5980,7 +5983,6 @@ createApp({
       await loadAllGroupsCache();
       if (groupMatches.value.length > 0) {
         try { await recomputeStats(); } catch(e) { console.warn('recomputeStats error:', e); }
-        try { await repairMatchPlayerIds(); } catch(e) {}
         _scheduleNewsCompute();
       }
       if (!_syncInProgress) _scheduleInitAiCards();
@@ -10873,40 +10875,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       }
     };
 
-    
-    // ── One-time repair: remap stale player IDs in existing matches ──
-    const repairMatchPlayerIds = async () => {
-      if (!currentGroup.value) return;
-      const gid = currentGroup.value.id;
-      const players = await db.players.where('groupId').equals(gid).toArray();
-      const matches = await db.matches.where('groupId').equals(gid).toArray();
-      let fixed = 0;
-      for (const m of matches) {
-        let changed = false;
-        const newStats = (m.statisticheGiocatori||[]).map(s => {
-          const exists = players.find(p => p.id === s.playerId);
-          if (exists) return s;
-          const allPids = [...(m.squadraA||[]), ...(m.squadraB||[])];
-          const validPid = allPids.find(pid => players.find(p => p.id === pid) && pid === s.playerId);
-          if (validPid) return s;
-          changed = true;
-          return null; // will be filtered out
-        }).filter(Boolean);
-        
-        const newA = (m.squadraA||[]).filter(pid => players.find(p => p.id === pid));
-        const newB = (m.squadraB||[]).filter(pid => players.find(p => p.id === pid));
-        
-        if (changed || newA.length !== (m.squadraA||[]).length || newB.length !== (m.squadraB||[]).length) {
-          await db.matches.update(m.id, {
-            statisticheGiocatori: newStats,
-            squadraA: newA,
-            squadraB: newB
-          });
-          fixed++;
-        }
-      }
-      if (fixed > 0) logEvent('info','app',`Repaired ${fixed} player UIDs`);
-    };
+
 
         onMounted(async () => {
       _startHeroTicker();
