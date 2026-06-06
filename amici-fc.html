@@ -3794,158 +3794,193 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
 
 <!-- CREDITI -->
-      <!-- ── Versione App ── -->
+      <!-- ── Versione App + Log + Crediti ── -->
       <div class="card">
-        <div class="card-title">ℹ️ Versione App</div>
-        <div style="font-size:0.85rem;color:var(--text2)">
+        <div class="card-title">ℹ️ Info &amp; Diagnostica</div>
+        <!-- Versione -->
+        <div style="font-size:0.85rem;color:var(--text2);margin-bottom:10px">
           <div>Versione: <strong style="color:var(--lime)">{{ appVersion }}</strong></div>
           <div>Aggiornamento: <strong>{{ appDate }}</strong></div>
         </div>
-        <div style="display:flex;gap:6px;margin-top:12px">
+        <div style="display:flex;gap:6px;margin-bottom:12px">
           <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:0.72rem" @click="checkForUpdates">🔄 Aggiornamenti</button>
           <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:0.72rem;color:var(--lime)" @click="showChangelog=true">📋 Novità</button>
           <button class="btn btn-ghost btn-sm" style="flex:1;justify-content:center;font-size:0.72rem;color:var(--yellow)" @click="forceUpdate">⚡ Forza</button>
         </div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:6px;line-height:1.5">
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:14px;line-height:1.5">
           💡 <strong>I dati non vengono cancellati.</strong> Svuota solo la cache dell'app.<br>
           Utile se l'app installata su mobile non si aggiorna automaticamente.
         </div>
-      </div>
-
-      <!-- ── ZONA PERICOLO (collassabile, contiene tutto il contenuto avanzato) ── -->
-      <div class="card" style="border-color:rgba(255,77,77,0.35);padding:0;overflow:hidden">
-        <!-- Header cliccabile -->
-        <div @click="zonaPericoloExpanded=!zonaPericoloExpanded"
-          style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none">
-          <div style="display:flex;align-items:center;gap:8px">
-            <span style="font-size:1.1rem">⚠️</span>
-            <span style="font-weight:700;color:var(--red);font-size:0.95rem">Zona Pericolo</span>
-            <span v-if="appLogs.filter(l=>l.level==='error').length>0"
-              style="background:var(--red);color:#fff;border-radius:10px;padding:1px 8px;font-size:0.68rem;font-weight:700">
-              {{appLogs.filter(l=>l.level==='error').length}} err
-            </span>
-          </div>
-          <span style="color:var(--text2);font-size:0.85rem;transition:transform .25s"
-            :style="zonaPericoloExpanded?'transform:rotate(180deg)':''">▼</span>
-        </div>
-
-        <!-- Contenuto espandibile -->
-        <div v-show="zonaPericoloExpanded" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:14px">
-
-          <!-- ── Log di sistema ── -->
+        <!-- Log di sistema -->
+        <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px;margin-bottom:14px">
           <button class="btn btn-ghost btn-full" @click="showLogModal=true"
             style="display:flex;align-items:center;justify-content:space-between;border-color:rgba(255,255,255,0.15)">
             <span>📋 Log di sistema</span>
-            <span style="color:var(--text2);font-size:0.75rem">{{appLogs.length}}/250 voci →</span>
+            <span style="color:var(--text2);font-size:0.75rem">
+              <span v-if="appLogs.filter(l=>l.level==='error').length>0" style="color:var(--red);margin-right:4px">🔴 {{appLogs.filter(l=>l.level==='error').length}} err</span>
+              {{appLogs.length}}/250 →
+            </span>
           </button>
-
-          <!-- ── Ottimizza Foto ── -->
-          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--blue);margin-bottom:6px">🖼️ Ottimizza Foto Giocatori</div>
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
-              Ridimensiona le foto a max 400px · qualità 75% · riduce spazio Firebase.
-            </div>
-            <button class="btn btn-primary btn-full" @click="optimizePlayerPhotos" :disabled="optimizingPhotos">
-              {{ optimizingPhotos ? '⏳ Ottimizzazione in corso...' : '✨ Ottimizza Foto' }}
-            </button>
-            <div v-if="optimizeResult" style="margin-top:6px;font-size:0.78rem;color:var(--lime)">{{ optimizeResult }}</div>
-          </div>
-
-          <!-- ── Generazione AI Cards ── -->
-          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
-            <div style="font-size:0.78rem;font-weight:700;color:#2dd4bf;margin-bottom:4px">🤖 Generazione AI Cards</div>
-            <div style="font-size:0.65rem;color:rgba(255,255,255,.4);margin-bottom:10px">
-              Forza la (ri)generazione delle card AI. Richiede API key configurata. Il log è visibile nel pannello 📋 Log.
-            </div>
-            <!-- Stato card -->
-            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
-                <div style="color:rgba(255,100,100,.7);font-weight:700;margin-bottom:2px">🔥 Trash Talk</div>
-                <div :style="aiCardsTrashTalk.length?'color:#4ade80':'color:#f87171'">
-                  {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card' : 'nessuna'}}
-                </div>
-              </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
-                <div style="color:rgba(251,191,36,.7);font-weight:700;margin-bottom:2px">👑 Hall of Fame</div>
-                <div :style="aiCardsHallOfFame?'color:#4ade80':'color:#f87171'">
-                  {{aiCardsHallOfFame ? '✓ '+aiCardsHallOfFame.mese : 'non generata'}}
-                </div>
-              </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
-                <div style="color:rgba(45,212,191,.7);font-weight:700;margin-bottom:2px">🧬 Soprannomi</div>
-                <div :style="Object.keys(aiNicknames).length?'color:#4ade80':'color:#f87171'">
-                  {{Object.keys(aiNicknames).length}} / {{groupPlayers.filter(p=>(p.partiteTotali||0)>=3).length}}
-                </div>
-              </div>
-            </div>
-            <!-- Bottoni forzatura -->
-            <div style="display:flex;flex-wrap:wrap;gap:6px">
-              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(255,100,100,.35)"
-                @click="forceTrashTalk">
-                🔥 Rigenera Trash Talk
-              </button>
-              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(251,191,36,.35)"
-                @click="forceHallOfFame">
-                👑 Rigenera Hall of Fame
-              </button>
-              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(45,212,191,.35)"
-                @click="forceSoprannomi">
-                🧬 Rigenera Soprannomi
-              </button>
-            </div>
-          </div>
-
-          <!-- ── Ripristino da Backup ── -->
-          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--orange);margin-bottom:4px">♻️ Ripristina da Backup JSON</div>
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
-              Importa un JSON esportato dall'app e sovrascrive Firebase con i dati puliti.
-              Usa se le statistiche sono gonfiate o i dati sono corrotti.
-            </div>
-            <button class="btn btn-full btn-sm" style="background:rgba(255,140,60,0.15);border:1.5px solid var(--orange);color:var(--orange);margin-bottom:6px"
-              @click="$refs.restoreFileInput.click()">
-              📂 Seleziona JSON di backup
-            </button>
-            <input type="file" ref="restoreFileInput" accept=".json" style="display:none" @change="restoreFromBackup($event)">
-            <div v-if="restoreStatus" style="font-size:0.72rem;margin-top:4px;line-height:1.5;white-space:pre-wrap"
-              :style="restoreStatus.startsWith('❌')?'color:var(--red)':restoreStatus.startsWith('✅')?'color:var(--lime)':'color:var(--text2)'">
-              {{ restoreStatus }}
-            </div>
-          </div>
-
-          <!-- ── Ricalcola Statistiche ── -->
-          <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px">
-            <div style="font-size:0.78rem;font-weight:700;color:var(--yellow);margin-bottom:4px">📊 Ricalcola Statistiche</div>
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
-              Ricalcola goal, assist, voti e tutti i contatori da zero partendo dalle partite locali.
-            </div>
-            <button class="btn btn-full btn-sm" style="background:rgba(255,217,61,0.12);border:1.5px solid var(--yellow);color:var(--yellow)"
-              @click="forceRecomputeStats">
-              📊 Ricalcola Statistiche
-            </button>
-          </div>
-
-          <!-- ── Reset ── -->
-          <div style="border-top:1px solid rgba(255,77,77,.2);padding-top:12px;display:flex;flex-direction:column;gap:8px">
-            <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
-            <button class="btn btn-full" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
-              ☢️ Reset Totale (come nuova installazione)
-            </button>
-            <div style="font-size:0.7rem;color:var(--text2);line-height:1.4">
-              ⚠️ Reset Totale cancella tutto localmente. I dati su Firebase <strong>non</strong> vengono toccati.
-            </div>
-          </div>
-
+        </div>
+        <!-- Crediti -->
+        <div style="border-top:1px solid rgba(255,255,255,.07);padding-top:12px;text-align:center">
+          <div style="font-size:1.5rem;margin-bottom:4px">⚽</div>
+          <div style="font-weight:800;font-size:1.05rem;color:var(--text1)">Amici FC</div>
+          <div style="font-size:0.75rem;color:var(--text2);margin:3px 0 6px;font-style:italic">Il Calcetto Manager Definitivo<br>dove i campioni nascono… e litigano!</div>
+          <div style="font-size:0.75rem;color:var(--text2)">Creato e sviluppato con ❤️ da <strong style="color:var(--text1)">Alby</strong></div>
         </div>
       </div>
 
+      <!-- ── ZONA PERICOLO ── -->
+      <div class="card" style="border-color:rgba(255,77,77,0.5);padding:0;overflow:hidden">
 
-<!-- CREDITI -->
-      <div class="card credits-card">
-        <span class="credits-logo">⚽</span>
-        <div class="credits-main">Amici FC</div>
-        <div class="credits-sub-tag">Il Calcetto Manager Definitivo<br>dove i campioni nascono… e litigano!</div>
-        <div class="credits-by">Creato e sviluppato con ❤️ da <strong style="color:var(--text1)">Alby</strong></div>
+        <!-- Step 1: Avviso + pulsante sblocco -->
+        <div v-if="!zonaPericoloUnlocked" style="padding:16px">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
+            <span style="font-size:1.3rem">⚠️</span>
+            <span style="font-weight:800;color:var(--red);font-size:1rem">Zona Pericolo</span>
+          </div>
+          <div style="font-size:0.78rem;color:var(--text2);line-height:1.6;margin-bottom:14px;background:rgba(255,77,77,0.06);border-radius:8px;padding:10px;border:1px solid rgba(255,77,77,0.2)">
+            ⛔ <strong style="color:var(--red)">Attenzione!</strong> Le azioni in questa sezione sono <strong>potenzialmente irreversibili</strong>.<br>
+            Alcune operazioni modificano o eliminano dati in modo permanente.<br>
+            Procedi solo se sai cosa stai facendo.
+          </div>
+          <button class="btn btn-full" :disabled="zonaPericoloCountdown>0"
+            style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red);font-weight:700"
+            @click="zonaPericoloCountdown===0 && (zonaPericoloUnlocked=true)">
+            {{ zonaPericoloCountdown > 0 ? '⏳ Attendi '+zonaPericoloCountdown+'s...' : '🔓 OK, Ho Capito — Accedi alla Zona Pericolo' }}
+          </button>
+        </div>
+
+        <!-- Step 2: Contenuto sbloccato -->
+        <div v-else>
+          <!-- Header con pulsante richiudi -->
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:rgba(255,77,77,0.08);border-bottom:1px solid rgba(255,77,77,0.2)">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span>⚠️</span>
+              <span style="font-weight:800;color:var(--red);font-size:0.95rem">Zona Pericolo</span>
+              <span style="font-size:0.65rem;color:var(--red);background:rgba(255,77,77,0.15);padding:2px 7px;border-radius:8px">SBLOCCATA</span>
+            </div>
+            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;color:var(--text2)" @click="zonaPericoloUnlocked=false">🔒 Richiudi</button>
+          </div>
+
+          <div style="padding:16px;display:flex;flex-direction:column;gap:4px">
+
+            <!-- Ottimizza Foto (collassabile) -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,255,255,.08)">
+              <div @click="zpSection='foto'===zpSection?null:'foto'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
+                <span style="font-size:0.82rem;font-weight:700;color:var(--blue)">🖼️ Ottimizza Foto Giocatori</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='foto'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='foto'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(255,255,255,.06)">
+                <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                  Ridimensiona le foto a max 400px · qualità 75% · riduce spazio Firebase.
+                </div>
+                <button class="btn btn-primary btn-full" @click="optimizePlayerPhotos" :disabled="optimizingPhotos">
+                  {{ optimizingPhotos ? '⏳ Ottimizzazione in corso...' : '✨ Ottimizza Foto' }}
+                </button>
+                <div v-if="optimizeResult" style="margin-top:6px;font-size:0.78rem;color:var(--lime)">{{ optimizeResult }}</div>
+              </div>
+            </div>
+
+            <!-- Generazione AI Cards (collassabile) -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,255,255,.08)">
+              <div @click="zpSection='ai'===zpSection?null:'ai'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
+                <span style="font-size:0.82rem;font-weight:700;color:#2dd4bf">🤖 Generazione AI Cards</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='ai'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='ai'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(255,255,255,.06)">
+                <div style="font-size:0.65rem;color:rgba(255,255,255,.4);margin-bottom:10px">
+                  Forza la (ri)generazione delle card AI. Richiede API key configurata.
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
+                  <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
+                    <div style="color:rgba(255,100,100,.7);font-weight:700;margin-bottom:2px">🔥 Trash Talk</div>
+                    <div :style="aiCardsTrashTalk.length?'color:#4ade80':'color:#f87171'">
+                      {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card' : 'nessuna'}}
+                    </div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
+                    <div style="color:rgba(251,191,36,.7);font-weight:700;margin-bottom:2px">👑 Hall of Fame</div>
+                    <div :style="aiCardsHallOfFame?'color:#4ade80':'color:#f87171'">
+                      {{aiCardsHallOfFame ? '✓ '+aiCardsHallOfFame.mese : 'non generata'}}
+                    </div>
+                  </div>
+                  <div style="background:rgba(255,255,255,.04);border-radius:7px;padding:6px;font-size:0.65rem;text-align:center">
+                    <div style="color:rgba(45,212,191,.7);font-weight:700;margin-bottom:2px">🧬 Soprannomi</div>
+                    <div :style="Object.keys(aiNicknames).length?'color:#4ade80':'color:#f87171'">
+                      {{Object.keys(aiNicknames).length}} / {{groupPlayers.filter(p=>(p.partiteTotali||0)>=3).length}}
+                    </div>
+                  </div>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:6px">
+                  <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(255,100,100,.35)" @click="forceTrashTalk">🔥 Rigenera Trash Talk</button>
+                  <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(251,191,36,.35)" @click="forceHallOfFame">👑 Rigenera Hall of Fame</button>
+                  <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(45,212,191,.35)" @click="forceSoprannomi">🧬 Rigenera Soprannomi</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ripristina da Backup JSON (collassabile) -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,140,60,.25)">
+              <div @click="zpSection='backup'===zpSection?null:'backup'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
+                <span style="font-size:0.82rem;font-weight:700;color:var(--orange)">♻️ Ripristina da Backup JSON</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='backup'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='backup'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(255,140,60,.15)">
+                <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                  Importa un JSON esportato dall'app e sovrascrive Firebase con i dati puliti.
+                  Usa se le statistiche sono gonfiate o i dati sono corrotti.
+                </div>
+                <button class="btn btn-full btn-sm" style="background:rgba(255,140,60,0.15);border:1.5px solid var(--orange);color:var(--orange);margin-bottom:6px"
+                  @click="$refs.restoreFileInput.click()">
+                  📂 Seleziona JSON di backup
+                </button>
+                <input type="file" ref="restoreFileInput" accept=".json" style="display:none" @change="restoreFromBackup($event)">
+                <div v-if="restoreStatus" style="font-size:0.72rem;margin-top:4px;line-height:1.5;white-space:pre-wrap"
+                  :style="restoreStatus.startsWith('❌')?'color:var(--red)':restoreStatus.startsWith('✅')?'color:var(--lime)':'color:var(--text2)'">
+                  {{ restoreStatus }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Ricalcola Statistiche (collassabile) -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,217,61,.25)">
+              <div @click="zpSection='stats'===zpSection?null:'stats'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
+                <span style="font-size:0.82rem;font-weight:700;color:var(--yellow)">📊 Ricalcola Statistiche</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='stats'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='stats'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(255,217,61,.15)">
+                <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                  Ricalcola goal, assist, voti e tutti i contatori da zero partendo dalle partite locali.
+                </div>
+                <button class="btn btn-full btn-sm" style="background:rgba(255,217,61,0.12);border:1.5px solid var(--yellow);color:var(--yellow)"
+                  @click="forceRecomputeStats">
+                  📊 Ricalcola Statistiche
+                </button>
+              </div>
+            </div>
+
+            <!-- Reset (collassabile) -->
+            <div style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,77,77,.4)">
+              <div @click="zpSection='reset'===zpSection?null:'reset'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,77,77,.05)">
+                <span style="font-size:0.82rem;font-weight:700;color:var(--red)">🗑️ Reset</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='reset'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='reset'" style="padding:12px;background:rgba(255,77,77,.03);border-top:1px solid rgba(255,77,77,.2);display:flex;flex-direction:column;gap:8px">
+                <div style="font-size:0.72rem;color:var(--text2);line-height:1.5;background:rgba(255,77,77,.08);padding:8px;border-radius:6px;border:1px solid rgba(255,77,77,.2)">
+                  ⚠️ Queste azioni eliminano dati locali in modo <strong>irreversibile</strong>.<br>
+                  I dati su Firebase <strong>non</strong> vengono toccati.
+                </div>
+                <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
+                <button class="btn btn-full" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
+                  ☢️ Reset Totale (come nuova installazione)
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       </div>
 
 </template>
@@ -5145,7 +5180,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.406',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.407',date:'2026-06-06',items:[
+      'UI: "Versione App" rinominata "Info & Diagnostica" — include Log di sistema e Crediti',
+      'UI: Zona Pericolo riorganizzata — avviso + countdown 3s + pulsante sblocco esplicito',
+      'UI: Zona Pericolo — sottosezioni collassabili (Foto, AI Cards, Backup, Statistiche, Reset)',
+      'UI: Zona Pericolo si blocca automaticamente quando si rientra nelle impostazioni',
+    ]},{version:'v1.406',date:'2026-06-06',items:[
       'Fix: log di sistema — buffer reale ora 250 voci (costante LOG_MAX e UI allineate)',
     ]},{version:'v1.405',date:'2026-06-06',items:[
       'UI: icona nuvola ☁️ con animazione durante sync (pulse), flash verde OK, shake giallo errore',
@@ -5522,7 +5562,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.406');
+    const appVersion = ref('1.407');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7270,7 +7310,26 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     // ══════════════════════════════════════════════════════════════
     const aiCardsTrashTalk    = ref([]);  // pool 3 card
     const aiCardsDebugLog     = ref([]);  // log debug AI cards
-    const zonaPericoloExpanded = ref(false);  // collapsible zona pericolo
+    const zonaPericoloExpanded  = ref(false);  // legacy (non usato)
+    const zonaPericoloUnlocked  = ref(false);  // true dopo aver premuto OK
+    const zonaPericoloCountdown = ref(3);       // countdown sblocco
+    const zpSection             = ref(null);    // sezione aperta ('foto'|'ai'|'backup'|'stats'|'reset')
+
+    // Avvia countdown quando la card viene montata la prima volta
+    // (si resetta se si richiude e riapre la pagina impostazioni)
+    const _startZPCountdown = () => {
+      zonaPericoloCountdown.value = 3;
+      zonaPericoloUnlocked.value = false;
+      zpSection.value = null;
+      const t = setInterval(() => {
+        if (zonaPericoloCountdown.value > 0) zonaPericoloCountdown.value--;
+        else clearInterval(t);
+      }, 1000);
+    };
+    _startZPCountdown();
+
+    // Resetta Zona Pericolo ogni volta che si apre la pagina impostazioni
+    Vue.watch(currentView, (v) => { if (v === 'settings') _startZPCountdown(); });
 
     const _aiLog = (tipo, msg, ok=true) => {
       const entry = { ts: new Date().toLocaleTimeString('it-IT'), tipo, msg, ok };
@@ -11693,7 +11752,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
     };
   }
 }).mount('#app');
