@@ -5123,7 +5123,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.403',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.404',date:'2026-06-06',items:[
+      'Fix CRITICO: syncFromCloud conserva id originali di Firebase — niente rimappatura id',
+      'Fix CRITICO: giocatori e partite in locale sono identici a Firebase (stesso id, stessi playerId)',
+      'Fix: path aiCards corretto in syncToCloud — TrashTalk e HoF non vengono più cancellate al sync',
+    ]},{version:'v1.403',date:'2026-06-06',items:[
       'Fix: soprannomi AI usano p.uid (UUID stabile multi-device) come chiave, non p.id Dexie',
       'Fix: migrazione pulisce chiavi vecchie (nome/soprannome/id-numerico) → uid su Firebase',
       'Fix: getPlayerNick cerca per uid come priorità assoluta',
@@ -5481,7 +5485,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.403');
+    const appVersion = ref('1.404');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8716,15 +8720,16 @@ Niente altro, nessuna spiegazione.`;
         const authSuffix = token ? `?auth=${token}` : '';
 
         // Leggi aiCards da Firebase per preservarle (non sono locali)
+        // base = ${url}/amicifc, quindi aiCards sta su ${base}/aiCards.json
         let cloudAiCards = {};
         try {
-          const aiResp = await fetch(`${base}/amicifc/aiCards.json`, { cache: 'no-store' });
+          const aiResp = await fetch(`${base}/aiCards.json`, { cache: 'no-store' });
           if (aiResp.ok) cloudAiCards = await aiResp.json() || {};
         } catch {}
-        // Fallback: leggi dal root
+        // Fallback: leggi dal root completo
         if (!Object.keys(cloudAiCards).length) {
           try {
-            const rootResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+            const rootResp = await fetch(`${base}.json`, { cache: 'no-store' });
             if (rootResp.ok) { const d = await rootResp.json(); cloudAiCards = d?.aiCards || {}; }
           } catch {}
         }
@@ -8849,41 +8854,29 @@ Niente altro, nessuna spiegazione.`;
               await db.matches.where('groupId').equals(gid).delete();
 
               // ── REIMPORTA GIOCATORI da Firebase ──
+              // Conserva l'id originale di Firebase — niente rimappatura
               const cloudPlayers = eg.players || [];
-              const idMap = {}; // cloud id → nuovo id locale
               for (const cp of cloudPlayers) {
                 if (!cp) continue;
-                const { id: oldId, groupId: _gid, ...pRest } = cp;
-                const newId = await db.players.add({
-                  ...pRest,
-                  uid: cp.uid || uuid(),
-                  groupId: gid
+                await db.players.add({
+                  ...cp,
+                  groupId: gid,
+                  uid: cp.uid || uuid()
                 });
-                if (oldId !== undefined) idMap[String(oldId)] = newId;
                 syncedPlayers++;
               }
 
               // ── REIMPORTA PARTITE da Firebase ──
+              // squadraA/B e playerId rimangono identici a Firebase — niente rimappatura
               const cloudMatches = eg.matches || [];
               logEvent('info', 'sync', `Firebase: ${cloudPlayers.length} giocatori, ${cloudMatches.length} partite`);
 
-              const remapId = pid => {
-                const mapped = idMap[String(pid)];
-                return mapped !== undefined ? mapped : pid;
-              };
-
               for (const cm of cloudMatches) {
                 if (!cm) continue;
-                const { id: _lid, groupId: _gid2, ...mRest } = cm;
                 await db.matches.add({
-                  ...mRest,
-                  matchUUID: cm.matchUUID || uuid(),
+                  ...cm,
                   groupId: gid,
-                  squadraA: (cm.squadraA||[]).map(remapId),
-                  squadraB: (cm.squadraB||[]).map(remapId),
-                  statisticheGiocatori: (cm.statisticheGiocatori||[]).map(s => ({
-                    ...s, playerId: remapId(s.playerId)
-                  })),
+                  matchUUID: cm.matchUUID || uuid()
                 });
                 syncedMatches++;
               }
