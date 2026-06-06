@@ -3180,15 +3180,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="stats-val" style="color:var(--yellow)">{{p.uomoPartitaTotali}}</div>
             </div>
           </div>
-          <div v-if="topAutogol.length" class="card">
-            <div class="card-title" style="color:var(--red)">😬 Hall of Shame – Autogol</div>
-            <div v-for="(p,i) in topAutogol" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
-              <div class="stats-rank" style="color:var(--red)">{{i+1}}</div>
-              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
-              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">autogol</div></div>
-              <div class="stats-val" style="color:var(--red)">{{p.autogolTotali}}</div>
-            </div>
-          </div>
         </template>
 
         <!-- VOTI -->
@@ -3233,7 +3224,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
-              <div class="stats-val" style="color:var(--red)">{{p.autogolTotali}} OG</div>
+              <div class="stats-val" style="color:var(--red)">{{p.autogolTotali}}</div>
             </div>
           </div>
         </template>
@@ -5131,7 +5122,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.393',date:'2026-06-05',items:[
+    const changelogEntries = [{version:'v1.400',date:'2026-06-06',items:[
+      'Fix: rimossa card "Hall of Shame Autogol" dalla tab Uomo Partita',
+      'Fix: rimosso suffisso "OG" nella classifica Autogol (solo numero)',
+    ]},{version:'v1.393',date:'2026-06-05',items:[
   '🔧 Fix CRITICO sync: salvataggio partita non salta più syncToCloud se token sembra scaduto',
   '🔄 Sync pendente: se upload fallisce viene riprovato al prossimo avvio'
 ]},
@@ -5473,7 +5467,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.399');
+    const appVersion = ref('1.400');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
