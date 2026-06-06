@@ -1981,7 +1981,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
                 </div>
                 <div v-else style="position:relative;z-index:1;font-size:44px;margin-bottom:12px">{{s.badge}}</div>
-                <div style="position:relative;z-index:1;font-size:19px;font-weight:700;color:#fff;line-height:1.5;text-align:center">{{s.quote}}</div>
+                <div :style="'position:relative;z-index:1;font-weight:700;color:#fff;line-height:1.5;text-align:center;font-size:'+(s.quote&&s.quote.length>120?'13px':s.quote&&s.quote.length>80?'15px':'19px')">{{s.quote}}</div>
                 <div v-if="s.cit" style="position:relative;z-index:1;font-size:14px;color:rgba(255,255,255,.6);font-weight:600;margin-top:8px">{{s.cit}}</div>
               </div>
             </template>
@@ -2023,7 +2023,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <div style="font-size:12px;font-weight:800;color:#3b82f6;text-align:center;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.nb}}</div>
                   </div>
                 </div>
-                <div style="position:relative;z-index:1;font-size:17px;font-weight:700;color:#fff;line-height:1.5;text-align:center">{{s.quote}}</div>
+                <div :style="'position:relative;z-index:1;font-weight:700;color:#fff;line-height:1.5;text-align:center;font-size:'+(s.quote&&s.quote.length>120?'12px':s.quote&&s.quote.length>80?'14px':'17px')">{{s.quote}}</div>
               </div>
             </template>
 
@@ -3188,11 +3188,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 ℹ️ Come si calcola l'OVR? <span>{{showOvrInfo?'▲':'▼'}}</span>
               </button>
               <div v-if="showOvrInfo" style="font-size:0.72rem;color:var(--text2);margin-top:8px;line-height:1.7;padding:10px;background:var(--bg3);border-radius:8px">
-                <strong style="color:var(--lime)">OVR 50–99</strong> · Formula globale · min. 2 partite<br>
-                📊 Pt/gara×10 + Gol×0.8 + Assist×0.5 + Media×0.8 + MVP×3<br>
-                <span style="color:var(--lime)">🥅 Rigore Parato: +1.5 per evento</span><br>
-                <span style="color:#FF6B35">❌ Rigore Sbagliato: −0.8 per evento</span><br>
-                📅 <strong>+Forma</strong> (ultime partite) · 😬 <strong>−Autogol</strong>
+                <strong style="color:var(--lime)">OVR 50–99</strong> · Formula per ruolo · min. 2 partite<br>
+                <span style="color:rgba(255,255,255,.7)">📊 Base:</span> Pt/gara + Voto medio + Uomo Partita<br>
+                <span style="color:#60a5fa">🧤 Portiere:</span> +Clean Sheet · <span style="color:var(--lime)">🥅 +Rigori Parati (max +15 OVR)</span><br>
+                <span style="color:#a78bfa">🛡️ Difensore:</span> +Vittorie · +Gol<br>
+                <span style="color:var(--yellow)">⚽ Attaccante/Jolly:</span> +Gol segnati<br>
+                <span style="color:#FF6B35">❌ Malus universale:</span> −Autogol · −Rigori Sbagliati<br>
+                📅 <strong>+Costanza</strong> (partite giocate) · 🔥 Forma ultime 5 gare
               </div>
             </div>
             <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
@@ -5303,7 +5305,20 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.413',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.417',date:'2026-06-06',items:[
+      'Fix DEFINITIVO: migrazione automatica playerId numerici → uid in tutte le partite (locale + Firebase)',
+      'Fix: recomputeStats semplificato — nessuna patch, solo uid ovunque',
+      'Migrazione eseguita una volta al primo avvio, poi dati sempre coerenti',
+    ]},{version:'v1.416',date:'2026-06-06',items:[
+      'Fix CRITICO: statistiche giocatori vuote — recomputeStats ora risolve vecchi id numerici → uid',
+      'Fix: partite con playerId numerico ora vengono aggregate correttamente nelle statistiche',
+    ]},{version:'v1.415',date:'2026-06-06',items:[
+      'Fix: spiegazione OVR nelle statistiche aggiornata con formula per ruolo e rigori',
+    ]},{version:'v1.414',date:'2026-06-06',items:[
+      'Fix: card "In Diretta dallo Spogliatoio" — font quote adattivo, foto non schiacciata',
+      'Fix: OVR portiere include bonus rigori parati (+max 15) e malus sbagliati',
+      'Fix: OVR universale include malus rigori sbagliati da rigorista',
+    ]},{version:'v1.413',date:'2026-06-06',items:[
       'Fix CRITICO audit uid completo: statsMap, saveMatch, recomputeStats, calcStats, resolveIds, import JSON',
       'Fix: manualFormation, last10Pids, AI profiles, generateTeamsBalanced, soprannomi — tutti su uid',
       'Fix: import JSON senza rimappatura id — stesso approccio di syncFromCloud',
@@ -5708,7 +5723,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.413');
+    const appVersion = ref('1.417');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5814,6 +5829,8 @@ createApp({
       const pPunti  = 50 + (mp * 16.33);
       const uomBonus = (uom / n) * 40;
       const smorzamento = Math.min(1.0, Math.sqrt(n / 8));
+      const rp = p.rigoriParatiTotali || 0;    // rigori parati totali
+      const rs = p.rigoriSbagliatiTotali || 0; // rigori sbagliati totali
 
       const _pMax = pMax || Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
 
@@ -5822,8 +5839,11 @@ createApp({
       if (ruolo === 'Portiere') {
         const cs = calcCleanSheets(p.uid||String(p.id));
         const pCS = Math.min(50 + (cs / n * 49), 99);
+        // Portiere: bonus rigori parati, malus rigori sbagliati (da rigorista)
+        const bonusRP = Math.min((rp / n) * 30, 15); // max +15 da rigori parati
+        const malusRS = Math.min((rs / n) * 10, 5);  // max -5 da rigori sbagliati
         baseOvr    = (pPunti * 0.55) + (pVoto * 0.30) + (uomBonus * 0.15);
-        bonusRuolo = (pCS * 0.50) + (pVoto * 0.30) + (pPunti * 0.20);
+        bonusRuolo = (pCS * 0.50) + (pVoto * 0.30) + (pPunti * 0.20) + bonusRP - malusRS;
 
       } else if (ruolo === 'Difensore') {
         const wins  = calcPlayerWins(p.uid||String(p.id));
@@ -5839,7 +5859,9 @@ createApp({
 
       const costanza = (n / _pMax) * 5;
       const malusAg  = (ag / n) * 6;
-      const raw = (baseOvr * 0.70) + (bonusRuolo * 0.30) + costanza - malusAg;
+      // Malus universale rigori sbagliati (rigorista mancato)
+      const malusRSGen = (rs / n) * 3;
+      const raw = (baseOvr * 0.70) + (bonusRuolo * 0.30) + costanza - malusAg - malusRSGen;
       return Math.min(99, Math.max(50, Math.round(raw)));
     };
 
@@ -8838,6 +8860,65 @@ Niente altro, nessuna spiegazione.`;
       }
       if (fixed > 0) logEvent('info','app',`Repaired ${fixed} player UIDs`);
     };
+    // ── One-time migration: converte playerId numerici → uid in tutte le partite ──
+    const _migratePlayerIdsToUid = async () => {
+      try {
+        const allPlayers = await db.players.toArray();
+        // Mappa id numerico → uid
+        const idToUid = {};
+        allPlayers.forEach(p => { if (p.uid) idToUid[String(p.id)] = p.uid; });
+
+        const isUid = v => v && typeof v === 'string' && v.includes('-') && v.length > 20;
+
+        const allMatches = await db.matches.toArray();
+        let migrated = 0;
+
+        for (const m of allMatches) {
+          let changed = false;
+
+          // Converti squadraA e squadraB
+          const newA = (m.squadraA||[]).map(pid => {
+            if (isUid(String(pid))) return pid;
+            const uid = idToUid[String(pid)];
+            if (uid) { changed = true; return uid; }
+            return pid;
+          });
+          const newB = (m.squadraB||[]).map(pid => {
+            if (isUid(String(pid))) return pid;
+            const uid = idToUid[String(pid)];
+            if (uid) { changed = true; return uid; }
+            return pid;
+          });
+
+          // Converti statisticheGiocatori.playerId
+          const newStats = (m.statisticheGiocatori||[]).map(s => {
+            if (isUid(String(s.playerId))) return s;
+            const uid = idToUid[String(s.playerId)];
+            if (uid) { changed = true; return { ...s, playerId: uid }; }
+            return s;
+          });
+
+          if (changed) {
+            await db.matches.update(m.id, {
+              squadraA: newA, squadraB: newB,
+              statisticheGiocatori: newStats
+            });
+            migrated++;
+          }
+        }
+
+        if (migrated > 0) {
+          logEvent('info', 'migrate', `✅ Migrati ${migrated} match: playerId → uid`);
+          // Aggiorna anche Firebase se configurato
+          try { await syncToCloud(); } catch(e) {}
+        } else {
+          logEvent('info', 'migrate', '✅ Nessuna migrazione playerId necessaria');
+        }
+      } catch(e) {
+        logEvent('warn', 'migrate', 'Migrazione playerId fallita: ' + e.message);
+      }
+    };
+
     // ── One-time migration: assign matchUUID to existing matches ──
     const _migrateMatchUUIDs = async () => {
       try {
@@ -10804,7 +10885,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       await loadGroups();
 
       await repairPlayerUids();
-      await _migrateMatchUUIDs(); // One-time: assign matchUUID to existing matches
+      await _migrateMatchUUIDs();
+      await _migratePlayerIdsToUid(); // One-time: converte playerId → uid in tutte le partite // One-time: assign matchUUID to existing matches
 
       const lastGid = localStorage.getItem('amicifc_group');
       if (lastGid) {
