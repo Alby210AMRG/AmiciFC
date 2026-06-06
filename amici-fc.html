@@ -3350,12 +3350,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <select class="select-field" v-model="h2hPlayerA" style="flex:1;border-color:rgba(255,140,0,.4)">
                 <option value="">Giocatore A…</option>
-                <option v-for="p in groupPlayers" :key="p.id" :value="p.id">{{p.soprannome||p.nome}}</option>
+                <option v-for="p in groupPlayers" :key="p.uid||p.id" :value="p.uid||String(p.id)">{{p.soprannome||p.nome}}</option>
               </select>
               <div style="display:flex;align-items:center;font-size:12px;color:var(--text2);font-weight:700;flex-shrink:0">vs</div>
               <select class="select-field" v-model="h2hPlayerB" style="flex:1;border-color:rgba(58,123,255,.4)">
                 <option value="">Giocatore B…</option>
-                <option v-for="p in groupPlayers" :key="p.id" :value="p.id">{{p.soprannome||p.nome}}</option>
+                <option v-for="p in groupPlayers" :key="p.uid||p.id" :value="p.uid||String(p.id)">{{p.soprannome||p.nome}}</option>
               </select>
             </div>
             <div v-if="!h2hComputed" style="text-align:center;padding:24px;color:var(--text2);font-size:0.85rem">
@@ -5305,7 +5305,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.429',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.430',date:'2026-06-06',items:[
+      'Fix: H2H ora usa uid UUID per trovare le partite — sfide dirette finalmente corrette',
+    ]},{version:'v1.429',date:'2026-06-06',items:[
       'Fix: toast "Token non valido" rimosso per utenti in sola lettura — sync stats solo con token',
     ]},{version:'v1.428',date:'2026-06-06',items:[
       'Fix: statistiche salvate su Firebase dopo ricalcolo — tutti i device le vedono subito',
@@ -5755,7 +5757,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.429');
+    const appVersion = ref('1.430');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11672,35 +11674,33 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
     // ── H2H computed ──
     const h2hComputed = computed(() => {
       if (!h2hPlayerA.value || !h2hPlayerB.value) return null;
-      const pA = groupPlayers.value.find(p => String(p.id) === String(h2hPlayerA.value));
-      const pB = groupPlayers.value.find(p => String(p.id) === String(h2hPlayerB.value));
+      // Cerca per uid (priorità) o id numerico
+      const pA = groupPlayers.value.find(p => p.uid === h2hPlayerA.value || String(p.id) === String(h2hPlayerA.value));
+      const pB = groupPlayers.value.find(p => p.uid === h2hPlayerB.value || String(p.id) === String(h2hPlayerB.value));
       if (!pA || !pB) return null;
+      const uidA = pA.uid || String(pA.id);
+      const uidB = pB.uid || String(pB.id);
+      const inSquad = (squadra, uid) => (squadra||[]).includes(uid);
       const matches = groupMatches.value.filter(m => {
-        const _s=String,inAa=(m.squadraA||[]).map(_s).includes(_s(pA.id)),inAb=(m.squadraB||[]).map(_s).includes(_s(pA.id));
-        const inBa=(m.squadraA||[]).map(_s).includes(_s(pB.id)),inBb=(m.squadraB||[]).map(_s).includes(_s(pB.id));
-        return (inAa && inBb) || (inAb && inBa); // on opposite teams
+        const inAa = inSquad(m.squadraA, uidA), inAb = inSquad(m.squadraB, uidA);
+        const inBa = inSquad(m.squadraA, uidB), inBb = inSquad(m.squadraB, uidB);
+        return (inAa && inBb) || (inAb && inBa); // squadre opposte
       }).sort((a,b) => b.data.localeCompare(a.data));
       if (!matches.length) return { empty: true, pA, pB };
       let winsA=0, winsB=0, draws=0;
       matches.forEach(m => {
-        const aOnTeamA = (m.squadraA||[]).map(String).includes(String(pA.id));
+        const aOnTeamA = inSquad(m.squadraA, uidA);
         const gA2 = m.risultato?.goalA||0, gB2 = m.risultato?.goalB||0;
         const aW = aOnTeamA ? gA2>gB2 : gB2>gA2;
         const bW = aOnTeamA ? gB2>gA2 : gA2>gB2;
         if(aW) winsA++; else if(bW) winsB++; else draws++;
       });
       const history = matches.slice(0,5).map(m => {
-        const aOnTeamA = (m.squadraA||[]).map(String).includes(String(pA.id));
+        const aOnTeamA = inSquad(m.squadraA, uidA);
         const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
         const aWins = aOnTeamA ? gA>gB : gB>gA;
         const bWins = aOnTeamA ? gB>gA : gA>gB;
         return { date: m.data, score: gA+'-'+gB, winner: aWins?'a':bWins?'b':'p' };
-      });
-      matches.forEach(m => {
-        const aOnTeamA = (m.squadraA||[]).includes(pA.id);
-        const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
-        const aWins = aOnTeamA ? gA>gB : gB>gA;
-        const bWins = aOnTeamA ? gB>gA : gA>gB;
       });
       const statsA = { gol:0, assist:0, voto:0, votoN:0, uom:0 };
       const statsB = { gol:0, assist:0, voto:0, votoN:0, uom:0 };
