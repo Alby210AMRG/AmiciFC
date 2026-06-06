@@ -5305,7 +5305,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.421',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.422',date:'2026-06-06',items:[
+      'Fix CRITICO: toArr ora ordina per chiave numerica e filtra null — fix statistiche vuote',
+    ]},{version:'v1.421',date:'2026-06-06',items:[
       'Fix CRITICO: players e matches da Firebase erano oggetti non array — ora normalizzati con toArr()',
       'Fix: statistiche finalmente corrette dopo sync da Firebase',
     ]},{version:'v1.420',date:'2026-06-06',items:[
@@ -5735,7 +5737,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.421');
+    const appVersion = ref('1.422');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8818,10 +8820,16 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // Firebase converte array JSON in oggetti {"0":..,"1":..} — questa funzione li riconverte
+    // Ordina per chiave numerica e filtra null/undefined
     const toArr = v => {
       if (!v) return [];
-      if (Array.isArray(v)) return v;
-      if (typeof v === 'object') return Object.values(v);
+      if (Array.isArray(v)) return v.filter(x => x !== null && x !== undefined);
+      if (typeof v === 'object') {
+        return Object.entries(v)
+          .sort((a, b) => Number(a[0]) - Number(b[0]))
+          .map(([, val]) => val)
+          .filter(x => x !== null && x !== undefined);
+      }
       return [];
     };
 
