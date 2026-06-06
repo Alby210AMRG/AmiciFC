@@ -936,6 +936,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 .toast.error   { border-color: var(--red); color: var(--red); }
 .toast.info    { border-color: var(--blue); color: var(--blue); }
 
+/* ── Sync cloud button animations ── */
+@keyframes syncPulse {
+  0%,100% { opacity:1; transform:scale(1); }
+  50%      { opacity:0.55; transform:scale(1.18); }
+}
+@keyframes syncShake {
+  0%,100% { transform:translateX(0); }
+  20%,60% { transform:translateX(-3px); }
+  40%,80% { transform:translateX(3px); }
+}
+@keyframes syncFlash {
+  0%   { box-shadow:0 0 0 3px rgba(200,255,0,0.5); }
+  100% { box-shadow:0 0 0 0px rgba(200,255,0,0); }
+}
+.cloud-btn-syncing { animation: syncPulse 1s ease-in-out infinite !important; }
+.cloud-btn-ok      { animation: syncFlash 0.9s ease-out forwards !important; }
+.cloud-btn-error   { animation: syncShake 0.5s ease-in-out !important; }
+
 /* ═══════════════════════════════════════
    CREDITS
    ═══════════════════════════════════════ */
@@ -1488,10 +1506,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <span>{{ currentGroup ? currentGroup.nome : 'Gruppo' }}</span>
       </button>
       <button v-if="currentGroup" @click="openGroupCloud"
-        style="background:rgba(58,123,255,0.15);border:1px solid rgba(58,123,255,0.4);border-radius:20px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#7ab0ff"
-        :style="currentGroup.firebaseUrl?'color:var(--lime);border-color:rgba(200,255,0,0.4);background:rgba(200,255,0,0.1)':''"
+        style="background:rgba(58,123,255,0.15);border:1px solid rgba(58,123,255,0.4);border-radius:20px;padding:4px 8px;font-size:0.75rem;cursor:pointer;color:#7ab0ff;transition:all 0.3s"
+        :style="currentGroup.firebaseUrl ? (lastSyncError ? 'color:var(--yellow);border-color:rgba(255,217,61,0.5);background:rgba(255,217,61,0.1)' : 'color:var(--lime);border-color:rgba(200,255,0,0.4);background:rgba(200,255,0,0.1)') : ''"
+        :class="{ 'cloud-btn-syncing': syncStatus==='syncing', 'cloud-btn-ok': syncStatus==='ok', 'cloud-btn-error': syncStatus==='error' }"
         title="Firebase gruppo">
-        {{ lastSyncError ? '☁️⚠️' : currentGroup.firebaseUrl ? '☁️✅' : '☁️' }}
+        <span v-if="syncStatus==='syncing'">☁️⟳</span>
+        <span v-else-if="lastSyncError">☁️⚠️</span>
+        <span v-else-if="currentGroup.firebaseUrl">☁️✅</span>
+        <span v-else>☁️</span>
       </button>
     </div>
   </header>
@@ -5123,7 +5145,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.404',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.405',date:'2026-06-06',items:[
+      'UI: icona nuvola ☁️ con animazione durante sync (pulse), flash verde OK, shake giallo errore',
+      'UI: toast di sync routine rimossi — solo log (buffer aumentato a 250 entry)',
+      'Fix: syncToCloud non sovrascriveva più le aiCards — path corretto',
+    ]},{version:'v1.404',date:'2026-06-06',items:[
       'Fix CRITICO: syncFromCloud conserva id originali di Firebase — niente rimappatura id',
       'Fix CRITICO: giocatori e partite in locale sono identici a Firebase (stesso id, stessi playerId)',
       'Fix: path aiCards corretto in syncToCloud — TrashTalk e HoF non vengono più cancellate al sync',
@@ -5297,6 +5323,15 @@ createApp({
     const showFormationEditor  = ref(false);
     const editingFormationData = ref(null); // working copy
     const syncLoading       = ref(false);
+    const syncStatus        = ref('idle'); // 'idle' | 'syncing' | 'ok' | 'error'
+    let _syncStatusTimer    = null;
+    const setSyncStatus = (status) => {
+      syncStatus.value = status;
+      if (_syncStatusTimer) clearTimeout(_syncStatusTimer);
+      if (status === 'ok' || status === 'error') {
+        _syncStatusTimer = setTimeout(() => { syncStatus.value = 'idle'; }, 3000);
+      }
+    };
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
     const showOvrInfo       = ref(false);
@@ -5485,7 +5520,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.404');
+    const appVersion = ref('1.405');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8774,7 +8809,8 @@ Niente altro, nessuna spiegazione.`;
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
         logEvent('info', 'sync', `Upload OK: ${allGroups.reduce((s,g)=>s+g.matches.length,0)} partite`);
-        toast('✅ Dati caricati sul cloud!');
+        setSyncStatus('ok');
+        logEvent('info', 'sync', 'Upload OK su Firebase');
       } catch (e) {
         logEvent('error', 'sync', 'syncToCloud: ' + e.message);
         toast('❌ ' + e.message, 'error', 8000);
@@ -8810,6 +8846,7 @@ Niente altro, nessuna spiegazione.`;
           if (!base) return toast('Inserisci URL Firebase nelle impostazioni!', 'error');
           _syncInProgress = true;
           syncLoading.value = true;
+          setSyncStatus('syncing');
           logEvent('info', 'sync', 'Sync da Firebase (firebase è la fonte di verità)');
           try {
             const _token = await getValidToken();
@@ -8893,11 +8930,7 @@ Niente altro, nessuna spiegazione.`;
             localStorage.removeItem('amicifc_last_sync_error');
 
             logEvent('info', 'sync', `OK: ${syncedPlayers} giocatori, ${syncedMatches} partite da Firebase`);
-            if (syncedPlayers > 0 || syncedMatches > 0) {
-              toast(`☁️ Sincronizzato: ${syncedPlayers} giocatori · ${syncedMatches} partite`, 'success', 3000);
-            } else if (force) {
-              toast('✅ Dati già aggiornati', 'success', 2000);
-            }
+            setSyncStatus('ok');
 
             _syncInProgress = false;
             _scheduleInitAiCards();
@@ -8908,7 +8941,7 @@ Niente altro, nessuna spiegazione.`;
             lastSyncError.value = errMsg;
             logEvent('error', 'sync', errMsg);
             localStorage.setItem('amicifc_last_sync_error', errMsg);
-            toast('❌ Errore sync: ' + errMsg, 'error');
+            setSyncStatus('error');
           }
           syncLoading.value = false;
           _syncInProgress = false;
@@ -11631,7 +11664,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
-      syncLoading, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
+      syncLoading, syncStatus, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       restoreStatus, restoreFromBackup, forceRecomputeStats,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
