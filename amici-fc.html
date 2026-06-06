@@ -5123,7 +5123,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.401',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.403',date:'2026-06-06',items:[
+      'Fix: soprannomi AI usano p.uid (UUID stabile multi-device) come chiave, non p.id Dexie',
+      'Fix: migrazione pulisce chiavi vecchie (nome/soprannome/id-numerico) → uid su Firebase',
+      'Fix: getPlayerNick cerca per uid come priorità assoluta',
+    ]},{version:'v1.402',date:'2026-06-06',items:[
+      'Fix: soprannomi AI salvati con chiave id invece di nome — 19 giocatori = 19 entry (non 30)',
+      'Fix: migrazione automatica che pulisce le vecchie chiavi nome/soprannome da Firebase',
+      'Fix: _buildNick hero usa lookup per id invece che per nome',
+    ]},{version:'v1.401',date:'2026-06-06',items:[
       'Fix: hero card "Goal Totali" — aggiunta etichetta "gol totali" sotto il numero grande',
       'Fix: tab Autogol — aggiunto tasto Condividi con generazione PNG',
       'Fix AI: Gemini MAX_TOKENS — retry automatico con doppio token invece di fallire',
@@ -5473,7 +5481,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.401');
+    const appVersion = ref('1.403');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5828,10 +5836,10 @@ createApp({
       if (!p) return null;
       const nicks = aiNicknames.value;
       const keys = [
+        String(p.uid||''),         // chiave primaria: uuid stabile
+        String(p.id),              // fallback: id Dexie locale
         (p.nome||'').toLowerCase().trim(),
         (p.soprannome||'').toLowerCase().trim(),
-        String(p.id),
-        String(p.uid||''),
       ].filter(Boolean);
       for (const k of keys) {
         if (nicks[k]?.motivazione) return nicks[k];
@@ -7562,27 +7570,77 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // ══════════════════════════════════════════════════════════════
     const aiNicknames = ref({}); // { playerId: { soprannome_ai, confronto, generatedAt, partiteAl } }
 
+    // Migrazione: rimuove le vecchie chiavi nome/soprannome, mantiene solo id numerici
+    const _migrateNicknames = (data) => {
+      if (!data || !currentGroup.value) return data;
+      const players = groupPlayers.value;
+      const validIds = new Set(players.map(p => String(p.id))); // per compatibilità
+      const migrated = {};
+      // Costruisci set di chiavi valide: uid (preferita) o id numerico come fallback
+      const validUidKeys = new Set(players.map(p => p.uid || String(p.id)));
+      // Prima passa: copia entry con chiave = uid valido
+      for (const [k, v] of Object.entries(data)) {
+        if (validUidKeys.has(k)) { migrated[k] = v; continue; }
+      }
+      // Seconda passa: per le chiavi nome/soprannome/id-numerico, riconduce a uid
+      for (const [k, v] of Object.entries(data)) {
+        if (validUidKeys.has(k)) continue; // già gestita
+        const p = players.find(p =>
+          (p.nome||'').toLowerCase().trim() === k.toLowerCase() ||
+          (p.soprannome||'').toLowerCase().trim() === k.toLowerCase() ||
+          String(p.id) === k
+        );
+        if (p) {
+          const _targetKey = p.uid || String(p.id);
+          if (!migrated[_targetKey]) migrated[_targetKey] = v;
+        }
+        // chiave non riconosciuta → scartata (pulizia)
+      }
+      const oldCount = Object.keys(data).length;
+      const newCount = Object.keys(migrated).length;
+      if (oldCount !== newCount) {
+        _aiLog('Init',`🔧 Migrazione soprannomi: ${oldCount} chiavi → ${newCount} (solo id)`);
+      }
+      return migrated;
+    };
+
     const _loadAiNicknames = async () => {
       const _gid = currentGroup.value?.id;
       const _lsKey = 'amicifc_nicks_' + _gid;
       const _lsCached = JSON.parse(localStorage.getItem(_lsKey) || '{}');
-      if (Object.keys(_lsCached).length > 0) {
-        aiNicknames.value = _lsCached;
-        _aiLog('Init','💾 Soprannomi da localStorage: '+Object.keys(_lsCached).length);
+      const _lsMigrated = _migrateNicknames(_lsCached);
+      if (Object.keys(_lsMigrated).length > 0) {
+        aiNicknames.value = _lsMigrated;
+        _aiLog('Init','💾 Soprannomi da localStorage: '+Object.keys(_lsMigrated).length);
+        // Aggiorna localStorage se migrati
+        if (Object.keys(_lsMigrated).length !== Object.keys(_lsCached).length) {
+          localStorage.setItem(_lsKey, JSON.stringify(_lsMigrated));
+        }
       }
       if (!currentGroup.value?.firebaseUrl) return;
       try {
         const token = await getValidToken() || '';
         const d = await _fbRead(`aiCards/soprannomi/${_aiCardGroupKey()}`, token);
         if (!d || !Object.keys(d).length) return;
-        const _fbTs = Math.max(...Object.values(d).map(v => v?.generatedAt||0));
-        const _lsTs = Math.max(...Object.values(_lsCached).map(v => v?.generatedAt||0).concat([0]));
-        if (_fbTs > _lsTs || !Object.keys(_lsCached).length) {
-          aiNicknames.value = d;
-          localStorage.setItem(_lsKey, JSON.stringify(d));
+        const dMigrated = _migrateNicknames(d);
+        const _fbTs = Math.max(...Object.values(dMigrated).map(v => v?.generatedAt||0));
+        const _lsTs = Math.max(...Object.values(_lsMigrated).map(v => v?.generatedAt||0).concat([0]));
+        if (_fbTs > _lsTs || !Object.keys(_lsMigrated).length) {
+          aiNicknames.value = dMigrated;
+          localStorage.setItem(_lsKey, JSON.stringify(dMigrated));
           _aiLog('Init','☁️ Soprannomi aggiornati da Firebase (più recenti di '+Math.round((_fbTs-_lsTs)/60000)+'min)');
+          // Se migrati, riscrivi Firebase con le chiavi pulite
+          if (Object.keys(dMigrated).length !== Object.keys(d).length && token) {
+            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, dMigrated, token);
+            _aiLog('Init','🧹 Firebase soprannomi ripulito: '+Object.keys(d).length+' → '+Object.keys(dMigrated).length+' chiavi');
+          }
         } else {
           _aiLog('Init','✅ Soprannomi locali già aggiornati — Firebase skip');
+          // Riscrivi Firebase se aveva chiavi vecchie
+          if (Object.keys(dMigrated).length !== Object.keys(d).length && token) {
+            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, _lsMigrated, token);
+            _aiLog('Init','🧹 Firebase soprannomi ripulito (da locale): '+Object.keys(d).length+' → '+Object.keys(_lsMigrated).length+' chiavi');
+          }
         }
       } catch(e) {
         logEvent('warn','ai','[Soprannomi] Firebase non raggiungibile: '+e.message);
@@ -7598,7 +7656,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
       if (!players.length) return;
 
       const toGenerate = players.filter(p => {
-        const existing = aiNicknames.value[p.id];
+        const existing = aiNicknames.value[p.uid || String(p.id)];
         if (!existing) return true;
         const partiteDa = (p.partiteTotali||0) - (existing.partiteAl||0);
         return partiteDa >= 5;
@@ -7644,13 +7702,17 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         for (const s of parsed.soprannomi) {
           const p = batch.find(x => String(x.id) === String(s.id));
           if (!p || !s.soprannome_ai) continue;
-          const _nKey = (p.nome||String(p.id)).toLowerCase().trim();
           const _entry = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
-          updated[_nKey] = _entry;
-          if (p.soprannome && p.soprannome !== p.nome) {
-            const _sKey = p.soprannome.toLowerCase().trim();
-            updated[_sKey] = _entry;
-          }
+          // Salva SOLO per uid (UUID stabile multi-device) — una entry per giocatore
+          const _uidKey = p.uid || String(p.id);
+          updated[_uidKey] = _entry;
+          // Rimuovi eventuali vecchie chiavi nome/soprannome/id per questo giocatore
+          const _oldNKey = (p.nome||'').toLowerCase().trim();
+          const _oldSKey = (p.soprannome||'').toLowerCase().trim();
+          const _oldIdKey = String(p.id);
+          if (_oldNKey && _oldNKey !== _uidKey) delete updated[_oldNKey];
+          if (_oldSKey && _oldSKey !== _uidKey && _oldSKey !== _oldNKey) delete updated[_oldSKey];
+          if (_oldIdKey && _oldIdKey !== _uidKey) delete updated[_oldIdKey];
         }
         _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
         aiNicknames.value = { ...updated };
@@ -10768,8 +10830,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       const el=players.filter(p=>(p.partiteTotali||0)>=1);
 
       const _buildNick=(off)=>{
+        // Con la nuova struttura le chiavi sono uid UUID — lookup per uid o id come fallback
         const ns_all=Object.entries(aiNicknames.value).map(([key,n])=>{
-          const pl=groupPlayers.value.find(p=>(p.soprannome||p.nome||'').toLowerCase().trim()===key||String(p.id)===String(key));
+          const pl=groupPlayers.value.find(p=>(p.uid&&p.uid===key)||String(p.id)===String(key));
           return pl?{...n,player:pl}:null;
         }).filter(x=>x&&x.player&&x.soprannome_ai);
         if(!ns_all.length) return null;
