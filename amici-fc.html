@@ -5305,7 +5305,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.428',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.429',date:'2026-06-06',items:[
+      'Fix: toast "Token non valido" rimosso per utenti in sola lettura — sync stats solo con token',
+    ]},{version:'v1.428',date:'2026-06-06',items:[
       'Fix: statistiche salvate su Firebase dopo ricalcolo — tutti i device le vedono subito',
       'Fix: secondo sync non cancella più le statistiche calcolate',
     ]},{version:'v1.427',date:'2026-06-06',items:[
@@ -5753,7 +5755,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.428');
+    const appVersion = ref('1.429');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9044,9 +9046,12 @@ Niente altro, nessuna spiegazione.`;
           rigoriSbagliatiTotali:   st.rigoriSbagliatiTotali || 0
         });
       }
-      // Salva statistiche su Firebase — così tutti i device le vedono senza ricalcolare
-      if (currentGroup.value?.firebaseUrl) {
-        try { await syncToCloud(); } catch(e) { logEvent('warn','stats','sync stats fallito: '+e.message); }
+      // Salva statistiche su Firebase solo se abbiamo un token valido (utenti con diritti di scrittura)
+      if (currentGroup.value?.firebaseUrl && (fbIdToken.value || firebaseUser.value)) {
+        try {
+          const _tok = await getValidToken();
+          if (_tok) await syncToCloud();
+        } catch(e) { logEvent('warn','stats','sync stats fallito: '+e.message); }
       }
     };
     // ── Refresh expired Firebase ID token automatically ──
