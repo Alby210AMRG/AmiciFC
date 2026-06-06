@@ -1888,6 +1888,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               </div>
               <div style="position:relative;z-index:1;font-size:84px;font-weight:900;line-height:1;letter-spacing:-4px" :style="'color:'+s.col">{{s.val}}</div>
+              <div v-if="s.valLabel" style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,.45);margin-top:2px;margin-bottom:2px">{{s.valLabel}}</div>
               <div style="position:relative;z-index:1;font-size:17px;font-weight:700;color:#fff;margin-top:6px">{{s.name}}</div>
               <div v-if="s.meta" style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.5);margin-top:4px">{{s.meta}}</div>
               <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
@@ -3216,7 +3217,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='autogol'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
-              <div class="card-title" style="margin-bottom:0">❌ Classifica Autogol</div>
+              <div class="card-title" style="margin-bottom:0">❌ Classifica Autogol</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('autogol')">📤 Condividi</button>
             </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Meno è meglio. Il meno peggio vince comunque! 😅</div>
             <div v-if="!groupPlayers.filter(p=>(p.autogolTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Nessun autogol. Ottimo! 🎉</p></div>
@@ -5122,7 +5123,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.400',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.401',date:'2026-06-06',items:[
+      'Fix: hero card "Goal Totali" — aggiunta etichetta "gol totali" sotto il numero grande',
+      'Fix: tab Autogol — aggiunto tasto Condividi con generazione PNG',
+      'Fix AI: Gemini MAX_TOKENS — retry automatico con doppio token invece di fallire',
+      'Fix AI: aumentati token HoF (800→1200), TrashTalk (700→900), Soprannomi (600→800)',
+    ]},{version:'v1.400',date:'2026-06-06',items:[
       'Fix: rimossa card "Hall of Shame Autogol" dalla tab Uomo Partita',
       'Fix: rimosso suffisso "OG" nella classifica Autogol (solo numero)',
     ]},{version:'v1.393',date:'2026-06-05',items:[
@@ -5467,7 +5473,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.400');
+    const appVersion = ref('1.401');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6792,6 +6798,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         altri:      {label:'UOMO PARTITA',         icon:'\uD83C\uDF96\uFE0F', color:'#FF6600', data:()=>topUomoPartita.value.slice(0,10),  val:p=>`${p.uomoPartitaTotali} volte`},
         overall:    {label:'OVERALL - TOP PLAYER', icon:'\uD83E\uDD47', color:'#C8FF00', data:()=>topOverall.value.slice(0,10),    val:p=>`${p._score?.toFixed(1)||0} pts`},
         topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'\uD83C\uDFDF\uFE0F', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value).slice(0,12), val:p=>p.ruolo||''},
+        autogol:    {label:'HALL OF SHAME - AUTOGOL', icon:'\uD83D\uDE2C', color:'#FF4D4D', data:()=>[...groupPlayers.value].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10), val:p=>`${p.autogolTotali}`},
       };
       const cfg = statConfigs[tipo] || statConfigs.goal;
       const rows = cfg.data();
@@ -7033,26 +7040,42 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
             let quota429 = 0;
             for (const model of models) {
-              const r = await fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-                { method:'POST', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({ contents:[{parts:[{text:prompt}]}],
-                    generationConfig:{maxOutputTokens:maxTokens,temperature:0.9,topP:0.95} }) }
-              );
-              const d = await r.json();
-              if (!d.error) {
-                const text = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
-                const fin  = d.candidates?.[0]?.finishReason;
-                if (fin && fin !== 'STOP') { _aiLog('_callAI','⚠️ Gemini bloccato: '+fin,false); return null; }
-                if (!text) { _aiLog('_callAI','⚠️ '+model+' risposta vuota',false); return null; }
-                _aiLog('_callAI','✅ '+model+' OK — '+text.length+' chars');
-                return text;
+              // Prima tentativo con i token richiesti, poi retry con il doppio se MAX_TOKENS
+              const tokenAttempts = [maxTokens, Math.min(maxTokens * 2, 2048)];
+              let lastText = null;
+              for (const tok of tokenAttempts) {
+                const r = await fetch(
+                  `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+                  { method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ contents:[{parts:[{text:prompt}]}],
+                      generationConfig:{maxOutputTokens:tok,temperature:0.9,topP:0.95} }) }
+                );
+                const d = await r.json();
+                if (!d.error) {
+                  const text = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || null;
+                  const fin  = d.candidates?.[0]?.finishReason;
+                  if (fin === 'MAX_TOKENS') {
+                    if (tok < tokenAttempts[tokenAttempts.length-1]) {
+                      _aiLog('_callAI','⚠️ '+model+' MAX_TOKENS a '+tok+', riprovo con '+(tok*2)+'...',false);
+                      continue; // riprova con più token
+                    }
+                    _aiLog('_callAI','⚠️ Gemini bloccato: MAX_TOKENS anche a '+tok+' token',false);
+                    break;
+                  }
+                  if (fin && fin !== 'STOP') { _aiLog('_callAI','⚠️ Gemini bloccato: '+fin,false); break; }
+                  if (!text) { _aiLog('_callAI','⚠️ '+model+' risposta vuota',false); break; }
+                  _aiLog('_callAI','✅ '+model+' OK — '+text.length+' chars ('+tok+' tok)');
+                  lastText = text;
+                  break;
+                }
+                const c = d.error?.code||0, emsg=(d.error?.message||'').slice(0,80);
+                _aiLog('_callAI','⚠️ '+model+': errore '+c+' — '+emsg,false);
+                if (c===429) { quota429++; if (quota429>=3) return '__QUOTA__'; }
+                break; // errore non-MAX_TOKENS: salta al modello successivo
               }
-              const c = d.error?.code||0, emsg=(d.error?.message||'').slice(0,80);
-              _aiLog('_callAI','⚠️ '+model+': errore '+c+' — '+emsg,false);
-              if (c===429) { quota429++; if (quota429>=3) return '__QUOTA__'; continue; }
-              if (c===404||emsg.includes('not found')||emsg.includes('deprecated')) continue;
-              return null;
+              if (lastText) return lastText;
+              if (quota429>=3) return '__QUOTA__';
+              if (models.indexOf(model) < models.length-1 && quota429 < 3) continue;
             }
             return null;
           } else if (prov === 'groq') {
@@ -7223,7 +7246,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
 Risultato: ${_score}
 Giocatori: ${_statsStr}
 JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","testo":"max 25 parole","target_nome":"nome"}]}`;
-      const raw = await _callAI(prompt, 500);
+      const raw = await _callAI(prompt, 700);
       if (!raw) { _aiLog('TrashTalk','❌ Nessuna risposta AI'); return; }
       const parsed = _parseAIJson(raw);
       if (!parsed?.cards?.length) { _aiLog('TrashTalk','❌ JSON non valido — raw: '+raw.slice(0,100)); return; }
@@ -7381,7 +7404,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 
       // ── Chiama AI ──
       _aiLog('TrashTalk','🎙️ Generazione in corso...');
-      const raw = await _callAI(prompt, 700);
+      const raw = await _callAI(prompt, 900);
       const parsed = _parseAIJson(raw);
       const cards = parsed?.cards || [];
       if (cards.length) _aiLog('TrashTalk',`✅ ${cards.length} card generate`);
@@ -7516,7 +7539,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
   "partite_analizzate": ${partiteMese.length}
 }`;
 
-      const raw = await _callAI(prompt, 800);
+      const raw = await _callAI(prompt, 1200);
       const parsed = _parseAIJson(raw);
       if (!parsed?.fame) {
         if (hasFirebase && token) await _fbWrite(lockPath, null, token);
@@ -7612,7 +7635,7 @@ REGOLE OBBLIGATORIE:
 - Mai offensivo, sempre divertente
 JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
 
-        const raw = await _callAI(prompt, 600);
+        const raw = await _callAI(prompt, 800);
         if (!raw) { failedBatches++; continue; }
         const parsed = _parseAIJson(raw);
         if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
@@ -10989,7 +11012,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       const totG=players.reduce((s,p)=>s+(p.goalTotali||0),0);
       const _actP=players.filter(p=>(p.partiteTotali||0)>0);
       const mediaGolGrp=_actP.length?(totG/_actP.length).toFixed(1):'0';
-      if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
+      if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,valLabel:'gol totali',col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
 
       if(matches.length>=2){
         const _pMaxOvr=Math.max(...players.map(x=>x.partiteTotali||0),1);
