@@ -5305,7 +5305,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.419',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.420',date:'2026-06-06',items:[
+      'Fix CRITICO: Firebase restituisce array come oggetti — normalizzazione automatica al sync',
+      'Fix: squadraA, squadraB, statisticheGiocatori ora sempre array dopo syncFromCloud',
+      'Fix: storicoPartite, rivali, affinita giocatori normalizzati da oggetto a array',
+    ]},{version:'v1.419',date:'2026-06-06',items:[
       'Debug: log diagnostico in Ricalcola Statistiche per trovare causa statistiche vuote',
     ]},{version:'v1.418',date:'2026-06-06',items:[
       'Fix: toast "Inserisci URL Firebase" non appare più all avvio — migrazione eseguita dopo selectGroup',
@@ -5728,7 +5732,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.419');
+    const appVersion = ref('1.420');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8810,6 +8814,14 @@ Niente altro, nessuna spiegazione.`;
         .replace(/^-|-$/g, '') || 'gruppo';
     };
 
+    // Firebase converte array JSON in oggetti {"0":..,"1":..} — questa funzione li riconverte
+    const toArr = v => {
+      if (!v) return [];
+      if (Array.isArray(v)) return v;
+      if (typeof v === 'object') return Object.values(v);
+      return [];
+    };
+
     const getFirebaseBase = () => {
       const url = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
       return url ? `${url}/amicifc` : null;
@@ -9236,7 +9248,10 @@ Niente altro, nessuna spiegazione.`;
                 await db.players.add({
                   ...cp,
                   groupId: gid,
-                  uid: cp.uid || uuid()
+                  uid: cp.uid || uuid(),
+                  storicoPartite: toArr(cp.storicoPartite),
+                  rivali: toArr(cp.rivali),
+                  affinita: toArr(cp.affinita),
                 });
                 syncedPlayers++;
               }
@@ -9251,7 +9266,14 @@ Niente altro, nessuna spiegazione.`;
                 await db.matches.add({
                   ...cm,
                   groupId: gid,
-                  matchUUID: cm.matchUUID || uuid()
+                  matchUUID: cm.matchUUID || uuid(),
+                  // Normalizza array (Firebase li converte in oggetti {"0":..,"1":..})
+                  squadraA: toArr(cm.squadraA),
+                  squadraB: toArr(cm.squadraB),
+                  statisticheGiocatori: toArr(cm.statisticheGiocatori).map(s => ({
+                    ...s,
+                    playerId: s.playerId
+                  })),
                 });
                 syncedMatches++;
               }
