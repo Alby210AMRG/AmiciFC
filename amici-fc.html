@@ -2180,8 +2180,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div style="position:relative;z-index:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
-                <div style="font-size:15px;color:rgba(255,255,255,.88);line-height:1.55;overflow:hidden;flex:1">{{s.confronto}}</div>
-                <div v-if="s.motivazione" style="font-size:13px;color:rgba(74,222,128,.6);margin-top:6px;font-style:italic">{{s.motivazione}}</div>
+                <div :style="'color:rgba(255,255,255,.88);line-height:1.5;overflow:hidden;flex:1;font-size:'+(s.confronto&&s.confronto.length>120?'12px':s.confronto&&s.confronto.length>80?'13.5px':'15px')">{{s.confronto}}</div>
+                <div v-if="s.motivazione" :style="'color:rgba(74,222,128,.6);margin-top:6px;font-style:italic;font-size:'+(s.motivazione&&s.motivazione.length>80?'11px':'13px')">{{s.motivazione}}</div>
               </div>
             </template>
 
@@ -2364,13 +2364,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="display:flex;gap:6px">
             <button class="btn btn-sm" :class="manualFormation.squadraA.includes(p.id)?'btn-blue':'btn-ghost'"
               style="padding:5px 12px;font-size:0.75rem"
-              @click="addToManualTeam(p.id,'squadraA')">🔵 A</button>
+              @click="addToManualTeam(p.uid||String(p.id),'squadraA')">🔵 A</button>
             <button class="btn btn-sm" :class="manualFormation.squadraB.includes(p.id)?'btn-red':'btn-ghost'"
               style="padding:5px 12px;font-size:0.75rem"
-              @click="addToManualTeam(p.id,'squadraB')">🔴 B</button>
+              @click="addToManualTeam(p.uid||String(p.id),'squadraB')">🔴 B</button>
             <button v-if="manualFormation.squadraA.includes(p.id)||manualFormation.squadraB.includes(p.id)"
               class="btn btn-ghost btn-sm" style="padding:5px 8px"
-              @click="removeFromManualTeam(p.id,'squadraA');removeFromManualTeam(p.id,'squadraB')">✕</button>
+              @click="removeFromManualTeam(p.uid||String(p.id),'squadraA');removeFromManualTeam(p.uid||String(p.id),'squadraB')">✕</button>
           </div>
         </div>
       </div>
@@ -2586,8 +2586,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="player-select-grid">
         <div v-for="p in filteredPlayersForSelect" :key="p.id"
           class="player-select-card"
-          :class="{selected: selectedForMatch.includes(p.id)}"
-          @click="togglePlayerSelection(p.id)">
+          :class="{selected: selectedForMatch.includes(p.uid||String(p.id))}"
+          @click="togglePlayerSelection(p.uid||String(p.id))">
           <div class="player-select-check">✓</div>
           <div class="player-select-avatar">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, p.uid)">
@@ -2667,110 +2667,185 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
           </div>
+          <!-- Risultato calcolato dai gol -->
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px;padding:8px;background:rgba(166,255,77,0.06);border-radius:8px;border:1px solid rgba(166,255,77,0.15)">
+            <span style="font-size:0.72rem;color:var(--text2)">⚡ Da statistiche:</span>
+            <span style="font-weight:700;color:var(--lime);font-size:0.9rem">
+              {{ (teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
+              –
+              {{ (teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
+            </span>
+            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:3px 10px;color:var(--lime);border-color:rgba(166,255,77,0.3)"
+              @click="matchGoalA=teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0); matchGoalB=teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)">
+              Usa →
+            </button>
+          </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">📊 Statistiche <span style="font-size:0.75rem;color:var(--text2);font-weight:400">(facoltative)</span></div>
-          <p style="font-size:0.75rem;color:var(--text2);margin-bottom:14px">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</p>
-          <div v-for="pid in teamA" :key="'sa-'+pid" class="rating-row">
-            <div style="flex:1">
-              <div class="player-name" style="font-size:0.85rem">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
-              <div class="rating-nick">{{ getPlayer(pid)?.ruolo }}</div>
-              <div class="goal-assist-row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
-                <div class="counter-box">
-                  <span style="font-size:0.7rem;font-weight:700">⚽</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].goal > 0 ? playerStats[pid].goal-- : null">−</button>
-                  <span class="counter-val">{{ playerStats[pid]?.goal || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
-                </div>
-                <div class="counter-box">
-                  <span style="font-size:0.7rem;font-weight:700">🅰️</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].assist > 0 ? playerStats[pid].assist-- : null">−</button>
-                  <span class="counter-val">{{ playerStats[pid]?.assist || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
-                </div>
-                <div class="counter-box" style="border:1px solid rgba(255,77,77,0.3)">
-                  <span style="font-size:0.65rem;font-weight:700;color:var(--red)">OG</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].autogol > 0 ? playerStats[pid].autogol-- : null">−</button>
-                  <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
-                </div>
-                <div class="counter-box" style="border:1px solid rgba(74,222,128,0.35)">
-                  <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅RP</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriParati > 0 ? playerStats[pid].rigoriParati-- : null">−</button>
-                  <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
-                </div>
-                <div class="counter-box" style="border:1px solid rgba(255,107,53,0.35)">
-                  <span style="font-size:0.62rem;font-weight:700;color:var(--orange,#FF6B35)">❌RS</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriSbagliati > 0 ? playerStats[pid].rigoriSbagliati-- : null">−</button>
-                  <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+        <div class="card" style="padding:0;overflow:hidden">
+          <!-- Header accordion Squadra A -->
+          <div @click="matchTeamOpen.A=!matchTeamOpen.A" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(58,123,255,0.06);border-bottom:1px solid rgba(58,123,255,0.2)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:var(--blue);font-weight:700;font-size:0.9rem">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</span>
+              <span style="font-size:0.72rem;color:var(--text2)">{{ teamA.length }} giocatori</span>
+              <span v-if="teamA.some(pid=>playerStats[pid]?.goal>0||playerStats[pid]?.voto>0)" style="font-size:0.65rem;background:rgba(166,255,77,0.15);color:var(--lime);padding:2px 7px;border-radius:8px">✓ dati inseriti</span>
+            </div>
+            <span style="transition:transform .2s;color:var(--text2)" :style="matchTeamOpen.A?'transform:rotate(180deg)':''">▼</span>
+          </div>
+          <div v-show="matchTeamOpen.A" style="padding:8px 16px 4px">
+            <div v-for="pid in teamA" :key="'sa-'+pid"
+              style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+              <!-- Riga 1: Nome + Ruolo -->
+              <div style="margin-bottom:6px">
+                <div style="font-size:0.9rem;font-weight:700;color:var(--text1)">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                <div style="font-size:0.7rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
+              </div>
+              <!-- Riga 2: Voto + UoM -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="font-size:0.72rem;color:var(--text2)">Voto</span>
+                <div style="display:flex;align-items:center;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;overflow:hidden">
+                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
+                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
+                  <span style="min-width:30px;text-align:center;font-size:0.95rem;font-weight:700;color:var(--yellow)">{{ playerStats[pid]?.voto || 6 }}</span>
+                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
+                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
                 </div>
                 <button class="btn btn-sm" :class="playerStats[pid]?.uomoPartita ? 'btn-yellow' : 'btn-ghost'"
-                  style="padding:5px 10px;font-size:0.7rem" @click="setUomoPartita(pid)">
-                  {{ playerStats[pid]?.uomoPartita ? '⭐ UpM' : '🏅 UpM' }}
+                  style="padding:5px 10px;font-size:0.72rem;margin-left:auto" @click="setUomoPartita(pid)">
+                  {{ playerStats[pid]?.uomoPartita ? '⭐ UoM' : '🏅 UoM' }}
                 </button>
               </div>
-            </div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-              <div class="rating-number">{{ playerStats[pid]?.voto || '–' }}</div>
-              <input type="range" min="1" max="10" step="0.5"
-                :value="playerStats[pid]?.voto || 6"
-                @input="ensureStats(pid);playerStats[pid].voto=parseFloat($event.target.value)"
-                style="width:70px;accent-color:var(--yellow)">
+              <!-- Riga 3: Goal + Assist -->
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <div class="counter-box" style="flex:1;justify-content:space-between">
+                  <span style="font-size:0.72rem;font-weight:700">⚽ Gol</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
+                    <span class="counter-val">{{ playerStats[pid]?.goal||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between">
+                  <span style="font-size:0.72rem;font-weight:700">🅰️ Assist</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].assist>0?playerStats[pid].assist--:null">−</button>
+                    <span class="counter-val">{{ playerStats[pid]?.assist||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
+                  </div>
+                </div>
+              </div>
+              <!-- Riga 4: OG + RP + RS -->
+              <div style="display:flex;gap:6px">
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--red)">OG</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
+                    <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅 RP</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
+                    <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:#FF6B35">❌ RS</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
+                    <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
-          <p style="font-size:0.78rem;color:var(--text2);margin:12px 0">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</p>
-          <div v-for="pid in teamB" :key="'sb-'+pid" class="rating-row">
-            <div style="flex:1">
-              <div class="player-name" style="font-size:0.85rem">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
-              <div class="rating-nick">{{ getPlayer(pid)?.ruolo }}</div>
-              <div class="goal-assist-row" style="margin-top:6px;flex-wrap:wrap;gap:6px">
-                <div class="counter-box">
-                  <span style="font-size:0.7rem;font-weight:700">⚽</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].goal > 0 ? playerStats[pid].goal-- : null">−</button>
-                  <span class="counter-val">{{ playerStats[pid]?.goal || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
-                </div>
-                <div class="counter-box">
-                  <span style="font-size:0.7rem;font-weight:700">🅰️</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].assist > 0 ? playerStats[pid].assist-- : null">−</button>
-                  <span class="counter-val">{{ playerStats[pid]?.assist || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
-                </div>
-                <div class="counter-box" style="border:1px solid rgba(255,77,77,0.3)">
-                  <span style="font-size:0.65rem;font-weight:700;color:var(--red)">OG</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].autogol > 0 ? playerStats[pid].autogol-- : null">−</button>
-                  <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
-                </div>
-                <div class="counter-box" style="border:1px solid rgba(74,222,128,0.35)">
-                  <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅RP</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriParati > 0 ? playerStats[pid].rigoriParati-- : null">−</button>
-                  <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
-                </div>
-                <div class="counter-box" style="border:1px solid rgba(255,107,53,0.35)">
-                  <span style="font-size:0.62rem;font-weight:700;color:var(--orange,#FF6B35)">❌RS</span>
-                  <button class="counter-btn" @click="playerStats[pid] && playerStats[pid].rigoriSbagliati > 0 ? playerStats[pid].rigoriSbagliati-- : null">−</button>
-                  <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati || 0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+          <!-- Header accordion Squadra B -->
+          <div @click="matchTeamOpen.B=!matchTeamOpen.B" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(255,77,77,0.06);border-top:1px solid rgba(255,77,77,0.15);border-bottom:1px solid rgba(255,77,77,0.15)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="color:var(--red);font-weight:700;font-size:0.9rem">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</span>
+              <span style="font-size:0.72rem;color:var(--text2)">{{ teamB.length }} giocatori</span>
+              <span v-if="teamB.some(pid=>playerStats[pid]?.goal>0||playerStats[pid]?.voto>0)" style="font-size:0.65rem;background:rgba(166,255,77,0.15);color:var(--lime);padding:2px 7px;border-radius:8px">✓ dati inseriti</span>
+            </div>
+            <span style="transition:transform .2s;color:var(--text2)" :style="matchTeamOpen.B?'transform:rotate(180deg)':''">▼</span>
+          </div>
+          <div v-show="matchTeamOpen.B" style="padding:8px 16px 4px">
+            <div v-for="pid in teamB" :key="'sb-'+pid"
+              style="padding:10px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+              <!-- Riga 1: Nome + Ruolo -->
+              <div style="margin-bottom:6px">
+                <div style="font-size:0.9rem;font-weight:700;color:var(--text1)">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                <div style="font-size:0.7rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
+              </div>
+              <!-- Riga 2: Voto + UoM -->
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span style="font-size:0.72rem;color:var(--text2)">Voto</span>
+                <div style="display:flex;align-items:center;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;overflow:hidden">
+                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
+                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
+                  <span style="min-width:30px;text-align:center;font-size:0.95rem;font-weight:700;color:var(--yellow)">{{ playerStats[pid]?.voto || 6 }}</span>
+                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
+                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
                 </div>
                 <button class="btn btn-sm" :class="playerStats[pid]?.uomoPartita ? 'btn-yellow' : 'btn-ghost'"
-                  style="padding:5px 10px;font-size:0.7rem" @click="setUomoPartita(pid)">
-                  {{ playerStats[pid]?.uomoPartita ? '⭐ UpM' : '🏅 UpM' }}
+                  style="padding:5px 10px;font-size:0.72rem;margin-left:auto" @click="setUomoPartita(pid)">
+                  {{ playerStats[pid]?.uomoPartita ? '⭐ UoM' : '🏅 UoM' }}
                 </button>
               </div>
+              <!-- Riga 3: Goal + Assist -->
+              <div style="display:flex;gap:6px;margin-bottom:6px">
+                <div class="counter-box" style="flex:1;justify-content:space-between">
+                  <span style="font-size:0.72rem;font-weight:700">⚽ Gol</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
+                    <span class="counter-val">{{ playerStats[pid]?.goal||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between">
+                  <span style="font-size:0.72rem;font-weight:700">🅰️ Assist</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].assist>0?playerStats[pid].assist--:null">−</button>
+                    <span class="counter-val">{{ playerStats[pid]?.assist||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
+                  </div>
+                </div>
+              </div>
+              <!-- Riga 4: OG + RP + RS -->
+              <div style="display:flex;gap:6px">
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--red)">OG</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
+                    <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅 RP</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
+                    <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35)">
+                  <span style="font-size:0.62rem;font-weight:700;color:#FF6B35">❌ RS</span>
+                  <div style="display:flex;align-items:center;gap:3px">
+                    <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
+                    <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
+                    <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+                  </div>
+                </div>
+              </div>
             </div>
-            <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-              <div class="rating-number">{{ playerStats[pid]?.voto || '–' }}</div>
-              <input type="range" min="1" max="10" step="0.5"
-                :value="playerStats[pid]?.voto || 6"
-                @input="ensureStats(pid);playerStats[pid].voto=parseFloat($event.target.value)"
-                style="width:70px;accent-color:var(--yellow)">
-            </div>
+          </div>
+          <div style="padding:10px 16px;font-size:0.7rem;color:var(--text2)">
+            ⚽ Gol · 🅰️ Assist · OG Autogol · 🥅RP Rigore Parato · ❌RS Rigore Sbagliato
           </div>
         </div>
         <div style="display:flex;gap:10px">
@@ -4490,6 +4565,54 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </tbody>
         </table>
       </div>
+      <!-- ── Rigori ── -->
+      <div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <label class="input-label" style="margin-bottom:0">⚽ Rigori</label>
+          <button class="btn btn-ghost btn-sm" style="font-size:0.72rem;padding:4px 10px"
+            @click="editingMatch._rigori = [...(editingMatch._rigori||[]), {playerId:null,tipo:'segnato'}]">
+            + Aggiungi rigore
+          </button>
+        </div>
+        <div v-if="!editingMatch._rigori || editingMatch._rigori.length===0"
+          style="font-size:0.75rem;color:var(--text2);padding:8px;background:var(--bg3);border-radius:8px;text-align:center">
+          Nessun rigore in questa partita
+        </div>
+        <div v-for="(rig,ri) in editingMatch._rigori||[]" :key="ri"
+          style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--bg3);border-radius:8px;padding:8px">
+          <!-- Giocatore -->
+          <select v-model="rig.playerId"
+            style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:0.8rem">
+            <option :value="null" disabled>Giocatore</option>
+            <optgroup v-if="(editingMatch.squadraA||[]).length" :label="editingMatch.nomeSquadraA||'Squadra A'">
+              <option v-for="pid in editingMatch.squadraA||[]" :key="pid" :value="pid">
+                {{getPlayer(pid)?.soprannome||getPlayer(pid)?.nome||pid}}
+              </option>
+            </optgroup>
+            <optgroup v-if="(editingMatch.squadraB||[]).length" :label="editingMatch.nomeSquadraB||'Squadra B'">
+              <option v-for="pid in editingMatch.squadraB||[]" :key="pid" :value="pid">
+                {{getPlayer(pid)?.soprannome||getPlayer(pid)?.nome||pid}}
+              </option>
+            </optgroup>
+          </select>
+          <!-- Tipo -->
+          <select v-model="rig.tipo"
+            style="width:110px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:0.8rem"
+            :style="rig.tipo==='segnato'?'color:#4ade80':rig.tipo==='parato'?'color:#60a5fa':'color:var(--red)'">
+            <option value="segnato">✅ Segnato</option>
+            <option value="sbagliato">❌ Sbagliato</option>
+            <option value="parato">🧤 Parato</option>
+          </select>
+          <!-- Rimuovi -->
+          <button @click="editingMatch._rigori.splice(ri,1)"
+            style="background:none;border:none;color:var(--red);cursor:pointer;font-size:1rem;padding:0 4px">✕</button>
+        </div>
+        <div v-if="editingMatch._rigori && editingMatch._rigori.length>0"
+          style="font-size:0.7rem;color:var(--text2);margin-top:4px">
+          I contatori rigori parati/sbagliati verranno aggiornati al salvataggio.
+        </div>
+      </div>
+
       <div style="margin-bottom:12px">
         <label class="input-label">📝 Note partita</label>
         <textarea class="input-field" v-model="editingMatch.notePartita" rows="2" style="resize:none"></textarea>
@@ -5180,7 +5303,24 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.407',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.412',date:'2026-06-06',items:[
+      'Fix: selezione giocatori — spunta verde visibile al tap (confronto uid corretto)',
+    ]},{version:'v1.411',date:'2026-06-06',items:[
+      'Fix CRITICO: tutti i riferimenti ai giocatori usano p.uid (UUID stabile) invece di p.id Dexie',
+      'Fix: selezione giocatori, formazioni, drag&drop, statistiche — tutti basati su uid',
+      'Fix: getPlayer cerca per uid come priorità assoluta',
+    ]},{version:'v1.410',date:'2026-06-06',items:[
+      'Fix: getPlayer ora confronta id come stringa e numero — nomi giocatori visibili in inserimento partita',
+    ]},{version:'v1.409',date:'2026-06-06',items:[
+      'Fix: layout giocatore — 4 righe: Nome+Ruolo / Voto(+/-0.5)+UoM / Gol+Assist / OG+RP+RS',
+      'Fix: voto con pulsanti +/- da 1 a 10 a passi di 0.5 (parte da 6)',
+      'Nuovo: risultato auto-calcolato dai gol in tempo reale con pulsante "Usa →"',
+    ]},{version:'v1.408',date:'2026-06-06',items:[
+      'UI: Card Identikit AI — font adattivo: testo lungo riduce automaticamente la dimensione',
+      'UI: Hall of Fame — label "👑 Miglior Giocatore · Maggio 2026" invece di "Hall of Fame · 2026-05"',
+      'UI: Modifica partita — sezione Rigori (segnato/sbagliato/parato per giocatore) prima delle Note',
+      'UI: Inserimento partita — statistiche squadre con accordion collassabile + voto numerico',
+    ]},{version:'v1.407',date:'2026-06-06',items:[
       'UI: "Versione App" rinominata "Info & Diagnostica" — include Log di sistema e Crediti',
       'UI: Zona Pericolo riorganizzata — avviso + countdown 3s + pulsante sblocco esplicito',
       'UI: Zona Pericolo — sottosezioni collassabili (Foto, AI Cards, Backup, Statistiche, Reset)',
@@ -5508,6 +5648,7 @@ createApp({
     const detailMatch   = ref(null);
 
     const matchStep          = ref(1);
+    const matchTeamOpen      = ref({A: true, B: true}); // accordion squadre in newmatch
     const matchNotes         = ref('');
     const matchPhoto         = ref('');
     const articleTitle       = ref('');
@@ -5562,7 +5703,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.407');
+    const appVersion = ref('1.412');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5913,6 +6054,16 @@ createApp({
     const openPlayerDetail = p => { detailPlayer.value = p; showPlayerDetail.value = true; };
 
     // Helper: trova il nick AI del giocatore cercando per tutte le chiavi possibili
+    // Formatta YYYY-MM → "Miglior Giocatore · Maggio 2026"
+    const formatMeseHoF = (meseStr, isShame=false) => {
+      if (!meseStr) return isShame ? 'Hall of Shame' : 'Hall of Fame';
+      const mesi = ['Gennaio','Febbraio','Marzo','Aprile','Maggio','Giugno',
+                    'Luglio','Agosto','Settembre','Ottobre','Novembre','Dicembre'];
+      const [y, m] = meseStr.split('-');
+      const nome = mesi[parseInt(m,10)-1] || meseStr;
+      return (isShame ? '💀 Peggior Giocatore' : '👑 Miglior Giocatore') + ' · ' + nome + ' ' + y;
+    };
+
     const getPlayerNick = (p) => {
       if (!p) return null;
       const nicks = aiNicknames.value;
@@ -6028,7 +6179,7 @@ createApp({
       else selectedForMatch.value.push(id);
     };
 
-    const selectAll = () => { selectedForMatch.value = groupPlayers.value.map(p => p.id); };
+    const selectAll = () => { selectedForMatch.value = groupPlayers.value.map(p => p.uid || String(p.id)); };
 
     const ensureStats = pid => {
       if (!playerStats.value[pid])
@@ -6042,7 +6193,7 @@ createApp({
       playerStats.value[pid].uomoPartita = true;
     };
 
-    const getPlayer = pid => groupPlayers.value.find(p => p.id === pid);
+    const getPlayer = pid => groupPlayers.value.find(p => p.uid === pid || p.uid === String(pid) || p.id === pid || String(p.id) === String(pid));
 
     // ── Role/foot ordering ──
     const ROLE_ORDER = {'Portiere':0,'Difensore':1,'Centrocampista':2,'Attaccante':3,'Jolly':4};
@@ -6590,6 +6741,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       aiComment.value = '';
       generatedPNG.value = '';
       matchStep.value = 1;
+      matchTeamOpen.value = {A: true, B: true};
       [...teamA.value, ...teamB.value].forEach(pid => ensureStats(pid));
       currentView.value = 'newmatch';
     };
@@ -7042,7 +7194,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
           if (match) {
             const result = JSON.parse(match[0]);
             const nameToId = {};
-            playersData.forEach(p => { nameToId[p.nome] = p.id; });
+            playersData.forEach(p => { nameToId[p.nome] = p.uid || String(p.id); });
             const aIds = (result.squadraA || []).map(n => nameToId[n]).filter(Boolean);
             const bIds = (result.squadraB || []).map(n => nameToId[n]).filter(Boolean);
             if (aIds.length && bIds.length) {
@@ -7061,10 +7213,10 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
 
       const sorted = [...playersData].sort((a,b) => (b.mediaVoto||6) - (a.mediaVoto||6));
       const a=[], b=[];
-      sorted.forEach((p,i) => { if(i%2===0) a.push(p.id); else b.push(p.id); });
+      sorted.forEach((p,i) => { if(i%2===0) a.push(p.uid||String(p.id)); else b.push(p.uid||String(p.id)); });
       const portieri = sorted.filter(p => p.ruolo === 'Portiere');
       if (portieri.length >= 2) {
-        const p0 = portieri[0].id, p1 = portieri[1].id;
+        const p0 = portieri[0].uid||String(portieri[0].id), p1 = portieri[1].uid||String(portieri[1].id);
         if (a.includes(p0) && a.includes(p1)) {
           const idx = a.indexOf(p1);
           const swapWith = b.findIndex(id => !portieri.map(p=>p.id).includes(id));
@@ -7089,8 +7241,8 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       if (sortableB) sortableB.destroy();
 
       const updateTeams = () => {
-        teamA.value = [...elA.querySelectorAll('[data-id]')].map(el => Number(el.dataset.id));
-        teamB.value = [...elB.querySelectorAll('[data-id]')].map(el => Number(el.dataset.id));
+        teamA.value = [...elA.querySelectorAll('[data-id]')].map(el => el.dataset.id);
+        teamB.value = [...elB.querySelectorAll('[data-id]')].map(el => el.dataset.id);
       };
 
       const opts = { group:'teams', animation:150, ghostClass:'sortable-ghost', chosenClass:'sortable-chosen', onEnd: updateTeams };
@@ -8380,7 +8532,21 @@ Niente altro, nessuna spiegazione.`;
     // FIX1: Edit match
     const showEditMatch  = ref(false);
     const editingMatch   = ref(null);
-    const openEditMatch  = (m) => { editingMatch.value = JSON.parse(JSON.stringify(m)); showEditMatch.value = true; };
+    const openEditMatch  = (m) => {
+      const copy = JSON.parse(JSON.stringify(m));
+      // Ricostruisci lista rigori da statisticheGiocatori esistenti
+      const rigori = [];
+      for (const s of (copy.statisticheGiocatori || [])) {
+        for (let i = 0; i < (s.rigoriParati || 0); i++)
+          rigori.push({ playerId: s.playerId, tipo: 'parato' });
+        for (let i = 0; i < (s.rigoriSbagliati || 0); i++)
+          rigori.push({ playerId: s.playerId, tipo: 'sbagliato' });
+        // I rigori segnati si deducono dai goal ma non li tracciamo separatamente
+      }
+      copy._rigori = rigori;
+      editingMatch.value = copy;
+      showEditMatch.value = true;
+    };
     const movePlayerInEdit = (pid, from, to) => {
       if (!editingMatch.value) return;
       if (from === 'A') {
@@ -8396,6 +8562,23 @@ Niente altro, nessuna spiegazione.`;
     const saveEditMatch = async () => {
       if (!editingMatch.value) return;
       const m = JSON.parse(JSON.stringify(editingMatch.value));
+      // Ricalcola rigoriParati e rigoriSbagliati da _rigori
+      if (m._rigori) {
+        const _rCount = {};
+        for (const rig of m._rigori) {
+          if (!rig.playerId) continue;
+          const k = String(rig.playerId);
+          if (!_rCount[k]) _rCount[k] = { rigoriParati: 0, rigoriSbagliati: 0 };
+          if (rig.tipo === 'parato') _rCount[k].rigoriParati++;
+          else if (rig.tipo === 'sbagliato') _rCount[k].rigoriSbagliati++;
+        }
+        m.statisticheGiocatori = (m.statisticheGiocatori || []).map(s => ({
+          ...s,
+          rigoriParati:    (_rCount[String(s.playerId)]?.rigoriParati    ?? s.rigoriParati    ?? 0),
+          rigoriSbagliati: (_rCount[String(s.playerId)]?.rigoriSbagliati ?? s.rigoriSbagliati ?? 0),
+        }));
+        delete m._rigori; // non salvare il campo temporaneo su Firebase
+      }
       try {
         const _fbUser = JSON.parse(localStorage.getItem('amicifc_fb_user') || 'null');
         const _modEmail = _fbUser?.email || fbLoginEmail.value || 'Utente locale';
@@ -11209,10 +11392,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         const _findPlayer = (nome) => players.find(p=>(p.soprannome||p.nome||'').toLowerCase()===nome?.toLowerCase()) || players.find(p=>(p.nome||'').toLowerCase()===nome?.toLowerCase());
         const _fp = _findPlayer(hof.fame?.nome);
         const _sp = _findPlayer(hof.shame?.nome);
-        slides.push({type:'hallFame',dur:7000,label:'Hall of Fame · '+hof.mese,
+        slides.push({type:'hallFame',dur:7000,label:formatMeseHoF(hof.mese,false),
           card:hof.fame, foto:_fp?.foto, uid:_fp?.uid,
           bg:'linear-gradient(145deg,#1a1100,#92400e 60%,#f59e0b)'});
-        slides.push({type:'hallShame',dur:7000,label:'Hall of Shame · '+hof.mese,
+        slides.push({type:'hallShame',dur:7000,label:formatMeseHoF(hof.mese,true),
           card:hof.shame, foto:_sp?.foto, uid:_sp?.uid,
           bg:'linear-gradient(145deg,#0f0f0f,#1f2937 60%,#374151)'});
       }
@@ -11698,7 +11881,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       obfuscateEmail,
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
-      detailMatch, matchStep, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
+      detailMatch, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
@@ -11740,7 +11923,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
-      shareStatsPNG, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, logFilter, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
+      shareStatsPNG, formatMeseHoF, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, logFilter, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
       showChangelog, changelogEntries,
       showNewSeasonModal, showSeasonArchive, newSeasonName, startNewSeason, confirmStartNewSeason,
       exportExcel, totalReset, autoSyncToCloud,
