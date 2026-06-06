@@ -5305,7 +5305,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.418',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.419',date:'2026-06-06',items:[
+      'Debug: log diagnostico in Ricalcola Statistiche per trovare causa statistiche vuote',
+    ]},{version:'v1.418',date:'2026-06-06',items:[
       'Fix: toast "Inserisci URL Firebase" non appare più all avvio — migrazione eseguita dopo selectGroup',
       'Fix: syncToCloud e syncFromCloud silenziosamente ignorati se Firebase non configurato',
     ]},{version:'v1.417',date:'2026-06-06',items:[
@@ -5726,7 +5728,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.418');
+    const appVersion = ref('1.419');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10537,12 +10539,29 @@ const toggleFont = () => {
       if (!currentGroup.value) return;
       restoreStatus.value = `⏳ Ricalcolo in corso...`;
       try {
+        // Diagnostica pre-ricalcolo
+        const _diagPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
+        const _diagMatches = await db.matches.where('groupId').equals(currentGroup.value.id).toArray();
+        const _samplePid = _diagMatches[0]?.statisticheGiocatori?.[0]?.playerId;
+        const _sampleUid = _diagPlayers[0]?.uid;
+        logEvent('info', 'stats', `Diagnostica: ${_diagPlayers.length} giocatori, ${_diagMatches.length} partite, groupId=${currentGroup.value.id}`);
+        logEvent('info', 'stats', `Sample playerId="${_samplePid}" | Sample uid="${_sampleUid}"`);
+        logEvent('info', 'stats', `squadraA[0]="${_diagMatches[0]?.squadraA?.[0]}"`);
+
         await recomputeStats();
         await loadGroupData();
-        restoreStatus.value = `✅ Statistiche ricalcolate correttamente!`;
+
+        // Diagnostica post-ricalcolo
+        const _postPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
+        const _totGoal = _postPlayers.reduce((s,p) => s+(p.goalTotali||0), 0);
+        const _totPartite = _postPlayers.reduce((s,p) => s+(p.partiteTotali||0), 0);
+        logEvent('info', 'stats', `Post-ricalcolo: goal totali=${_totGoal}, partite-giocatore=${_totPartite}`);
+
+        restoreStatus.value = `✅ Statistiche ricalcolate! (${_diagPlayers.length} giocatori, ${_diagMatches.length} partite)`;
         toast(`✅ Statistiche ricalcolate!`, `success`, 3000);
       } catch(e) {
         restoreStatus.value = `❌ Errore: ` + e.message;
+        logEvent('error', 'stats', 'forceRecomputeStats: ' + e.message);
       }
     };
 
