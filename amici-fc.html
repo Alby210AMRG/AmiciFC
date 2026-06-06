@@ -2368,7 +2368,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <button class="btn btn-sm" :class="manualFormation.squadraB.includes(p.id)?'btn-red':'btn-ghost'"
               style="padding:5px 12px;font-size:0.75rem"
               @click="addToManualTeam(p.uid||String(p.id),'squadraB')">🔴 B</button>
-            <button v-if="manualFormation.squadraA.includes(p.id)||manualFormation.squadraB.includes(p.id)"
+            <button v-if="manualFormation.squadraA.includes(p.uid||String(p.id))||manualFormation.squadraB.includes(p.uid||String(p.id))"
               class="btn btn-ghost btn-sm" style="padding:5px 8px"
               @click="removeFromManualTeam(p.uid||String(p.id),'squadraA');removeFromManualTeam(p.uid||String(p.id),'squadraB')">✕</button>
           </div>
@@ -5303,7 +5303,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.412',date:'2026-06-06',items:[
+    const changelogEntries = [{version:'v1.413',date:'2026-06-06',items:[
+      'Fix CRITICO audit uid completo: statsMap, saveMatch, recomputeStats, calcStats, resolveIds, import JSON',
+      'Fix: manualFormation, last10Pids, AI profiles, generateTeamsBalanced, soprannomi — tutti su uid',
+      'Fix: import JSON senza rimappatura id — stesso approccio di syncFromCloud',
+      'Fix: saveMatch post-save update player usa uid per find, id Dexie per update DB',
+    ]},{version:'v1.412',date:'2026-06-06',items:[
       'Fix: selezione giocatori — spunta verde visibile al tap (confronto uid corretto)',
     ]},{version:'v1.411',date:'2026-06-06',items:[
       'Fix CRITICO: tutti i riferimenti ai giocatori usano p.uid (UUID stabile) invece di p.id Dexie',
@@ -5703,7 +5708,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.412');
+    const appVersion = ref('1.413');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -5815,13 +5820,13 @@ createApp({
       let baseOvr, bonusRuolo;
 
       if (ruolo === 'Portiere') {
-        const cs = calcCleanSheets(p.id);
+        const cs = calcCleanSheets(p.uid||String(p.id));
         const pCS = Math.min(50 + (cs / n * 49), 99);
         baseOvr    = (pPunti * 0.55) + (pVoto * 0.30) + (uomBonus * 0.15);
         bonusRuolo = (pCS * 0.50) + (pVoto * 0.30) + (pPunti * 0.20);
 
       } else if (ruolo === 'Difensore') {
-        const wins  = calcPlayerWins(p.id);
+        const wins  = calcPlayerWins(p.uid||String(p.id));
         const pVit  = Math.min(50 + (wins / n * 49) * smorzamento, 99);
         baseOvr    = (pVoto * 0.65) + (pVit * 0.25) + (uomBonus * 0.10);
         bonusRuolo = (pVit * 0.55) + (pVoto * 0.40) + (Math.min(50+(gol/n*40.83),99)-50)*0.05;
@@ -5843,7 +5848,7 @@ createApp({
       const pMax = Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
       return [...groupPlayers.value]
         .filter(p => (p.partiteTotali||0) >= minP)
-        .map(p => ({ ...p, _score: overallScore(p, pMax), _cs: calcCleanSheets(p.id) }))
+        .map(p => ({ ...p, _score: overallScore(p, pMax), _cs: calcCleanSheets(p.uid||String(p.id)) }))
         .sort((a,b) => b._score - a._score)
         .slice(0, 12);
     });
@@ -5868,7 +5873,7 @@ createApp({
         last10Matches.flatMap(m => [...(m.squadraA||[]), ...(m.squadraB||[])])
       );
       const players = groupPlayers.value.filter(p =>
-        (p.partiteTotali||0) >= 5 && last10Pids.has(p.id)
+        (p.partiteTotali||0) >= 5 && (last10Pids.has(p.uid) || last10Pids.has(p.id) || last10Pids.has(String(p.id)))
       );
       const pMaxBTF = Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
       const scored = players.map(p => ({ ...p, _score: overallScore(p, pMaxBTF) }))
@@ -6233,7 +6238,7 @@ createApp({
 
         const statsScore = p => {
       const base = (p.mediaPunti||0)*10 + (p.goalTotali||0)*0.8 + (p.assistTotali||0)*0.5 + (p.mediaVoto||6)*0.8 + (p.uomoPartitaTotali||0)*3 + (p.rigoriParatiTotali||0)*1.5 - (p.rigoriSbagliatiTotali||0)*0.8;
-      const form = calcPlayerForm(p.id) * 1.5; // form modifier: -3 to +3
+      const form = calcPlayerForm(p.uid||String(p.id)) * 1.5; // form modifier: -3 to +3
       return base + form;
     };
     const buildFormationBase = ()=>({groupId:currentGroup.value.id,dataCreazione:new Date().toISOString().slice(0,10),matchData:matchInfo.value.data,matchOrario:matchInfo.value.orario,matchLuogo:matchInfo.value.luogo,stato:'proposta'});
@@ -6260,7 +6265,7 @@ createApp({
       const players = ids.map(id => getPlayer(id)).filter(Boolean);
 
       const playerProfiles = players.map(p => ({
-        id: p.id,
+        id: p.uid || String(p.id),
         nome: p.soprannome || p.nome,
         ruolo: p.ruolo,
         piede: p.piede || 'Destro',
@@ -6269,7 +6274,7 @@ createApp({
         voto: Number((p.mediaVoto||6).toFixed(1)),
         mediaPunti: Number((p.mediaPunti||0).toFixed(2)),
         forma: (() => {
-          const f = calcPlayerForm(p.id);
+          const f = calcPlayerForm(p.uid||String(p.id));
           if (f >= 1.5) return '🔥 Ottima (vince spesso)';
           if (f >= 0.5) return '✅ Buona';
           if (f >= -0.5) return '😐 Nella media';
@@ -6426,8 +6431,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
       rotated.forEach((p, idx) => {
         const round = Math.floor(idx / 2);
         const pickA = round % 2 === 0 ? idx % 2 === 0 : idx % 2 === 1;
-        if (pickA && a.length < halfA) a.push(p.id);
-        else b.push(p.id);
+        if (pickA && a.length < halfA) a.push(p.uid||String(p.id));
+        else b.push(p.uid||String(p.id));
       });
       while (a.length > halfA) { b.push(a.pop()); }
       while (b.length > half + 1) { a.push(b.pop()); }
@@ -7748,7 +7753,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             nome: p.soprannome||p.nome, ruolo: p.ruolo||'',
             partite:0, vinte:0, gol:0, assist:0, autogol:0, uom:0, votiSum:0, votiN:0
           };
-          const st = statsMap[s.playerId];
+          const st = statsMap[s.playerId] || statsMap[String(s.playerId)];
           const inA = (m.squadraA||[]).map(String).includes(String(s.playerId));
           const vince = isDraw ? false : (inA && teamAWon) || (!inA && !teamAWon);
           st.partite++; if(vince) st.vinte++;
@@ -7924,7 +7929,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
         if (failedBatches >= 2) { _aiLog('Soprannomi','⛔ Troppi errori, stop batch'); break; }
         const batch = toGenerate.slice(bi, bi + BATCH);
         const profili = batch.map(p => ({
-          id: p.id,
+          id: p.uid || String(p.id),
           nome: p.soprannome || p.nome,
           ruolo: p.ruolo || 'Jolly',
           g: p.partiteTotali||0,
@@ -8485,7 +8490,8 @@ Niente altro, nessuna spiegazione.`;
       activeFormation.value = null;
 
       for (const s of statsArr) {
-        const p = groupPlayers.value.find(x => x.id === s.playerId);
+        const p = groupPlayers.value.find(x =>
+          x.uid === s.playerId || String(x.id) === String(s.playerId));
         if (!p) continue;
         let nuovaMedia = p.mediaVoto || 0, nuoviVoti = p.votiTotali || 0;
         if (s.voto > 0) {
@@ -8494,7 +8500,7 @@ Niente altro, nessuna spiegazione.`;
         }
         const nuoviPunti   = (p.puntiTotali  || 0) + s.punti;
         const nuovePartite = (p.partiteTotali || 0) + 1;
-        await db.players.update(s.playerId, {
+        await db.players.update(p.id, {
           goalTotali:        (p.goalTotali        || 0) + s.goal,
           assistTotali:      (p.assistTotali      || 0) + s.assist,
           autogolTotali:     (p.autogolTotali     || 0) + s.autogol,
@@ -8856,7 +8862,7 @@ Niente altro, nessuna spiegazione.`;
 
       const statsMap = {};
       allPlayers.forEach(p => {
-        statsMap[p.id] = {
+        statsMap[p.uid || String(p.id)] = {
           goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
           puntiTotali:0, partiteTotali:0, votiTotali:0, votiSum:0,
           rigoriParatiTotali:0, rigoriSbagliatiTotali:0
@@ -8895,7 +8901,7 @@ Niente altro, nessuna spiegazione.`;
       }
 
       for (const p of allPlayers) {
-        const st = statsMap[p.id] || {};
+        const st = statsMap[p.uid || String(p.id)] || {};
         const mediaVoto = st.votiTotali > 0 ? st.votiSum / st.votiTotali : 0;
         const mediaPunti = st.partiteTotali > 0 ? st.puntiTotali / st.partiteTotali : 0;
         await db.players.update(p.id, {
@@ -10379,47 +10385,39 @@ const toggleFont = () => {
           if (!existing) newGroups++;
           if (firstImportedGroupId === null) firstImportedGroupId = gid;
 
-          // ── Import players + build OLD_ID → NEW_ID map ──
-          const idMap = {}; // old string/numeric id → new Dexie id
+          // ── Import players — conserva uid e id originali (come syncFromCloud) ──
           const currentPlayers = await db.players.where('groupId').equals(gid).toArray();
 
           for (const p of (eg.players||[])) {
-            const dup = currentPlayers.find(x => x.nome===p.nome && x.cognome===p.cognome);
-            if (dup) {
-              if (p.id !== undefined && p.id !== null) idMap[String(p.id)] = dup.id;
-            } else {
-              const { id: oldId, groupId: _gid, ...rest } = p;
-              const newId = await db.players.add({ ...rest, groupId: gid });
-              if (oldId !== undefined && oldId !== null) idMap[String(oldId)] = newId;
+            // Cerca duplicato per uid (priorità) o nome+cognome
+            const dup = currentPlayers.find(x =>
+              (p.uid && x.uid === p.uid) ||
+              (x.nome === p.nome && x.cognome === p.cognome)
+            );
+            if (!dup) {
+              await db.players.add({ ...p, groupId: gid, uid: p.uid || uuid() });
               totalPlayers++;
             }
           }
 
-          // ── Import matches with remapped player IDs ──
+          // ── Import matches — nessuna rimappatura, uid sono stabili ──
+          const currentPlayers2 = await db.players.where('groupId').equals(gid).toArray();
           const currentMatches = await db.matches.where('groupId').equals(gid).toArray();
 
           for (const m of (eg.matches||[])) {
+            // Deduplicazione per matchUUID (priorità) o data+risultato
             const dup = currentMatches.find(x =>
-              x.data === m.data &&
-              x.risultato?.goalA === m.risultato?.goalA &&
-              x.risultato?.goalB === m.risultato?.goalB
+              (m.matchUUID && x.matchUUID === m.matchUUID) ||
+              (x.data === m.data &&
+               x.risultato?.goalA === m.risultato?.goalA &&
+               x.risultato?.goalB === m.risultato?.goalB)
             );
             if (!dup) {
-              const { id: _id, groupId: _gid2, ...mRest } = m;
-
-              const remapId = pid => idMap[String(pid)] ?? pid;
-
-              const remappedMatch = {
-                ...mRest,
+              await db.matches.add({
+                ...m,
                 groupId: gid,
-                squadraA: (mRest.squadraA || []).map(remapId),
-                squadraB: (mRest.squadraB || []).map(remapId),
-                statisticheGiocatori: (mRest.statisticheGiocatori || []).map(s => ({
-                  ...s,
-                  playerId: remapId(s.playerId)
-                }))
-              };
-              await db.matches.add(remappedMatch);
+                matchUUID: m.matchUUID || uuid()
+              });
               totalMatches++;
             }
           }
@@ -11585,12 +11583,12 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       const statsB = { gol:0, assist:0, voto:0, votoN:0, uom:0 };
       matches.forEach(m => {
         (m.statisticheGiocatori||[]).forEach(s => {
-          if(s.playerId===pA.id||s.playerId===String(pA.id)){
+          if(s.playerId===pA.uid||s.playerId===String(pA.id)){
             statsA.gol+=(s.goal||0); statsA.assist+=(s.assist||0);
             if(s.voto){statsA.voto+=parseFloat(s.voto)||0;statsA.votoN++;}
             if(s.uomoPartita) statsA.uom++;
           }
-          if(s.playerId===pB.id||s.playerId===String(pB.id)){
+          if(s.playerId===pB.uid||s.playerId===String(pB.id)){
             statsB.gol+=(s.goal||0); statsB.assist+=(s.assist||0);
             if(s.voto){statsB.voto+=parseFloat(s.voto)||0;statsB.votoN++;}
             if(s.uomoPartita) statsB.uom++;
@@ -11844,7 +11842,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         const resolveIds = (uids) => uids.map(uid => {
           const p = players.find(p => p.uid === uid) ||
                     players.find(p => String(p.id) === String(uid));
-          return p ? p.id : null;
+          return p ? (p.uid || String(p.id)) : null;
         }).filter(Boolean);
         const squadraA = resolveIds(parsed.a || []);
         const squadraB = resolveIds(parsed.b || []);
