@@ -9278,17 +9278,22 @@ Niente altro, nessuna spiegazione.`;
 
               for (const cm of cloudMatches) {
                 if (!cm) continue;
+                const _sqA = toArr(cm.squadraA);
+                const _sqB = toArr(cm.squadraB);
+                const _stats = toArr(cm.statisticheGiocatori);
+                // Log prima partita per debug
+                if (syncedMatches === 0) {
+                  logEvent('info','sync',`RAW squadraA tipo=${typeof cm.squadraA} isArr=${Array.isArray(cm.squadraA)} val=${JSON.stringify(cm.squadraA).substring(0,80)}`);
+                  logEvent('info','sync',`CONV squadraA len=${_sqA.length} [0]=${_sqA[0]}`);
+                  logEvent('info','sync',`RAW stats tipo=${typeof cm.statisticheGiocatori} isArr=${Array.isArray(cm.statisticheGiocatori)} len=${_stats.length}`);
+                }
                 await db.matches.add({
                   ...cm,
                   groupId: gid,
                   matchUUID: cm.matchUUID || uuid(),
-                  // Normalizza array (Firebase li converte in oggetti {"0":..,"1":..})
-                  squadraA: toArr(cm.squadraA),
-                  squadraB: toArr(cm.squadraB),
-                  statisticheGiocatori: toArr(cm.statisticheGiocatori).map(s => ({
-                    ...s,
-                    playerId: s.playerId
-                  })),
+                  squadraA: _sqA,
+                  squadraB: _sqB,
+                  statisticheGiocatori: _stats.map(s => ({...s, playerId: s.playerId})),
                 });
                 syncedMatches++;
               }
