@@ -5305,7 +5305,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.431',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.432',date:'2026-06-07',items:[
+      'Nuovo: sistema sync intelligente con syncVersion e lastModified',
+      'Nuovo: checkSyncNeeded — confronta versione e timestamp prima di scaricare',
+      'Nuovo: sync forzato globale tramite syncVersion su Firebase (da Inspector)',
+      'Ottimizzazione: avvio più veloce se dati locali già aggiornati',
+    ]},{version:'v1.431',date:'2026-06-07',items:[
       'Fix architettura statistiche: recomputeStats non gira più ad ogni loadGroupData',
       'Statistiche calcolate solo dopo saveMatch o Ricalcola manuale, poi salvate su Firebase',
       'syncFromCloud scarica giocatori già con stats da Firebase — nessun ricalcolo automatico',
@@ -5548,6 +5553,8 @@ createApp({
     const showGroupCloud    = ref(false);
     const isOnline          = ref(navigator.onLine);
     const lastSyncTime      = ref(localStorage.getItem('amicifc_last_sync') || '');
+    const localSyncVersion  = ref(parseInt(localStorage.getItem('amicifc_sync_version') || '0'));
+    const localSyncTs       = ref(parseInt(localStorage.getItem('amicifc_sync_ts') || '0'));
     const lastSyncError     = ref(localStorage.getItem('amicifc_last_sync_error') || '');
     const showLogModal      = ref(false);
     const appLogs           = ref(JSON.parse(localStorage.getItem('amicifc_logs') || '[]')); // ultimo errore sync
@@ -5761,7 +5768,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.431');
+    const appVersion = ref('1.432');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8855,6 +8862,40 @@ Niente altro, nessuna spiegazione.`;
       return [];
     };
 
+    // Controlla se serve sync da Firebase confrontando syncVersion e lastModified
+    const checkSyncNeeded = async () => {
+      const base = getFirebaseBase();
+      if (!base) return false;
+      try {
+        const resp = await fetch(`${base}.json?shallow=true`, { cache: 'no-store' });
+        if (!resp.ok) return false;
+        const data = await resp.json();
+        if (!data) return false;
+
+        // Check 1: syncVersion — se Firebase ha versione maggiore → sync forzato
+        const fbSyncVersion = parseInt(data.syncVersion || '1');
+        const myVersion = localSyncVersion.value;
+        if (fbSyncVersion > myVersion) {
+          logEvent('info', 'sync', `syncVersion aggiornata (${myVersion} → ${fbSyncVersion}) — sync forzato`);
+          return 'force';
+        }
+
+        // Check 2: lastModified — se Firebase è più recente → sync
+        const fbLastModified = parseInt(data.lastModified || '0');
+        const myLastModified = localSyncTs.value;
+        if (fbLastModified > myLastModified) {
+          logEvent('info', 'sync', `Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
+          return 'update';
+        }
+
+        logEvent('info', 'sync', 'Dati locali già aggiornati — sync non necessario');
+        return false;
+      } catch(e) {
+        logEvent('warn', 'sync', 'checkSyncNeeded fallito: ' + e.message);
+        return false;
+      }
+    };
+
     const getFirebaseBase = () => {
       const url = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
       return url ? `${url}/amicifc` : null;
@@ -9169,6 +9210,7 @@ Niente altro, nessuna spiegazione.`;
 
         const payload = {
           lastUpdate: new Date().toISOString(),
+          lastModified: Date.now(), // timestamp ms per confronto veloce
           appVersion: appVersion.value,
           groups: allGroups,
           aiCards: cloudAiCards
@@ -9198,6 +9240,10 @@ Niente altro, nessuna spiegazione.`;
 
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
+        // Aggiorna timestamp sync locale
+        const _nowTs = Date.now();
+        localSyncTs.value = _nowTs;
+        localStorage.setItem('amicifc_sync_ts', String(_nowTs));
         logEvent('info', 'sync', `Upload OK: ${allGroups.reduce((s,g)=>s+g.matches.length,0)} partite`);
         setSyncStatus('ok');
         logEvent('info', 'sync', 'Upload OK su Firebase');
@@ -9332,6 +9378,12 @@ Niente altro, nessuna spiegazione.`;
 
             logEvent('info', 'sync', `OK: ${syncedPlayers} giocatori, ${syncedMatches} partite da Firebase`);
             setSyncStatus('ok');
+            // Salva syncVersion e timestamp locale
+            const _fbSyncVer = parseInt(data.syncVersion || '1');
+            localSyncVersion.value = _fbSyncVer;
+            localSyncTs.value = Date.now();
+            localStorage.setItem('amicifc_sync_version', String(_fbSyncVer));
+            localStorage.setItem('amicifc_sync_ts', String(Date.now()));
 
             _syncInProgress = false;
             _scheduleInitAiCards();
@@ -11005,10 +11057,20 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       });
       setTimeout(_scheduleNewsCompute, 1000);
 
-      // ── Startup sync ──
+      // ── Startup sync intelligente ──
       if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
         try {
-          await syncFromCloud(false);
+          const syncNeeded = await checkSyncNeeded();
+          if (syncNeeded === 'force') {
+            logEvent('info', 'sync', '🔄 Sync forzato — syncVersion aggiornata da admin');
+            await syncFromCloud(true); // force = cancella tutto e riscarica
+          } else if (syncNeeded === 'update') {
+            await syncFromCloud(false); // aggiornamento normale
+          } else {
+            logEvent('info', 'sync', '✅ Dati locali aggiornati — nessun sync necessario');
+            // Ricarica comunque i dati locali da Dexie
+            await loadGroupData();
+          }
         } catch(e) { console.warn('[startup sync]', e.message); }
       }
 
@@ -12032,7 +12094,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
-      syncLoading, syncStatus, lastSyncDate, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
+      syncLoading, syncStatus, lastSyncDate, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       restoreStatus, restoreFromBackup, forceRecomputeStats,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
