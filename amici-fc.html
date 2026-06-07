@@ -5452,7 +5452,16 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.436',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.438',date:'2026-06-07',items:[
+      'Fix banda: foto giocatori su path Firebase separato (/playerFotos/{uid})',
+      'Fix: foto caricate su Firebase solo quando cambiano (hash check locale)',
+      'Fix: foto scaricate da Firebase solo se mancanti in locale',
+      'Fix: payload syncToCloud senza foto — drastica riduzione traffico dati',
+    ]},{version:'v1.437',date:'2026-06-07',items:[
+      'FIX CRITICO: foto base64 escluse dal payload Firebase — riduzione drastica traffico dati',
+      'FIX CRITICO: rimosso autoSync duplicato su visibilitychange (causava loop upload)',
+      'FIX: recomputeStats non chiama più syncToCloud automaticamente — solo il pulsante manuale',
+    ]},{version:'v1.436',date:'2026-06-07',items:[
       'Fix: rimosso box Gestione Stagione dalle impostazioni (spostato in Gestione Gruppi)',
       'UI: bottoni gruppo — solo icone (✏️ 🗑️ ⚽→📦), più compatti',
       'UI: elimina gruppo richiede digitazione ELIMINA per confermare',
@@ -5938,7 +5947,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.436');
+    const appVersion = ref('1.438');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9218,13 +9227,6 @@ Niente altro, nessuna spiegazione.`;
           rigoriSbagliatiTotali:   st.rigoriSbagliatiTotali || 0
         });
       }
-      // Salva statistiche su Firebase solo se abbiamo un token valido (utenti con diritti di scrittura)
-      if (currentGroup.value?.firebaseUrl && (fbIdToken.value || firebaseUser.value)) {
-        try {
-          const _tok = await getValidToken();
-          if (_tok) await syncToCloud();
-        } catch(e) { logEvent('warn','stats','sync stats fallito: '+e.message); }
-      }
     };
     // ── Refresh expired Firebase ID token automatically ──
     const refreshFirebaseToken = async () => {
@@ -9329,9 +9331,37 @@ Niente altro, nessuna spiegazione.`;
         // Costruisci payload con i dati locali
         const allGroups = [];
         for (const g of groups.value) {
-          const players = await db.players.where('groupId').equals(g.id).toArray();
-          const matches  = await db.matches.where('groupId').equals(g.id).toArray();
+          const _rawPlayers = await db.players.where('groupId').equals(g.id).toArray();
+          // Foto base64: caricale separatamente solo se cambiate, non nel payload principale
+          const players = _rawPlayers.map(p => {
+            if (p.foto && p.foto.startsWith('data:')) {
+              const { foto, ...rest } = p;
+              return { ...rest, _hasFoto: true }; // indica che la foto esiste localmente
+            }
+            return p;
+          });
+          const matches = await db.matches.where('groupId').equals(g.id).toArray();
           allGroups.push({ group: g, players, matches });
+          // Carica foto cambiate su Firebase (path separato)
+          for (const p of _rawPlayers) {
+            if (p.foto && p.foto.startsWith('data:') && p.uid) {
+              const fotoKey = 'amicifc_foto_synced_' + p.uid;
+              const fotoHash = p.foto.length + '_' + p.foto.slice(-20);
+              if (localStorage.getItem(fotoKey) !== fotoHash) {
+                try {
+                  const fotoResp = await fetch(base + '/playerFotos/' + p.uid + '.json' + authSuffix, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(p.foto)
+                  });
+                  if (fotoResp.ok) {
+                    localStorage.setItem(fotoKey, fotoHash);
+                    logEvent('info', 'sync', 'Foto caricata: ' + (p.soprannome||p.nome));
+                  }
+                } catch(e) { /* foto upload non critico */ }
+              }
+            }
+          }
         }
 
         const payload = {
@@ -9465,9 +9495,35 @@ Niente altro, nessuna spiegazione.`;
                   storicoPartite: toArr(cp.storicoPartite),
                   rivali: toArr(cp.rivali),
                   affinita: toArr(cp.affinita),
+                  foto: cp.foto || '', // foto viene scaricata separatamente sotto
                 });
                 syncedPlayers++;
               }
+
+              // Scarica foto mancanti da Firebase (path separato)
+              let fotoDownloaded = 0;
+              for (const cp of cloudPlayers) {
+                if (!cp?.uid || cp.foto?.startsWith('data:')) continue;
+                // Controlla se la foto esiste già in locale
+                const existing = await db.players.where('uid').equals(cp.uid).first();
+                if (existing?.foto?.startsWith('data:')) continue; // già in locale
+                try {
+                  const fotoResp = await fetch(base + '/playerFotos/' + cp.uid + '.json', { cache: 'no-store' });
+                  if (fotoResp.ok) {
+                    const fotoData = await fotoResp.json();
+                    if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
+                      const player = await db.players.where('uid').equals(cp.uid).first();
+                      if (player) {
+                        await db.players.update(player.id, { foto: fotoData });
+                        const fotoHash = fotoData.length + '_' + fotoData.slice(-20);
+                        localStorage.setItem('amicifc_foto_synced_' + cp.uid, fotoHash);
+                        fotoDownloaded++;
+                      }
+                    }
+                  }
+                } catch(e) { /* foto non critica */ }
+              }
+              if (fotoDownloaded > 0) logEvent('info', 'sync', fotoDownloaded + ' foto scaricate da Firebase');
 
               // ── REIMPORTA PARTITE da Firebase ──
               // squadraA/B e playerId rimangono identici a Firebase — niente rimappatura
@@ -10909,6 +10965,13 @@ const toggleFont = () => {
       try {
 
 
+
+        // Sync manuale: salva statistiche su Firebase
+        if (currentGroup.value?.firebaseUrl) {
+          try { const _tok = await getValidToken(); if (_tok) await syncToCloud(); } catch(e) {
+            logEvent('warn','stats','sync stats: '+e.message);
+          }
+        }
         await recomputeStats();
         await loadGroupData();
 
@@ -11376,7 +11439,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         if (document.visibilityState === 'visible') {
           clearTimeout(_visTimer);
           _visTimer = setTimeout(() => {
-            autoSync().catch(console.warn);
+            // Solo checkForUpdates — il sync è già gestito dall'altro listener con 10min minimo
             checkForUpdates(true).catch(console.warn);
           }, 1000);
         }
