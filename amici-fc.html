@@ -1518,6 +1518,145 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </header>
 
+  <!-- ── MODAL CONFERMA ELIMINA GRUPPO ── -->
+  <div v-if="deleteGroupTarget" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--bg1);border:1px solid rgba(255,77,77,0.4);border-radius:16px;width:100%;max-width:400px;padding:20px">
+      <div style="font-size:1.1rem;font-weight:800;color:var(--red);margin-bottom:8px">🗑️ Elimina Gruppo</div>
+      <div style="font-size:0.85rem;color:var(--text2);margin-bottom:14px;line-height:1.6">
+        Stai per eliminare <strong style="color:var(--text1)">{{ deleteGroupTarget.nome }}</strong> e tutti i suoi dati.<br>
+        <span style="color:var(--red)">Questa azione è irreversibile.</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:8px">Digita <strong style="color:var(--text1)">ELIMINA</strong> per confermare</div>
+      <input class="input-field" v-model="deleteGroupConfirmText" placeholder="ELIMINA" style="text-transform:uppercase;margin-bottom:14px">
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-ghost" style="flex:1" @click="deleteGroupTarget=null">Annulla</button>
+        <button class="btn btn-red" style="flex:1"
+          :disabled="deleteGroupConfirmText.toUpperCase()!=='ELIMINA'"
+          @click="doDeleteGroup">🗑️ Elimina</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── WIZARD ARCHIVIA STAGIONE ── -->
+  <div v-if="archiveWizard" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:16px;width:100%;max-width:480px;max-height:90vh;overflow-y:auto">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--border)">
+        <div>
+          <div style="font-weight:800;font-size:1rem">📦 Archivia Stagione</div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-top:2px">{{ archiveWizard.group.nome }}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:0.72rem;color:var(--text2)">Step {{ archiveWizard.step }}/4</span>
+          <button @click="archiveWizard=null" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.2rem">✕</button>
+        </div>
+      </div>
+
+      <!-- Progress bar -->
+      <div style="height:3px;background:var(--bg3)">
+        <div :style="'width:'+(archiveWizard.step/4*100)+'%;height:100%;background:var(--lime);transition:width .3s'"></div>
+      </div>
+
+      <div style="padding:16px">
+
+        <!-- STEP 1: Conferma stagione da archiviare -->
+        <template v-if="archiveWizard.step===1">
+          <div style="font-size:0.9rem;font-weight:700;margin-bottom:12px">1️⃣ Conferma stagione da archiviare</div>
+          <div style="background:rgba(166,255,77,0.07);border:1px solid rgba(166,255,77,0.2);border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.82rem;line-height:1.7">
+            <div>📅 Stagione corrente: <strong style="color:var(--lime)">{{ archiveWizard.group.stagione || 'Stagione 1' }}</strong></div>
+            <div>⚽ Partite da archiviare: <strong>{{ archiveWizard.matchCount }}</strong></div>
+            <div>👥 Giocatori: <strong>{{ archiveWizard.playerCount }}</strong></div>
+            <div v-if="archiveWizard.firstMatch">🗓️ Prima partita: <strong>{{ archiveWizard.firstMatch }}</strong></div>
+            <div v-if="archiveWizard.lastMatch">🏁 Ultima partita: <strong>{{ archiveWizard.lastMatch }}</strong></div>
+          </div>
+          <label class="input-label">Nome archivio (puoi modificarlo)</label>
+          <input class="input-field" v-model="archiveStepData.nomeArchivio" placeholder="es. Stagione 2024-25">
+          <div v-if="archiveStepData.error" style="color:var(--red);font-size:0.78rem;margin-top:6px">{{ archiveStepData.error }}</div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn btn-ghost" style="flex:1" @click="archiveWizard=null">Annulla</button>
+            <button class="btn btn-primary" style="flex:2" @click="archiveStep1Next">Avanti →</button>
+          </div>
+        </template>
+
+        <!-- STEP 2: Seleziona giocatori per nuova stagione -->
+        <template v-if="archiveWizard.step===2">
+          <div style="font-size:0.9rem;font-weight:700;margin-bottom:4px">2️⃣ Giocatori per la nuova stagione</div>
+          <div style="font-size:0.75rem;color:var(--text2);margin-bottom:12px">Seleziona i giocatori da portare avanti. Le statistiche verranno azzerate.</div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <span style="font-size:0.78rem;color:var(--text2)">{{ archiveStepData.giocatoriSelezionati.length }} selezionati</span>
+            <div style="display:flex;gap:6px">
+              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem" @click="archiveSelectAll">Tutti</button>
+              <button class="btn btn-ghost btn-sm" style="font-size:0.7rem" @click="archiveStepData.giocatoriSelezionati=[]">Nessuno</button>
+            </div>
+          </div>
+          <div style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px">
+            <div v-for="p in archiveWizard.players" :key="p.uid"
+              @click="archiveTogglePlayer(p.uid)"
+              style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)"
+              :style="archiveStepData.giocatoriSelezionati.includes(p.uid)?'background:rgba(166,255,77,0.08)':''">
+              <div style="width:20px;height:20px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.7rem;flex-shrink:0"
+                :style="archiveStepData.giocatoriSelezionati.includes(p.uid)?'background:var(--lime);border-color:var(--lime);color:#000':''">
+                {{ archiveStepData.giocatoriSelezionati.includes(p.uid) ? '✓' : '' }}
+              </div>
+              <div>
+                <div style="font-size:0.85rem;font-weight:600">{{ p.soprannome || p.nome }}</div>
+                <div style="font-size:0.7rem;color:var(--text2)">{{ p.ruolo }} · {{ p.partiteTotali||0 }} partite · {{ p.goalTotali||0 }} gol</div>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn btn-ghost" style="flex:1" @click="archiveWizard.step=1">← Indietro</button>
+            <button class="btn btn-primary" style="flex:2" @click="archiveStep2Next">Avanti →</button>
+          </div>
+        </template>
+
+        <!-- STEP 3: Nome nuova stagione -->
+        <template v-if="archiveWizard.step===3">
+          <div style="font-size:0.9rem;font-weight:700;margin-bottom:12px">3️⃣ Nome nuova stagione</div>
+          <label class="input-label">Nome della nuova stagione</label>
+          <input class="input-field" v-model="archiveStepData.nomeStagioneNuova" placeholder="es. Stagione 2025-26">
+          <div style="font-size:0.75rem;color:var(--text2);margin-top:6px;line-height:1.5">
+            I <strong>{{ archiveStepData.giocatoriSelezionati.length }}</strong> giocatori selezionati verranno portati avanti con statistiche azzerate.
+          </div>
+          <div v-if="archiveStepData.error" style="color:var(--red);font-size:0.78rem;margin-top:6px">{{ archiveStepData.error }}</div>
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <button class="btn btn-ghost" style="flex:1" @click="archiveWizard.step=2">← Indietro</button>
+            <button class="btn btn-primary" style="flex:2" @click="archiveStep3Next">Avanti →</button>
+          </div>
+        </template>
+
+        <!-- STEP 4: Riepilogo + conferma -->
+        <template v-if="archiveWizard.step===4">
+          <div style="font-size:0.9rem;font-weight:700;margin-bottom:12px">4️⃣ Riepilogo finale</div>
+          <div style="background:rgba(255,77,77,0.07);border:1px solid rgba(255,77,77,0.25);border-radius:10px;padding:12px;margin-bottom:14px;font-size:0.82rem;line-height:1.8">
+            <div>📦 Archiviare come: <strong style="color:var(--lime)">{{ archiveStepData.nomeArchivio }}</strong></div>
+            <div>⚽ Partite archiviate: <strong>{{ archiveWizard.matchCount }}</strong></div>
+            <div>👥 Giocatori nuova stagione: <strong>{{ archiveStepData.giocatoriSelezionati.length }}</strong></div>
+            <div>🆕 Nuova stagione: <strong style="color:var(--lime)">{{ archiveStepData.nomeStagioneNuova }}</strong></div>
+            <div v-if="archiveWizard.group.firebaseUrl" style="color:var(--blue)">☁️ Archivio salvato su Firebase</div>
+            <div v-else style="color:var(--yellow)">⚠️ Senza Firebase: scarica il backup JSON dopo</div>
+          </div>
+          <div style="background:rgba(255,77,77,0.05);border:1px solid rgba(255,77,77,0.2);border-radius:8px;padding:10px;margin-bottom:12px">
+            <div style="font-size:0.78rem;color:var(--red);font-weight:700;margin-bottom:6px">⚠️ Azione irreversibile</div>
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:8px">Digita <strong style="color:var(--text1)">ARCHIVIA</strong> per confermare</div>
+            <input class="input-field" v-model="archiveStepData.confermaTesto" placeholder="ARCHIVIA" style="text-transform:uppercase">
+          </div>
+          <div v-if="archiveStepData.error" style="color:var(--red);font-size:0.78rem;margin-bottom:8px">{{ archiveStepData.error }}</div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" style="flex:1" :disabled="archiveStepData.loading" @click="archiveWizard.step=3">← Indietro</button>
+            <button class="btn btn-sm" style="flex:2;background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red);font-weight:700"
+              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading"
+              @click="doArchiveStagione">
+              {{ archiveStepData.loading ? '⏳ Archiviazione...' : '📦 Conferma Archiviazione' }}
+            </button>
+          </div>
+        </template>
+
+      </div>
+    </div>
+  </div>
+
   <!-- ── UPDATE BANNER ── -->
   <div v-if="updateAvailable" class="update-banner">
     <span>🎉 Nuova versione {{ newVersion }}!</span>
@@ -3612,14 +3751,36 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="card-title">👥 Gestione Gruppi</div>
 
       <div class="card">
-        <div v-for="g in groups" :key="g.id" class="group-item" :class="{active: currentGroup?.id===g.id}">
-          <div class="group-dot" :style="{background: groupColor(g.id)}"></div>
-          <div style="flex:1;cursor:pointer" @click="selectGroup(g)">
-            <div class="group-name">{{ g.nome }}</div>
-            <div class="group-sub">{{ groupPlayerCount(g.id) }} giocatori · {{ groupMatchCount(g.id) }} partite</div>
+        <div v-for="g in groups" :key="g.id" style="border-radius:10px;overflow:hidden;margin-bottom:6px;border:1px solid var(--border)">
+          <!-- Header gruppo -->
+          <div class="group-item" :class="{active: currentGroup?.id===g.id}"
+            style="border:none;margin:0;border-radius:0;cursor:pointer"
+            @click="expandedGroupId = expandedGroupId===g.id ? null : g.id">
+            <div class="group-dot" :style="{background: groupColor(g.id)}"></div>
+            <div style="flex:1" @click.stop="selectGroup(g)">
+              <div class="group-name">{{ g.nome }}</div>
+              <div class="group-sub">{{ groupPlayerCount(g.id) }} giocatori · {{ groupMatchCount(g.id) }} partite</div>
+            </div>
+            <span style="color:var(--text2);font-size:0.85rem;transition:transform .2s;margin-right:4px"
+              :style="expandedGroupId===g.id?'transform:rotate(180deg)':''">▼</span>
           </div>
-          <button class="btn btn-ghost btn-sm" @click.stop="renameGroup(g)">✏️</button>
-          <button class="btn btn-red btn-sm" @click.stop="deleteGroup(g)" style="margin-left:4px">🗑️</button>
+          <!-- Dettaglio espanso -->
+          <div v-if="expandedGroupId===g.id"
+            style="padding:12px 14px;background:rgba(255,255,255,.03);border-top:1px solid var(--border)">
+            <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
+              <div>📅 Stagione: <strong style="color:var(--text1)">{{ g.stagione || 'Stagione 1' }}</strong></div>
+              <div v-if="groupFirstMatch(g.id)">🗓️ Prima partita: <strong>{{ groupFirstMatch(g.id) }}</strong></div>
+              <div v-if="g.archivioStagioni?.length">📦 Stagioni archiviate: <strong style="color:var(--lime)">{{ g.archivioStagioni.length }}</strong></div>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="btn btn-ghost btn-sm" style="padding:5px 10px" @click.stop="renameGroup(g)" title="Rinomina">✏️</button>
+              <button class="btn btn-red btn-sm" style="padding:5px 10px" @click.stop="confirmDeleteGroup(g)" title="Elimina gruppo">🗑️</button>
+              <button class="btn btn-sm" style="background:rgba(166,255,77,0.1);border:1.5px solid var(--lime);color:var(--lime);margin-left:auto;display:flex;align-items:center;gap:6px"
+                @click.stop="openArchiveWizard(g)">
+                ⚽ → 📦
+              </button>
+            </div>
+          </div>
         </div>
 
         <div v-if="groups.length === 0" class="empty-state" style="padding:24px 0">
@@ -3851,21 +4012,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <div class="card" v-if="currentGroup">
-        <div class="card-title">🏆 Gestione Stagione</div>
-        <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px;line-height:1.5">
-          Archivia la stagione corrente e inizia da zero. Giocatori e impostazioni rimangono, statistiche azzerate. Lo storico è sempre consultabile.
-        </div>
-        <div style="font-size:0.82rem;margin-bottom:12px">
-          Stagione attiva: <strong style="color:var(--lime)">{{ currentGroup.stagione || 'Stagione 1' }}</strong>
-        </div>
-        <button class="btn btn-ghost" style="color:var(--yellow);border-color:rgba(255,215,0,0.3)" @click="showNewSeasonModal=true">
-          🏆 Archivia e Nuova Stagione
-        </button>
-        <button class="btn btn-ghost" style="margin-top:8px" @click="showSeasonArchive=true" v-if="currentGroup?.archivioStagioni?.length">
-          📚 Vedi Archivio Stagioni ({{ currentGroup.archivioStagioni?.length||0 }})
-        </button>
-      </div>
+
 
       
 
@@ -5305,7 +5452,17 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.433',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.436',date:'2026-06-07',items:[
+      'Fix: rimosso box Gestione Stagione dalle impostazioni (spostato in Gestione Gruppi)',
+      'UI: bottoni gruppo — solo icone (✏️ 🗑️ ⚽→📦), più compatti',
+      'UI: elimina gruppo richiede digitazione ELIMINA per confermare',
+    ]},{version:'v1.435',date:'2026-06-07',items:[
+      'Fix: archivio stagione ha UUID univoco (archivioId) identico su tutti i dispositivi e Firebase',
+    ]},{version:'v1.434',date:'2026-06-07',items:[
+      'Nuovo: Archivia Stagione — wizard 4 step nella gestione gruppi',
+      'Nuovo: lista gruppi espandibile con dettagli stagione e pulsante Archivia',
+      'Nuovo: selezione giocatori per nuova stagione, reset statistiche, archivio su Firebase',
+    ]},{version:'v1.433',date:'2026-06-07',items:[
       'Pulizia: rimossa migrazione playerId (non più necessaria — db già pulito)',
       'Pulizia: rimosso log ridondante sync in avvio',
     ]},{version:'v1.432',date:'2026-06-07',items:[
@@ -5716,6 +5873,16 @@ createApp({
     const detailMatch   = ref(null);
 
     const matchStep          = ref(1);
+    const expandedGroupId    = ref(null); // gruppo espanso nella gestione gruppi
+    const archiveWizard      = ref(null); // null | {step:1..4, group, ...}
+    const archiveStepData    = reactive({
+      nomeArchivio: '',
+      nomeStagioneNuova: '',
+      giocatoriSelezionati: [], // uid giocatori da portare in nuova stagione
+      confermaTesto: '',
+      loading: false,
+      error: ''
+    });
     const matchTeamOpen      = ref({A: true, B: true}); // accordion squadre in newmatch
     const matchNotes         = ref('');
     const matchPhoto         = ref('');
@@ -5771,7 +5938,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.433');
+    const appVersion = ref('1.436');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6036,7 +6203,6 @@ createApp({
     };
 
     const deleteGroup = async g => {
-      if (!confirm(`Eliminare il gruppo "${g.nome}" e TUTTI i suoi dati?`)) return;
       await db.groups.delete(g.id);
       await db.players.where('groupId').equals(g.id).delete();
       await db.matches.where('groupId').equals(g.id).delete();
@@ -6045,7 +6211,23 @@ createApp({
         currentGroup.value = groups.value[0] || null;
         await loadGroupData();
       }
+      if (g.firebaseUrl) { try { await syncToCloud(); } catch(e) {} }
       toast('🗑️ Gruppo eliminato', 'error');
+    };
+
+    const deleteGroupConfirmText = ref('');
+    const deleteGroupTarget = ref(null);
+
+    const confirmDeleteGroup = (g) => {
+      deleteGroupTarget.value = g;
+      deleteGroupConfirmText.value = '';
+    };
+
+    const doDeleteGroup = async () => {
+      if (deleteGroupConfirmText.value.toUpperCase() !== 'ELIMINA') return;
+      const g = deleteGroupTarget.value;
+      deleteGroupTarget.value = null;
+      await deleteGroup(g);
     };
 
     // ── All-groups counts (for selectors, export modal) ──
@@ -10594,6 +10776,133 @@ const toggleFont = () => {
     // ── Restore from backup JSON ──
     const restoreStatus = ref(``);
 
+    // ── ARCHIVIO STAGIONE ──
+    const groupFirstMatch = (gid) => {
+      const matches = groupMatches.value.filter(m => String(m.groupId) === String(gid));
+      if (!matches.length) return null;
+      return matches.map(m => m.data).sort()[0];
+    };
+
+    const openArchiveWizard = async (g) => {
+      const gid = g.id;
+      const players = await db.players.where('groupId').equals(gid).toArray();
+      const matches = await db.matches.where('groupId').equals(gid).toArray();
+      const dates = matches.map(m => m.data).filter(Boolean).sort();
+      // Precompila nome archivio con stagione corrente
+      archiveStepData.nomeArchivio = g.stagione || 'Stagione 1';
+      archiveStepData.nomeStagioneNuova = '';
+      archiveStepData.giocatoriSelezionati = players.map(p => p.uid).filter(Boolean);
+      archiveStepData.confermaTesto = '';
+      archiveStepData.loading = false;
+      archiveStepData.error = '';
+      archiveWizard.value = {
+        step: 1,
+        group: g,
+        players,
+        matchCount: matches.length,
+        playerCount: players.length,
+        firstMatch: dates[0] || null,
+        lastMatch: dates[dates.length-1] || null,
+        matches
+      };
+    };
+
+    const archiveSelectAll = () => {
+      archiveStepData.giocatoriSelezionati = archiveWizard.value.players.map(p => p.uid).filter(Boolean);
+    };
+    const archiveTogglePlayer = (uid) => {
+      const idx = archiveStepData.giocatoriSelezionati.indexOf(uid);
+      if (idx >= 0) archiveStepData.giocatoriSelezionati.splice(idx, 1);
+      else archiveStepData.giocatoriSelezionati.push(uid);
+    };
+
+    const archiveStep1Next = () => {
+      archiveStepData.error = '';
+      if (!archiveStepData.nomeArchivio.trim()) {
+        archiveStepData.error = "Inserisci un nome per l'archivio";
+        return;
+      }
+      archiveWizard.value.step = 2;
+    };
+    const archiveStep2Next = () => {
+      archiveWizard.value.step = 3;
+    };
+    const archiveStep3Next = () => {
+      archiveStepData.error = '';
+      if (!archiveStepData.nomeStagioneNuova.trim()) {
+        archiveStepData.error = 'Inserisci un nome per la nuova stagione';
+        return;
+      }
+      archiveWizard.value.step = 4;
+    };
+
+    const doArchiveStagione = async () => {
+      if (archiveStepData.confermaTesto.toUpperCase() !== 'ARCHIVIA') return;
+      archiveStepData.loading = true;
+      archiveStepData.error = '';
+      try {
+        const g = archiveWizard.value.group;
+        const gid = g.id;
+        const allPlayers = archiveWizard.value.players;
+        const allMatches = archiveWizard.value.matches;
+
+        // 1. Crea snapshot archivio con UUID univoco
+        const snapshot = {
+          archivioId: uuid(),  // UUID stabile su tutti i dispositivi
+          nome: archiveStepData.nomeArchivio.trim(),
+          dataArchiviazione: new Date().toISOString().slice(0,10),
+          stagione: g.stagione || 'Stagione 1',
+          giocatori: allPlayers,
+          partite: allMatches
+        };
+
+        // 2. Salva archivio in Dexie (campo archivioStagioni nel gruppo)
+        const currentArchivio = g.archivioStagioni || [];
+        const nuovoArchivio = [...currentArchivio, snapshot];
+        await db.groups.update(gid, {
+          archivioStagioni: nuovoArchivio,
+          stagione: archiveStepData.nomeStagioneNuova.trim()
+        });
+
+        // 3. Azzera statistiche giocatori selezionati
+        const statsZero = {
+          goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
+          puntiTotali:0, partiteTotali:0, mediaVoto:0, votiTotali:0,
+          rigoriParatiTotali:0, rigoriSbagliatiTotali:0
+        };
+        for (const p of allPlayers) {
+          if (archiveStepData.giocatoriSelezionati.includes(p.uid)) {
+            await db.players.update(p.id, statsZero);
+          } else {
+            // Giocatore non selezionato: elimina dalla nuova stagione
+            await db.players.delete(p.id);
+          }
+        }
+
+        // 4. Elimina partite correnti
+        for (const m of allMatches) {
+          await db.matches.delete(m.id);
+        }
+
+        // 5. Ricarica gruppi e sincronizza
+        await loadGroups();
+        await loadGroupData();
+        if (g.firebaseUrl) {
+          try { await syncToCloud(); } catch(e) {}
+        }
+
+        logEvent('info', 'app', `✅ Stagione "${snapshot.nome}" archiviata — nuova stagione: "${archiveStepData.nomeStagioneNuova}"`);
+        toast(`✅ Stagione archiviata! Nuova stagione: ${archiveStepData.nomeStagioneNuova}`, 'success', 4000);
+        archiveWizard.value = null;
+        currentView.value = 'home';
+      } catch(e) {
+        archiveStepData.error = 'Errore: ' + e.message;
+        logEvent('error', 'app', 'Archiviazione fallita: ' + e.message);
+      } finally {
+        archiveStepData.loading = false;
+      }
+    };
+
     const forceRecomputeStats = async () => {
       if (!currentGroup.value) return;
       restoreStatus.value = `⏳ Ricalcolo in corso...`;
@@ -12037,7 +12346,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
       syncLoading, syncStatus, lastSyncDate, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
-      restoreStatus, restoreFromBackup, forceRecomputeStats,
+      restoreStatus, restoreFromBackup, forceRecomputeStats, expandedGroupId, archiveWizard, archiveStepData, openArchiveWizard, archiveSelectAll, archiveTogglePlayer, archiveStep1Next, archiveStep2Next, archiveStep3Next, doArchiveStagione, groupFirstMatch, deleteGroupConfirmText, deleteGroupTarget, confirmDeleteGroup, doDeleteGroup,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
