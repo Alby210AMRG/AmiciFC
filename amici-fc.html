@@ -5526,7 +5526,23 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.439',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.443',date:'2026-06-07',items:[
+      'Fix: visibilitychange usa checkSyncNeeded — sync completo solo se dati cambiati',
+    ]},{version:'v1.442',date:'2026-06-07',items:[
+      'Nuovo: sistema flag AI Cards — Firebase letto solo se flag scaduto',
+      'Soprannomi: flag 7 giorni, rigenerazione settimanale automatica',
+      'Hall of Fame: flag 30 giorni — lettura Firebase una volta al mese',
+      'Trash Talk: flag 3 giorni — lettura Firebase ogni 3 giorni',
+      'Fix: pulsanti Forza nelle impostazioni resettano il flag corretto',
+    ]},{version:'v1.441',date:'2026-06-07',items:[
+      'Fix: TrashTalk generato ogni 3 giorni invece di ogni partita',
+      'Fix: TrashTalk letto da Firebase solo se locale più vecchio di 3 giorni',
+      'Fix: lazySyncIfNeeded usa checkSyncNeeded (200B invece di 100KB)',
+    ]},{version:'v1.440',date:'2026-06-07',items:[
+      'Fix CRITICO banda: sync automatico ogni 3min → check leggero ogni 10min (200B invece di 100KB)',
+      'Fix: visibilitychange sync da 5min → 15min di inattività minima',
+      'Riduzione traffico stimata: da 14MB/ora a <1MB/ora',
+    ]},{version:'v1.439',date:'2026-06-07',items:[
       'Nuovo: box Import/Export collassabile con sezioni dedicate',
       'Nuovo: Export Partite parziale (ultime 1/3/5/10/tutte) con ID univoci Firebase-compatibili',
       'Nuovo: Export Completo con opzione includi/escludi foto',
@@ -6030,7 +6046,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.439');
+    const appVersion = ref('1.443');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8154,6 +8170,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
       }
 
       localStorage.setItem(`amicifc_hof_${meseKey}`, JSON.stringify(parsed));
+      aiFlagSet('hof', currentGroup.value.id); // flag 30 giorni
       if (hasFirebase && token) {
         await _fbWrite(dataPath, parsed, token);
         await _fbWrite(lockPath, null, token);
@@ -8203,6 +8220,27 @@ OUTPUT: Rispondi SOLO con JSON valido:
       return migrated;
     };
 
+    // ── Flag AI Cards — controlla se serve aggiornare Firebase ──
+    const AI_FLAGS = {
+      tt:    { key: g => 'amicifc_ai_tt_'+g,    ttl: 3 * 24 * 60 * 60 * 1000  }, // 3 giorni
+      hof:   { key: g => 'amicifc_ai_hof_'+g,   ttl: 30 * 24 * 60 * 60 * 1000 }, // 30 giorni
+      nicks: { key: g => 'amicifc_ai_nicks_'+g, ttl: 7 * 24 * 60 * 60 * 1000  }, // 7 giorni
+    };
+    const aiFlagValid = (tipo, gid) => {
+      const cfg = AI_FLAGS[tipo];
+      if (!cfg) return false;
+      const ts = parseInt(localStorage.getItem(cfg.key(gid)) || '0');
+      return ts > 0 && (Date.now() - ts) < cfg.ttl;
+    };
+    const aiFlagSet = (tipo, gid) => {
+      const cfg = AI_FLAGS[tipo];
+      if (cfg) localStorage.setItem(cfg.key(gid), String(Date.now()));
+    };
+    const aiFlagClear = (tipo, gid) => {
+      const cfg = AI_FLAGS[tipo];
+      if (cfg) localStorage.removeItem(cfg.key(gid));
+    };
+
     const _loadAiNicknames = async () => {
       const _gid = currentGroup.value?.id;
       const _lsKey = 'amicifc_nicks_' + _gid;
@@ -8217,6 +8255,12 @@ OUTPUT: Rispondi SOLO con JSON valido:
         }
       }
       if (!currentGroup.value?.firebaseUrl) return;
+      // Flag valido → salta lettura Firebase (risparmio banda)
+      const _gid2 = currentGroup.value.id;
+      if (aiFlagValid('nicks', _gid2) && Object.keys(_lsMigrated).length > 0) {
+        _aiLog('Init','✅ Soprannomi locali già aggiornati — Firebase skip');
+        return;
+      }
       try {
         const token = await getValidToken() || '';
         const d = await _fbRead(`aiCards/soprannomi/${_aiCardGroupKey()}`, token);
@@ -8227,19 +8271,11 @@ OUTPUT: Rispondi SOLO con JSON valido:
         if (_fbTs > _lsTs || !Object.keys(_lsMigrated).length) {
           aiNicknames.value = dMigrated;
           localStorage.setItem(_lsKey, JSON.stringify(dMigrated));
-          _aiLog('Init','☁️ Soprannomi aggiornati da Firebase (più recenti di '+Math.round((_fbTs-_lsTs)/60000)+'min)');
-          // Se migrati, riscrivi Firebase con le chiavi pulite
-          if (Object.keys(dMigrated).length !== Object.keys(d).length && token) {
-            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, dMigrated, token);
-            _aiLog('Init','🧹 Firebase soprannomi ripulito: '+Object.keys(d).length+' → '+Object.keys(dMigrated).length+' chiavi');
-          }
+          aiFlagSet('nicks', _gid2);
+          _aiLog('Init','☁️ Soprannomi aggiornati da Firebase');
         } else {
+          aiFlagSet('nicks', _gid2);
           _aiLog('Init','✅ Soprannomi locali già aggiornati — Firebase skip');
-          // Riscrivi Firebase se aveva chiavi vecchie
-          if (Object.keys(dMigrated).length !== Object.keys(d).length && token) {
-            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, _lsMigrated, token);
-            _aiLog('Init','🧹 Firebase soprannomi ripulito (da locale): '+Object.keys(d).length+' → '+Object.keys(_lsMigrated).length+' chiavi');
-          }
         }
       } catch(e) {
         logEvent('warn','ai','[Soprannomi] Firebase non raggiungibile: '+e.message);
@@ -8318,6 +8354,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
 
         const _lsNK = `amicifc_nicks_${currentGroup.value.id}`;
         localStorage.setItem(_lsNK, JSON.stringify(updated));
+        aiFlagSet('nicks', currentGroup.value.id); // flag 7 giorni
         if (currentGroup.value?.firebaseUrl) {
           const token = await getValidToken() || '';
           if (token) {
@@ -8387,16 +8424,19 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
       if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      aiFlagClear('tt', currentGroup.value.id); // forza rigenerazione
       _aiLog('UI','🔥 Forzatura Trash Talk su: '+m.data+' (sovrascrive Firebase)');
       _forceGenerateTrashTalk(m).catch(e => _aiLog('UI','❌ '+e.message,false));
     };
     const forceHallOfFame = () => {
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      aiFlagClear('hof', currentGroup.value.id); // forza rigenerazione
       _aiLog('UI','👑 Forzatura Hall of Fame (sovrascrive Firebase)...');
       _generateHallOfFame(true).catch(e => _aiLog('UI','❌ '+e.message,false));
     };
     const forceSoprannomi = () => {
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      aiFlagClear('nicks', currentGroup.value.id); // forza rigenerazione
       _aiLog('UI','🧬 Forzatura soprannomi...');
       _generateNicknames().catch(e => _aiLog('UI','❌ '+e.message,false));
     };
@@ -8435,6 +8475,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       }
 
       if (!currentGroup.value?.firebaseUrl) return;
+      const _gidHof = currentGroup.value.id;
+      // Flag valido → salta lettura Firebase
+      if (aiFlagValid('hof', _gidHof) && _lsBest?.fame) {
+        _aiLog('Init','✅ HoF locale già aggiornata — Firebase skip');
+        return;
+      }
       try {
         const token = await getValidToken() || '';
         const _gk = _aiCardGroupKey();
@@ -8447,8 +8493,10 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
             aiCardsHallOfFame.value = d;
             const _mk = d.mese || mesePrecedente;
             localStorage.setItem('amicifc_hof_'+_mk, JSON.stringify(d));
+            aiFlagSet('hof', _gidHof);
             _aiLog('Init','☁️ HoF aggiornata da Firebase ('+_mk+')');
           } else {
+            aiFlagSet('hof', _gidHof);
             _aiLog('Init','✅ HoF locale già aggiornata — Firebase skip');
           }
         } else {
@@ -8487,24 +8535,31 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       }
       if (currentGroup.value?.firebaseUrl) {
         try {
-          const _allMatches = await db.matches.where('groupId').equals(_gid).toArray();
-          const _lastM = _allMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
-          if (_lastM) {
-            const _ttKey = (_lastM.data||'').replace(/-/g,'');
-            const _ttPath = 'aiCards/trashTalk/'+_aiCardGroupKey()+'/'+_ttKey;
-            const _ttToken = await getValidToken() || '';
-            const _tt = await _fbRead(_ttPath, _ttToken);
-            if (_tt?.cards?.length) {
-              const _fbTs = _tt.generatedAt || 0;
-              const _lsTs = _lsCached?.generatedAt || 0;
-              if (_fbTs > _lsTs || !_lsCached?.cards?.length) {
-                aiCardsTrashTalk.value = _tt.cards;
-                localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
-                _aiLog('Init','☁️ Trash Talk aggiornato da Firebase (più recente)');
-              } else {
-                _aiLog('Init','✅ Trash Talk locale già aggiornato — Firebase skip');
+          // Leggi da Firebase solo se locale è più vecchio di 3 giorni
+          const _ttAge = Date.now() - (_lsCached?.generatedAt || 0);
+          const _3giorni = 3 * 24 * 60 * 60 * 1000;
+          if (_ttAge > _3giorni || !_lsCached?.cards?.length) {
+            const _allMatches = await db.matches.where('groupId').equals(_gid).toArray();
+            const _lastM = _allMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
+            if (_lastM) {
+              const _ttKey = (_lastM.data||'').replace(/-/g,'');
+              const _ttPath = 'aiCards/trashTalk/'+_aiCardGroupKey()+'/'+_ttKey;
+              const _ttToken = await getValidToken() || '';
+              const _tt = await _fbRead(_ttPath, _ttToken);
+              if (_tt?.cards?.length) {
+                const _fbTs = _tt.generatedAt || 0;
+                const _lsTs = _lsCached?.generatedAt || 0;
+                if (_fbTs > _lsTs || !_lsCached?.cards?.length) {
+                  aiCardsTrashTalk.value = _tt.cards;
+                  localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
+                  _aiLog('Init','☁️ Trash Talk aggiornato da Firebase (più recente)');
+                } else {
+                  _aiLog('Init','✅ Trash Talk locale già aggiornato — Firebase skip');
+                }
               }
             }
+          } else {
+            _aiLog('Init','✅ Trash Talk locale già aggiornato — Firebase skip');
           }
         } catch(_e) {
           logEvent('warn','ai','[TrashTalk] Firebase non raggiungibile: '+_e.message);
@@ -8873,7 +8928,15 @@ Niente altro, nessuna spiegazione.`;
           localStorage.setItem('amicifc_pending_sync_'+currentGroup.value.id, Date.now().toString());
         });
       }
-      _generateTrashTalk(match).catch(e => console.warn('[TrashTalk]', e.message));
+      // Genera TrashTalk solo se non generato negli ultimi 3 giorni
+      const _lsKeyTT2 = 'amicifc_tt_' + (currentGroup.value?.id||'');
+      const _ttCached2 = JSON.parse(localStorage.getItem(_lsKeyTT2)||'null');
+      const _ttAge2 = Date.now() - (_ttCached2?.generatedAt || 0);
+      if (_ttAge2 > 3 * 24 * 60 * 60 * 1000) {
+        _generateTrashTalk(match).catch(e => console.warn('[TrashTalk]', e.message));
+      } else {
+        logEvent('info','ai','[TrashTalk] Generazione saltata — già generato negli ultimi 3 giorni');
+      }
     };
 
     const confirmDeleteModal = reactive({ show: false, matchId: null, matchInfo: '' });
@@ -10158,8 +10221,8 @@ Niente altro, nessuna spiegazione.`;
     const ptrVisible = ref(false);
     const ptrLoading = ref(false);
 
-    // ── Lazy sync con debounce: scarica solo se >5 min dall'ultimo sync ──
-    const LAZY_SYNC_INTERVAL = 5 * 60 * 1000; // 5 minuti
+    // ── Lazy sync con debounce: check leggero se >15 min dall'ultimo sync ──
+    const LAZY_SYNC_INTERVAL = 15 * 60 * 1000; // 15 minuti
     let _lazySyncTimer = null;
     const lazySyncIfNeeded = () => {
       if (!groupCloudUrl.value) return; // nessun firebase configurato
@@ -10169,7 +10232,9 @@ Niente altro, nessuna spiegazione.`;
       clearTimeout(_lazySyncTimer);
       _lazySyncTimer = setTimeout(async () => {
         try {
-          await syncFromCloud(false); // silent, non forzato
+          // Check leggero prima (200 byte) — sync completo solo se necessario
+          const needed = await checkSyncNeeded();
+          if (needed) await syncFromCloud(false);
         } catch(e) { /* silent fail */ }
       }, 800);
     };
@@ -11517,15 +11582,26 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         } else {
           const hiddenMs = Date.now() - (_appHiddenAt || 0);
           if (hiddenMs > 10 * 60 * 1000 && groupCloudUrl.value) {
-            setTimeout(() => syncFromCloud(false).catch(()=>{}), 1500);
+            // Check leggero prima — sync completo solo se ci sono dati nuovi
+            setTimeout(async () => {
+              try {
+                const needed = await checkSyncNeeded();
+                if (needed) await syncFromCloud(false);
+              } catch(e) {}
+            }, 1500);
           }
         }
       });
       window.addEventListener('pageshow', (e) => {
         if (e.persisted && groupCloudUrl.value) {
           const hiddenMs = Date.now() - (_appHiddenAt || 0);
-          if (hiddenMs > 5 * 60 * 1000) {
-            setTimeout(() => syncFromCloud(false).catch(()=>{}), 1000);
+          if (hiddenMs > 15 * 60 * 1000) {
+            setTimeout(async () => {
+              try {
+                const needed = await checkSyncNeeded();
+                if (needed) await syncFromCloud(false);
+              } catch(e) {}
+            }, 1000);
           }
         }
       });
@@ -11593,13 +11669,16 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         }
       });
 
-      // Auto-refresh ogni 3 minuti: solo DOWNLOAD da Firebase (non upload)
-      // L'upload avviene solo quando l'utente salva dati esplicitamente
-      setInterval(() => {
+      // Check aggiornamenti ogni 10 minuti — solo 200 byte (shallow check)
+      // syncFromCloud completo solo se ci sono dati nuovi su Firebase
+      setInterval(async () => {
         if (!document.hidden && currentGroup.value?.firebaseUrl && isOnline.value) {
-          syncFromCloud(false).catch(console.warn);
+          try {
+            const needed = await checkSyncNeeded();
+            if (needed) await syncFromCloud(false);
+          } catch(e) { /* silenzioso */ }
         }
-      }, 3 * 60 * 1000);
+      }, 10 * 60 * 1000);
 
       let _visTimer = null;
       document.addEventListener('visibilitychange', () => {
