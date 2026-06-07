@@ -3996,19 +3996,93 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div><!-- /v-show showAISection -->
       </div>
 
-      <div class="card">
-        <div class="card-title">📤 Import / Export</div>
-        <p style="font-size:0.82rem;color:var(--text2);margin-bottom:14px">
-          Esporta uno o più gruppi in JSON (include foto giocatori). Importa salvataggi ricevuti da altri utenti.
-        </p>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-blue btn-sm" @click="openExportModal" style="flex:1;justify-content:center">📤 Esporta</button>
-          <label class="btn btn-ghost btn-sm" style="cursor:pointer;flex:1;justify-content:center;display:flex;align-items:center">
-            📥 Importa
-            <input type="file" accept=".json" style="display:none" @change="importData">
-          </label>
-          <button class="btn btn-ghost btn-sm" style="color:var(--lime);flex:1;justify-content:center" @click="exportExcel" v-if="currentGroup">📊 Excel</button>
-          <button class="btn btn-ghost btn-sm" style="color:var(--lime);flex:1;justify-content:center" @click="exportExcel" v-else disabled>📊 Excel</button>
+      <!-- ── Import / Export (collassabile) ── -->
+      <div class="card" style="padding:0;overflow:hidden">
+        <div @click="showIOSection=!showIOSection"
+          style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;user-select:none">
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:1.1rem">📤</span>
+            <span style="font-weight:700;font-size:0.95rem">Import / Export</span>
+          </div>
+          <span style="color:var(--text2);font-size:0.85rem;transition:transform .25s"
+            :style="showIOSection?'transform:rotate(180deg)':''">▼</span>
+        </div>
+        <div v-show="showIOSection" style="padding:0 16px 16px;display:flex;flex-direction:column;gap:12px">
+
+          <!-- Selezione gruppo (solo se più gruppi) -->
+          <div v-if="groups.length > 1" style="background:var(--bg3);border-radius:8px;padding:10px">
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:6px">Gruppo da esportare:</div>
+            <div v-for="g in groups" :key="g.id"
+              @click="ioGroupId = ioGroupId===g.id ? null : g.id"
+              style="display:flex;align-items:center;gap:8px;padding:6px;cursor:pointer;border-radius:6px"
+              :style="ioGroupId===g.id?'background:rgba(166,255,77,0.1)':''">
+              <div style="width:16px;height:16px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:0.6rem;flex-shrink:0"
+                :style="ioGroupId===g.id?'background:var(--lime);border-color:var(--lime);color:#000':''">
+                {{ ioGroupId===g.id?'✓':'' }}
+              </div>
+              <span style="font-size:0.82rem">{{ g.nome }}</span>
+              <span style="font-size:0.7rem;color:var(--text2);margin-left:auto">{{ groupMatchCount(g.id) }} partite</span>
+            </div>
+          </div>
+
+          <!-- Export Completo -->
+          <div style="border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px">
+            <div style="font-weight:700;font-size:0.82rem;color:var(--blue);margin-bottom:4px">📦 Export Completo</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.5">
+              Esporta giocatori + partite + statistiche. Usa per backup completo o per condividere con un nuovo dispositivo.
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer">
+                <input type="checkbox" v-model="ioIncludeFoto"> Includi foto
+              </label>
+              <span style="font-size:0.68rem;color:var(--text2)">(senza foto ~100KB, con foto ~1MB)</span>
+            </div>
+            <button class="btn btn-blue btn-sm btn-full" @click="doExportCompleto">📦 Esporta Completo</button>
+          </div>
+
+          <!-- Export Partite Parziale -->
+          <div style="border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px">
+            <div style="font-weight:700;font-size:0.82rem;color:var(--lime);margin-bottom:4px">⚽ Export Partite</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.5">
+              Esporta le ultime X partite con i giocatori coinvolti. Ideale per condividere singole partite via WhatsApp.
+              <strong style="color:var(--lime)">ID univoci compatibili con Firebase.</strong>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+              <span style="font-size:0.78rem;color:var(--text2)">Ultime:</span>
+              <div style="display:flex;gap:4px">
+                <button v-for="n in [1,3,5,10]" :key="n"
+                  class="btn btn-sm"
+                  :class="ioLastN===n?'btn-primary':'btn-ghost'"
+                  style="padding:3px 10px;font-size:0.75rem"
+                  @click="ioLastN=n">{{ n }}</button>
+                <button class="btn btn-sm" :class="ioLastN===999?'btn-primary':'btn-ghost'"
+                  style="padding:3px 10px;font-size:0.75rem" @click="ioLastN=999">Tutte</button>
+              </div>
+            </div>
+            <button class="btn btn-sm btn-full" style="background:rgba(166,255,77,0.1);border:1.5px solid var(--lime);color:var(--lime)"
+              @click="doExportPartite">⚽ Esporta {{ ioLastN===999?'tutte le':ioLastN }} partite</button>
+          </div>
+
+          <!-- Import JSON -->
+          <div style="border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px">
+            <div style="font-weight:700;font-size:0.82rem;color:var(--yellow);margin-bottom:4px">📥 Import JSON</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.5">
+              Importa un file JSON (completo o solo partite). Deduplicazione automatica per ID univoci — nessun dato duplicato.
+            </div>
+            <label class="btn btn-ghost btn-sm btn-full" style="cursor:pointer;justify-content:center">
+              📥 Seleziona file JSON
+              <input type="file" accept=".json" style="display:none" @change="importData">
+            </label>
+          </div>
+
+          <!-- Export Excel -->
+          <div style="border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px">
+            <div style="font-weight:700;font-size:0.82rem;color:var(--orange);margin-bottom:4px">📊 Export Excel</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">Esporta statistiche giocatori in formato Excel.</div>
+            <button class="btn btn-ghost btn-sm btn-full" style="color:var(--orange);border-color:rgba(255,140,0,0.3)"
+              @click="exportExcel" :disabled="!currentGroup">📊 Esporta Excel</button>
+          </div>
+
         </div>
       </div>
 
@@ -5452,7 +5526,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.438',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.439',date:'2026-06-07',items:[
+      'Nuovo: box Import/Export collassabile con sezioni dedicate',
+      'Nuovo: Export Partite parziale (ultime 1/3/5/10/tutte) con ID univoci Firebase-compatibili',
+      'Nuovo: Export Completo con opzione includi/escludi foto',
+      'Fix: import JSON usa deduplicazione per uid/matchUUID — nessun duplicato',
+    ]},{version:'v1.438',date:'2026-06-07',items:[
       'Fix banda: foto giocatori su path Firebase separato (/playerFotos/{uid})',
       'Fix: foto caricate su Firebase solo quando cambiano (hash check locale)',
       'Fix: foto scaricate da Firebase solo se mancanti in locale',
@@ -5882,6 +5961,10 @@ createApp({
     const detailMatch   = ref(null);
 
     const matchStep          = ref(1);
+    const showIOSection      = ref(false);
+    const ioGroupId          = ref(null); // gruppo selezionato per export
+    const ioLastN            = ref(5);    // ultime N partite da esportare
+    const ioIncludeFoto      = ref(false); // includi foto nell'export
     const expandedGroupId    = ref(null); // gruppo espanso nella gestione gruppi
     const archiveWizard      = ref(null); // null | {step:1..4, group, ...}
     const archiveStepData    = reactive({
@@ -5947,7 +6030,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.438');
+    const appVersion = ref('1.439');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10740,6 +10823,90 @@ const toggleFont = () => {
 
     const exportData = () => openExportModal(); // alias legacy
 
+    // Gruppo attivo per export (considera selezione o gruppo corrente)
+    const ioActiveGid = () => {
+      if (ioGroupId.value) return ioGroupId.value;
+      return currentGroup.value?.id;
+    };
+
+    // Export Completo
+    const doExportCompleto = async () => {
+      const gid = ioActiveGid();
+      if (!gid) { toast('Seleziona un gruppo', 'error'); return; }
+      const g = groups.value.find(x => x.id === gid);
+      const players = await db.players.where('groupId').equals(gid).toArray();
+      const matches = await db.matches.where('groupId').equals(gid).toArray();
+
+      const exportPlayers = ioIncludeFoto.value ? players : players.map(p => {
+        if (p.foto?.startsWith('data:')) { const {foto,...r}=p; return {...r,foto:''}; }
+        return p;
+      });
+
+      const payload = {
+        _exportDate: new Date().toISOString(),
+        _exportVersion: appVersion.value,
+        _type: 'completo',
+        group: g,
+        players: exportPlayers,
+        matches
+      };
+
+      const nome = (g.nome||'gruppo').replace(/\s+/g,'-');
+      const ts = new Date().toISOString().slice(0,10);
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `amicifc-${nome}-${ts}.json`;
+      a.click();
+      const sizeKB = Math.round(blob.size/1024);
+      logEvent('info','app',`Export completo: ${players.length} giocatori, ${matches.length} partite (${sizeKB}KB)`);
+      toast(`✅ Esportato: ${players.length} giocatori, ${matches.length} partite (${sizeKB}KB)`, 'success', 3000);
+    };
+
+    // Export Parziale Partite
+    const doExportPartite = async () => {
+      const gid = ioActiveGid();
+      if (!gid) { toast('Seleziona un gruppo', 'error'); return; }
+      const g = groups.value.find(x => x.id === gid);
+      const allMatches = await db.matches.where('groupId').equals(gid).toArray();
+      const allPlayers = await db.players.where('groupId').equals(gid).toArray();
+
+      // Prendi le ultime N partite ordinate per data
+      const sorted = [...allMatches].sort((a,b) => (b.data||'').localeCompare(a.data||''));
+      const selectedMatches = ioLastN.value === 999 ? sorted : sorted.slice(0, ioLastN.value);
+
+      // Includi solo i giocatori coinvolti nelle partite selezionate
+      const uidsInMatches = new Set(selectedMatches.flatMap(m => [
+        ...(m.squadraA||[]), ...(m.squadraB||[]),
+        ...(m.statisticheGiocatori||[]).map(s => s.playerId)
+      ]).filter(Boolean));
+      const selectedPlayers = allPlayers
+        .filter(p => uidsInMatches.has(p.uid))
+        .map(p => { const {foto,...r}=p; return {...r, foto:''}; }); // no foto nell'export parziale
+
+      const payload = {
+        _exportDate: new Date().toISOString(),
+        _exportVersion: appVersion.value,
+        _type: 'partite',
+        _note: 'Export parziale — ID univoci compatibili con Firebase',
+        group: { nome: g.nome, id: g.id, stagione: g.stagione },
+        players: selectedPlayers,
+        matches: selectedMatches
+      };
+
+      const nome = (g.nome||'gruppo').replace(/\s+/g,'-');
+      const ts = new Date().toISOString().slice(0,10);
+      const label = ioLastN.value === 999 ? 'tutte' : `ultime${ioLastN.value}`;
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `amicifc-partite-${label}-${nome}-${ts}.json`;
+      a.click();
+      const sizeKB = Math.round(blob.size/1024);
+      logEvent('info','app',`Export partite: ${selectedMatches.length} partite, ${selectedPlayers.length} giocatori (${sizeKB}KB)`);
+      toast(`✅ Esportate ${selectedMatches.length} partite (${sizeKB}KB)`, 'success', 3000);
+    };
+
     const importData = async e => {
       const file = e.target?.files?.[0];
       if (!file) return;
@@ -12419,7 +12586,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       precachePlayerPhotos,
       sharePNG,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
-      exportData, openExportModal, toggleExportGroup, doExport, importData, resetData,
+      exportData, openExportModal, toggleExportGroup, doExport, importData, resetData, showIOSection, ioGroupId, ioLastN, ioIncludeFoto, doExportCompleto, doExportPartite,
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
