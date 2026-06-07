@@ -5305,7 +5305,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.432',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.433',date:'2026-06-07',items:[
+      'Pulizia: rimossa migrazione playerId (non più necessaria — db già pulito)',
+      'Pulizia: rimosso log ridondante sync in avvio',
+    ]},{version:'v1.432',date:'2026-06-07',items:[
       'Nuovo: sistema sync intelligente con syncVersion e lastModified',
       'Nuovo: checkSyncNeeded — confronta versione e timestamp prima di scaricare',
       'Nuovo: sync forzato globale tramite syncVersion su Firebase (da Inspector)',
@@ -5768,7 +5771,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.432');
+    const appVersion = ref('1.433');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8951,66 +8954,7 @@ Niente altro, nessuna spiegazione.`;
       }
       if (fixed > 0) logEvent('info','app',`Repaired ${fixed} player UIDs`);
     };
-    // ── One-time migration: converte playerId numerici → uid in tutte le partite ──
-    const _migratePlayerIdsToUid = async () => {
-      try {
-        const allPlayers = await db.players.toArray();
-        // Mappa id numerico → uid
-        const idToUid = {};
-        allPlayers.forEach(p => { if (p.uid) idToUid[String(p.id)] = p.uid; });
 
-        const isUid = v => v && typeof v === 'string' && v.includes('-') && v.length > 20;
-
-        const allMatches = await db.matches.toArray();
-        let migrated = 0;
-
-        for (const m of allMatches) {
-          let changed = false;
-
-          // Converti squadraA e squadraB
-          const newA = (m.squadraA||[]).map(pid => {
-            if (isUid(String(pid))) return pid;
-            const uid = idToUid[String(pid)];
-            if (uid) { changed = true; return uid; }
-            return pid;
-          });
-          const newB = (m.squadraB||[]).map(pid => {
-            if (isUid(String(pid))) return pid;
-            const uid = idToUid[String(pid)];
-            if (uid) { changed = true; return uid; }
-            return pid;
-          });
-
-          // Converti statisticheGiocatori.playerId
-          const newStats = (m.statisticheGiocatori||[]).map(s => {
-            if (isUid(String(s.playerId))) return s;
-            const uid = idToUid[String(s.playerId)];
-            if (uid) { changed = true; return { ...s, playerId: uid }; }
-            return s;
-          });
-
-          if (changed) {
-            await db.matches.update(m.id, {
-              squadraA: newA, squadraB: newB,
-              statisticheGiocatori: newStats
-            });
-            migrated++;
-          }
-        }
-
-        if (migrated > 0) {
-          logEvent('info', 'migrate', `✅ Migrati ${migrated} match: playerId → uid`);
-          // Aggiorna Firebase solo se configurato — silenzioso, no toast
-          if (currentGroup.value?.firebaseUrl) {
-            try { await syncToCloud(); } catch(e) {}
-          }
-        } else {
-          logEvent('info', 'migrate', '✅ Nessuna migrazione playerId necessaria');
-        }
-      } catch(e) {
-        logEvent('warn', 'migrate', 'Migrazione playerId fallita: ' + e.message);
-      }
-    };
 
     // ── One-time migration: assign matchUUID to existing matches ──
     const _migrateMatchUUIDs = async () => {
@@ -10989,8 +10933,6 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         await selectGroup(groups.value[0]);
       }
 
-      // Migrazione DOPO selectGroup — currentGroup è già caricato con firebaseUrl
-      await _migratePlayerIdsToUid();
 
 
       // ── MIGRATE: Move global Firebase URL to current group (one-time) ──
