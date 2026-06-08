@@ -5526,7 +5526,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.443',date:'2026-06-07',items:[
+    const changelogEntries = [{version:'v1.444',date:'2026-06-08',items:[
+      'Fix: log duplicato sync rimosso',
+      'Fix: HoF check saltato se flag valido (evita tentativi inutili)',
+      'Fix: log più chiari per sync — visibile se scarica o salta',
+      'Fix: log import JSON — mostra nuovi dati aggiunti o deduplicati',
+    ]},{version:'v1.443',date:'2026-06-07',items:[
       'Fix: visibilitychange usa checkSyncNeeded — sync completo solo se dati cambiati',
     ]},{version:'v1.442',date:'2026-06-07',items:[
       'Nuovo: sistema flag AI Cards — Firebase letto solo se flag scaduto',
@@ -6046,7 +6051,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.443');
+    const appVersion = ref('1.444');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8382,6 +8387,11 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     // ── Avvia Hall of Fame se è il primo del mese ──
     const _checkHallOfFame = async () => {
       if (!currentGroup.value) return;
+      // Flag valido → salta tutto il check HoF
+      if (aiFlagValid('hof', currentGroup.value.id)) {
+        _aiLog('HallOfFame','⏭️ HoF: flag valido — skip');
+        return;
+      }
       const oggi = new Date();
       const giorno = oggi.getDate();
       const meseCorrente = oggi.toISOString().slice(0,7);
@@ -11586,7 +11596,12 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
             setTimeout(async () => {
               try {
                 const needed = await checkSyncNeeded();
-                if (needed) await syncFromCloud(false);
+                if (needed) {
+                  logEvent('info','sync','🔄 Dati aggiornati su Firebase (ritorno foreground)');
+                  await syncFromCloud(false);
+                } else {
+                  logEvent('info','sync','✅ Nessun aggiornamento rilevato (ritorno foreground)');
+                }
               } catch(e) {}
             }, 1500);
           }
