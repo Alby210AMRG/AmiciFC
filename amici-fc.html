@@ -1521,6 +1521,51 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </header>
 
+  <!-- ── MODAL SCELTA MODALITÀ INSERIMENTO ── -->
+  <div v-if="showModeChoice" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:16px;width:100%;max-width:420px;padding:20px">
+      <div style="text-align:center;margin-bottom:20px">
+        <div style="font-size:1.5rem;margin-bottom:6px">⚽</div>
+        <div style="font-weight:800;font-size:1.1rem">Come vuoi inserire i dati?</div>
+        <div style="font-size:0.78rem;color:var(--text2);margin-top:4px">{{ modeChoiceFormation?.nomeSquadraA }} vs {{ modeChoiceFormation?.nomeSquadraB }}</div>
+      </div>
+      <!-- Uno alla Volta -->
+      <div @click="startStepByStep"
+        style="border:2px solid var(--lime);border-radius:12px;padding:16px;margin-bottom:10px;cursor:pointer;background:rgba(166,255,77,0.06);transition:background .2s"
+        @mouseover="$event.currentTarget.style.background='rgba(166,255,77,0.12)'"
+        @mouseleave="$event.currentTarget.style.background='rgba(166,255,77,0.06)'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:1.4rem">🎯</span>
+          <div>
+            <div style="font-weight:800;font-size:0.95rem;color:var(--lime)">Uno alla Volta</div>
+            <div style="font-size:0.72rem;color:var(--text2)">Step by Step</div>
+          </div>
+          <span style="margin-left:auto;background:var(--lime);color:#000;font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:10px">CONSIGLIATO</span>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
+          Un giocatore per schermata con foto grande. Inserisci i dati uno per volta, poi confermi il risultato.
+        </div>
+      </div>
+      <!-- Tutti Insieme -->
+      <div @click="startClassicMode"
+        style="border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;background:rgba(255,255,255,0.03);transition:background .2s"
+        @mouseover="$event.currentTarget.style.background='rgba(255,255,255,0.06)'"
+        @mouseleave="$event.currentTarget.style.background='rgba(255,255,255,0.03)'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:1.4rem">📋</span>
+          <div>
+            <div style="font-weight:800;font-size:0.95rem">Tutti Insieme</div>
+            <div style="font-size:0.72rem;color:var(--text2)">Modalità Classica</div>
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
+          Tutti i giocatori in un'unica schermata. Veloce se hai già i dati pronti.
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showModeChoice=false">Annulla</button>
+    </div>
+  </div>
+
   <!-- ── MODAL CONFERMA ELIMINA GRUPPO ── -->
   <div v-if="deleteGroupTarget" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px">
     <div style="background:var(--bg1);border:1px solid rgba(255,77,77,0.4);border-radius:16px;width:100%;max-width:400px;padding:20px">
@@ -2768,6 +2813,240 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </template>
 
     <!-- ════ NUOVA PARTITA – Risultato ════ -->
+    <!-- ── STEP BY STEP ── -->
+    <template v-if="currentView === 'stepbystep'">
+      <div style="min-height:100vh;display:flex;flex-direction:column">
+
+        <!-- Header con progresso -->
+        <div style="padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <button class="btn btn-ghost btn-sm" @click="currentView='formations'">✕ Annulla</button>
+            <div style="font-size:0.78rem;color:var(--text2)">
+              <span v-if="!stepByStepDone">
+                {{ stepByStepIdx+1 }} / {{ stepByStepPlayers.length }} giocatori
+              </span>
+              <span v-else style="color:var(--lime)">✅ Tutti completati</span>
+            </div>
+          </div>
+          <!-- Barra progresso -->
+          <div style="background:var(--bg3);border-radius:10px;height:5px;overflow:hidden">
+            <div :style="'width:'+(stepByStepDone?100:(stepByStepIdx/stepByStepPlayers.length*100))+'%;height:100%;background:var(--lime);transition:width .3s;border-radius:10px'"></div>
+          </div>
+          <!-- Etichetta squadra -->
+          <div v-if="!stepByStepDone" style="font-size:0.72rem;margin-top:6px;text-align:center">
+            <span :style="teamA.includes(stepByStepPlayers[stepByStepIdx])?'color:var(--blue)':'color:var(--red)'">
+              {{ teamA.includes(stepByStepPlayers[stepByStepIdx]) ? '🔵 '+( activeFormation?.nomeSquadraA||'Squadra A') : '🔴 '+(activeFormation?.nomeSquadraB||'Squadra B') }}
+            </span>
+          </div>
+        </div>
+
+        <!-- Schermata giocatore corrente -->
+        <div v-if="!stepByStepDone" style="flex:1;padding:16px;display:flex;flex-direction:column;gap:14px">
+          <!-- Navigazione IN CIMA -->
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-ghost" style="flex:1" @click="sbsPrev" :disabled="stepByStepIdx===0">← Indietro</button>
+            <button class="btn btn-primary" style="flex:2" @click="sbsNext">
+              {{ stepByStepIdx===stepByStepPlayers.length-1 ? '✅ Riepilogo →' : 'Avanti →' }}
+            </button>
+          </div>
+          <div v-for="(pid, idx) in stepByStepPlayers" :key="pid" v-show="idx===stepByStepIdx">
+            <!-- Foto grande -->
+            <div style="display:flex;justify-content:center;margin-bottom:8px">
+              <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid"
+                :style="teamA.includes(pid)?'border-color:var(--blue)':'border-color:var(--red)'">
+                <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)"
+                  :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)"
+                  style="width:100%;height:100%;object-fit:cover"
+                  @error="onPhotoError($event, getPlayer(pid)?.uid)">
+                <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg3);font-size:2.5rem;font-weight:800;color:var(--text2)">
+                  {{ (getPlayer(pid)?.soprannome||getPlayer(pid)?.nome||'?')[0].toUpperCase() }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Nome e ruolo -->
+            <div style="text-align:center;margin-bottom:14px">
+              <div style="font-size:1.15rem;font-weight:800">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+              <div style="font-size:0.78rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
+            </div>
+            <!-- Voto + UoM -->
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <span style="font-size:0.78rem;color:var(--text2);min-width:36px">Voto</span>
+              <div style="display:flex;align-items:center;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;flex:1">
+                <button style="background:none;border:none;color:var(--text2);font-size:1.3rem;padding:6px 14px;cursor:pointer"
+                  @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
+                <span style="flex:1;text-align:center;font-size:1.1rem;font-weight:800;color:var(--yellow)">{{ playerStats[pid]?.voto || 6 }}</span>
+                <button style="background:none;border:none;color:var(--text2);font-size:1.3rem;padding:6px 14px;cursor:pointer"
+                  @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
+              </div>
+
+            </div>
+            <!-- Gol + Assist -->
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <div class="counter-box" style="flex:1;justify-content:space-between;padding:10px 12px">
+                <span style="font-size:0.78rem;font-weight:700">⚽ Gol</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
+                  <span class="counter-val" style="font-size:1.1rem;min-width:24px">{{ playerStats[pid]?.goal||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                </div>
+              </div>
+              <div class="counter-box" style="flex:1;justify-content:space-between;padding:10px 12px">
+                <span style="font-size:0.78rem;font-weight:700">🅰️ Assist</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].assist>0?playerStats[pid].assist--:null">−</button>
+                  <span class="counter-val" style="font-size:1.1rem;min-width:24px">{{ playerStats[pid]?.assist||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
+                </div>
+              </div>
+            </div>
+            <!-- OG + RP + RS -->
+            <div style="display:flex;gap:8px;margin-bottom:16px">
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3);padding:8px 10px">
+                <span style="font-size:0.65rem;font-weight:700;color:var(--red)">OG</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
+                  <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol||0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+                </div>
+              </div>
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:8px 10px">
+                <span style="font-size:0.65rem;font-weight:700;color:var(--lime)">🥅 RP</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
+                  <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati||0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+                </div>
+              </div>
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);padding:8px 10px">
+                <span style="font-size:0.65rem;font-weight:700;color:#FF6B35">❌ RS</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
+                  <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
+                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Schermata riepilogo finale -->
+        <div v-else style="flex:1;padding:16px;display:flex;flex-direction:column;gap:12px">
+          <div style="text-align:center;padding:16px 0">
+            <div style="font-size:2rem;margin-bottom:8px">🏆</div>
+            <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">Riepilogo Partita</div>
+            <div style="font-size:0.78rem;color:var(--text2)">Conferma il risultato e salva</div>
+          </div>
+
+          <!-- Marcatori squadra A -->
+          <div v-if="teamA.some(pid=>(playerStats[pid]?.goal||0)>0||(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--blue);margin-bottom:6px">🔵 {{ activeFormation?.nomeSquadraA||'Squadra A' }}</div>
+            <div v-for="pid in teamA.filter(p=>(playerStats[p]?.goal||0)>0)" :key="'ma-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span style="color:var(--lime)">⚽ ×{{ playerStats[pid]?.goal }}</span>
+            </div>
+            <div v-for="pid in teamA.filter(p=>(playerStats[p]?.assist||0)>0)" :key="'asa-'+pid" style="font-size:0.78rem;display:flex;justify-content:space-between;padding:2px 0;color:var(--text2)">
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span>🅰️ ×{{ playerStats[pid]?.assist }}</span>
+            </div>
+          </div>
+
+          <!-- Marcatori squadra B -->
+          <div v-if="teamB.some(pid=>(playerStats[pid]?.goal||0)>0||(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--red);margin-bottom:6px">🔴 {{ activeFormation?.nomeSquadraB||'Squadra B' }}</div>
+            <div v-for="pid in teamB.filter(p=>(playerStats[p]?.goal||0)>0)" :key="'mb-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span style="color:var(--lime)">⚽ ×{{ playerStats[pid]?.goal }}</span>
+            </div>
+            <div v-for="pid in teamB.filter(p=>(playerStats[p]?.assist||0)>0)" :key="'asb-'+pid" style="font-size:0.78rem;display:flex;justify-content:space-between;padding:2px 0;color:var(--text2)">
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span>🅰️ ×{{ playerStats[pid]?.assist }}</span>
+            </div>
+          </div>
+
+          <!-- Autogol -->
+          <div v-if="[...teamA,...teamB].some(pid=>(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px;border-color:rgba(255,77,77,0.3)">
+            <div style="font-size:0.75rem;font-weight:700;color:var(--red);margin-bottom:6px">OG Autogol</div>
+            <div v-for="pid in [...teamA,...teamB].filter(p=>(playerStats[p]?.autogol||0)>0)" :key="'og-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
+              <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span style="color:var(--red)">×{{ playerStats[pid]?.autogol }}</span>
+            </div>
+          </div>
+
+          <!-- Risultato calcolato -->
+          <div class="card">
+            <div style="font-size:0.78rem;font-weight:700;margin-bottom:10px">🏆 Risultato</div>
+            <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:12px">
+              <div style="text-align:center">
+                <div style="font-size:0.72rem;color:var(--blue);margin-bottom:4px">{{ activeFormation?.nomeSquadraA||'A' }}</div>
+                <div style="font-size:2.5rem;font-weight:900;color:var(--lime)">
+                  {{ teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0) }}
+                </div>
+              </div>
+              <div style="font-size:1.5rem;color:var(--text2)">–</div>
+              <div style="text-align:center">
+                <div style="font-size:0.72rem;color:var(--red);margin-bottom:4px">{{ activeFormation?.nomeSquadraB||'B' }}</div>
+                <div style="font-size:2.5rem;font-weight:900;color:var(--lime)">
+                  {{ teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0) }}
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-ghost btn-full btn-sm" style="color:var(--lime);border-color:rgba(166,255,77,0.3);margin-bottom:8px"
+              @click="matchGoalA=teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0); matchGoalB=teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)">
+              ✅ Usa questo risultato
+            </button>
+            <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+              <span style="font-size:0.72rem;color:var(--text2)">oppure modifica:</span>
+              <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border-radius:8px;padding:4px 10px">
+                <button class="counter-btn" @click="matchGoalA>0?matchGoalA--:null">−</button>
+                <span style="font-weight:700;min-width:20px;text-align:center">{{ matchGoalA }}</span>
+                <button class="counter-btn" @click="matchGoalA++">+</button>
+              </div>
+              <span style="color:var(--text2)">–</span>
+              <div style="display:flex;align-items:center;gap:6px;background:var(--bg3);border-radius:8px;padding:4px 10px">
+                <button class="counter-btn" @click="matchGoalB>0?matchGoalB--:null">−</button>
+                <span style="font-weight:700;min-width:20px;text-align:center">{{ matchGoalB }}</span>
+                <button class="counter-btn" @click="matchGoalB++">+</button>
+              </div>
+            </div>
+          </div>
+
+
+
+          <!-- Bottoni finali -->
+          <!-- UoM nel riepilogo SBS -->
+          <div class="card">
+            <div style="font-size:0.78rem;font-weight:700;color:var(--yellow);margin-bottom:8px">🏅 Uomo della Partita</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <div v-for="pid in [...teamA,...teamB]" :key="'upm-sbs2-'+pid"
+                class="badge" style="cursor:pointer;padding:7px 12px"
+                :class="playerStats[pid]?.uomoPartita?'badge-yellow':'badge-gray'"
+                @click="setUomoPartita(pid)">
+                {{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}
+              </div>
+            </div>
+          </div>
+          <!-- Top Scorer -->
+          <div v-if="computedMVP" class="card" style="padding:10px 14px;text-align:center">
+            <span class="badge badge-lime" style="font-size:0.85rem;padding:8px 16px">
+              ⭐ Top Scorer: {{ getPlayer(computedMVP)?.soprannome||getPlayer(computedMVP)?.nome }}
+            </span>
+          </div>
+          <!-- Bottoni -->
+          <div style="display:flex;gap:10px">
+            <button class="btn btn-ghost" style="flex:1" @click="stepByStepDone=false">← Indietro</button>
+            <button class="btn btn-primary" style="flex:2" @click="sbsGoAI">
+              📰 Articolo AI →
+            </button>
+          </div>
+          <button class="btn btn-ghost btn-full btn-sm" style="margin-top:-4px;color:var(--lime)" @click="saveMatch">
+            💾 Salva senza AI
+          </button>
+        </div>
+      </div>
+    </template>
+
     <template v-if="currentView === 'newmatch'">
       <div class="card-title">⚽ Registra Partita
         <span class="badge badge-blue">Step {{ matchStep }}/2</span>
@@ -2805,61 +3084,59 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:0.9rem;font-weight:700;color:var(--text1)">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
                 <div style="font-size:0.7rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
               </div>
-              <!-- Riga 2: Voto + UoM -->
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                <span style="font-size:0.72rem;color:var(--text2)">Voto</span>
-                <div style="display:flex;align-items:center;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;overflow:hidden">
-                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
-                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
-                  <span style="min-width:30px;text-align:center;font-size:0.95rem;font-weight:700;color:var(--yellow)">{{ playerStats[pid]?.voto || 6 }}</span>
-                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
-                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
+              <!-- Riga 2: Voto + Gol -->
+              <div style="display:flex;gap:6px;margin-bottom:5px">
+                <div class="counter-box" style="flex:1.3;justify-content:space-between">
+                  <span style="font-size:0.68rem;color:var(--text2)">Voto</span>
+                  <div style="display:flex;align-items:center;background:var(--bg2);border-radius:6px;overflow:hidden">
+                    <button style="background:none;border:none;color:var(--text2);font-size:1rem;padding:2px 8px;cursor:pointer"
+                      @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
+                    <span style="min-width:24px;text-align:center;font-size:0.9rem;font-weight:700;color:var(--yellow)">{{ playerStats[pid]?.voto||6 }}</span>
+                    <button style="background:none;border:none;color:var(--text2);font-size:1rem;padding:2px 8px;cursor:pointer"
+                      @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
+                  </div>
                 </div>
-                <button class="btn btn-sm" :class="playerStats[pid]?.uomoPartita ? 'btn-yellow' : 'btn-ghost'"
-                  style="padding:5px 10px;font-size:0.72rem;margin-left:auto" @click="setUomoPartita(pid)">
-                  {{ playerStats[pid]?.uomoPartita ? '⭐ UoM' : '🏅 UoM' }}
-                </button>
-              </div>
-              <!-- Riga 3: Goal + Assist -->
-              <div style="display:flex;gap:6px;margin-bottom:6px">
                 <div class="counter-box" style="flex:1;justify-content:space-between">
-                  <span style="font-size:0.72rem;font-weight:700">⚽ Gol</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <span style="font-size:0.68rem;font-weight:700">⚽</span>
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
                     <span class="counter-val">{{ playerStats[pid]?.goal||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
                   </div>
                 </div>
+              </div>
+              <!-- Riga 3: Assist + OG -->
+              <div style="display:flex;gap:6px;margin-bottom:5px">
                 <div class="counter-box" style="flex:1;justify-content:space-between">
-                  <span style="font-size:0.72rem;font-weight:700">🅰️ Assist</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <span style="font-size:0.68rem;font-weight:700">🅰️</span>
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].assist>0?playerStats[pid].assist--:null">−</button>
                     <span class="counter-val">{{ playerStats[pid]?.assist||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
                   </div>
                 </div>
-              </div>
-              <!-- Riga 4: OG + RP + RS -->
-              <div style="display:flex;gap:6px">
                 <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3)">
                   <span style="font-size:0.62rem;font-weight:700;color:var(--red)">OG</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
                     <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
                   </div>
                 </div>
+              </div>
+              <!-- Riga 4: RP + RS -->
+              <div style="display:flex;gap:6px">
                 <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35)">
                   <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅 RP</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
                     <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                   </div>
                 </div>
-                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);min-width:0">
-                  <span style="font-size:0.58rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌RS</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35)">
+                  <span style="font-size:0.58rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌ RS</span>
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                     <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
@@ -2886,61 +3163,59 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:0.9rem;font-weight:700;color:var(--text1)">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
                 <div style="font-size:0.7rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
               </div>
-              <!-- Riga 2: Voto + UoM -->
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-                <span style="font-size:0.72rem;color:var(--text2)">Voto</span>
-                <div style="display:flex;align-items:center;background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;overflow:hidden">
-                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
-                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
-                  <span style="min-width:30px;text-align:center;font-size:0.95rem;font-weight:700;color:var(--yellow)">{{ playerStats[pid]?.voto || 6 }}</span>
-                  <button style="background:none;border:none;color:var(--text2);font-size:1.15rem;padding:3px 10px;cursor:pointer;line-height:1"
-                    @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
+              <!-- Riga 2: Voto + Gol -->
+              <div style="display:flex;gap:6px;margin-bottom:5px">
+                <div class="counter-box" style="flex:1.3;justify-content:space-between">
+                  <span style="font-size:0.68rem;color:var(--text2)">Voto</span>
+                  <div style="display:flex;align-items:center;background:var(--bg2);border-radius:6px;overflow:hidden">
+                    <button style="background:none;border:none;color:var(--text2);font-size:1rem;padding:2px 8px;cursor:pointer"
+                      @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
+                    <span style="min-width:24px;text-align:center;font-size:0.9rem;font-weight:700;color:var(--yellow)">{{ playerStats[pid]?.voto||6 }}</span>
+                    <button style="background:none;border:none;color:var(--text2);font-size:1rem;padding:2px 8px;cursor:pointer"
+                      @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
+                  </div>
                 </div>
-                <button class="btn btn-sm" :class="playerStats[pid]?.uomoPartita ? 'btn-yellow' : 'btn-ghost'"
-                  style="padding:5px 10px;font-size:0.72rem;margin-left:auto" @click="setUomoPartita(pid)">
-                  {{ playerStats[pid]?.uomoPartita ? '⭐ UoM' : '🏅 UoM' }}
-                </button>
-              </div>
-              <!-- Riga 3: Goal + Assist -->
-              <div style="display:flex;gap:6px;margin-bottom:6px">
                 <div class="counter-box" style="flex:1;justify-content:space-between">
-                  <span style="font-size:0.72rem;font-weight:700">⚽ Gol</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <span style="font-size:0.68rem;font-weight:700">⚽</span>
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
                     <span class="counter-val">{{ playerStats[pid]?.goal||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
                   </div>
                 </div>
+              </div>
+              <!-- Riga 3: Assist + OG -->
+              <div style="display:flex;gap:6px;margin-bottom:5px">
                 <div class="counter-box" style="flex:1;justify-content:space-between">
-                  <span style="font-size:0.72rem;font-weight:700">🅰️ Assist</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <span style="font-size:0.68rem;font-weight:700">🅰️</span>
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].assist>0?playerStats[pid].assist--:null">−</button>
                     <span class="counter-val">{{ playerStats[pid]?.assist||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
                   </div>
                 </div>
-              </div>
-              <!-- Riga 4: OG + RP + RS -->
-              <div style="display:flex;gap:6px">
                 <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3)">
                   <span style="font-size:0.62rem;font-weight:700;color:var(--red)">OG</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
                     <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
                   </div>
                 </div>
+              </div>
+              <!-- Riga 4: RP + RS -->
+              <div style="display:flex;gap:6px">
                 <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35)">
                   <span style="font-size:0.62rem;font-weight:700;color:var(--lime)">🥅 RP</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
                     <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                   </div>
                 </div>
-                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);min-width:0">
-                  <span style="font-size:0.58rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌RS</span>
-                  <div style="display:flex;align-items:center;gap:3px">
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35)">
+                  <span style="font-size:0.58rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌ RS</span>
+                  <div style="display:flex;align-items:center;gap:2px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                     <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
@@ -2996,16 +3271,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" @click="currentView='formations'">← Annulla</button>
-          <button class="btn btn-primary" style="flex:1" @click="matchStep=2">Avanti → Pagelle</button>
+          <button class="btn btn-primary" style="flex:1" @click="matchStep=2;Vue.nextTick(()=>{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0})">Avanti →</button>
         </div>
       </template>
 
       <!-- STEP 2: Pagelle + AI + Salva -->
       <template v-if="matchStep === 2">
-        <div class="card">
-          <div class="card-title">⭐ Pagelle</div>
+        <div class="card" v-if="!stepByStepDone">
+          <div class="card-title">🏅 Uomo Partita</div>
           <div style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:12px">
-            <div style="font-size:0.8rem;font-weight:700;color:var(--yellow);margin-bottom:8px">🏅 Uomo Partita</div>
+            <div style="font-size:0.8rem;font-weight:700;color:var(--yellow);margin-bottom:8px">🏅 Seleziona Uomo Partita</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
               <div v-for="pid in [...teamA,...teamB]" :key="'upm-'+pid"
                 class="badge" style="cursor:pointer;padding:7px 12px"
@@ -3078,7 +3353,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <div style="display:flex;gap:10px">
-          <button class="btn btn-ghost" @click="matchStep=1">← Indietro</button>
+          <button class="btn btn-ghost" @click="stepByStepDone?(currentView='stepbystep'):( matchStep=1);Vue.nextTick(()=>{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0})">← Indietro</button>
           <button class="btn btn-primary" style="flex:1" @click="saveMatch">✅ Salva Partita</button>
         </div>
       </template>
@@ -5524,7 +5799,29 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.457',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.462',date:'2026-06-08',items:[
+      'Fix: scroll in cima funzionante quando si passa a step 2',
+    ]},{version:'v1.461',date:'2026-06-08',items:[
+      'Fix: scroll in cima quando si passa a step 2',
+      'Fix: UoM duplicato rimosso dal riepilogo SBS',
+      'Fix: indietro da riepilogo SBS torna all ultimo giocatore',
+      'Fix: step 2 via SBS non mostra UoM (gia selezionato nel riepilogo)',
+      'Fix: indietro da AI torna a SBS o step 1 con scroll in cima',
+    ]},{version:'v1.460',date:'2026-06-08',items:[
+      'Fix: SBS navigazione sopra la foto (non sotto)',
+      'Fix: SBS riepilogo con UoM + Top Scorer + bottoni corretti',
+      'Fix: SBS Articolo AI torna al riepilogo SBS con Indietro',
+      'Fix: step 2 classico rinominato Uomo Partita invece di Pagelle',
+    ]},{version:'v1.459',date:'2026-06-08',items:[
+      'Fix: sync post-offline con retry automatico (fino a 3 tentativi)',
+      'Fix: layout classico giocatore — Voto+Gol / Assist+OG / RP+RS',
+      'Fix: SBS — navigazione in alto, UoM rimosso (c è nel riepilogo)',
+      'Fix: SBS — indietro da AI torna al riepilogo SBS, non alla modalità classica',
+    ]},{version:'v1.458',date:'2026-06-08',items:[
+      'Nuovo: modalità inserimento "🎯 Uno alla Volta" — step by step per giocatore',
+      'Nuovo: modal scelta modalità prima di ogni partita',
+      'Nuovo: schermata riepilogo con marcatori, autogol, risultato da confermare',
+    ]},{version:'v1.457',date:'2026-06-08',items:[
       'UI: step 1 — giocatori prima, risultato in fondo',
       'UI: legenda valori dopo le squadre, non prima',
       'UI: RS non più troncato nei counter',
@@ -6022,6 +6319,11 @@ createApp({
     const detailMatch   = ref(null);
 
     const matchStep          = ref(1);
+    const showModeChoice     = ref(false); // modal scelta modalità
+    const modeChoiceFormation = ref(null); // formazione in attesa
+    const stepByStepIdx      = ref(0);    // indice giocatore corrente in SBS
+    const stepByStepPlayers  = ref([]);   // lista ordinata giocatori SBS
+    const stepByStepDone     = ref(false); // tutti i giocatori completati
     const showIOSection      = ref(false);
     const ioGroupId          = ref(null); // gruppo selezionato per export
     const ioLastN            = ref(5);    // ultime N partite da esportare
@@ -6091,7 +6393,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.457');
+    const appVersion = ref('1.462');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7147,7 +7449,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       toast('✅ Formazione aggiornata!');
     };
 
-    const playFormation = f => {
+    const _initMatchData = (f) => {
       activeFormation.value = f;
       teamA.value = [...(f.squadraA || [])];
       teamB.value = [...(f.squadraB || [])];
@@ -7159,7 +7461,50 @@ Rispondi SOLO con questo JSON (niente altro testo):
       matchStep.value = 1;
       matchTeamOpen.value = {A: true, B: true};
       [...teamA.value, ...teamB.value].forEach(pid => ensureStats(pid));
+    };
+
+    const playFormation = f => {
+      modeChoiceFormation.value = f;
+      showModeChoice.value = true;
+    };
+
+    const startClassicMode = () => {
+      const f = modeChoiceFormation.value;
+      showModeChoice.value = false;
+      _initMatchData(f);
       currentView.value = 'newmatch';
+    };
+
+    const startStepByStep = () => {
+      const f = modeChoiceFormation.value;
+      showModeChoice.value = false;
+      _initMatchData(f);
+      // Ordine: prima squadra A poi squadra B
+      stepByStepPlayers.value = [...teamA.value, ...teamB.value];
+      stepByStepIdx.value = 0;
+      stepByStepDone.value = false;
+      currentView.value = 'stepbystep';
+    };
+
+    const sbsNext = () => {
+      if (stepByStepIdx.value < stepByStepPlayers.value.length - 1) {
+        stepByStepIdx.value++;
+      } else {
+        stepByStepDone.value = true; // tutti completati → mostra riepilogo
+      }
+    };
+    const sbsPrev = () => {
+      if (stepByStepDone.value) {
+        stepByStepDone.value = false;
+      } else if (stepByStepIdx.value > 0) {
+        stepByStepIdx.value--;
+      }
+    };
+
+    const sbsGoAI = () => {
+      // Vai all'AI senza toccare matchStep — rimane in SBS context
+      currentView.value = 'newmatch';
+      matchStep.value = 2;
     };
 
     // ── Share formation PNG ──
@@ -11770,14 +12115,30 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         const durStr = durMs > 60000 ? Math.round(durMs/60000)+'min' : Math.round(durMs/1000)+'s';
         logEvent('info', 'sync', `🌐 Tornato online${_offlineAt ? ' (offline per '+durStr+')' : ''}`);
         _offlineAt = null;
-        // Controlla se ci sono aggiornamenti dopo il periodo offline
+        // Controlla aggiornamenti dopo offline — con retry fino a 3 tentativi
         if (currentGroup.value?.firebaseUrl) {
-          setTimeout(async () => {
+          let _retries = 0;
+          const _trySync = async () => {
             try {
               const needed = await checkSyncNeeded();
-              if (needed) await syncFromCloud(false);
-            } catch(e) {}
-          }, 1000);
+              if (needed) {
+                await syncFromCloud(false);
+                logEvent('info', 'sync', '🔄 Sync post-offline completato');
+              } else {
+                lastCheckTime.value = new Date().toLocaleString('it-IT');
+                localStorage.setItem('amicifc_last_check', lastCheckTime.value);
+              }
+            } catch(e) {
+              _retries++;
+              if (_retries < 3) {
+                logEvent('info', 'sync', `⏳ Retry sync post-offline (${_retries}/3)...`);
+                setTimeout(_trySync, 3000 * _retries);
+              } else {
+                logEvent('warn', 'sync', 'Sync post-offline fallito dopo 3 tentativi');
+              }
+            }
+          };
+          setTimeout(_trySync, 1500);
         }
       });
       window.addEventListener('offline', () => {
@@ -12787,7 +13148,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       loadFormations, saveFormation, deleteFormation, editFormation,
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
-      playFormation, shareFormationPNG,
+      playFormation, startClassicMode, startStepByStep, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
