@@ -2784,55 +2784,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-for="i in 2" :key="i" class="step-dot" :class="{active:matchStep===i,done:matchStep>i}"></div>
       </div>
 
-      <!-- STEP 1: Risultato + statistiche -->
+      <!-- STEP 1: Statistiche + Risultato in fondo -->
       <template v-if="matchStep === 1">
-        <div class="card">
-          <div class="card-title">🏆 Risultato</div>
-          <div style="font-size:0.72rem;color:var(--text2);background:var(--bg3);border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.8">
-            ⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
-            <span style="color:var(--red)">OG = Autogol (nella propria porta)</span> &nbsp;·&nbsp;
-            <span style="color:var(--yellow)">UoM = Uomo della Partita</span> &nbsp;·&nbsp;
-            Voto 1-10 &nbsp;·&nbsp;
-            <span style="color:var(--lime)">🥅 RP = Rigore Parato (+OVR)</span> &nbsp;·&nbsp;
-            <span style="color:#FF6B35">❌ RS = Rigore Sbagliato (−OVR)</span>
-          </div>
-          <div class="match-score" style="margin-bottom:20px">
-            <div style="text-align:center">
-              <div style="font-family:var(--font-title);color:var(--blue);margin-bottom:8px">
-                {{ activeFormation?.nomeSquadraA || '🟠 Squadra A' }}
-              </div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <button class="counter-btn" @click="matchGoalA > 0 ? matchGoalA-- : null">−</button>
-                <span class="score-num score-a">{{ matchGoalA }}</span>
-                <button class="counter-btn" style="background:var(--blue);color:#fff" @click="matchGoalA++">+</button>
-              </div>
-            </div>
-            <div class="score-sep">VS</div>
-            <div style="text-align:center">
-              <div style="font-family:var(--font-title);color:var(--red);margin-bottom:8px">
-                {{ activeFormation?.nomeSquadraB || '🔵 Squadra B' }}
-              </div>
-              <div style="display:flex;align-items:center;gap:12px">
-                <button class="counter-btn" @click="matchGoalB > 0 ? matchGoalB-- : null">−</button>
-                <span class="score-num score-b">{{ matchGoalB }}</span>
-                <button class="counter-btn" style="background:var(--red);color:#fff" @click="matchGoalB++">+</button>
-              </div>
-            </div>
-          </div>
-          <!-- Risultato calcolato dai gol -->
-          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-top:4px;padding:8px;background:rgba(166,255,77,0.06);border-radius:8px;border:1px solid rgba(166,255,77,0.15)">
-            <span style="font-size:0.72rem;color:var(--text2)">⚡ Da statistiche:</span>
-            <span style="font-weight:700;color:var(--lime);font-size:0.9rem">
-              {{ (teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
-              –
-              {{ (teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
-            </span>
-            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:3px 10px;color:var(--lime);border-color:rgba(166,255,77,0.3)"
-              @click="matchGoalA=teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0); matchGoalB=teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)">
-              Usa →
-            </button>
-          </div>
-        </div>
 
         <div class="card" style="padding:0;overflow:hidden">
           <!-- Header accordion Squadra A -->
@@ -2904,8 +2857,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                   </div>
                 </div>
-                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35)">
-                  <span style="font-size:0.62rem;font-weight:700;color:#FF6B35">❌ RS</span>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);min-width:0">
+                  <span style="font-size:0.58rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌RS</span>
                   <div style="display:flex;align-items:center;gap:3px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                     <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
@@ -2985,8 +2938,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                   </div>
                 </div>
-                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35)">
-                  <span style="font-size:0.62rem;font-weight:700;color:#FF6B35">❌ RS</span>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);min-width:0">
+                  <span style="font-size:0.58rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌RS</span>
                   <div style="display:flex;align-items:center;gap:3px">
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                     <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
@@ -2996,10 +2949,51 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
           </div>
-          <div style="padding:10px 16px;font-size:0.7rem;color:var(--text2)">
-            ⚽ Gol · 🅰️ Assist · OG Autogol · 🥅RP Rigore Parato · ❌RS Rigore Sbagliato
+          <div style="padding:10px 16px;font-size:0.7rem;color:var(--text2);line-height:1.8">
+            ⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
+            <span style="color:var(--red)">OG = Autogol</span> &nbsp;·&nbsp;
+            <span style="color:var(--lime)">🥅 RP = Rigore Parato</span> &nbsp;·&nbsp;
+            <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span> &nbsp;·&nbsp;
+            <span style="color:var(--yellow)">UoM = Uomo della Partita</span>
           </div>
         </div>
+
+        <!-- Risultato — in fondo -->
+        <div class="card">
+          <div class="card-title">🏆 Risultato</div>
+          <div class="match-score" style="margin-bottom:12px">
+            <div style="text-align:center">
+              <div style="font-family:var(--font-title);color:var(--blue);margin-bottom:8px">{{ activeFormation?.nomeSquadraA || 'Squadra A' }}</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="counter-btn" @click="matchGoalA > 0 ? matchGoalA-- : null">−</button>
+                <span class="score-num score-a">{{ matchGoalA }}</span>
+                <button class="counter-btn" style="background:var(--blue);color:#fff" @click="matchGoalA++">+</button>
+              </div>
+            </div>
+            <div class="score-sep">VS</div>
+            <div style="text-align:center">
+              <div style="font-family:var(--font-title);color:var(--red);margin-bottom:8px">{{ activeFormation?.nomeSquadraB || 'Squadra B' }}</div>
+              <div style="display:flex;align-items:center;gap:12px">
+                <button class="counter-btn" @click="matchGoalB > 0 ? matchGoalB-- : null">−</button>
+                <span class="score-num score-b">{{ matchGoalB }}</span>
+                <button class="counter-btn" style="background:var(--red);color:#fff" @click="matchGoalB++">+</button>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px;background:rgba(166,255,77,0.06);border-radius:8px;border:1px solid rgba(166,255,77,0.15)">
+            <span style="font-size:0.72rem;color:var(--text2)">⚡ Da statistiche:</span>
+            <span style="font-weight:700;color:var(--lime);font-size:0.9rem">
+              {{ (teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
+              –
+              {{ (teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
+            </span>
+            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:3px 10px;color:var(--lime);border-color:rgba(166,255,77,0.3)"
+              @click="matchGoalA=teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0); matchGoalB=teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)">
+              Usa →
+            </button>
+          </div>
+        </div>
+
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" @click="currentView='formations'">← Annulla</button>
           <button class="btn btn-primary" style="flex:1" @click="matchStep=2">Avanti → Pagelle</button>
@@ -3021,20 +3015,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
           </div>
-          <div v-for="pid in [...teamA,...teamB]" :key="'pg-'+pid" class="rating-row">
-            <div style="flex:1">
-              <div class="player-name" style="font-size:0.85rem">
-                {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}
-                <span v-if="playerStats[pid]?.uomoPartita" style="color:var(--yellow)"> 🏅</span>
-              </div>
-            </div>
-            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end">
-              <span class="badge" :class="votoColor(playerStats[pid]?.voto)">{{ playerStats[pid]?.voto || '–' }}</span>
-              <span style="font-size:0.7rem;color:var(--text2)">⚽{{ playerStats[pid]?.goal||0 }}</span>
-              <span style="font-size:0.7rem;color:var(--text2)">🅰️{{ playerStats[pid]?.assist||0 }}</span>
-              <span v-if="playerStats[pid]?.autogol" style="font-size:0.7rem;color:var(--red)">OG{{ playerStats[pid].autogol }}</span>
-            </div>
-          </div>
+
           <div v-if="computedUomoPartita" style="margin-top:14px;text-align:center">
             <div class="badge badge-yellow" style="font-size:0.95rem;padding:10px 20px">
               🏅 Uomo Partita: {{ getPlayer(computedUomoPartita)?.soprannome || getPlayer(computedUomoPartita)?.nome }}
@@ -5543,7 +5524,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.456',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.457',date:'2026-06-08',items:[
+      'UI: step 1 — giocatori prima, risultato in fondo',
+      'UI: legenda valori dopo le squadre, non prima',
+      'UI: RS non più troncato nei counter',
+      'Fix: step 2 — rimossa lista riepilogativa giocatori',
+      'Fix: Top Scorer non appare se partita 0-0 senza dati inseriti',
+    ]},{version:'v1.456',date:'2026-06-08',items:[
       'UI: banner aggiornamento ridisegnato — scuro con bordo lime, più info',
       'Fix: rimosso toast aggiornamento ridondante col banner',
     ]},{version:'v1.455',date:'2026-06-08',items:[
@@ -6104,7 +6091,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.456');
+    const appVersion = ref('1.457');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6133,10 +6120,18 @@ createApp({
     const computedMVP = computed(() => {
       if (!teamA.value.length && !teamB.value.length) return null;
       let best = null, bestScore = -1;
+      const hasRealData = [...teamA.value, ...teamB.value].some(pid => {
+        const s = playerStats.value[pid];
+        return s && ((s.goal||0) > 0 || (s.assist||0) > 0 || (s.voto||0) > 0);
+      });
+      if (!hasRealData) return null; // nessun dato inserito — non mostrare MVP
       [...teamA.value, ...teamB.value].forEach(pid => {
         const s = playerStats.value[pid];
         if (!s) return;
-        const score = (s.voto||6) + (s.goal||0)*0.5 + (s.assist||0)*0.3;
+        // Solo considera giocatori con almeno un dato inserito
+        const hasData = (s.goal||0) > 0 || (s.assist||0) > 0 || (s.voto||0) > 0;
+        if (!hasData) return;
+        const score = (s.voto||0)*1.5 + (s.goal||0)*2 + (s.assist||0)*1;
         if (score > bestScore) { bestScore = score; best = pid; }
       });
       return best;
