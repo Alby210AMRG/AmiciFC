@@ -5526,7 +5526,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.446',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.447',date:'2026-06-08',items:[
+      'Fix: _initAiCards early exit — carica localStorage e mostra solo 2 righe di log',
+      'Fix: log duplicato sync rimosso definitivamente',
+    ]},{version:'v1.446',date:'2026-06-08',items:[
       'Fix: AI Cards non vengono più controllate due volte ad ogni avvio',
       'Fix: _initAiCards esce subito se tutti i flag sono validi — zero log inutili',
       'Rimosso: caricamento diretto AI cards prima dell hero (duplicato)',
@@ -6058,7 +6061,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.446');
+    const appVersion = ref('1.447');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8536,10 +8539,35 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
       const _gid = currentGroup.value.id;
-      // Se tutti i flag sono validi, salta tutto silenziosamente
-      const _allFlagsOk = aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid);
-      if (_allFlagsOk && aiCardsTrashTalk.value.length && aiCardsHallOfFame.value && Object.keys(aiNicknames.value).length) {
-        _aiLog('Init','✅ AI Cards pronte (flag tutti validi — skip Firebase)');
+      // Se tutti i flag validi → carica solo da localStorage, skip Firebase
+      if (aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid)) {
+        // Carica da localStorage se non già in memoria
+        const _lsKeyTT = 'amicifc_tt_' + _gid;
+        if (!aiCardsTrashTalk.value.length) {
+          const _cached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
+          if (_cached?.cards?.length) aiCardsTrashTalk.value = _cached.cards;
+        }
+        if (!aiCardsHallOfFame.value) {
+          const oggi = new Date();
+          const _mkM = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+          const meseP = _mkM(new Date(oggi.getFullYear(), oggi.getMonth()-1, 1));
+          const meseC = _mkM(oggi);
+          const _lsP = JSON.parse(localStorage.getItem('amicifc_hof_'+meseP)||'null');
+          const _lsC = JSON.parse(localStorage.getItem('amicifc_hof_'+meseC)||'null');
+          if (_lsP?.fame) aiCardsHallOfFame.value = _lsP;
+          else if (_lsC?.fame) aiCardsHallOfFame.value = _lsC;
+        }
+        if (!Object.keys(aiNicknames.value).length) {
+          const _lsNK = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
+          if (Object.keys(_lsNK).length) aiNicknames.value = _lsNK;
+        }
+        const _nOk = aiCardsTrashTalk.value.length || aiCardsHallOfFame.value || Object.keys(aiNicknames.value).length;
+        _aiLog('Init', _nOk ? '✅ AI Cards pronte' : '⚠️ AI Cards: nessun dato locale');
+        if (_nOk) {
+          const _nNicks = Object.keys(aiNicknames.value).length;
+          const _nElig = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3).length;
+          _aiLog('Init',`✅ Soprannomi OK (${_nNicks} chiavi, ${_nElig} giocatori idonei)`);
+        }
         return;
       }
       _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
