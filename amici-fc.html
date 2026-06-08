@@ -1511,7 +1511,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         :class="{ 'cloud-btn-syncing': syncStatus==='syncing', 'cloud-btn-ok': syncStatus==='ok', 'cloud-btn-error': syncStatus==='error' }"
         title="Firebase gruppo">
         <span v-if="syncStatus==='syncing'">☁️⟳</span>
-        <span v-else-if="lastSyncError">☁️⚠️</span>
+        <span v-else-if="!isOnline">📵</span>
+        <span v-else-if="lastSyncError && !lastSyncError.includes('fetch')">☁️⚠️</span>
         <span v-else-if="currentGroup.firebaseUrl">☁️✅</span>
         <span v-else>☁️</span>
       </button>
@@ -4980,7 +4981,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div v-if="!lastSyncTime && !lastCheckTime && !lastSyncError && currentGroup?.firebaseUrl" style="font-size:0.7rem;color:var(--yellow);margin-top:3px">
             ⏳ Non ancora verificato
           </div>
-          <div v-if="lastSyncError" style="font-size:0.7rem;color:var(--red);margin-top:3px;font-weight:600">
+          <div v-if="lastSyncError && !lastSyncError.includes('fetch') && !lastSyncError.includes('network')" style="font-size:0.7rem;color:var(--red);margin-top:3px;font-weight:600">
             ⚠️ Errore: {{ lastSyncError }}
             <span v-if="lastSyncError.includes('protetto') || lastSyncError.includes('401')" style="display:block;margin-top:2px;font-weight:400;color:var(--text2)">
               → Premi ☁️ nell'header e accedi con email/password Firebase
@@ -5530,7 +5531,14 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.452',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.454',date:'2026-06-08',items:[
+      'Log: registra quando il dispositivo va offline e torna online con durata',
+      'Fix: al ritorno online controlla automaticamente aggiornamenti Firebase',
+    ]},{version:'v1.453',date:'2026-06-08',items:[
+      'Fix: offline silenzioso — nessun toast di errore quando non c è rete',
+      'Fix: icona cloud mostra 📵 quando offline invece di ⚠️',
+      'Fix: pannello Firebase non mostra errori di rete come errori reali',
+    ]},{version:'v1.452',date:'2026-06-08',items:[
       'Fix: Verificato si aggiorna ad ogni check Firebase (visibilitychange e timer 10min)',
     ]},{version:'v1.451',date:'2026-06-08',items:[
       'Fix: pannello Firebase mostra sia ultima sync che ultima verifica',
@@ -6079,7 +6087,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.452');
+    const appVersion = ref('1.454');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9311,7 +9319,9 @@ Niente altro, nessuna spiegazione.`;
 
         return false;
       } catch(e) {
-        logEvent('warn', 'sync', 'checkSyncNeeded fallito: ' + e.message);
+        // Offline o rete non disponibile — silenzioso, nessun errore
+        const isOffline = e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine;
+        if (!isOffline) logEvent('warn', 'sync', 'checkSyncNeeded fallito: ' + e.message);
         return false;
       }
     };
@@ -9799,10 +9809,17 @@ Niente altro, nessuna spiegazione.`;
 
           } catch (e) {
             const errMsg = e.message || 'Errore sconosciuto';
-            lastSyncError.value = errMsg;
-            logEvent('error', 'sync', errMsg);
-            localStorage.setItem('amicifc_last_sync_error', errMsg);
-            setSyncStatus('error');
+            const isOffline = errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('NetworkError') || !navigator.onLine;
+            if (isOffline) {
+              // Offline — silenzioso, icona normale
+              logEvent('info', 'sync', '📵 Offline — sync non disponibile');
+              setSyncStatus('idle'); // non mostrare errore
+            } else {
+              lastSyncError.value = errMsg;
+              logEvent('error', 'sync', errMsg);
+              localStorage.setItem('amicifc_last_sync_error', errMsg);
+              setSyncStatus('error');
+            }
           }
           syncLoading.value = false;
           _syncInProgress = false;
@@ -11734,8 +11751,28 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       // ── HERO: AI cards caricate da _scheduleInitAiCards dopo loadGroupData ──
       _heroLaunch();
 
-      window.addEventListener('online',  () => { isOnline.value = true;  });
-      window.addEventListener('offline', () => { isOnline.value = false; });
+      let _offlineAt = null;
+      window.addEventListener('online', () => {
+        isOnline.value = true;
+        const durMs = _offlineAt ? Date.now() - _offlineAt : 0;
+        const durStr = durMs > 60000 ? Math.round(durMs/60000)+'min' : Math.round(durMs/1000)+'s';
+        logEvent('info', 'sync', `🌐 Tornato online${_offlineAt ? ' (offline per '+durStr+')' : ''}`);
+        _offlineAt = null;
+        // Controlla se ci sono aggiornamenti dopo il periodo offline
+        if (currentGroup.value?.firebaseUrl) {
+          setTimeout(async () => {
+            try {
+              const needed = await checkSyncNeeded();
+              if (needed) await syncFromCloud(false);
+            } catch(e) {}
+          }, 1000);
+        }
+      });
+      window.addEventListener('offline', () => {
+        isOnline.value = false;
+        _offlineAt = Date.now();
+        logEvent('info', 'sync', '📵 Dispositivo offline');
+      });
 
       document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
