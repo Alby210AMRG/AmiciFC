@@ -4974,8 +4974,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div v-if="lastSyncTime" style="font-size:0.7rem;color:var(--lime);margin-top:3px">
             ✅ Ultima sync: {{ lastSyncTime }}
           </div>
-          <div v-else-if="lastCheckTime" style="font-size:0.7rem;color:var(--text2);margin-top:3px">
-            ✓ Verificato: {{ lastCheckTime }} (dati locali aggiornati)
+          <div v-if="lastCheckTime && lastCheckTime !== lastSyncTime" style="font-size:0.7rem;color:var(--text2);margin-top:2px">
+            ✓ Verificato: {{ lastCheckTime }}
+          </div>
+          <div v-if="!lastSyncTime && !lastCheckTime && !lastSyncError && currentGroup?.firebaseUrl" style="font-size:0.7rem;color:var(--yellow);margin-top:3px">
+            ⏳ Non ancora verificato
           </div>
           <div v-if="lastSyncError" style="font-size:0.7rem;color:var(--red);margin-top:3px;font-weight:600">
             ⚠️ Errore: {{ lastSyncError }}
@@ -4983,9 +4986,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               → Premi ☁️ nell'header e accedi con email/password Firebase
             </span>
           </div>
-          <div v-if="!lastSyncTime && !lastSyncError && currentGroup && currentGroup.firebaseUrl" style="font-size:0.7rem;color:var(--yellow);margin-top:3px">
-            ⏳ Sync non ancora eseguita — premi Sincronizza ora
-          </div>
+
         </div>
         <label class="toggle"><input type="checkbox" v-model="groupSyncOnStartup"><span class="toggle-slider"></span></label>
       </div>
@@ -5529,7 +5530,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.450',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.451',date:'2026-06-08',items:[
+      'Fix: pannello Firebase mostra sia ultima sync che ultima verifica',
+    ]},{version:'v1.450',date:'2026-06-08',items:[
       'UI: data verifica Firebase aggiornata anche quando sync non necessario',
       'UI: mostra "Verificato: HH:MM" quando dati locali già aggiornati',
     ]},{version:'v1.449',date:'2026-06-08',items:[
@@ -6074,7 +6077,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.450');
+    const appVersion = ref('1.451');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
