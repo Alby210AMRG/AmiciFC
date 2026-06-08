@@ -5526,7 +5526,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.447',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.448',date:'2026-06-08',items:[
+      'Fix: TrashTalk imposta flag dopo generazione — early exit funziona ora',
+      'Fix: log duplicato sync rimosso definitivamente da tutte le sorgenti',
+    ]},{version:'v1.447',date:'2026-06-08',items:[
       'Fix: _initAiCards early exit — carica localStorage e mostra solo 2 righe di log',
       'Fix: log duplicato sync rimosso definitivamente',
     ]},{version:'v1.446',date:'2026-06-08',items:[
@@ -6061,7 +6064,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.447');
+    const appVersion = ref('1.448');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7891,6 +7894,7 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
       aiCardsTrashTalk.value = parsed.cards;
       const ttData = { cards: parsed.cards, generatedAt: Date.now() };
       localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(ttData));
+      aiFlagSet('tt', currentGroup.value?.id||''); // flag 3 giorni
       if (currentGroup.value?.firebaseUrl && token) {
         await _fbWrite(dataPath, ttData, token);
         _aiLog('TrashTalk','☁️ Salvato su Firebase (forzatura)');
@@ -8056,6 +8060,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (cards.length) {
         const _lsKey = 'amicifc_tt_' + (currentGroup.value?.id||'');
         localStorage.setItem(_lsKey, JSON.stringify({ cards, generatedAt: Date.now() }));
+        aiFlagSet('tt', currentGroup.value?.id||''); // flag 3 giorni
       }
       aiCardsTrashTalk.value = cards;
     };
@@ -9279,7 +9284,6 @@ Niente altro, nessuna spiegazione.`;
           return 'update';
         }
 
-        logEvent('info', 'sync', 'Dati locali già aggiornati — sync non necessario');
         return false;
       } catch(e) {
         logEvent('warn', 'sync', 'checkSyncNeeded fallito: ' + e.message);
@@ -11680,8 +11684,6 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
           } else if (syncNeeded === 'update') {
             await syncFromCloud(false); // aggiornamento normale
           } else {
-            logEvent('info', 'sync', '✅ Dati locali aggiornati — nessun sync necessario');
-            // Ricarica comunque i dati locali da Dexie
             await loadGroupData();
           }
         } catch(e) { console.warn('[startup sync]', e.message); }
