@@ -4974,6 +4974,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div v-if="lastSyncTime" style="font-size:0.7rem;color:var(--lime);margin-top:3px">
             ✅ Ultima sync: {{ lastSyncTime }}
           </div>
+          <div v-else-if="lastCheckTime" style="font-size:0.7rem;color:var(--text2);margin-top:3px">
+            ✓ Verificato: {{ lastCheckTime }} (dati locali aggiornati)
+          </div>
           <div v-if="lastSyncError" style="font-size:0.7rem;color:var(--red);margin-top:3px;font-weight:600">
             ⚠️ Errore: {{ lastSyncError }}
             <span v-if="lastSyncError.includes('protetto') || lastSyncError.includes('401')" style="display:block;margin-top:2px;font-weight:400;color:var(--text2)">
@@ -5526,7 +5529,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.449',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.450',date:'2026-06-08',items:[
+      'UI: data verifica Firebase aggiornata anche quando sync non necessario',
+      'UI: mostra "Verificato: HH:MM" quando dati locali già aggiornati',
+    ]},{version:'v1.449',date:'2026-06-08',items:[
       'Fix: flag AI Cards settati retroattivamente da localStorage esistente',
       'Risultato: early exit immediato — solo 2 righe di log invece di 8',
     ]},{version:'v1.448',date:'2026-06-08',items:[
@@ -5838,6 +5844,7 @@ createApp({
     const showGroupCloud    = ref(false);
     const isOnline          = ref(navigator.onLine);
     const lastSyncTime      = ref(localStorage.getItem('amicifc_last_sync') || '');
+    const lastCheckTime     = ref(localStorage.getItem('amicifc_last_check') || '');
     const localSyncVersion  = ref(parseInt(localStorage.getItem('amicifc_sync_version') || '0'));
     const localSyncTs       = ref(parseInt(localStorage.getItem('amicifc_sync_ts') || '0'));
     const lastSyncError     = ref(localStorage.getItem('amicifc_last_sync_error') || '');
@@ -6067,7 +6074,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.449');
+    const appVersion = ref('1.450');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11697,6 +11704,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
           } else if (syncNeeded === 'update') {
             await syncFromCloud(false); // aggiornamento normale
           } else {
+            // Aggiorna timestamp verifica anche se non serve sync
+            lastCheckTime.value = new Date().toLocaleString('it-IT');
+            localStorage.setItem('amicifc_last_check', lastCheckTime.value);
             await loadGroupData();
           }
         } catch(e) { console.warn('[startup sync]', e.message); }
@@ -12723,7 +12733,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
-      syncLoading, syncStatus, lastSyncDate, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
+      syncLoading, syncStatus, lastSyncDate, lastSyncTime, lastCheckTime, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
       restoreStatus, restoreFromBackup, forceRecomputeStats, expandedGroupId, archiveWizard, archiveStepData, openArchiveWizard, archiveSelectAll, archiveTogglePlayer, archiveStep1Next, archiveStep2Next, archiveStep3Next, doArchiveStagione, groupFirstMatch, deleteGroupConfirmText, deleteGroupTarget, confirmDeleteGroup, doDeleteGroup,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
