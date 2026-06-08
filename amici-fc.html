@@ -5530,7 +5530,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.451',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.452',date:'2026-06-08',items:[
+      'Fix: Verificato si aggiorna ad ogni check Firebase (visibilitychange e timer 10min)',
+    ]},{version:'v1.451',date:'2026-06-08',items:[
       'Fix: pannello Firebase mostra sia ultima sync che ultima verifica',
     ]},{version:'v1.450',date:'2026-06-08',items:[
       'UI: data verifica Firebase aggiornata anche quando sync non necessario',
@@ -6077,7 +6079,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.451');
+    const appVersion = ref('1.452');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11669,6 +11671,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
                   await syncFromCloud(false);
                 } else {
                   logEvent('info','sync','✅ Nessun aggiornamento rilevato (ritorno foreground)');
+                  lastCheckTime.value = new Date().toLocaleString('it-IT');
+                  localStorage.setItem('amicifc_last_check', lastCheckTime.value);
                 }
               } catch(e) {}
             }, 1500);
@@ -11758,6 +11762,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
           try {
             const needed = await checkSyncNeeded();
             if (needed) await syncFromCloud(false);
+            else {
+              lastCheckTime.value = new Date().toLocaleString('it-IT');
+              localStorage.setItem('amicifc_last_check', lastCheckTime.value);
+            }
           } catch(e) { /* silenzioso */ }
         }
       }, 10 * 60 * 1000);
