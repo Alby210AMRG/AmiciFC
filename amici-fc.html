@@ -5526,7 +5526,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.448',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.449',date:'2026-06-08',items:[
+      'Fix: flag AI Cards settati retroattivamente da localStorage esistente',
+      'Risultato: early exit immediato — solo 2 righe di log invece di 8',
+    ]},{version:'v1.448',date:'2026-06-08',items:[
       'Fix: TrashTalk imposta flag dopo generazione — early exit funziona ora',
       'Fix: log duplicato sync rimosso definitivamente da tutte le sorgenti',
     ]},{version:'v1.447',date:'2026-06-08',items:[
@@ -6064,7 +6067,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.448');
+    const appVersion = ref('1.449');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8545,6 +8548,16 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       if (!currentGroup.value) return;
       const _gid = currentGroup.value.id;
       // Se tutti i flag validi → carica solo da localStorage, skip Firebase
+      // Retroattivamente setta i flag se i dati sono già in localStorage
+      const _lsKeyTTcheck = 'amicifc_tt_' + _gid;
+      const _ttCachedCheck = JSON.parse(localStorage.getItem(_lsKeyTTcheck)||'null');
+      if (_ttCachedCheck?.cards?.length && !aiFlagValid('tt', _gid)) aiFlagSet('tt', _gid);
+      const _lsHofCheck = JSON.parse(localStorage.getItem('amicifc_hof_'+new Date().toISOString().slice(0,7))||
+                          localStorage.getItem('amicifc_hof_'+new Date(Date.now()-30*864e5).toISOString().slice(0,7))||'null');
+      if (_lsHofCheck?.fame && !aiFlagValid('hof', _gid)) aiFlagSet('hof', _gid);
+      const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
+      if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
+
       if (aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid)) {
         // Carica da localStorage se non già in memoria
         const _lsKeyTT = 'amicifc_tt_' + _gid;
