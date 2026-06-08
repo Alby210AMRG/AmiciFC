@@ -975,11 +975,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
    ═══════════════════════════════════════ */
 .update-banner {
   position: fixed; top: var(--top-h); left: 0; right: 0; z-index: 99;
-  background: linear-gradient(90deg, var(--blue), var(--lime));
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  border-bottom: 2px solid var(--lime);
   padding: 10px 16px;
   display: flex; align-items: center; gap: 12px;
-  font-size: 0.82rem; font-weight: 700; color: var(--dark);
+  font-size: 0.82rem; font-weight: 700; color: #fff;
   animation: slideDown 0.4s ease;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
 @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
 
@@ -1660,9 +1662,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
   <!-- ── UPDATE BANNER ── -->
   <div v-if="updateAvailable" class="update-banner">
-    <span>🎉 Nuova versione {{ newVersion }}!</span>
-    <button class="btn btn-sm" style="background:#fff;color:#1a1a1a;margin-left:auto" @click="doUpdate">Aggiorna</button>
-    <button @click="updateAvailable=false" style="background:none;border:none;cursor:pointer;font-size:1.1rem">✕</button>
+    <div style="display:flex;flex-direction:column;gap:2px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="font-size:1.1rem">🚀</span>
+        <span>Amici FC {{ newVersion }} è disponibile!</span>
+      </div>
+      <div style="font-size:0.72rem;font-weight:400;opacity:0.85">
+        Aggiorna per le ultime novità e correzioni
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-left:auto;align-items:center">
+      <button class="btn btn-sm" style="background:#fff;color:#1a1a1a;font-weight:700" @click="doUpdate">⚡ Aggiorna ora</button>
+      <button @click="updateAvailable=false" style="background:rgba(0,0,0,0.15);border:none;cursor:pointer;font-size:1rem;border-radius:6px;padding:4px 8px;color:inherit">✕</button>
+    </div>
   </div>
 
   <!-- Pull-to-refresh indicator -->
@@ -5531,7 +5543,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.455',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.456',date:'2026-06-08',items:[
+      'UI: banner aggiornamento ridisegnato — scuro con bordo lime, più info',
+      'Fix: rimosso toast aggiornamento ridondante col banner',
+    ]},{version:'v1.455',date:'2026-06-08',items:[
       'Fix: toast checkForUpdates rimosso quando offline — era il toast residuo',
     ]},{version:'v1.454',date:'2026-06-08',items:[
       'Log: registra quando il dispositivo va offline e torna online con durata',
@@ -6089,7 +6104,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.455');
+    const appVersion = ref('1.456');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11830,7 +11845,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
               if (nw.state === 'installed' && navigator.serviceWorker.controller) {
                 newVersion.value = 'nuova';
                 updateAvailable.value = true;
-                toast('🎉 Aggiornamento disponibile!', 'info', 8000);
+
               }
             });
           });
