@@ -5526,7 +5526,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.445',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.446',date:'2026-06-08',items:[
+      'Fix: AI Cards non vengono più controllate due volte ad ogni avvio',
+      'Fix: _initAiCards esce subito se tutti i flag sono validi — zero log inutili',
+      'Rimosso: caricamento diretto AI cards prima dell hero (duplicato)',
+    ]},{version:'v1.445',date:'2026-06-08',items:[
       'FIX CRITICO banda: rimosso syncFromCloud diretto su visibilitychange hero',
       'Era la causa dei 28MB/ora — scattava ad ogni sblocco schermo senza check',
     ]},{version:'v1.444',date:'2026-06-08',items:[
@@ -6054,7 +6058,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.445');
+    const appVersion = ref('1.446');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8531,9 +8535,15 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     };
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
+      const _gid = currentGroup.value.id;
+      // Se tutti i flag sono validi, salta tutto silenziosamente
+      const _allFlagsOk = aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid);
+      if (_allFlagsOk && aiCardsTrashTalk.value.length && aiCardsHallOfFame.value && Object.keys(aiNicknames.value).length) {
+        _aiLog('Init','✅ AI Cards pronte (flag tutti validi — skip Firebase)');
+        return;
+      }
       _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
       try {
-      const _gid = currentGroup.value.id;
       const _lsKeyTT = 'amicifc_tt_' + _gid;
 
       await _loadAiNicknames();
@@ -11661,11 +11671,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         }
       }
 
-      // ── HERO: carica AI cards da localStorage poi lancia ──
-      if (currentGroup.value) {
-        try { await _loadAiNicknames(); } catch(e) {}
-        try { await _loadHallOfFame(); } catch(e) {}
-      }
+      // ── HERO: AI cards caricate da _scheduleInitAiCards dopo loadGroupData ──
       _heroLaunch();
 
       window.addEventListener('online',  () => { isOnline.value = true;  });
