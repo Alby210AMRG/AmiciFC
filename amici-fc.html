@@ -5531,7 +5531,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.454',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.455',date:'2026-06-08',items:[
+      'Fix: toast checkForUpdates rimosso quando offline — era il toast residuo',
+    ]},{version:'v1.454',date:'2026-06-08',items:[
       'Log: registra quando il dispositivo va offline e torna online con durata',
       'Fix: al ritorno online controlla automaticamente aggiornamenti Firebase',
     ]},{version:'v1.453',date:'2026-06-08',items:[
@@ -6087,7 +6089,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.454');
+    const appVersion = ref('1.455');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11526,9 +11528,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
           toast('✅ App già aggiornata (v' + appVersion.value + ')', 'success', 4000);
         }
       } catch (err) {
-        if (!silent && !err.message.includes('Failed to fetch')) toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
-        console.warn('[AmiciFC] Update check failed:', err);
-        toast('⚠️ Controllo aggiornamenti fallito: ' + err.message, 'info', 4000);
+        const isOfflineErr = err.message?.includes('fetch') || err.message?.includes('network') || !navigator.onLine;
+        if (!silent && !isOfflineErr) toast('⚠️ Controllo versione: ' + err.message, 'error', 4000);
+        if (!isOfflineErr) console.warn('[AmiciFC] Update check failed:', err);
       }
     };
 
