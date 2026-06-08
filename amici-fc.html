@@ -5526,7 +5526,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.444',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.445',date:'2026-06-08',items:[
+      'FIX CRITICO banda: rimosso syncFromCloud diretto su visibilitychange hero',
+      'Era la causa dei 28MB/ora — scattava ad ogni sblocco schermo senza check',
+    ]},{version:'v1.444',date:'2026-06-08',items:[
       'Fix: log duplicato sync rimosso',
       'Fix: HoF check saltato se flag valido (evita tentativi inutili)',
       'Fix: log più chiari per sync — visibile se scarica o salta',
@@ -6051,7 +6054,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.444');
+    const appVersion = ref('1.445');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11677,9 +11680,11 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
             heroGo(heroUnifiedIdx.value);
           }
           if (!_heroLaunched) _startHeroTicker();
-          // Auto-sync quando l'app torna in foreground: solo download
+          // Auto-sync: solo check leggero (200B), sync completo solo se necessario
           if (currentGroup.value?.firebaseUrl && isOnline.value) {
-            syncFromCloud(false).catch(console.warn);
+            checkSyncNeeded().then(needed => {
+              if (needed) syncFromCloud(false).catch(console.warn);
+            }).catch(() => {});
           }
         }
       });
