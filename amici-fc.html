@@ -2900,30 +2900,32 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
             </div>
-            <!-- OG + RP + RS -->
+            <!-- OG + RP + RS su 2 righe per visibilità -->
+            <div style="display:flex;gap:8px;margin-bottom:8px">
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3);padding:10px 12px">
+                <span style="font-size:0.72rem;font-weight:700;color:var(--red)">OG Autogol</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button class="counter-btn" style="width:34px;height:34px" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
+                  <span class="counter-val" style="color:var(--red);font-size:1.1rem">{{ playerStats[pid]?.autogol||0 }}</span>
+                  <button class="counter-btn" style="width:34px;height:34px" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+                </div>
+              </div>
+            </div>
             <div style="display:flex;gap:8px;margin-bottom:16px">
-              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3);padding:8px 10px">
-                <span style="font-size:0.65rem;font-weight:700;color:var(--red)">OG</span>
-                <div style="display:flex;align-items:center;gap:4px">
-                  <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
-                  <span class="counter-val" style="color:var(--red)">{{ playerStats[pid]?.autogol||0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:10px 12px">
+                <span style="font-size:0.72rem;font-weight:700;color:var(--lime)">🥅 Rig. Parato</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button class="counter-btn" style="width:34px;height:34px" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
+                  <span class="counter-val" style="color:var(--lime);font-size:1.1rem">{{ playerStats[pid]?.rigoriParati||0 }}</span>
+                  <button class="counter-btn" style="width:34px;height:34px" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                 </div>
               </div>
-              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:8px 10px">
-                <span style="font-size:0.65rem;font-weight:700;color:var(--lime)">🥅 RP</span>
-                <div style="display:flex;align-items:center;gap:4px">
-                  <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
-                  <span class="counter-val" style="color:var(--lime)">{{ playerStats[pid]?.rigoriParati||0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
-                </div>
-              </div>
-              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);padding:8px 10px">
-                <span style="font-size:0.65rem;font-weight:700;color:#FF6B35">❌ RS</span>
-                <div style="display:flex;align-items:center;gap:4px">
-                  <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
-                  <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
-                  <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);padding:10px 12px">
+                <span style="font-size:0.72rem;font-weight:700;color:#FF6B35">❌ Rig. Sbagliato</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button class="counter-btn" style="width:34px;height:34px" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
+                  <span class="counter-val" style="color:#FF6B35;font-size:1.1rem">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
+                  <button class="counter-btn" style="width:34px;height:34px" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
                 </div>
               </div>
             </div>
@@ -5799,7 +5801,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.462',date:'2026-06-08',items:[
+    const changelogEntries = [{version:'v1.463',date:'2026-06-09',items:[
+      'Fix CRITICO: modalità classica non mostra più il riepilogo SBS',
+      'Fix: OG/RP/RS in SBS su layout a righe separate — tutto visibile',
+      'Fix: saveMatch resetta stato SBS correttamente',
+    ]},{version:'v1.462',date:'2026-06-08',items:[
       'Fix: scroll in cima funzionante quando si passa a step 2',
     ]},{version:'v1.461',date:'2026-06-08',items:[
       'Fix: scroll in cima quando si passa a step 2',
@@ -6393,7 +6399,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.462');
+    const appVersion = ref('1.463');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7471,6 +7477,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const startClassicMode = () => {
       const f = modeChoiceFormation.value;
       showModeChoice.value = false;
+      stepByStepDone.value = false;  // IMPORTANTE: reset flag SBS
+      stepByStepIdx.value = 0;
+      stepByStepPlayers.value = [];
       _initMatchData(f);
       currentView.value = 'newmatch';
     };
