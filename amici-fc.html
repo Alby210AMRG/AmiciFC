@@ -5805,7 +5805,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.468',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.469',date:'2026-06-09',items:[
+      'Fix: card AI visibili nella home — hero aspetta _initAiCards prima di costruire le slide',
+      'Fix: se le slide sono vuote riprova dopo 1s',
+    ]},{version:'v1.468',date:'2026-06-09',items:[
       'Fix: Rig.Parato e Rig.Sbag non escono dallo schermo in SBS',
     ]},{version:'v1.467',date:'2026-06-09',items:[
       'Fix: card Statistiche OVERALL mostra OVR corretto (es 82) invece di mediaPunti (es 1.3)',
@@ -6416,7 +6419,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.468');
+    const appVersion = ref('1.469');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12131,8 +12134,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         }
       }
 
-      // ── HERO: AI cards caricate da _scheduleInitAiCards dopo loadGroupData ──
-      _heroLaunch();
+      // ── HERO: aspetta _initAiCards prima di lanciare ──
+      _initAiCards().catch(console.warn).finally(() => {
+        _heroLaunch();
+      });
 
       let _offlineAt = null;
       window.addEventListener('online', () => {
@@ -12759,14 +12764,24 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
     const _heroLaunch = () => {
       if (_heroLaunched) return;
       _heroLaunched = true;
-      _stopHeroTicker(); // ferma il ticker welcome
+      _stopHeroTicker();
       const all = _heroRawData.value;
-      if (!all.length) return;
+      if (!all.length) {
+        // Riprova tra 1s se le card AI non sono ancora pronte
+        setTimeout(() => {
+          const all2 = _heroRawData.value;
+          if (all2.length) {
+            _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(all2)];
+            nextTick(() => { clearTimeout(_heroTimerRef); heroGo(0); });
+          }
+        }, 1000);
+        return;
+      }
       const shuffled = _fyShuffle(all);
       _heroCards.value = [_heroWelcomeCard, ...shuffled];
       nextTick(() => {
         clearTimeout(_heroTimerRef);
-        heroGo(0); // welcome 1s → poi heroGo(1) automatico
+        heroGo(0);
       });
     };
 
