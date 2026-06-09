@@ -5868,7 +5868,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.481',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.482',date:'2026-06-09',items:[
+      'Fix: testo AI nella card news completo — rimossa troncatura a 120 caratteri',
+    ]},{version:'v1.481',date:'2026-06-09',items:[
       'Fix definitivo: scroll testo hero card via scrollTop — il testo scorre completamente',
     ]},{version:'v1.480',date:'2026-06-09',items:[
       'Fix: card news testo non più troncato — scroll automatico',
@@ -6513,7 +6515,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.481');
+    const appVersion = ref('1.482');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10696,7 +10698,7 @@ Niente altro, nessuna spiegazione.`;
         }
         const ratedLast=(last.statisticheGiocatori||[]).filter(s=>(s.voto||0)>0).sort((a,b)=>(b.voto||0)-(a.voto||0));
         if(ratedLast.length){const best=ratedLast[0];const p=players.find(x=>x.id===best.playerId||String(x.id)===String(best.playerId));if(p)items.push({uid:p.uid,foto:p.foto,emoji:'⭐',text:`Migliore in campo: ${p.soprannome||p.nome} voto ${best.voto}`});}
-        if(last.commentoAI?.length>20){const snippet=last.commentoAI.slice(0,120).trim();items.push({emoji:'💬',text:`Il telecronista dell'ultima partita: "${snippet}…"`,matchId:last.id,dest:'matchClick'});}
+        if(last.commentoAI?.length>20){items.push({emoji:'💬',text:`Il telecronista dell'ultima partita: "${last.commentoAI.trim()}"`,matchId:last.id,dest:'matchClick'});}
         if(last.titoloGiornale) items.push({emoji:'📰',text:`Titolo ultima partita: "${last.titoloGiornale}"`});
         const totalG=matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
         items.push({emoji:'📊',text:`${group?.nome||'Gruppo'}: ${matches.length} partite, ${totalG} gol totali`});
