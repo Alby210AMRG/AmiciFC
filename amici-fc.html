@@ -106,11 +106,11 @@ function _i(e,t){const n=ns(e);class s extends xi{constructor(e){super(n,e,t)}}r
 
 [data-theme="light"] {
   /* Amici FC Light — Campo da calcio, verde moderno */
-  --bg:        #F4FAF4;
-  --bg2:       #EAF6EA;
-  --bg3:       #DFF3DF;
-  --card:      #FDFEFD;
-  --card2:     #EAF6EA;
+  --bg:        #EBF6EB;
+  --bg2:       #DFF0DF;
+  --bg3:       #D2EAD2;
+  --card:      #EBF6EB;
+  --card2:     #DFF0DF;
   --text:      #1B2B1B;
   --text2:     #5C735C;
   --lime:      #2F8F2F;
@@ -2841,91 +2841,95 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <!-- Schermata giocatore corrente -->
-        <div v-if="!stepByStepDone" style="flex:1;padding:16px;display:flex;flex-direction:column;gap:14px">
-          <!-- Navigazione IN CIMA -->
-          <div style="display:flex;gap:8px">
-            <button class="btn btn-ghost" style="flex:1" @click="sbsPrev" :disabled="stepByStepIdx===0">← Indietro</button>
-            <button class="btn btn-primary" style="flex:2" @click="sbsNext">
-              {{ stepByStepIdx===stepByStepPlayers.length-1 ? '✅ Riepilogo →' : 'Avanti →' }}
-            </button>
-          </div>
+        <div v-if="!stepByStepDone" style="flex:1;padding:12px 16px;display:flex;flex-direction:column;gap:10px">
           <div v-for="(pid, idx) in stepByStepPlayers" :key="pid" v-show="idx===stepByStepIdx">
-            <!-- Foto grande -->
-            <div style="display:flex;justify-content:center;margin-bottom:8px">
-              <div style="width:120px;height:120px;border-radius:50%;overflow:hidden;border:3px solid"
+            <!-- 1. Nome Squadra -->
+            <div style="text-align:center;margin-bottom:10px">
+              <span style="font-size:0.8rem;font-weight:700;padding:4px 14px;border-radius:20px;display:inline-block"
+                :style="teamA.includes(pid)?'background:rgba(58,123,255,0.15);color:var(--blue)':'background:rgba(255,77,77,0.15);color:var(--red)'">
+                {{ teamA.includes(pid) ? (activeFormation?.nomeSquadraA||'Squadra A') : (activeFormation?.nomeSquadraB||'Squadra B') }}
+              </span>
+            </div>
+            <!-- 2. Navigazione -->
+            <div style="display:flex;gap:8px;margin-bottom:10px">
+              <button class="btn btn-ghost" style="flex:1" @click="sbsPrev" :disabled="stepByStepIdx===0">← Indietro</button>
+              <button class="btn btn-primary" style="flex:2" @click="sbsNext">
+                {{ stepByStepIdx===stepByStepPlayers.length-1 ? '✅ Riepilogo →' : 'Avanti →' }}
+              </button>
+            </div>
+            <!-- 3. Foto -->
+            <div style="display:flex;justify-content:center;margin-top:4px">
+              <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid"
                 :style="teamA.includes(pid)?'border-color:var(--blue)':'border-color:var(--red)'">
                 <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)"
                   :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)"
                   style="width:100%;height:100%;object-fit:cover"
                   @error="onPhotoError($event, getPlayer(pid)?.uid)">
-                <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg3);font-size:2.5rem;font-weight:800;color:var(--text2)">
+                <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:var(--bg3);font-size:2rem;font-weight:800;color:var(--text2)">
                   {{ (getPlayer(pid)?.soprannome||getPlayer(pid)?.nome||'?')[0].toUpperCase() }}
                 </div>
               </div>
             </div>
-
-            <!-- Nome e ruolo -->
-            <div style="text-align:center;margin-bottom:14px">
-              <div style="font-size:1.15rem;font-weight:800">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
-              <div style="font-size:0.78rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
+            <!-- 4. Soprannome + Ruolo -->
+            <div style="text-align:center">
+              <div style="font-size:1.05rem;font-weight:800">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+              <div style="font-size:0.72rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
             </div>
-            <!-- Voto + UoM -->
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
-              <span style="font-size:0.78rem;color:var(--text2);min-width:36px">Voto</span>
-              <div style="display:flex;align-items:center;background:var(--bg3);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;flex:1">
-                <button style="background:none;border:none;color:var(--text2);font-size:1.3rem;padding:6px 14px;cursor:pointer"
+            <!-- 5. Voto (riga intera) -->
+            <div class="counter-box" style="justify-content:space-between;padding:10px 16px;margin-bottom:6px">
+              <span style="font-size:0.82rem;font-weight:700;color:var(--yellow)">⭐ Voto</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <button class="counter-btn" style="width:36px;height:36px"
                   @click="ensureStats(pid);playerStats[pid].voto=+(Math.max(1,(+(playerStats[pid]?.voto||6))-0.5).toFixed(1))">−</button>
-                <span style="flex:1;text-align:center;font-size:1.1rem;font-weight:800;color:var(--yellow)">{{ playerStats[pid]?.voto || 6 }}</span>
-                <button style="background:none;border:none;color:var(--text2);font-size:1.3rem;padding:6px 14px;cursor:pointer"
+                <span style="font-size:1.3rem;font-weight:900;color:var(--yellow);min-width:36px;text-align:center">{{ playerStats[pid]?.voto||6 }}</span>
+                <button class="counter-btn" style="width:36px;height:36px"
                   @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
               </div>
-
             </div>
-            <!-- Gol + Assist -->
-            <div style="display:flex;gap:8px;margin-bottom:8px">
-              <div class="counter-box" style="flex:1;justify-content:space-between;padding:10px 12px">
-                <span style="font-size:0.78rem;font-weight:700">⚽ Gol</span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
-                  <span class="counter-val" style="font-size:1.1rem;min-width:24px">{{ playerStats[pid]?.goal||0 }}</span>
-                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
-                </div>
+            <!-- 6. Gol (riga intera) -->
+            <div class="counter-box" style="justify-content:space-between;padding:10px 16px;margin-bottom:6px">
+              <span style="font-size:0.82rem;font-weight:700">⚽ Gol</span>
+              <div style="display:flex;align-items:center;gap:10px">
+                <button class="counter-btn" style="width:36px;height:36px" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
+                <span style="font-size:1.3rem;font-weight:900;min-width:36px;text-align:center">{{ playerStats[pid]?.goal||0 }}</span>
+                <button class="counter-btn" style="width:36px;height:36px" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
               </div>
+            </div>
+            <!-- 7. Assist + Autogol -->
+            <div style="display:flex;gap:8px;margin-bottom:6px">
               <div class="counter-box" style="flex:1;justify-content:space-between;padding:10px 12px">
-                <span style="font-size:0.78rem;font-weight:700">🅰️ Assist</span>
+                <span style="font-size:0.72rem;font-weight:700">🅰️ Assist</span>
                 <div style="display:flex;align-items:center;gap:6px">
                   <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].assist>0?playerStats[pid].assist--:null">−</button>
-                  <span class="counter-val" style="font-size:1.1rem;min-width:24px">{{ playerStats[pid]?.assist||0 }}</span>
+                  <span style="font-size:1.1rem;font-weight:800;min-width:22px;text-align:center">{{ playerStats[pid]?.assist||0 }}</span>
                   <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].assist++">+</button>
                 </div>
               </div>
-            </div>
-            <!-- OG + RP + RS su 2 righe per visibilità -->
-            <div style="display:flex;gap:8px;margin-bottom:8px">
               <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,77,77,0.3);padding:10px 12px">
-                <span style="font-size:0.72rem;font-weight:700;color:var(--red)">OG Autogol</span>
+                <span style="font-size:0.7rem;font-weight:700;color:var(--red)">OG Auto</span>
                 <div style="display:flex;align-items:center;gap:6px">
-                  <button class="counter-btn" style="width:34px;height:34px" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
-                  <span class="counter-val" style="color:var(--red);font-size:1.1rem">{{ playerStats[pid]?.autogol||0 }}</span>
-                  <button class="counter-btn" style="width:34px;height:34px" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].autogol>0?playerStats[pid].autogol--:null">−</button>
+                  <span style="font-size:1.1rem;font-weight:800;color:var(--red);min-width:22px;text-align:center">{{ playerStats[pid]?.autogol||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].autogol++">+</button>
                 </div>
               </div>
             </div>
-            <div style="display:flex;gap:8px;margin-bottom:16px">
+            <!-- 8. Rig.Parato + Rig.Sbagliato -->
+            <div style="display:flex;gap:8px;margin-bottom:4px">
               <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:10px 12px">
-                <span style="font-size:0.72rem;font-weight:700;color:var(--lime)">🥅 Rig. Parato</span>
+                <span style="font-size:0.7rem;font-weight:700;color:var(--lime)">🥅 Rig.Parato</span>
                 <div style="display:flex;align-items:center;gap:6px">
-                  <button class="counter-btn" style="width:34px;height:34px" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
-                  <span class="counter-val" style="color:var(--lime);font-size:1.1rem">{{ playerStats[pid]?.rigoriParati||0 }}</span>
-                  <button class="counter-btn" style="width:34px;height:34px" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
+                  <span style="font-size:1.1rem;font-weight:800;color:var(--lime);min-width:22px;text-align:center">{{ playerStats[pid]?.rigoriParati||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                 </div>
               </div>
               <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);padding:10px 12px">
-                <span style="font-size:0.72rem;font-weight:700;color:#FF6B35">❌ Rig. Sbagliato</span>
+                <span style="font-size:0.7rem;font-weight:700;color:#FF6B35">❌ Rig.Sbag</span>
                 <div style="display:flex;align-items:center;gap:6px">
-                  <button class="counter-btn" style="width:34px;height:34px" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
-                  <span class="counter-val" style="color:#FF6B35;font-size:1.1rem">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
-                  <button class="counter-btn" style="width:34px;height:34px" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
+                  <span style="font-size:1.1rem;font-weight:800;color:#FF6B35;min-width:22px;text-align:center">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
                 </div>
               </div>
             </div>
@@ -3579,8 +3583,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <!-- Overall score -->
               <div style="text-align:right;flex-shrink:0">
-                <div style="font-weight:900;color:var(--yellow);font-size:1.05rem">{{ p._score.toFixed(1) }}</div>
-                <div style="font-size:0.68rem;color:var(--text2)">score</div>
+                <div style="font-weight:900;font-size:1.1rem" :style="p._score>=85?'color:#fbbf24':p._score>=75?'color:#a3e635':p._score>=65?'color:#4ade80':'color:#94a3b8'">{{ p._score }}</div>
+                <div style="font-size:0.68rem;color:var(--text2)">OVR</div>
               </div>
             </div>
           </div>
@@ -5801,7 +5805,16 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.463',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.466',date:'2026-06-09',items:[
+      'Fix: OVR hero card usa topOverall computed — valori corretti (es. 82 non 1.3)',
+      'UI: SBS spazio tra nome squadra/nav/foto',
+    ]},{version:'v1.465',date:'2026-06-09',items:[
+      'UI: SBS spaziatura verticale tra blocchi voto/gol/assist',
+      'Fix: OVR hero card mostra valore corretto (no NaN, pMaxOvr minimo 8)',
+    ]},{version:'v1.464',date:'2026-06-09',items:[
+      'UI: SBS schermata giocatore riorganizzata — NomeSquadra/Nav/Foto/Nome/Voto/Gol/Assist+OG/RP+RS',
+      'UI: tema chiaro aggiornato con sfondo verde tenue #EBF6EB',
+    ]},{version:'v1.463',date:'2026-06-09',items:[
       'Fix CRITICO: modalità classica non mostra più il riepilogo SBS',
       'Fix: OG/RP/RS in SBS su layout a righe separate — tutto visibile',
       'Fix: saveMatch resetta stato SBS correttamente',
@@ -6399,7 +6412,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.463');
+    const appVersion = ref('1.466');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6546,7 +6559,7 @@ createApp({
       // Malus universale rigori sbagliati (rigorista mancato)
       const malusRSGen = (rs / n) * 3;
       const raw = (baseOvr * 0.70) + (bonusRuolo * 0.30) + costanza - malusAg - malusRSGen;
-      return Math.min(99, Math.max(50, Math.round(raw)));
+      return isNaN(raw) ? 60 : Math.min(99, Math.max(50, Math.round(raw)));
     };
 
     const topOverall = computed(() => {
@@ -12605,13 +12618,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       if(matches.length>0)slides.push({type:'stat',dur:3000,label:'Goal Totali',val:totG,valLabel:'gol totali',col:'#fbbf24',bg:'linear-gradient(145deg,#1a0800,#92400e 60%,#f59e0b)',name:topG?(topG.soprannome||topG.nome)+' \u2014 '+(topG.goalTotali||0)+' top scorer':'Nessun goal ancora',meta:'Media: '+mediaGolGrp+' gol/giocatore',sub:'Premi per la classifica',dest:'stats',statsTab:'goal',foto:topG?.foto,uid:topG?.uid,showSilhouette:true});
 
       if(matches.length>=2){
-        const _pMaxOvr=Math.max(...players.map(x=>x.partiteTotali||0),1);
-        const minPOvr=Math.max(2,Math.floor(matches.length*0.25));
-        const _topOvr=[...players]
-          .filter(p=>(p.partiteTotali||0)>=minPOvr)
-          .map(p=>({...p,_ovr:overallScore(p,_pMaxOvr)}))
-          .sort((a,b)=>b._ovr-a._ovr)
-          .slice(0,3);
+        // Usa topOverall computed (già corretto con pMax reale e _score intero 50-99)
+        const _topOvr = topOverall.value.slice(0,3);
         if(_topOvr.length>=2){
           slides.push({
             type:'ovr3',dur:6000,
@@ -12619,7 +12627,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
             podio:_topOvr.map(p=>({
               nome:p.soprannome||p.nome,
               foto:p.foto,uid:p.uid,
-              ovr:p._ovr,
+              ovr:p._score,
               ruolo:p.ruolo||''
             })),
             bg:'linear-gradient(145deg,#0a0a1a,#1a1040 60%,#3b1d8a)',
