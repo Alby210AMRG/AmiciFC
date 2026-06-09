@@ -5805,7 +5805,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.469',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.471',date:'2026-06-09',items:[
+      'Fix: watch _heroRawData spostato dopo dichiarazione — app torna a partire',
+      'Fix: confirmDeleteModal ref aggiunto',
+    ]},{version:'v1.470',date:'2026-06-09',items:[
+      'Fix: hero card si aggiornano automaticamente quando cambiano i dati (sync, nuova partita)',
+      'Fix: duel e story mostrano giocatori aggiornati invece dei primi al lancio',
+    ]},{version:'v1.469',date:'2026-06-09',items:[
       'Fix: card AI visibili nella home — hero aspetta _initAiCards prima di costruire le slide',
       'Fix: se le slide sono vuote riprova dopo 1s',
     ]},{version:'v1.468',date:'2026-06-09',items:[
@@ -6419,7 +6425,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.469');
+    const appVersion = ref('1.471');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12758,6 +12764,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       }
       return a;
     };
+
+    // ── Watch _heroRawData: ricostruisce le hero slides quando cambiano i dati ──
+    let _heroRebuildTimer = null;
 
     let _heroLaunched = false;
 
