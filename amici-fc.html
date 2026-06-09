@@ -711,6 +711,14 @@ textarea.input-field { resize: vertical; min-height: 80px; }
 /* ═══════════════════════════════════════
    HOME HERO
    ═══════════════════════════════════════ */
+/* Nick card font sizes */
+.nick-fs-10 { font-size: 10px !important; line-height: 1.5 !important; }
+.nick-fs-11 { font-size: 11px !important; line-height: 1.5 !important; }
+.nick-fs-12 { font-size: 12px !important; line-height: 1.5 !important; }
+.nick-fs-13 { font-size: 13px !important; line-height: 1.5 !important; }
+.nick-fs-14 { font-size: 14px !important; line-height: 1.5 !important; }
+.nick-fs-15 { font-size: 15px !important; line-height: 1.5 !important; }
+.nick-fs-16 { font-size: 16px !important; line-height: 1.5 !important; }
 .hero-card {
   background: linear-gradient(135deg, #1F6F1F 0%, #2F8F2F 50%, #3aaa3a 100%);
   border-radius: 20px;
@@ -2376,9 +2384,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="font-size:13px;color:rgba(74,222,128,.5)">{{s.soprannome_ai}}</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
-                <div :style="'color:rgba(255,255,255,.88);line-height:1.5;overflow:hidden;flex:1;font-size:'+(s.confronto&&s.confronto.length>120?'12px':s.confronto&&s.confronto.length>80?'13.5px':'15px')">{{s.confronto}}</div>
-                <div v-if="s.motivazione" :style="'color:rgba(74,222,128,.6);margin-top:6px;font-style:italic;font-size:'+(s.motivazione&&s.motivazione.length>80?'11px':'13px')">{{s.motivazione}}</div>
+              <div style="position:relative;z-index:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden"
+                :ref="el => { if(el && s.type==='nickCard') $nextTick(()=>{ const box=el; const txt=box.querySelector('.nick-txt'); if(!txt)return; let fs=17; txt.style.fontSize=fs+'px'; while(txt.scrollHeight>box.clientHeight-28&&fs>10){fs-=0.5;txt.style.fontSize=fs+'px';} }) }">
+                <div class="nick-txt" style="color:rgba(255,255,255,.9);line-height:1.55;font-size:17px">{{s.confronto}}</div>
+                <div v-if="s.motivazione" style="color:rgba(74,222,128,.65);margin-top:8px;font-style:italic;font-size:12.5px;flex-shrink:0">{{s.motivazione}}</div>
               </div>
             </template>
 
@@ -5805,7 +5814,24 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.471',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.478',date:'2026-06-09',items:[
+      'Fix definitivo: Identikit AI usa classi CSS con !important — funziona davvero',
+    ]},{version:'v1.477',date:'2026-06-09',items:[
+      'Fix definitivo: Identikit AI font-size con !important — nessun override CSS possibile',
+    ]},{version:'v1.476',date:'2026-06-09',items:[
+      'Fix: Identikit AI font adattivo via Vue (no DOM) — testo bianco e verde stessa dimensione',
+    ]},{version:'v1.475',date:'2026-06-09',items:[
+      'UI: Identikit AI testo verde stesso font del testo bianco',
+    ]},{version:'v1.474',date:'2026-06-09',items:[
+      'Fix: Identikit AI testo verde (motivazione) scala con stesso font del testo principale',
+    ]},{version:'v1.473',date:'2026-06-09',items:[
+      'Fix: Identikit AI font auto-fit — parte da 17px e si riduce solo se necessario',
+    ]},{version:'v1.472',date:'2026-06-09',items:[
+      'Fix: Rivivi la Partita — marcatori mostrano nome corretto (uid invece di id)',
+      'Fix: Dream Team ruota ogni giorno con seed giornaliero',
+      'Fix: Rivali e Affinità usano uid per trovare i giocatori',
+      'Fix: Identikit AI — testo parte dall alto del box con font adattivo migliorato',
+    ]},{version:'v1.471',date:'2026-06-09',items:[
       'Fix: watch _heroRawData spostato dopo dichiarazione — app torna a partire',
       'Fix: confirmDeleteModal ref aggiunto',
     ]},{version:'v1.470',date:'2026-06-09',items:[
@@ -6425,7 +6451,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.471');
+    const appVersion = ref('1.478');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8860,6 +8886,57 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
 
     // ── Carica AI cards all'avvio del gruppo ──
     // ── Wrapper bottoni debug AI Cards ──
+    // Calcola font size per nickCard basandosi sulla lunghezza totale del testo
+    // Box stimato: ~280px largo, ~160px alto, ~10px padding
+    const _nickFontSize = (s) => {
+      const txt = (s?.confronto || '');
+      const mot = (s?.motivazione || '');
+      const totalChars = txt.length + mot.length;
+      // Soglie calibrate per box ~280×160px
+      if (totalChars > 350) return 10;
+      if (totalChars > 280) return 11;
+      if (totalChars > 220) return 12;
+      if (totalChars > 160) return 13;
+      if (totalChars > 110) return 14;
+      if (totalChars > 70)  return 15;
+      return 16;
+    };
+
+    // Adatta il font del testo nickCard allo spazio disponibile
+    const _fitNickText = (el, s) => {
+      if (!el || !s?.confronto) return;
+      const txtEl = el.querySelector('.nick-fit-text');
+      const motEl = el.querySelector('.nick-fit-mot');
+      if (!txtEl) return;
+      // Aspetta che il DOM abbia dimensioni reali
+      requestAnimationFrame(() => {
+        const boxH = el.clientHeight || 180;
+        const boxW = el.clientWidth || 280;
+        const txt = s.confronto || '';
+        const mot = s.motivazione || '';
+        // Padding interno 10px × 2 = 20px
+        const availW = boxW - 20;
+        const availH = boxH - 16;
+        // Trova il fontSize massimo che fa stare entrambi i testi
+        let fs = 17;
+        for (let size = 17; size >= 9; size--) {
+          const charsPerRow = Math.floor(availW / (size * 0.54));
+          const rowsTxt = Math.ceil(txt.length / Math.max(1, charsPerRow));
+          const rowsMot = mot ? Math.ceil(mot.length / Math.max(1, charsPerRow)) : 0;
+          const gap = mot ? size * 0.8 : 0; // spazio tra i due blocchi
+          const neededH = (rowsTxt + rowsMot) * size * 1.52 + gap;
+          if (neededH <= availH) { fs = size; break; }
+          if (size === 9) fs = 9;
+        }
+        txtEl.style.fontSize = fs + 'px';
+        txtEl.style.lineHeight = '1.52';
+        if (motEl) {
+          motEl.style.fontSize = fs + 'px';
+          motEl.style.lineHeight = '1.52';
+        }
+      });
+    };
+
     const forceTrashTalk = () => {
       const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
       if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
@@ -12563,7 +12640,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       if(_conRivali.length>0){
         const src=_conRivali[_nowH%_conRivali.length];
         const rivalId=(src.rivali||[]).find(r=>r);
-        const rival=rivalId?players.find(p=>String(p.id)===String(rivalId)):null;
+        const rival=rivalId?players.find(p=>p.uid===rivalId||String(p.id)===String(rivalId)):null;
         if(rival){
           const nS=src.soprannome||src.nome,nR=rival.soprannome||rival.nome;
           const frR=[''+nS+' guarda '+nR+' come chi ha sbagliato il rigore piu importante.','Una questione personale. '+nS+' vs '+nR+'.','Quando si affrontano, il campo diventa teatro.','La rivalita che fa rimpiangere la pace mondiale.'];
@@ -12574,7 +12651,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       if(_conAffinita.length>0){
         const src=_conAffinita[(_nowH+1)%_conAffinita.length];
         const affId=(src.affinita||[]).find(r=>r);
-        const aff=affId?players.find(p=>String(p.id)===String(affId)):null;
+        const aff=affId?players.find(p=>p.uid===affId||String(p.id)===String(affId)):null;
         if(aff){
           const nS=src.soprannome||src.nome,nA=aff.soprannome||aff.nome;
           const frA=[''+nS+' e '+nA+': la coppia piu affiatata del campetto.','Quando giocano insieme, gli altri si preoccupano.',''+nS+' farebbe un gol bendato se '+nA+' gli da il passaggio.','L intesa perfetta. Anche fuori dal campo, probabilmente.'];
@@ -12618,7 +12695,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         const last=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];
         const gA=last.risultato?.goalA||0,gB=last.risultato?.goalB||0;
         const tA=last.nomeSquadraA||'Squadra A',tB=last.nomeSquadraB||'Squadra B';
-        const scorers=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).map(s=>{const p=players.find(x=>String(x.id)===String(s.playerId));return(p?.soprannome||p?.nome||'?')+'\u00a0\u26bd\xd7'+s.goal;}).slice(0,4).join(', ');
+        const scorers=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).map(s=>{const p=players.find(x=>x.uid===s.playerId||String(x.id)===String(s.playerId));return(p?.soprannome||p?.nome||'?')+' ⚽×'+s.goal;}).slice(0,4).join(', ');
         const ri=Math.floor(Date.now()/86400000);
         const intros=gA===gB?['Un pareggio che lascia l\'amaro in bocca.','Nessun vincitore, ma tanto spettacolo.']:gA>gB?[tA+' ha dominato dall\'inizio.',tA+' ha meritato ogni goal.']:[tB+' ha dimostrato la propria qualità.',tB+' non lascia spazio ai dubbi.'];
         const bodies=[scorers?'Marcatori: '+scorers+(last.uomoPartita?'. UoM: '+last.uomoPartita+'.':'.'):'Il risultato parla chiaro.',last.note?'"'+last.note+'"':'Una partita da ricordare.',gA+gB>=6?''+(gA+gB)+' gol totali. Serata di gala!':(gA+gB===0)?'Zero gol, massima tensione.':'Ogni goal è costato caro.'];
@@ -13226,7 +13303,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _fitNickText, _nickFontSize, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
     };
   }
 }).mount('#app');
