@@ -711,6 +711,33 @@ textarea.input-field { resize: vertical; min-height: 80px; }
 /* ═══════════════════════════════════════
    HOME HERO
    ═══════════════════════════════════════ */
+/* ── HERO CARD — SISTEMA TIPOGRAFICO UNIFICATO ── */
+.hc-label   { font-size:10px!important;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:8px;position:relative;z-index:1 }
+.hc-name    { font-size:20px!important;font-weight:900;line-height:1.2;position:relative;z-index:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
+.hc-sub     { font-size:12px!important;font-weight:500;opacity:.55;margin-top:2px;position:relative;z-index:1 }
+.hc-title   { font-size:17px!important;font-weight:800;line-height:1.3;margin-bottom:6px;position:relative;z-index:1 }
+.hc-body    { font-size:14px!important;font-weight:400;line-height:1.6;position:relative;z-index:1 }
+.hc-body-em { font-size:13px!important;font-weight:400;line-height:1.6;opacity:.75;position:relative;z-index:1 }
+.hc-meta    { font-size:12px!important;font-weight:500;opacity:.45;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);margin-top:auto;position:relative;z-index:1 }
+/* Scroll automatico testo lungo */
+.hc-scroll-box {
+  overflow:hidden;
+  flex:1;
+  position:relative;
+  z-index:1;
+  border-radius:10px;
+  padding:10px 12px;
+}
+.hc-scroll-box .hc-scroll-inner {
+  display:block;
+}
+/* Box scroll: overflow-y scroll ma visivamente hidden */
+.hc-scroll-box {
+  overflow-y: scroll !important;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.hc-scroll-box::-webkit-scrollbar { display: none; }
 /* Nick card font sizes */
 .nick-fs-10 { font-size: 10px !important; line-height: 1.5 !important; }
 .nick-fs-11 { font-size: 11px !important; line-height: 1.5 !important; }
@@ -2179,15 +2206,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='news'">
-              <div style="position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:20px 18px">
-                <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:16px;text-align:center">📻 In Diretta dallo Spogliatoio</div>
-                <div v-if="s.foto||s.uid" style="position:relative;z-index:1;width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2);margin-bottom:14px">
-                  <img :src="s.foto && s.foto.startsWith('data:') ? s.foto : getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
-                    @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
+              <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:16px 18px;z-index:1">
+                <div class="hc-label" style="color:rgba(255,255,255,.55);text-align:center;margin-bottom:10px">📻 In Diretta dallo Spogliatoio</div>
+                <div v-if="s.foto||s.uid" style="display:flex;justify-content:center;margin-bottom:10px;flex-shrink:0">
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2)">
+                    <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
                 </div>
-                <div v-else style="position:relative;z-index:1;font-size:44px;margin-bottom:12px">{{s.badge}}</div>
-                <div :style="'position:relative;z-index:1;font-weight:700;color:#fff;line-height:1.5;text-align:center;font-size:'+(s.quote&&s.quote.length>120?'13px':s.quote&&s.quote.length>80?'15px':'19px')">{{s.quote}}</div>
-                <div v-if="s.cit" style="position:relative;z-index:1;font-size:14px;color:rgba(255,255,255,.6);font-weight:600;margin-top:8px">{{s.cit}}</div>
+                <div v-else style="font-size:36px;text-align:center;margin-bottom:10px;flex-shrink:0">{{s.badge}}</div>
+                <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
+                  :ref="el => el && _heroAutoScroll(el, s, 'news')">
+                  <div class="hc-scroll-inner">
+                    <div class="hc-body" style="color:#fff;font-weight:700;text-align:center">{{s.quote}}</div>
+                    <div v-if="s.cit" class="hc-body-em" style="color:rgba(255,255,255,.6);text-align:center;margin-top:6px">{{s.cit}}</div>
+                  </div>
+                </div>
               </div>
             </template>
             <template v-else-if="s.type==='trend'">
@@ -2234,12 +2267,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <template v-else-if="s.type==='cronaca'">
               <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
-              <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1">
-                <div style="font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:6px">{{s.kicker}}</div>
-                <div style="font-size:22px;font-weight:900;color:#fff;line-height:1.25;margin-bottom:10px">{{s.headline}}</div>
-                <div style="font-size:14px;color:rgba(255,255,255,.75);line-height:1.6">{{s.body}}</div>
+              <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column">
+                <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:4px">{{s.kicker}}</div>
+                <div class="hc-title" style="color:#fff;margin-bottom:8px">{{s.headline}}</div>
+                <div class="hc-scroll-box" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"
+                  :ref="el => el && _heroAutoScroll(el, s, 'cro')">
+                  <div class="hc-scroll-inner">
+                    <div class="hc-body" style="color:rgba(255,255,255,.8)">{{s.body}}</div>
+                  </div>
+                </div>
               </div>
-              <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
+              <div class="hc-meta">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='recap'">
               <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
@@ -2255,8 +2293,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
                 <div style="flex:1;font-size:13px;color:rgba(255,255,255,.75);line-height:1.55">{{s.intro}}</div>
               </div>
-              <div style="position:relative;z-index:1;font-size:15px;color:rgba(255,255,255,.85);line-height:1.6;font-style:italic">{{s.body}}</div>
-              <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
+              <div class="hc-scroll-box" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"
+                :ref="el => el && _heroAutoScroll(el, s, 'rec')">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.body}}</div>
+                </div>
+              </div>
+              <div class="hc-meta">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='dreamteam'">
               <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:6px">{{s.label}}</div>
@@ -2328,7 +2371,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div v-if="s.target" style="font-size:11px;color:rgba(255,180,180,.6)">⚡ {{s.target}}</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;font-size:14px;color:rgba(255,255,255,.85);line-height:1.6;flex:1">{{s.testo}}</div>
+              <div class="hc-scroll-box" style="background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.2)"
+                :ref="el => el && _heroAutoScroll(el, s, 'tt')">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.testo}}</div>
+                </div>
+              </div>
             </template>
 
             <!-- HALL OF FAME -->
@@ -2345,9 +2393,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="font-size:13px;color:rgba(251,191,36,.6)">{{s.card.titolo}}</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
-                <div style="font-size:15px;color:rgba(255,255,255,.9);line-height:1.55;flex:1;overflow:hidden">{{s.card.commento}}</div>
-                <div v-if="s.card.stat_chiave" style="font-size:13px;color:rgba(251,191,36,.6);margin-top:8px;flex-shrink:0">📊 {{s.card.stat_chiave}}</div>
+              <div class="hc-scroll-box" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25)"
+                :ref="el => el && _heroAutoScroll(el, s, 'hof')">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.card.commento}}</div>
+                  <div v-if="s.card.stat_chiave" class="hc-body-em" style="color:rgba(251,191,36,.75);margin-top:8px">📊 {{s.card.stat_chiave}}</div>
+                </div>
               </div>
             </template>
 
@@ -2365,29 +2416,32 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="font-size:13px;color:rgba(148,163,184,.5)">{{s.card.titolo}}</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.2);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;overflow:hidden">
-                <div style="font-size:15px;color:rgba(255,255,255,.8);line-height:1.55;flex:1;overflow:hidden">{{s.card.commento}}</div>
+              <div class="hc-scroll-box" style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.2)"
+                :ref="el => el && _heroAutoScroll(el, s, 'hos')">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.85)">{{s.card.commento}}</div>
+                </div>
               </div>
             </template>
 
             <!-- SOPRANNOME / IDENTIKIT AI -->
             <template v-else-if="s.type==='nickCard'">
-              <div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(74,222,128,.7);margin-bottom:10px">{{s.label}}</div>
-              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
-                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25);background:rgba(255,255,255,.06)">
-                  <img :src="s.foto && s.foto.startsWith('data:') ? s.foto : getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
-                    @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
+              <div class="hc-label" style="color:rgba(74,222,128,.7)">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
+                <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25);background:rgba(255,255,255,.06)">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
                 </div>
                 <div style="flex:1;min-width:0">
-                  <div style="font-size:22px;margin-bottom:2px">🧬</div>
-                  <div style="font-size:20px;font-weight:900;color:#4ade80;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{s.nome}}</div>
-                  <div style="font-size:13px;color:rgba(74,222,128,.5)">{{s.soprannome_ai}}</div>
+                  <div class="hc-name" style="color:#4ade80">{{s.nome}}</div>
+                  <div class="hc-sub" style="color:rgba(74,222,128,.6)">{{s.soprannome_ai}}</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:12px;flex:1;display:flex;flex-direction:column;justify-content:flex-start;overflow:hidden"
-                :ref="el => { if(el && s.type==='nickCard') $nextTick(()=>{ const box=el; const txt=box.querySelector('.nick-txt'); if(!txt)return; let fs=17; txt.style.fontSize=fs+'px'; while(txt.scrollHeight>box.clientHeight-28&&fs>10){fs-=0.5;txt.style.fontSize=fs+'px';} }) }">
-                <div class="nick-txt" style="color:rgba(255,255,255,.9);line-height:1.55;font-size:17px">{{s.confronto}}</div>
-                <div v-if="s.motivazione" style="color:rgba(74,222,128,.65);margin-top:8px;font-style:italic;font-size:12.5px;flex-shrink:0">{{s.motivazione}}</div>
+              <div class="hc-scroll-box" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25)"
+                :ref="el => el && _heroAutoScroll(el, s, 'nick')">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.confronto}}</div>
+                  <div v-if="s.motivazione" class="hc-body-em" style="color:rgba(74,222,128,.85);margin-top:8px">{{s.motivazione}}</div>
+                </div>
               </div>
             </template>
 
@@ -5814,7 +5868,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.478',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.481',date:'2026-06-09',items:[
+      'Fix definitivo: scroll testo hero card via scrollTop — il testo scorre completamente',
+    ]},{version:'v1.480',date:'2026-06-09',items:[
+      'Fix: card news testo non più troncato — scroll automatico',
+    ]},{version:'v1.479',date:'2026-06-09',items:[
+      'Nuovo: sistema tipografico unificato per tutte le hero card',
+      'Nuovo: scroll automatico testo — 3s fermo poi una riga ogni 2s',
+      'Fix definitivo: font uguale in tutte le card — hc-body 14px, hc-title 17px, hc-name 20px',
+    ]},{version:'v1.478',date:'2026-06-09',items:[
       'Fix definitivo: Identikit AI usa classi CSS con !important — funziona davvero',
     ]},{version:'v1.477',date:'2026-06-09',items:[
       'Fix definitivo: Identikit AI font-size con !important — nessun override CSS possibile',
@@ -6451,7 +6513,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.478');
+    const appVersion = ref('1.481');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8888,6 +8950,46 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     // ── Wrapper bottoni debug AI Cards ──
     // Calcola font size per nickCard basandosi sulla lunghezza totale del testo
     // Box stimato: ~280px largo, ~160px alto, ~10px padding
+    // ── HERO AUTO SCROLL via scrollTop ──
+    const _heroScrollTimers = new Map();
+
+    const _heroAutoScroll = (el, s, key) => {
+      if (!el || el.dataset.scrollInit === '1') return;
+      el.dataset.scrollInit = '1';
+
+      // Attendi 300ms che Vue abbia finito il render
+      setTimeout(() => {
+        const scrollH = el.scrollHeight;
+        const clientH = el.clientHeight;
+        const overflow = scrollH - clientH;
+        if (overflow <= 5) return; // tutto visibile, niente da fare
+
+        // Attendi 3s poi scrolla 1px ogni 50ms (= 20px/sec)
+        const startDelay = setTimeout(() => {
+          const interval = setInterval(() => {
+            el.scrollTop += 1;
+            if (el.scrollTop >= overflow - 2) {
+              clearInterval(interval);
+              _heroScrollTimers.delete(key);
+            }
+          }, 50);
+          _heroScrollTimers.set(key + '_interval', interval);
+        }, 3000);
+
+        _heroScrollTimers.set(key, startDelay);
+      }, 300);
+    };
+
+    const _clearHeroScrollTimers = () => {
+      _heroScrollTimers.forEach(t => { clearTimeout(t); clearInterval(t); });
+      _heroScrollTimers.clear();
+      // Reset scrollTop di tutti i box
+      document.querySelectorAll('.hc-scroll-box').forEach(el => {
+        el.scrollTop = 0;
+        el.dataset.scrollInit = '';
+      });
+    };
+
     const _nickFontSize = (s) => {
       const txt = (s?.confronto || '');
       const mot = (s?.motivazione || '');
@@ -13303,7 +13405,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _fitNickText, _nickFontSize, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
     };
   }
 }).mount('#app');
