@@ -5805,7 +5805,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.466',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.467',date:'2026-06-09',items:[
+      'Fix: card Statistiche OVERALL mostra OVR corretto (es 82) invece di mediaPunti (es 1.3)',
+    ]},{version:'v1.466',date:'2026-06-09',items:[
       'Fix: OVR hero card usa topOverall computed — valori corretti (es. 82 non 1.3)',
       'UI: SBS spazio tra nome squadra/nav/foto',
     ]},{version:'v1.465',date:'2026-06-09',items:[
@@ -6412,7 +6414,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.466');
+    const appVersion = ref('1.467');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12791,7 +12793,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
             p2 = topPoints.value[0],  p3 = topRated.value[0];
       return [
         { label:'OVERALL', key:'overall',
-          val: p0 ? (p0.mediaPunti||0).toFixed(1) : '—',
+          val: p0 ? (p0._score||overallScore(p0, Math.max(...groupPlayers.value.map(x=>x.partiteTotali||0),1))) : '—',
           name: p0 ? (p0.soprannome||p0.nome) : '—',
           sub: 'Migliore in assoluto', foto: p0?.foto, uid: p0?.uid,
           col: 'var(--lime)', tab: 'overall' },
