@@ -2915,21 +2915,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
             <!-- 8. Rig.Parato + Rig.Sbagliato -->
-            <div style="display:flex;gap:8px;margin-bottom:4px">
-              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:10px 12px">
-                <span style="font-size:0.7rem;font-weight:700;color:var(--lime)">🥅 Rig.Parato</span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
-                  <span style="font-size:1.1rem;font-weight:800;color:var(--lime);min-width:22px;text-align:center">{{ playerStats[pid]?.rigoriParati||0 }}</span>
-                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
+            <div style="display:flex;gap:8px;margin-bottom:4px;min-width:0">
+              <div class="counter-box" style="flex:1;min-width:0;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:10px 8px;overflow:hidden">
+                <span style="font-size:0.68rem;font-weight:700;color:var(--lime);white-space:nowrap">🥅 Rig.Parato</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button class="counter-btn" style="width:30px;height:30px;flex-shrink:0" @click="playerStats[pid]&&playerStats[pid].rigoriParati>0?playerStats[pid].rigoriParati--:null">−</button>
+                  <span style="font-size:1.05rem;font-weight:800;color:var(--lime);min-width:18px;text-align:center">{{ playerStats[pid]?.rigoriParati||0 }}</span>
+                  <button class="counter-btn" style="width:30px;height:30px;flex-shrink:0" @click="ensureStats(pid);playerStats[pid].rigoriParati=(playerStats[pid].rigoriParati||0)+1">+</button>
                 </div>
               </div>
-              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);padding:10px 12px">
-                <span style="font-size:0.7rem;font-weight:700;color:#FF6B35">❌ Rig.Sbag</span>
-                <div style="display:flex;align-items:center;gap:6px">
-                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
-                  <span style="font-size:1.1rem;font-weight:800;color:#FF6B35;min-width:22px;text-align:center">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
-                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
+              <div class="counter-box" style="flex:1;min-width:0;justify-content:space-between;border:1px solid rgba(255,107,53,0.35);padding:10px 8px;overflow:hidden">
+                <span style="font-size:0.68rem;font-weight:700;color:#FF6B35;white-space:nowrap">❌ Rig.Sbag</span>
+                <div style="display:flex;align-items:center;gap:4px">
+                  <button class="counter-btn" style="width:30px;height:30px;flex-shrink:0" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
+                  <span style="font-size:1.05rem;font-weight:800;color:#FF6B35;min-width:18px;text-align:center">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
+                  <button class="counter-btn" style="width:30px;height:30px;flex-shrink:0" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
                 </div>
               </div>
             </div>
@@ -5805,7 +5805,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.467',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.468',date:'2026-06-09',items:[
+      'Fix: Rig.Parato e Rig.Sbag non escono dallo schermo in SBS',
+    ]},{version:'v1.467',date:'2026-06-09',items:[
       'Fix: card Statistiche OVERALL mostra OVR corretto (es 82) invece di mediaPunti (es 1.3)',
     ]},{version:'v1.466',date:'2026-06-09',items:[
       'Fix: OVR hero card usa topOverall computed — valori corretti (es. 82 non 1.3)',
@@ -6414,7 +6416,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.467');
+    const appVersion = ref('1.468');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
