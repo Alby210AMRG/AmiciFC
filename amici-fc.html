@@ -6072,7 +6072,16 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.483',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.486',date:'2026-06-09',items:[
+      'Fix PNG: punteggio previsto colorato — gol squadra B arancio, gol squadra A blu',
+    ]},{version:'v1.485',date:'2026-06-09',items:[
+      'Fix PNG: nomi squadre su 3 righe sotto le quote (NomeB / score / NomeA)',
+      'Fix PNG: commento risultato 28px bold — leggibile',
+      'UI PNG: glow fluo arancio sul box squadra B, blu sul box squadra A',
+    ]},{version:'v1.484',date:'2026-06-09',items:[
+      'Fix: PNG formazioni — campo ridotto, quote scommessa più grandi (58px), commento 24px leggibile',
+      'Fix: marcatori recap usa uid con fallback nome',
+    ]},{version:'v1.483',date:'2026-06-09',items:[
       'Nuovo: 7 nuove hero card — Record, Forma, Anniversary, Bilancia, Classifica Gol, Classifica Punti, H2H',
       'Seed 30min per varietà massima nel carosello',
       'Ordine carosello preservato: ovr3/nick1/rest/nick2/rest/nick3',
@@ -6723,7 +6732,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.483');
+    const appVersion = ref('1.486');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7908,18 +7917,22 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const PY=300; // header area
       const nTeam=Math.max((f.squadraA||[]).length,(f.squadraB||[]).length)||6;
       const nRows=Math.ceil(nTeam/2);
-      const PH=H-PY-420; // fill most of canvas, leaving 420px for info+quotes // panel area
+      const PH=H-PY-540; // campo ridotto: 540px per info+quotes
       const PLX=PAD, PRX=PAD+PW+GAP; // panel left x, right x
 
       const bCol='#FF8C00', bBg='rgba(40,15,0,0.82)', bBorder='rgba(255,140,0,0.85)';
-      ctx.save();ctx.shadowColor='rgba(100,220,0,0.5)';ctx.shadowBlur=20;ctx.fillStyle=bBg;
+      // Panel B - glow fluo arancio
+      ctx.save();ctx.shadowColor='rgba(255,140,0,0.9)';ctx.shadowBlur=32;ctx.fillStyle=bBg;
       rrect(PLX,PY,PW,PH,20);ctx.fill();ctx.restore();
-      ctx.strokeStyle=bBorder;ctx.lineWidth=3;rrect(PLX,PY,PW,PH,20);ctx.stroke();
+      ctx.save();ctx.shadowColor='rgba(255,140,0,0.7)';ctx.shadowBlur=20;
+      ctx.strokeStyle='#FF8C00';ctx.lineWidth=4;rrect(PLX,PY,PW,PH,20);ctx.stroke();ctx.restore();
 
       const aCol='#3A7BFF', aBg='rgba(0,10,50,0.82)', aBorder='rgba(58,123,255,0.85)';
-      ctx.save();ctx.shadowColor='rgba(60,120,255,0.5)';ctx.shadowBlur=20;ctx.fillStyle=aBg;
+      // Panel A - glow fluo blu
+      ctx.save();ctx.shadowColor='rgba(58,123,255,0.9)';ctx.shadowBlur=32;ctx.fillStyle=aBg;
       rrect(PRX,PY,PW,PH,20);ctx.fill();ctx.restore();
-      ctx.strokeStyle=aBorder;ctx.lineWidth=3;rrect(PRX,PY,PW,PH,20);ctx.stroke();
+      ctx.save();ctx.shadowColor='rgba(58,123,255,0.7)';ctx.shadowBlur=20;
+      ctx.strokeStyle='#3A7BFF';ctx.lineWidth=4;rrect(PRX,PY,PW,PH,20);ctx.stroke();ctx.restore();
 
       const drawTeamPill=(name,cx,py2,col)=>{
         ctx.font='900 28px "Arial Black",Arial';
@@ -8016,60 +8029,96 @@ Rispondi SOLO con questo JSON (niente altro testo):
         // FIX3: no "BUON DIVERTIMENTO"
         // FIX4: bigger verdict text
 
-        ctx.font='900 italic 20px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';ctx.shadowBlur=0;
-        ctx.fillText('\uD83C\uDFAF  QUOTE SCOMMESSA  \uD83C\uDFAF',W/2,SLOG_Y+22);
+        // Titolo QUOTE SCOMMESSA
+        ctx.font='900 26px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='center';ctx.shadowBlur=0;
+        ctx.fillText('\uD83C\uDFAF  QUOTE SCOMMESSA  \uD83C\uDFAF',W/2,SLOG_Y+30);
 
-        // FIX1: wider boxes 230px, team name font 14px (was 12px, bw 162px)
+        // Tre box quote più grandi
         const qBoxes=[
           {label:(f.nomeSquadraB||'Squadra B').toUpperCase(), odd:pred.quoteB, x:W*0.20, col:bCol},
           {label:'PAREGGIO',                                   odd:pred.quoteX, x:W*0.50, col:'#FFD700'},
           {label:(f.nomeSquadraA||'Squadra A').toUpperCase(), odd:pred.quoteA, x:W*0.80, col:aCol},
         ];
         for(const b of qBoxes){
-          const bw=240,bh=96,bx=b.x-bw/2,by=SLOG_Y+28;
-          ctx.fillStyle=b.col+'22';ctx.strokeStyle=b.col+'AA';ctx.lineWidth=2;
+          const bw=260,bh=116,bx=b.x-bw/2,by=SLOG_Y+42;
+          ctx.fillStyle=b.col+'22';ctx.strokeStyle=b.col+'CC';ctx.lineWidth=3;
           ctx.beginPath();ctx.rect(bx,by,bw,bh);ctx.fill();ctx.stroke();
-          ctx.font='900 44px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
-          ctx.shadowColor=b.col;ctx.shadowBlur=10;
-          ctx.fillText(b.odd,b.x,SLOG_Y+80);ctx.shadowBlur=0;
-          let lbl=b.label;
-          let fontSize=15;
+          // Numero quota grande
+          ctx.font='900 58px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
+          ctx.shadowColor=b.col;ctx.shadowBlur=14;
+          ctx.fillText(b.odd,b.x,SLOG_Y+110);ctx.shadowBlur=0;
+          // Etichetta team
+          let lbl=b.label, fontSize=18;
           ctx.font=`700 ${fontSize}px "Arial Black",Arial`;
-          while(ctx.measureText(lbl).width>bw-16 && fontSize>9){ fontSize--; ctx.font=`700 ${fontSize}px "Arial Black",Arial`; }
-          ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='center';
-          ctx.fillText(lbl,b.x,SLOG_Y+108); // inside box (box bottom = by+96 = SLOG_Y+124)
+          while(ctx.measureText(lbl).width>bw-20 && fontSize>11){ fontSize--; ctx.font=`700 ${fontSize}px "Arial Black",Arial`; }
+          ctx.fillStyle='rgba(255,255,255,0.85)';ctx.textAlign='center';
+          ctx.fillText(lbl,b.x,SLOG_Y+144);
         }
 
-        // FIX2: bigger RISULTATO PREVISTO label
-        ctx.font='900 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.6)';ctx.textAlign='center';
-        ctx.fillText('RISULTATO PREVISTO',W/2,SLOG_Y+158);
+        // RISULTATO PREVISTO
+        ctx.font='900 28px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='center';
+        ctx.fillText('\u26BD RISULTATO PREVISTO',W/2,SLOG_Y+186);
         const scoreMatch=pred.verdict.match(/(\d+)-(\d+)/);
         if(scoreMatch){
-          const scA=(f.nomeSquadraB||'B').toUpperCase();
-          const scB=(f.nomeSquadraA||'A').toUpperCase();
-          const sc=`${scA}  ${scoreMatch[2]} - ${scoreMatch[1]}  ${scB}`;
-          ctx.font='900 30px "Arial Black",Arial';ctx.fillStyle='#ffffff';
-          ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=6;
-          ctx.fillText(sc,W/2,SLOG_Y+192);ctx.shadowBlur=0;
+          // Nomi squadre su 3 righe: NomeB / SCORE / NomeA
+          const scB=(f.nomeSquadraB||'Squadra B').toUpperCase();
+          const scA=(f.nomeSquadraA||'Squadra A').toUpperCase();
+          const scScore=`${scoreMatch[2]}  —  ${scoreMatch[1]}`;
+          ctx.textAlign='center';ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=8;
+          const gA=parseInt(scoreMatch[2]), gB=parseInt(scoreMatch[1]);
+          // Nome squadra B (arancio)
+          ctx.font='900 34px "Arial Black",Arial';ctx.fillStyle=bCol;
+          ctx.fillText(scB,W/2,SLOG_Y+226);
+          // Score: gol squadra B in arancio, trattino bianco, gol squadra A in blu
+          const scoreB=String(gA), scoreA=String(gB);
+          const dashTxt=' — ';
+          ctx.font='900 52px "Arial Black",Arial';
+          const wB=ctx.measureText(scoreB).width;
+          const wD=ctx.measureText(dashTxt).width;
+          const wA=ctx.measureText(scoreA).width;
+          const totW=wB+wD+wA;
+          const startX=W/2-totW/2;
+          ctx.textAlign='left';
+          ctx.fillStyle=bCol;ctx.shadowColor=bCol;ctx.shadowBlur=12;
+          ctx.fillText(scoreB,startX,SLOG_Y+278);
+          ctx.fillStyle='rgba(255,255,255,0.7)';ctx.shadowBlur=0;
+          ctx.fillText(dashTxt,startX+wB,SLOG_Y+278);
+          ctx.fillStyle=aCol;ctx.shadowColor=aCol;ctx.shadowBlur=12;
+          ctx.fillText(scoreA,startX+wB+wD,SLOG_Y+278);
+          ctx.shadowBlur=0;ctx.textAlign='center';
+          // Nome squadra A (blu)
+          ctx.font='900 34px "Arial Black",Arial';ctx.fillStyle=aCol;
+          ctx.fillText(scA,W/2,SLOG_Y+320);
+          ctx.shadowBlur=0;
         }
-        // FIX4: bigger verdict text (18px was 13px)
+        // Commento verdict - grande e ben visibile
         const verdFull=pred.verdict.replace(/Risultato probabile:.*$/,'').trim();
-        ctx.font='italic 17px Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
-        const maxVW=W-60;
+        ctx.font='700 28px Arial';ctx.fillStyle='rgba(255,255,255,0.85)';ctx.textAlign='center';
+        const maxVW=W-80;
         if(ctx.measureText(verdFull).width<=maxVW){
-          ctx.fillText(verdFull,W/2,SLOG_Y+223);
+          ctx.fillText(verdFull,W/2,SLOG_Y+360);
         } else {
           const words=verdFull.split(' ');
-          let line1='',line2='';
+          let line1='',line2='',line3='';
           for(let i=0;i<words.length;i++){
             const test=line1+(line1?' ':'')+words[i];
-            if(ctx.measureText(test).width>maxVW&&line1){line2=words.slice(i).join(' ');break;}
-            line1=test;
+            if(ctx.measureText(test).width>maxVW&&line1){
+              if(!line2){line2=words.slice(i).join(' ');break;}
+            } else line1=test;
           }
-          ctx.fillText(line1,W/2,SLOG_Y+218);
-          ctx.fillText(line2||'',W/2,SLOG_Y+238);
+          if(line2 && ctx.measureText(line2).width>maxVW){
+            const words2=line2.split(' ');
+            line2='';
+            for(let i=0;i<words2.length;i++){
+              const test=line2+(line2?' ':'')+words2[i];
+              if(ctx.measureText(test).width>maxVW&&line2){line3=words2.slice(i).join(' ');break;}
+              else line2=test;
+            }
+          }
+          ctx.fillText(line1,W/2,SLOG_Y+356);
+          if(line2) ctx.fillText(line2,W/2,SLOG_Y+390);
+          if(line3) ctx.fillText(line3,W/2,SLOG_Y+424);
         }
-        // FIX3: NO "BUON DIVERTIMENTO" line removed
       } else {
         ctx.font='900 italic 50px "Arial Black",Arial';
         const gSlo=ctx.createLinearGradient(0,0,W,0);
@@ -12881,7 +12930,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
           const streak=l3.filter(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(topS.id)&&(s.goal||0)>0)).length;
           cronItems.push({kicker:streak>=2?'FORMA SMAGLIANTE':'TOP SCORER',headline:(topS.soprannome||topS.nome)+' guida la classifica',body:(topS.soprannome||topS.nome)+' in cima con '+(topS.goalTotali||0)+' gol in '+(topS.partiteTotali||0)+' partite. Media: '+((topS.goalTotali||0)/Math.max(topS.partiteTotali||1,1)).toFixed(2)+' gol/p.',sub:'Top scorer del gruppo'});
         }
-        if(matches.length>0){const lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];const hat=(lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);if(hat){const hp2=players.find(p=>String(p.id)===String(hat.playerId));if(hp2)cronItems.push({kicker:'IMPRESA!',headline:'Hat-trick di '+(hp2.soprannome||hp2.nome),body:hat.goal+' gol in una sola partita. Un\'esibizione da ricordare per sempre.',sub:'Ultima partita - '+formatDate(lm.data)});}}
+        if(matches.length>0){const lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];const hat=(lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);if(hat){const hp2=players.find(p=>p.uid===hat.playerId||String(p.id)===String(hat.playerId));if(hp2)cronItems.push({kicker:'IMPRESA!',headline:'Hat-trick di '+(hp2.soprannome||hp2.nome),body:hat.goal+' gol in una sola partita. Un\'esibizione da ricordare per sempre.',sub:'Ultima partita - '+formatDate(lm.data)});}}
         const milestones=[5,10,25,50,75,100];const nextM=milestones.find(n=>n>matches.length&&n-matches.length<=5);
         if(nextM)cronItems.push({kicker:'TRAGUARDO IN ARRIVO',headline:'Solo '+(nextM-matches.length)+' partite alla #'+nextM,body:'Il gruppo si avvicina a un traguardo storico.',sub:matches.length+' partite giocate'});
         const totG2=players.reduce((s,p)=>s+(p.goalTotali||0),0);
