@@ -2425,6 +2425,210 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
 
             <!-- SOPRANNOME / IDENTIKIT AI -->
+            <!-- ── RECORD PERSONALE ── -->
+            <template v-else-if="s.type==='record'">
+              <div class="hc-label" style="color:#fbbf24">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:10px">
+                <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 16px rgba(251,191,36,.3)">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div class="hc-name" style="color:#fbbf24">{{s.nome}}</div>
+                  <div class="hc-sub">{{s.ruolo}}</div>
+                </div>
+                <div style="text-align:center;flex-shrink:0">
+                  <div style="font-size:36px;font-weight:900;color:#fbbf24;line-height:1">{{s.val}}</div>
+                  <div style="font-size:10px;color:rgba(251,191,36,.6);text-transform:uppercase;letter-spacing:1px">{{s.tipo}}</div>
+                </div>
+              </div>
+              <div class="hc-scroll-box" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25)"
+                :ref="el => el && _heroAutoScroll(el, s, 'rec_'+s.uid)">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.txt}}</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- ── FORMA RECENTE ── -->
+            <template v-else-if="s.type==='forma'">
+              <div class="hc-label" style="color:#4ade80">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;gap:10px;margin-bottom:10px">
+                <!-- Top -->
+                <div style="flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:10px;text-align:center">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #4ade80;margin:0 auto 6px">
+                    <img :src="s.fotoTop&&s.fotoTop.startsWith('data:')?s.fotoTop:getPlayerPhoto(s.fotoTop,s.uidTop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div class="hc-sub" style="color:#4ade80;font-weight:700;font-size:13px!important">{{s.nTop}}</div>
+                  <div style="font-size:22px;font-weight:900;color:#4ade80;margin:4px 0">{{s.sTop}}</div>
+                  <div style="display:flex;gap:3px;justify-content:center;margin-top:4px">
+                    <div v-for="(b,i) in s.barsTop" :key="i"
+                      :style="'width:16px;height:'+(b.v>0?Math.round(b.v/10*24):4)+'px;border-radius:3px;background:'+(b.v>=7?'#4ade80':b.v>=5?'#fbbf24':'#f87171')">
+                    </div>
+                  </div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:3px">ultimi 3</div>
+                </div>
+                <!-- Flop -->
+                <div style="flex:1;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:10px;padding:10px;text-align:center">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #f87171;margin:0 auto 6px">
+                    <img :src="s.fotoFlop&&s.fotoFlop.startsWith('data:')?s.fotoFlop:getPlayerPhoto(s.fotoFlop,s.uidFlop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div class="hc-sub" style="color:#f87171;font-weight:700;font-size:13px!important">{{s.nFlop}}</div>
+                  <div style="font-size:22px;font-weight:900;color:#f87171;margin:4px 0">{{s.sFlop}}</div>
+                  <div style="display:flex;gap:3px;justify-content:center;margin-top:4px">
+                    <div v-for="(b,i) in s.barsFlop" :key="i"
+                      :style="'width:16px;border-radius:3px;background:'+(b.v>=7?'#4ade80':b.v>=5?'#fbbf24':'#f87171')+';height:'+(b.v>0?Math.round(b.v/10*24):4)+'px'"
+                      style="transition:height .3s">
+                    </div>
+                  </div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.4);margin-top:3px">ultimi 3</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;text-align:center;font-size:11px;color:rgba(255,255,255,.4)">Media voti ultimi 3</div>
+            </template>
+
+            <!-- ── ANNIVERSARY ── -->
+            <template v-else-if="s.type==='anniversary'">
+              <div class="hc-label" style="color:#60a5fa">{{s.label}}</div>
+              <div style="position:relative;z-index:1;text-align:center;padding:10px 0 8px">
+                <div style="font-size:42px;margin-bottom:6px">🎂</div>
+                <div class="hc-title" style="color:#fff">Il gruppo esiste da</div>
+                <div style="font-size:30px;font-weight:900;color:#60a5fa;margin:4px 0">{{s.data.split('-').reverse().join('/')}}</div>
+              </div>
+              <div style="position:relative;z-index:1;display:flex;gap:8px;margin-bottom:8px">
+                <div style="flex:1;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:8px;text-align:center">
+                  <div style="font-size:24px;font-weight:900;color:#60a5fa">{{s.nPartite}}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.5)">PARTITE</div>
+                </div>
+                <div style="flex:1;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px;text-align:center">
+                  <div style="font-size:24px;font-weight:900;color:#fbbf24">{{s.nGol}}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.5)">GOL</div>
+                </div>
+                <div style="flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2);border-radius:8px;padding:8px;text-align:center">
+                  <div style="font-size:24px;font-weight:900;color:#4ade80">{{s.nGiocatori}}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.5)">GIOCATORI</div>
+                </div>
+              </div>
+              <div class="hc-scroll-box" style="background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2)"
+                :ref="el => el && _heroAutoScroll(el, s, 'ann')">
+                <div class="hc-scroll-inner">
+                  <div class="hc-body" style="color:rgba(255,255,255,.8)">{{s.txt}}</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- ── LA BILANCIA ── -->
+            <template v-else-if="s.type==='bilancia'">
+              <div class="hc-label" style="color:#a78bfa">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <!-- Giocatore A -->
+                <div style="flex:1;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:10px;text-align:center">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #a78bfa;margin:0 auto 6px">
+                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div class="hc-sub" style="font-size:13px!important;font-weight:700;color:#a78bfa">{{s.nA}}</div>
+                  <div style="font-size:26px;font-weight:900;color:#a78bfa;margin:6px 0">{{s.mvA}}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.4)">media ult.3</div>
+                  <div style="font-size:10px;color:rgba(167,139,250,.5);margin-top:2px">stagione: {{s.diffA}}</div>
+                </div>
+                <!-- VS -->
+                <div style="font-size:14px;font-weight:900;color:rgba(255,255,255,.3);flex-shrink:0">VS</div>
+                <!-- Giocatore B -->
+                <div style="flex:1;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:10px;text-align:center">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #34d399;margin:0 auto 6px">
+                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div class="hc-sub" style="font-size:13px!important;font-weight:700;color:#34d399">{{s.nB}}</div>
+                  <div style="font-size:26px;font-weight:900;color:#34d399;margin:6px 0">{{s.mvB}}</div>
+                  <div style="font-size:10px;color:rgba(255,255,255,.4)">media ult.3</div>
+                  <div style="font-size:10px;color:rgba(52,211,153,.5);margin-top:2px">stagione: {{s.diffB}}</div>
+                </div>
+              </div>
+              <div class="hc-meta">{{s.txt}}</div>
+            </template>
+
+            <!-- ── PODIO3 GOL/PUNTI ── -->
+            <template v-else-if="s.type==='podio3'">
+              <div class="hc-label" :style="'color:'+s.col">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:center;gap:8px;flex:1;padding-bottom:8px">
+                <!-- 2° posto -->
+                <div v-if="s.podio[1]" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #94a3b8;margin:0 auto">
+                    <img :src="s.podio[1].foto&&s.podio[1].foto.startsWith('data:')?s.podio[1].foto:getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:11px;font-weight:700;color:#94a3b8;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px">{{s.podio[1].nome}}</div>
+                  <div style="font-size:22px;font-weight:900;color:#94a3b8">{{s.podio[1].val}}</div>
+                  <div style="font-size:9px;color:rgba(148,163,184,.5);text-transform:uppercase">{{s.valLabel}}</div>
+                  <div style="background:rgba(148,163,184,.2);border-radius:6px 6px 0 0;width:100%;height:60px;display:flex;align-items:center;justify-content:center;font-size:20px">🥈</div>
+                </div>
+                <!-- 1° posto -->
+                <div v-if="s.podio[0]" style="flex:1.2;display:flex;flex-direction:column;align-items:center;gap:6px">
+                  <div style="font-size:16px">👑</div>
+                  <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:3px solid;margin:0 auto" :style="'border-color:'+s.col+';box-shadow:0 0 16px '+s.col+'55'">
+                    <img :src="s.podio[0].foto&&s.podio[0].foto.startsWith('data:')?s.podio[0].foto:getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:13px;font-weight:900;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px" :style="'color:'+s.col">{{s.podio[0].nome}}</div>
+                  <div style="font-size:30px;font-weight:900" :style="'color:'+s.col+';text-shadow:0 0 16px '+s.col+'88'">{{s.podio[0].val}}</div>
+                  <div style="font-size:9px;text-transform:uppercase;opacity:.6" :style="'color:'+s.col">{{s.valLabel}}</div>
+                  <div style="border-radius:6px 6px 0 0;width:100%;height:80px;display:flex;align-items:center;justify-content:center;font-size:24px" :style="'background:'+s.col+'22'">🥇</div>
+                </div>
+                <!-- 3° posto -->
+                <div v-if="s.podio[2]" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+                  <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid #cd7c3d;margin:0 auto">
+                    <img :src="s.podio[2].foto&&s.podio[2].foto.startsWith('data:')?s.podio[2].foto:getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:10px;font-weight:700;color:#cd7c3d;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">{{s.podio[2].nome}}</div>
+                  <div style="font-size:18px;font-weight:900;color:#cd7c3d">{{s.podio[2].val}}</div>
+                  <div style="font-size:9px;color:rgba(205,124,61,.5);text-transform:uppercase">{{s.valLabel}}</div>
+                  <div style="background:rgba(205,124,61,.2);border-radius:6px 6px 0 0;width:100%;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px">🥉</div>
+                </div>
+              </div>
+            </template>
+
+            <!-- ── H2H CARD ── -->
+            <template v-else-if="s.type==='h2hCard'">
+              <div class="hc-label" style="color:#f87171">{{s.label}}</div>
+              <!-- Foto e nomi -->
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-bottom:10px">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #f87171">
+                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:13px;font-weight:800;color:#f87171;text-align:center">{{s.nA}}</div>
+                  <div style="font-size:26px;font-weight:900;color:#f87171">{{s.wA}}</div>
+                  <div style="font-size:9px;color:rgba(248,113,113,.5);text-transform:uppercase">vittorie</div>
+                </div>
+                <div style="flex-shrink:0;text-align:center">
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5)">{{s.tot}} sfide</div>
+                  <div style="font-size:16px;font-weight:900;color:rgba(255,255,255,.25);margin:4px 0">VS</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.pari}} pari</div>
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+                  <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #60a5fa">
+                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div style="font-size:13px;font-weight:800;color:#60a5fa;text-align:center">{{s.nB}}</div>
+                  <div style="font-size:26px;font-weight:900;color:#60a5fa">{{s.wB}}</div>
+                  <div style="font-size:9px;color:rgba(96,165,250,.5);text-transform:uppercase">vittorie</div>
+                </div>
+              </div>
+              <!-- Barra percentuale -->
+              <div style="position:relative;z-index:1;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.1);margin-bottom:8px;display:flex">
+                <div :style="'width:'+s.pctA+'%;background:#f87171;transition:width .5s'"></div>
+                <div :style="'width:'+(100-s.pctA-s.pctB)+'%;background:rgba(255,255,255,.2)'"></div>
+                <div :style="'width:'+s.pctB+'%;background:#60a5fa'"></div>
+              </div>
+              <!-- Ultimi risultati -->
+              <div style="position:relative;z-index:1">
+                <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ultimi risultati</div>
+                <div style="display:flex;gap:6px;flex-wrap:wrap">
+                  <div v-for="(r,i) in s.ultimi3" :key="i"
+                    style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700">
+                    {{r.gA}} – {{r.gB}}
+                  </div>
+                </div>
+              </div>
+            </template>
+
             <template v-else-if="s.type==='nickCard'">
               <div class="hc-label" style="color:rgba(74,222,128,.7)">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -5868,7 +6072,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.482',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.483',date:'2026-06-09',items:[
+      'Nuovo: 7 nuove hero card — Record, Forma, Anniversary, Bilancia, Classifica Gol, Classifica Punti, H2H',
+      'Seed 30min per varietà massima nel carosello',
+      'Ordine carosello preservato: ovr3/nick1/rest/nick2/rest/nick3',
+    ]},{version:'v1.482',date:'2026-06-09',items:[
       'Fix: testo AI nella card news completo — rimossa troncatura a 120 caratteri',
     ]},{version:'v1.481',date:'2026-06-09',items:[
       'Fix definitivo: scroll testo hero card via scrollTop — il testo scorre completamente',
@@ -6515,7 +6723,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.482');
+    const appVersion = ref('1.483');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12878,6 +13086,227 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       slides.push({type:'stat',dur:2500,label:'Stagione',val:matches.length,col:'#4ade80',bg:'linear-gradient(145deg,#052e16,#166534 60%,#22C55E)',name:players.length+' giocatori \xb7 '+matches.length+' partite',sub:lastM?'Ultima: '+lastM.data.split('-').reverse().join('/'):'Inizia a registrare!',dest:'history'});
 
       slides.push({type:'stat',dur:2500,label:'Giocatori',val:players.length,col:'#60a5fa',bg:'linear-gradient(145deg,#0c1a3a,#1e3a8a 60%,#3b82f6)',name:'Rosa completa',sub:'Premi per vedere tutti i profili',dest:'players'});
+
+      // ── NUOVE CARD STATISTICHE ──
+      const _seed30 = Math.floor(Date.now() / 1800000); // cambia ogni 30 min
+
+      // ── Card 1: Record Personale ──
+      if (players.length >= 3 && matches.length >= 3) {
+        // Trova il giocatore con il record più recente (max gol in una partita)
+        let recordP = null, recordVal = 0, recordMatch = null;
+        for (const p of players) {
+          if (!(p.partiteTotali >= 2)) continue;
+          for (const m of matches) {
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            if (st && (st.goal||0) > recordVal) {
+              recordVal = st.goal;
+              recordP = p;
+              recordMatch = m;
+            }
+          }
+        }
+        // Ruota tra diversi "record" ogni 30 min
+        const _recCandidates = [];
+        // Max gol in una partita
+        for (const p of players.filter(p => (p.partiteTotali||0) >= 2)) {
+          let maxG = 0;
+          for (const m of matches) {
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            if (st && (st.goal||0) > maxG) maxG = st.goal;
+          }
+          if (maxG >= 2) _recCandidates.push({ p, tipo: 'gol', val: maxG, txt: `Record personale: ${maxG} gol in una sola partita! Un autentico cecchino del campetto.` });
+        }
+        // Max assist in una partita
+        for (const p of players.filter(p => (p.partiteTotali||0) >= 2)) {
+          let maxA = 0;
+          for (const m of matches) {
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            if (st && (st.assist||0) > maxA) maxA = st.assist;
+          }
+          if (maxA >= 2) _recCandidates.push({ p, tipo: 'assist', val: maxA, txt: `Record personale: ${maxA} assist in una partita. Il regista del campetto.` });
+        }
+        // Miglior voto
+        for (const p of players.filter(p => (p.partiteTotali||0) >= 3)) {
+          let maxV = 0;
+          for (const m of matches) {
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            if (st && (st.voto||0) > maxV) maxV = st.voto;
+          }
+          if (maxV >= 8) _recCandidates.push({ p, tipo: 'voto', val: maxV, txt: `Voto massimo ottenuto: ${maxV}/10. Quella prestazione è rimasta nella leggenda del campetto.` });
+        }
+        if (_recCandidates.length > 0) {
+          const rec = _recCandidates[_seed30 % _recCandidates.length];
+          slides.push({ type: 'record', dur: 6000, label: '🏆 RECORD PERSONALE',
+            nome: rec.p.soprannome || rec.p.nome, ruolo: rec.p.ruolo || '',
+            val: rec.val, tipo: rec.tipo, txt: rec.txt,
+            foto: rec.p.foto, uid: rec.p.uid,
+            bg: 'linear-gradient(145deg,#1a0a00,#7c3500 60%,#d97706)',
+            dest: 'stats' });
+        }
+      }
+
+      // ── Card 2: Forma Recente (2 giocatori: top vs flop ultime 3 partite) ──
+      if (players.length >= 4 && matches.length >= 3) {
+        const _last3 = [...matches].sort((a,b) => b.data.localeCompare(a.data)).slice(0,3);
+        const _attivi = players.filter(p => {
+          return _last3.some(m => (m.squadraA||[]).includes(p.uid) || (m.squadraB||[]).includes(p.uid));
+        });
+        if (_attivi.length >= 4) {
+          // Score forma = media voti nelle ultime 3
+          const _formaScore = p => {
+            let tot = 0, n = 0;
+            for (const m of _last3) {
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              if (st && (st.voto||0) > 0) { tot += st.voto; n++; }
+            }
+            return n > 0 ? tot/n : 0;
+          };
+          const _sorted = _attivi.filter(p => _formaScore(p) > 0).sort((a,b) => _formaScore(b) - _formaScore(a));
+          if (_sorted.length >= 2) {
+            const top = _sorted[0], flop = _sorted[_sorted.length-1];
+            const _bars = (p) => _last3.map(m => {
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              return { v: st?.voto || 0, data: m.data };
+            });
+            slides.push({ type: 'forma', dur: 7000, label: '📈 FORMA RECENTE',
+              pTop: top, pFlop: flop,
+              nTop: top.soprannome || top.nome, nFlop: flop.soprannome || flop.nome,
+              sTop: _formaScore(top).toFixed(1), sFlop: _formaScore(flop).toFixed(1),
+              barsTop: _bars(top), barsFlop: _bars(flop),
+              fotoTop: top.foto, uidTop: top.uid,
+              fotoFlop: flop.foto, uidFlop: flop.uid,
+              bg: 'linear-gradient(145deg,#0a1a00,#1a4d00 60%,#166534)', dest: 'stats' });
+          }
+        }
+      }
+
+      // ── Card 3: Anniversary ──
+      if (matches.length >= 2) {
+        const _firstM = [...matches].sort((a,b) => a.data.localeCompare(b.data))[0];
+        if (_firstM?.data) {
+          const _msAgo = Math.floor((Date.now() - new Date(_firstM.data)) / 2592000000);
+          const _wsAgo = Math.floor((Date.now() - new Date(_firstM.data)) / 604800000);
+          const _totGol = matches.reduce((s,m) => s + (m.risultato?.goalA||0) + (m.risultato?.goalB||0), 0);
+          if (_wsAgo >= 1) {
+            const _annTxt = _msAgo >= 12 ? `${Math.floor(_msAgo/12)} anno${Math.floor(_msAgo/12)>1?'i':''} fa` :
+              _msAgo >= 1 ? `${_msAgo} ${_msAgo===1?'mese':'mesi'} fa` : `${_wsAgo} settimane fa`;
+            slides.push({ type: 'anniversary', dur: 6000, label: '🎂 IL GRUPPO NEL TEMPO',
+              txt: `La prima partita risale a ${_annTxt}. Da allora: ${matches.length} partite, ${_totGol} gol, e tante litigate bonarie.`,
+              data: _firstM.data, nPartite: matches.length, nGol: _totGol, nGiocatori: players.length,
+              bg: 'linear-gradient(145deg,#0d1a2e,#1e3a5f 60%,#1d4ed8)', dest: 'history' });
+          }
+        }
+      }
+
+      // ── Card 4: La Bilancia (confronto voti ultimi 3) ──
+      if (players.length >= 4 && matches.length >= 3) {
+        const _last3b = [...matches].sort((a,b) => b.data.localeCompare(a.data)).slice(0,3);
+        const _attivi2 = players.filter(p => (p.partiteTotali||0) >= 3 &&
+          _last3b.some(m => (m.squadraA||[]).includes(p.uid) || (m.squadraB||[]).includes(p.uid)));
+        if (_attivi2.length >= 4) {
+          const _mediaUlt3 = p => {
+            let tot = 0, n = 0;
+            for (const m of _last3b) {
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              if (st && (st.voto||0) > 0) { tot += st.voto; n++; }
+            }
+            return n > 0 ? (tot/n).toFixed(1) : null;
+          };
+          // Cambia coppia ogni 30 min
+          const _pairsB = [];
+          for (let i = 0; i < _attivi2.length - 1; i += 2) {
+            if (_mediaUlt3(_attivi2[i]) && _mediaUlt3(_attivi2[i+1]))
+              _pairsB.push([_attivi2[i], _attivi2[i+1]]);
+          }
+          if (_pairsB.length > 0) {
+            const [pA, pB] = _pairsB[_seed30 % _pairsB.length];
+            const mvA = _mediaUlt3(pA), mvB = _mediaUlt3(pB);
+            slides.push({ type: 'bilancia', dur: 6000, label: '⚖️ LA BILANCIA',
+              nA: pA.soprannome||pA.nome, nB: pB.soprannome||pB.nome,
+              mvA, mvB, diffA: pA.mediaVoto?.toFixed(1)||'0', diffB: pB.mediaVoto?.toFixed(1)||'0',
+              fotoA: pA.foto, uidA: pA.uid, fotoB: pB.foto, uidB: pB.uid,
+              txt: `Chi giudica meglio il campo? Voti medi nelle ultime 3 partite a confronto.`,
+              bg: 'linear-gradient(145deg,#1a0a2e,#4c1d95 60%,#7c3aed)', dest: 'stats' });
+          }
+        }
+      }
+
+      // ── Card 5: Classifica Gol (podio ovr3 style) ──
+      if (players.length >= 3 && matches.length >= 2) {
+        const _topGol = [...players].filter(p => (p.goalTotali||0) > 0)
+          .sort((a,b) => (b.goalTotali||0) - (a.goalTotali||0)).slice(0,3);
+        if (_topGol.length >= 2) {
+          slides.push({ type: 'podio3', dur: 6000, label: '⚽ CLASSIFICA GOL',
+            podio: _topGol.map(p => ({ nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid, val: p.goalTotali||0, ruolo: p.ruolo||'' })),
+            valLabel: 'GOL', col: '#fbbf24',
+            bg: 'linear-gradient(145deg,#1a0800,#7c3500 60%,#f59e0b)',
+            dest: 'stats', statsTab: 'goal' });
+        }
+      }
+
+      // ── Card 6: Classifica Punti (podio ovr3 style) ──
+      if (players.length >= 3 && matches.length >= 2) {
+        const _topPunti = [...players].filter(p => (p.partiteTotali||0) >= 2 && (p.mediaPunti||0) > 0)
+          .sort((a,b) => (b.mediaPunti||0) - (a.mediaPunti||0)).slice(0,3);
+        if (_topPunti.length >= 2) {
+          slides.push({ type: 'podio3', dur: 6000, label: '🏅 CLASSIFICA PUNTI',
+            podio: _topPunti.map(p => ({ nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid, val: (p.mediaPunti||0).toFixed(1), ruolo: p.ruolo||'' })),
+            valLabel: 'PTS/P', col: '#a78bfa',
+            bg: 'linear-gradient(145deg,#1a0a2e,#4c1d95 60%,#7c3aed)',
+            dest: 'stats', statsTab: 'overall' });
+        }
+      }
+
+      // ── Card 7: H2H Random (coppia che si è affrontata nelle ultime 5 partite) ──
+      if (players.length >= 4 && matches.length >= 3) {
+        const _last5h2h = [...matches].sort((a,b) => b.data.localeCompare(a.data)).slice(0,5);
+        // Trova coppie che si sono affrontate
+        const _pairs = [];
+        const _seen = new Set();
+        for (const m of _last5h2h) {
+          const sqA = m.squadraA||[], sqB = m.squadraB||[];
+          for (const ua of sqA) {
+            for (const ub of sqB) {
+              const key = [ua,ub].sort().join('|');
+              if (!_seen.has(key)) {
+                _seen.add(key);
+                // Conta sfide dirette storiche
+                let wA=0, wB=0, pari=0;
+                const _ultimi3 = [];
+                for (const mx of matches) {
+                  const inAa = (mx.squadraA||[]).includes(ua), inAb = (mx.squadraB||[]).includes(ua);
+                  const inBa = (mx.squadraA||[]).includes(ub), inBb = (mx.squadraB||[]).includes(ub);
+                  if ((inAa && inBb) || (inAb && inBa)) {
+                    const gA = mx.risultato?.goalA||0, gB = mx.risultato?.goalB||0;
+                    const aWin = inAa ? gA>gB : gB>gA;
+                    const bWin = inAa ? gB>gA : gA>gB;
+                    if (aWin) wA++; else if (bWin) wB++; else pari++;
+                    if (_ultimi3.length < 3) _ultimi3.push({ gA: inAa?gA:gB, gB: inAa?gB:gA, data: mx.data });
+                  }
+                }
+                if (wA+wB+pari >= 2) { // almeno 2 sfide dirette
+                  const pA = players.find(p => p.uid === ua);
+                  const pB = players.find(p => p.uid === ub);
+                  if (pA && pB) _pairs.push({ pA, pB, wA, wB, pari, ultimi3: _ultimi3 });
+                }
+              }
+            }
+          }
+        }
+        if (_pairs.length > 0) {
+          const h2h = _pairs[_seed30 % _pairs.length];
+          const tot = h2h.wA + h2h.wB + h2h.pari;
+          slides.push({ type: 'h2hCard', dur: 8000, label: '⚔️ TESTA A TESTA',
+            nA: h2h.pA.soprannome||h2h.pA.nome, nB: h2h.pB.soprannome||h2h.pB.nome,
+            fotoA: h2h.pA.foto, uidA: h2h.pA.uid,
+            fotoB: h2h.pB.foto, uidB: h2h.pB.uid,
+            wA: h2h.wA, wB: h2h.wB, pari: h2h.pari, tot,
+            ultimi3: h2h.ultimi3,
+            pctA: Math.round(h2h.wA/tot*100), pctB: Math.round(h2h.wB/tot*100),
+            bg: 'linear-gradient(145deg,#1a0a0a,#7c1d1d 60%,#991b1b)',
+            dest: 'stats' });
+        }
+      }
 
       const _ovrSlides   = slides.filter(s => s.type === 'ovr3');
       const _nickSlides  = slides.filter(s => s.type === 'nickCard');
