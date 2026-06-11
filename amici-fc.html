@@ -6072,7 +6072,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.489',date:'2026-06-11',items:[
+    const changelogEntries = [{version:'v1.491',date:'2026-06-11',items:[
+      'Fix: watch _heroRawData ripristinato nel posto corretto — hero si aggiorna dopo sync',
+    ]},{version:'v1.490',date:'2026-06-11',items:[
+      'Fix: rigoriParati e rigoriSbagliati ora salvati correttamente in saveMatch',
+    ]},{version:'v1.489',date:'2026-06-11',items:[
       'Fix: utente senza credenziali scrittura non entra in loop pending_sync',
       'Fix: merge partite concorrenti in syncToCloud — nessuna perdita dati',
     ]},{version:'v1.488',date:'2026-06-09',items:[
@@ -6743,7 +6747,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.489');
+    const appVersion = ref('1.491');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9763,12 +9767,14 @@ Niente altro, nessuna spiegazione.`;
         const inA  = teamA.value.includes(pid);
         const punti = isDraw ? 1 : ((inA && teamAWon) || (!inA && !teamAWon)) ? 3 : 0;
         return {
-          playerId:    pid,
-          goal:        playerStats.value[pid]?.goal        || 0,
-          assist:      playerStats.value[pid]?.assist      || 0,
-          autogol:     playerStats.value[pid]?.autogol     || 0,
-          voto:        playerStats.value[pid]?.voto        || 0,
-          uomoPartita: playerStats.value[pid]?.uomoPartita || false,
+          playerId:        pid,
+          goal:            playerStats.value[pid]?.goal            || 0,
+          assist:          playerStats.value[pid]?.assist          || 0,
+          autogol:         playerStats.value[pid]?.autogol         || 0,
+          voto:            playerStats.value[pid]?.voto            || 0,
+          uomoPartita:     playerStats.value[pid]?.uomoPartita     || false,
+          rigoriParati:    playerStats.value[pid]?.rigoriParati    || 0,
+          rigoriSbagliati: playerStats.value[pid]?.rigoriSbagliati || 0,
           punti
         };
       });
@@ -12553,6 +12559,19 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
       logEvent('info', 'app', 'Avvio Amici FC v' + appVersion.value);
       startNewsTicker();
+      // Watch _heroRawData — ricostruisce hero slides dopo sync o nuova partita
+      watch(() => _heroRawData.value.length, () => {
+        if (!_heroLaunched) return;
+        clearTimeout(_heroRebuildTimer);
+        _heroRebuildTimer = setTimeout(() => {
+          const newData = _heroRawData.value;
+          if (newData.length) {
+            _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(newData)];
+            logEvent('info','app','🎴 Hero cards aggiornate');
+          }
+        }, 800);
+      });
+
       watch(currentView, (newView) => {
         _ptrReset();
         if (['stats','history','players'].includes(newView)) {
