@@ -2826,15 +2826,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="font-size:0.7rem;color:var(--text2)">{{ p.ruolo }} · 🦶{{ p.piede||'D' }}</div>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn btn-sm" :class="manualFormation.squadraA.includes(p.id)?'btn-blue':'btn-ghost'"
+            <button class="btn btn-sm" :class="manualFormation.squadraA.includes(p.uid)?'btn-blue':'btn-ghost'"
               style="padding:5px 12px;font-size:0.75rem"
-              @click="addToManualTeam(p.uid||String(p.id),'squadraA')">🔵 A</button>
-            <button class="btn btn-sm" :class="manualFormation.squadraB.includes(p.id)?'btn-red':'btn-ghost'"
+              @click="addToManualTeam(p.uid,'squadraA')">🔵 A</button>
+            <button class="btn btn-sm" :class="manualFormation.squadraB.includes(p.uid)?'btn-red':'btn-ghost'"
               style="padding:5px 12px;font-size:0.75rem"
-              @click="addToManualTeam(p.uid||String(p.id),'squadraB')">🔴 B</button>
-            <button v-if="manualFormation.squadraA.includes(p.uid||String(p.id))||manualFormation.squadraB.includes(p.uid||String(p.id))"
+              @click="addToManualTeam(p.uid,'squadraB')">🔴 B</button>
+            <button v-if="manualFormation.squadraA.includes(p.uid)||manualFormation.squadraB.includes(p.uid)"
               class="btn btn-ghost btn-sm" style="padding:5px 8px"
-              @click="removeFromManualTeam(p.uid||String(p.id),'squadraA');removeFromManualTeam(p.uid||String(p.id),'squadraB')">✕</button>
+              @click="removeFromManualTeam(p.uid,'squadraA');removeFromManualTeam(p.uid,'squadraB')">✕</button>
           </div>
         </div>
       </div>
@@ -3050,8 +3050,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="player-select-grid">
         <div v-for="p in filteredPlayersForSelect" :key="p.id"
           class="player-select-card"
-          :class="{selected: selectedForMatch.includes(p.uid||String(p.id))}"
-          @click="togglePlayerSelection(p.uid||String(p.id))">
+          :class="{selected: selectedForMatch.includes(p.uid)}"
+          @click="togglePlayerSelection(p.uid)">
           <div class="player-select-check">✓</div>
           <div class="player-select-avatar">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, p.uid)">
@@ -3212,12 +3212,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="font-size:0.78rem;color:var(--text2)">Conferma il risultato e salva</div>
           </div>
 
-          <!-- Marcatori squadra A -->
-          <div v-if="teamA.some(pid=>(playerStats[pid]?.goal||0)>0||(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px">
+          <!-- Marcatori squadra A (gol propri + autogol squadra B che vanno a A) -->
+          <div v-if="teamA.some(pid=>(playerStats[pid]?.goal||0)>0)||teamB.some(pid=>(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px">
             <div style="font-size:0.75rem;font-weight:700;color:var(--blue);margin-bottom:6px">🔵 {{ activeFormation?.nomeSquadraA||'Squadra A' }}</div>
             <div v-for="pid in teamA.filter(p=>(playerStats[p]?.goal||0)>0)" :key="'ma-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
               <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
               <span style="color:var(--lime)">⚽ ×{{ playerStats[pid]?.goal }}</span>
+            </div>
+            <div v-for="pid in teamB.filter(p=>(playerStats[p]?.autogol||0)>0)" :key="'ogb-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
+              <span style="color:var(--red)">{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span style="color:var(--red)">🥅 OG ×{{ playerStats[pid]?.autogol }}</span>
             </div>
             <div v-for="pid in teamA.filter(p=>(playerStats[p]?.assist||0)>0)" :key="'asa-'+pid" style="font-size:0.78rem;display:flex;justify-content:space-between;padding:2px 0;color:var(--text2)">
               <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
@@ -3225,12 +3229,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
 
-          <!-- Marcatori squadra B -->
-          <div v-if="teamB.some(pid=>(playerStats[pid]?.goal||0)>0||(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px">
+          <!-- Marcatori squadra B (gol propri + autogol squadra A che vanno a B) -->
+          <div v-if="teamB.some(pid=>(playerStats[pid]?.goal||0)>0)||teamA.some(pid=>(playerStats[pid]?.autogol||0)>0)" class="card" style="padding:10px 14px">
             <div style="font-size:0.75rem;font-weight:700;color:var(--red);margin-bottom:6px">🔴 {{ activeFormation?.nomeSquadraB||'Squadra B' }}</div>
             <div v-for="pid in teamB.filter(p=>(playerStats[p]?.goal||0)>0)" :key="'mb-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
               <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
               <span style="color:var(--lime)">⚽ ×{{ playerStats[pid]?.goal }}</span>
+            </div>
+            <div v-for="pid in teamA.filter(p=>(playerStats[p]?.autogol||0)>0)" :key="'oga-'+pid" style="font-size:0.82rem;display:flex;justify-content:space-between;padding:2px 0">
+              <span style="color:var(--red)">{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
+              <span style="color:var(--red)">🥅 OG ×{{ playerStats[pid]?.autogol }}</span>
             </div>
             <div v-for="pid in teamB.filter(p=>(playerStats[p]?.assist||0)>0)" :key="'asb-'+pid" style="font-size:0.78rem;display:flex;justify-content:space-between;padding:2px 0;color:var(--text2)">
               <span>{{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}</span>
@@ -6072,7 +6080,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.491',date:'2026-06-11',items:[
+    const changelogEntries = [{version:'v1.494',date:'2026-06-11',items:[
+      'Fix: formazione manuale usa solo uid — coerente con architettura UUID',
+      'Rimosso fallback su p.id — tutti i giocatori hanno uid garantito dalla migrazione Dexie',
+    ]},{version:'v1.493',date:'2026-06-11',items:[
+      'Fix: formazione manuale mostra i giocatori selezionati — usava id invece di uid',
+    ]},{version:'v1.492',date:'2026-06-11',items:[
+      'Fix: formazione manuale — pulsanti A/B si colorano correttamente (uid invece di id)',
+      'Fix: autogol visualizzati nella squadra corretta nel riepilogo SBS',
+    ]},{version:'v1.491',date:'2026-06-11',items:[
       'Fix: watch _heroRawData ripristinato nel posto corretto — hero si aggiorna dopo sync',
     ]},{version:'v1.490',date:'2026-06-11',items:[
       'Fix: rigoriParati e rigoriSbagliati ora salvati correttamente in saveMatch',
@@ -6747,7 +6763,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.491');
+    const appVersion = ref('1.494');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7215,7 +7231,7 @@ createApp({
     const sortedManualPlayers = computed(() => {
       const q = manualSearch.value.trim().toLowerCase();
       let list = selectedForMatch.value.length
-        ? groupPlayers.value.filter(p => selectedForMatch.value.includes(p.id))
+        ? groupPlayers.value.filter(p => selectedForMatch.value.includes(p.uid))
         : [...groupPlayers.value];
       if (q) {
         list = list.filter(p =>
