@@ -6072,7 +6072,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.488',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.489',date:'2026-06-11',items:[
+      'Fix: utente senza credenziali scrittura non entra in loop pending_sync',
+      'Fix: merge partite concorrenti in syncToCloud — nessuna perdita dati',
+    ]},{version:'v1.488',date:'2026-06-09',items:[
       'Fix Caso 4: retry automatico sync con backoff (3 tentativi, 5/10/15s)',
       'Fix Caso 6: merge partite concorrenti — nessuna perdita di dati tra utenti',
       'Fix Caso 7: utente senza token non entra in loop infinito pending_sync',
@@ -6740,7 +6743,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.488');
+    const appVersion = ref('1.489');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10398,7 +10401,18 @@ Niente altro, nessuna spiegazione.`;
       syncLoading.value = true;
       try {
         const token = await getValidToken();
-        if (!token) throw new Error('Token non valido. Effettua il login.');
+        if (!token) {
+          const hasRefresh = !!localStorage.getItem('amicifc_fb_refresh');
+          if (!hasRefresh) {
+            // Utente in sola lettura — non ha credenziali di scrittura
+            logEvent('warn','sync','Sync skipped: utente senza credenziali di scrittura Firebase');
+            // Rimuovi pending_sync per evitare loop infinito
+            localStorage.removeItem('amicifc_pending_sync_'+(currentGroup.value?.id||''));
+            syncLoading.value = false;
+            return;
+          }
+          throw new Error('Token non valido. Effettua il login.');
+        }
         const authSuffix = token ? `?auth=${token}` : '';
 
         // Leggi aiCards da Firebase per preservarle (non sono locali)
@@ -10452,9 +10466,35 @@ Niente altro, nessuna spiegazione.`;
           }
         }
 
+        // ── MERGE PARTITE CONCORRENTI ──
+        // Prima di sovrascrivere, integra partite scritte da altri utenti nel frattempo
+        try {
+          const fbRootResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+          if (fbRootResp.ok) {
+            const fbRoot = await fbRootResp.json();
+            const fbGroups = fbRoot?.groups ? (Array.isArray(fbRoot.groups) ? fbRoot.groups : Object.values(fbRoot.groups)) : [];
+            for (const fbGrp of fbGroups) {
+              const localGrp = allGroups.find(lg => lg.group?.nome === fbGrp?.group?.nome);
+              if (!localGrp) continue;
+              const fbMatches = toArr(fbGrp.matches || {});
+              const localUUIDs = new Set((localGrp.matches||[]).map(m => m.matchUUID).filter(Boolean));
+              const onlyOnFb = fbMatches.filter(m => m?.matchUUID && !localUUIDs.has(m.matchUUID));
+              if (onlyOnFb.length > 0) {
+                logEvent('info','sync',`🔀 Merge: ${onlyOnFb.length} partite di altri utenti integrate`);
+                localGrp.matches = [...(localGrp.matches||[]), ...onlyOnFb];
+                // Salva anche in Dexie locale
+                for (const m of onlyOnFb) {
+                  const gid = groups.value.find(g => g.nome === localGrp.group.nome)?.id;
+                  if (gid) await db.matches.add({ ...m, groupId: gid }).catch(()=>{});
+                }
+              }
+            }
+          }
+        } catch(e) { logEvent('info','sync','Merge check saltato: '+e.message); }
+
         const payload = {
           lastUpdate: new Date().toISOString(),
-          lastModified: Date.now(), // timestamp ms per confronto veloce
+          lastModified: Date.now(),
           appVersion: appVersion.value,
           groups: allGroups,
           aiCards: cloudAiCards
