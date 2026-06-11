@@ -6072,7 +6072,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.486',date:'2026-06-09',items:[
+    const changelogEntries = [{version:'v1.488',date:'2026-06-09',items:[
+      'Fix Caso 4: retry automatico sync con backoff (3 tentativi, 5/10/15s)',
+      'Fix Caso 6: merge partite concorrenti — nessuna perdita di dati tra utenti',
+      'Fix Caso 7: utente senza token non entra in loop infinito pending_sync',
+    ]},{version:'v1.487',date:'2026-06-09',items:[
+      'Fix Caso 3: al ritorno online carica automaticamente partite salvate offline',
+      'Fix Caso 2: token rinnovato silenziosamente — log non più allarmante',
+      'Fix: pending sync verificato sia all avvio che al ritorno online con toast conferma',
+    ]},{version:'v1.486',date:'2026-06-09',items:[
       'Fix PNG: punteggio previsto colorato — gol squadra B arancio, gol squadra A blu',
     ]},{version:'v1.485',date:'2026-06-09',items:[
       'Fix PNG: nomi squadre su 3 righe sotto le quote (NomeB / score / NomeA)',
@@ -6732,7 +6740,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.486');
+    const appVersion = ref('1.488');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9840,12 +9848,26 @@ Niente altro, nessuna spiegazione.`;
       if (currentGroup.value?.firebaseUrl) {
         // Sincronizza sempre — syncToCloud gestisce internamente il refresh token
         // Non skippiamo se token sembra scaduto: potrebbe rinnovarsi automaticamente
-        syncToCloud().catch(e => {
-          logEvent('warn', 'sync', 'Sync partita fallito: ' + e.message);
-          toast('⚠️ Sync cloud fallito — riprova dalle impostazioni', 'error', 5000);
-          // Marca la partita come da sincronizzare
-          localStorage.setItem('amicifc_pending_sync_'+currentGroup.value.id, Date.now().toString());
-        });
+        // Tenta sync con retry automatico
+        const _doSyncWithRetry = async (attempt=1) => {
+          try {
+            await syncToCloud();
+            logEvent('info','sync',`✅ Partita sincronizzata su Firebase (tentativo ${attempt})`);
+          } catch(e) {
+            const isOffline = !navigator.onLine || e.message?.includes('fetch') || e.message?.includes('network');
+            localStorage.setItem('amicifc_pending_sync_'+currentGroup.value.id, Date.now().toString());
+            if (isOffline) {
+              logEvent('info','sync','📵 Offline — partita salvata localmente, sincronizzazione automatica al ritorno online');
+            } else if (attempt < 3) {
+              logEvent('warn','sync',`⏳ Sync fallito (${attempt}/3) — riprovo tra ${attempt*5}s`);
+              setTimeout(() => _doSyncWithRetry(attempt+1), attempt * 5000);
+            } else {
+              logEvent('warn','sync','Sync fallito dopo 3 tentativi — riproverò al prossimo avvio');
+              toast('⚠️ Sync non riuscito — riproverò automaticamente', 'error', 4000);
+            }
+          }
+        };
+        _doSyncWithRetry();
       }
       // Genera TrashTalk solo se non generato negli ultimi 3 giorni
       const _lsKeyTT2 = 'amicifc_tt_' + (currentGroup.value?.id||'');
@@ -10310,7 +10332,7 @@ Niente altro, nessuna spiegazione.`;
           fbIdToken.value = d.id_token;
           localStorage.setItem('amicifc_fb_token', d.id_token);
           if (d.refresh_token) localStorage.setItem('amicifc_fb_refresh', d.refresh_token);
-          
+          logEvent('info', 'auth', '✅ Token Firebase rinnovato automaticamente');
           return true;
         }
       } catch(e) {
@@ -10338,7 +10360,7 @@ Niente altro, nessuna spiegazione.`;
             try { sessionStorage.setItem('amicifc_fb_token_bak', token); } catch(e) {}
             return token;
           } else {
-            logEvent('warn', 'auth', 'Token Firebase scaduto - rinnovare accesso');
+            logEvent('info', 'auth', 'Token Firebase scaduto — rinnovo automatico in corso...');
             fbIdToken.value = '';
             localStorage.removeItem('amicifc_fb_token');
             token = '';
@@ -12571,10 +12593,14 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       if (currentGroup.value?.firebaseUrl) {
         const _pendingKey = 'amicifc_pending_sync_'+currentGroup.value.id;
         if (localStorage.getItem(_pendingKey)) {
-          logEvent('info','sync','🔄 Sync pendente trovato — riprovo upload...');
+          logEvent('info','sync','📤 Upload pendente trovato — riprovo sync partita...');
           syncToCloud().then(() => {
             localStorage.removeItem(_pendingKey);
-          }).catch(console.warn);
+            logEvent('info','sync','✅ Upload pendente completato all avvio');
+            toast('✅ Partita precedentemente salvata offline ora sincronizzata', 'success', 4000);
+          }).catch(e => {
+            logEvent('warn','sync','Upload pendente fallito: '+e.message);
+          });
         }
       }
 
@@ -12590,18 +12616,30 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         const durStr = durMs > 60000 ? Math.round(durMs/60000)+'min' : Math.round(durMs/1000)+'s';
         logEvent('info', 'sync', `🌐 Tornato online${_offlineAt ? ' (offline per '+durStr+')' : ''}`);
         _offlineAt = null;
-        // Controlla aggiornamenti dopo offline — con retry fino a 3 tentativi
+        // Al ritorno online: prima carica upload pendenti, poi scarica aggiornamenti
         if (currentGroup.value?.firebaseUrl) {
           let _retries = 0;
           const _trySync = async () => {
             try {
-              const needed = await checkSyncNeeded();
-              if (needed) {
-                await syncFromCloud(false);
-                logEvent('info', 'sync', '🔄 Sync post-offline completato');
+              // Controlla se c'è un upload pendente (partita salvata offline)
+              const _pendingKey = 'amicifc_pending_sync_' + currentGroup.value.id;
+              const _pending = localStorage.getItem(_pendingKey);
+              if (_pending) {
+                logEvent('info', 'sync', '📤 Upload pendente trovato — sincronizzo partita salvata offline...');
+                await syncToCloud();
+                localStorage.removeItem(_pendingKey);
+                logEvent('info', 'sync', '✅ Upload pendente completato');
+                toast('✅ Partita sincronizzata su Firebase', 'success', 3000);
               } else {
-                lastCheckTime.value = new Date().toLocaleString('it-IT');
-                localStorage.setItem('amicifc_last_check', lastCheckTime.value);
+                // Nessun upload pendente — controlla solo se ci sono aggiornamenti
+                const needed = await checkSyncNeeded();
+                if (needed) {
+                  await syncFromCloud(false);
+                  logEvent('info', 'sync', '🔄 Sync post-offline completato');
+                } else {
+                  lastCheckTime.value = new Date().toLocaleString('it-IT');
+                  localStorage.setItem('amicifc_last_check', lastCheckTime.value);
+                }
               }
             } catch(e) {
               _retries++;
