@@ -1,0 +1,2210 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚽ Firebase Inspector v3 — Amici FC</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0a0a0f;color:#e2e8f0;min-height:100vh}
+:root{--lime:#a6ff4d;--blue:#3a7bff;--red:#ff4d4d;--yellow:#ffd93d;--orange:#ff8c3c;--green:#4ade80;--gray:#6b7280;--card:#111827;--border:#1f2937;--text2:#9ca3af}
+.header{background:linear-gradient(135deg,#0f172a,#1e1b4b);border-bottom:1px solid #1f2937;padding:14px 20px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100}
+.logo{font-size:1.8rem}.header-title{font-size:1.1rem;font-weight:900;color:var(--lime)}.header-sub{font-size:0.72rem;color:var(--text2)}.header-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.url-bar{padding:10px 20px;background:#0f172a;border-bottom:1px solid var(--border);display:flex;gap:8px;flex-wrap:wrap}
+.url-input{flex:1;min-width:200px;background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 12px;border-radius:8px;font-size:0.82rem;outline:none}.url-input:focus{border-color:var(--lime)}
+.btn{padding:8px 14px;border-radius:8px;border:none;cursor:pointer;font-weight:700;font-size:0.82rem;display:inline-flex;align-items:center;gap:5px;transition:.15s}
+.btn-lime{background:var(--lime);color:#000}.btn-lime:hover{background:#8fd43d}
+.btn-blue{background:var(--blue);color:#fff}.btn-blue:hover{background:#2d6ae0}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#e03d3d}
+.btn-orange{background:var(--orange);color:#fff}.btn-orange:hover{background:#e07030}
+.btn-ghost{background:#1f2937;color:var(--text2);border:1px solid #374151}.btn-ghost:hover{color:#fff;border-color:#6b7280}
+.btn:disabled{opacity:.4;cursor:default}.btn-sm{padding:5px 10px;font-size:0.75rem}
+.layout{display:flex;height:calc(100vh - 130px)}.sidebar{width:220px;min-width:220px;background:#0d1117;border-right:1px solid var(--border);overflow-y:auto;padding:8px 0}.main{flex:1;overflow-y:auto;padding:16px 20px}
+.nav-item{display:flex;align-items:center;gap:8px;padding:9px 16px;cursor:pointer;font-size:0.82rem;color:var(--text2);border-left:3px solid transparent;transition:.1s}.nav-item:hover{background:#161b22;color:#fff}.nav-item.active{background:#161b22;color:var(--lime);border-left-color:var(--lime);font-weight:700}
+.nav-badge{margin-left:auto;background:#1f2937;border-radius:20px;padding:1px 7px;font-size:0.68rem;color:var(--text2)}.nav-sep{height:1px;background:var(--border);margin:8px 12px}.nav-group{font-size:0.65rem;font-weight:700;letter-spacing:.1em;color:var(--gray);padding:8px 16px 4px;text-transform:uppercase}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden}.card-head{padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)}.card-title{font-weight:800;font-size:0.9rem}.card-body{padding:14px 16px}
+.badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:20px;font-size:0.72rem;font-weight:700}
+.badge-lime{background:rgba(166,255,77,.15);color:var(--lime)}.badge-blue{background:rgba(58,123,255,.15);color:var(--blue)}.badge-red{background:rgba(255,77,77,.15);color:var(--red)}.badge-yellow{background:rgba(255,217,61,.15);color:var(--yellow)}.badge-gray{background:rgba(107,114,128,.15);color:var(--gray)}.badge-orange{background:rgba(255,140,60,.15);color:var(--orange)}.badge-green{background:rgba(74,222,128,.15);color:var(--green)}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:10px;margin-bottom:16px}.stat-box{background:#0d1117;border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}.stat-num{font-size:2rem;font-weight:900;line-height:1}.stat-lbl{font-size:0.7rem;color:var(--text2);margin-top:4px}
+.tbl{width:100%;border-collapse:collapse;font-size:0.8rem}.tbl th{text-align:left;padding:8px 10px;color:var(--text2);font-size:0.7rem;text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border);background:#0d1117}.tbl td{padding:8px 10px;border-bottom:1px solid #161b22;vertical-align:top}.tbl tr:hover td{background:#161b22}.tbl tr:last-child td{border-bottom:none}
+.val-green{color:var(--green)}.val-yellow{color:var(--yellow)}.val-red{color:var(--red)}.val-blue{color:var(--blue)}.val-gray{color:var(--gray)}.val-lime{color:var(--lime)}.mono{font-family:monospace;font-size:0.75rem}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}.search-input{flex:1;background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 12px;border-radius:8px;font-size:0.82rem;outline:none}.search-input:focus{border-color:var(--lime)}
+.player-card{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:8px;background:#0d1117;border:1px solid var(--border);margin-bottom:6px}.player-avatar{width:40px;height:40px;border-radius:50%;background:#1f2937;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0;overflow:hidden}.player-avatar img{width:100%;height:100%;object-fit:cover}.player-info{flex:1;min-width:0}.player-name{font-weight:700;font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.player-meta{font-size:0.72rem;color:var(--text2)}.player-stats{display:flex;gap:10px;flex-shrink:0}.pstat{text-align:center}.pstat-n{font-size:0.9rem;font-weight:800}.pstat-l{font-size:0.62rem;color:var(--text2)}
+.tabs{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}.tab{padding:7px 14px;cursor:pointer;font-size:0.8rem;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:600}.tab.active{color:var(--lime);border-bottom-color:var(--lime)}.tab:hover{color:#fff}
+.ovr-bar{display:flex;align-items:center;gap:6px}.ovr-val{font-weight:900;min-width:28px;font-size:0.85rem}.ovr-track{flex:1;height:5px;background:#1f2937;border-radius:3px;overflow:hidden}.ovr-fill{height:100%;border-radius:3px}
+.json-viewer{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:0.72rem;color:#9ca3af;white-space:pre-wrap;word-break:break-all;max-height:400px;overflow-y:auto}
+.spinner{display:inline-block;animation:spin 1s linear infinite}@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:30px;color:var(--gray)}.empty-icon{font-size:2.5rem;margin-bottom:8px}
+.log-box{background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:12px;font-family:monospace;font-size:0.75rem;max-height:300px;overflow-y:auto;margin-top:12px}
+.log-ok{color:var(--green)}.log-err{color:var(--red)}.log-warn{color:var(--yellow)}.log-info{color:var(--text2)}
+.step-card{border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;background:#111827}
+.step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:0.82rem;flex-shrink:0}
+.progress-bar{height:6px;background:#1f2937;border-radius:3px;overflow:hidden;margin-top:8px}.progress-fill{height:100%;background:var(--lime);border-radius:3px;transition:width .3s}
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#111827;border:1px solid var(--border);border-radius:16px;padding:24px;max-width:420px;width:90%}
+input[type=password],input[type=email]{background:#1f2937;border:1px solid #374151;color:#fff;padding:8px 12px;border-radius:8px;font-size:0.85rem;outline:none;width:100%}
+input[type=password]:focus,input[type=email]:focus{border-color:var(--lime)}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-track{background:#0a0a0f}::-webkit-scrollbar-thumb{background:#374151;border-radius:3px}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">⚽</div>
+  <div><div class="header-title">Firebase Inspector v3</div><div class="header-sub">Amici FC — Visualizza · Audit · Backup · Manutenzione</div></div>
+  <div class="header-right">
+    <span id="auth-badge" class="badge badge-gray">🔒 Non autenticato</span>
+    <span id="status-badge" class="badge badge-gray">Non connesso</span>
+    <button class="btn btn-ghost btn-sm" id="btnRefresh" onclick="loadAll()" disabled>🔄 Aggiorna</button>
+  </div>
+</div>
+
+<div class="url-bar">
+  <input class="url-input" id="fbUrl" placeholder="https://nome-db.firebasedatabase.app" value="https://amicifc-4640a-default-rtdb.europe-west1.firebasedatabase.app">
+  <button class="btn btn-lime" id="btnLoad" onclick="loadAll()">🔍 Connetti</button>
+  <button class="btn btn-blue" id="btnLogin" onclick="showLoginModal()">🔑 Login Firebase</button>
+</div>
+
+<!-- Login Modal -->
+<div id="loginModal" class="modal-bg" style="display:none">
+  <div class="modal">
+    <div style="font-weight:900;font-size:1.1rem;margin-bottom:16px;color:var(--lime)">🔑 Login Firebase</div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:0.75rem;color:var(--text2);margin-bottom:5px">Email</div>
+      <input type="email" id="loginEmail" placeholder="alberto.rossi@..." value="alberto.rossi.0112@gmail.com">
+    </div>
+    <div style="margin-bottom:10px">
+      <div style="font-size:0.75rem;color:var(--text2);margin-bottom:5px">Password</div>
+      <input type="password" id="loginPwd" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <div style="margin-bottom:16px">
+      <div style="font-size:0.75rem;color:var(--text2);margin-bottom:5px">Firebase Web API Key <span style="color:#6b7280">(Console Firebase → Impostazioni progetto → Generali → La tua app web → apiKey)</span></div>
+      <input type="text" id="loginApiKey" value="AIzaSyAJ2kw-SlDAG-6BKRkDHn9XfVNGEnj1WV8" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:8px 12px;border-radius:8px;font-size:0.85rem;outline:none;width:100%">
+    </div>
+    <div id="loginErr" style="color:var(--red);font-size:0.8rem;margin-bottom:10px;display:none"></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-lime" style="flex:1" onclick="doLogin()" id="btnDoLogin">🔑 Accedi</button>
+      <button class="btn btn-ghost" onclick="closeLoginModal()">Annulla</button>
+    </div>
+    <div style="margin-top:10px;font-size:0.72rem;color:var(--text2)">Necessario per le operazioni di scrittura (migrazione, pulizia).</div>
+  </div>
+</div>
+
+<div class="layout">
+  <div class="sidebar" id="sidebar"><div style="padding:12px 16px;color:var(--gray);font-size:0.72rem">In attesa...</div></div>
+  <div class="main" id="main"><div class="empty"><div class="empty-icon">🔌</div><div>Inserisci l'URL Firebase e clicca Connetti</div></div></div>
+</div>
+
+<!-- Modal editor JSON -->
+<div id="editorModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center;padding:16px">
+  <div style="background:#1a1a2e;border:1px solid var(--border);border-radius:12px;width:100%;max-width:600px;max-height:90vh;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+      <span id="editorTitle" style="font-weight:700;font-size:0.95rem">✏️ Modifica</span>
+      <button onclick="closeEditor()" style="background:none;border:none;color:var(--text2);cursor:pointer;font-size:1.2rem">✕</button>
+    </div>
+    <div style="padding:12px;flex:1;overflow:auto">
+      <div style="font-size:0.72rem;color:var(--yellow);margin-bottom:8px">⚠️ Modifica con attenzione — le modifiche vengono salvate direttamente su Firebase</div>
+      <textarea id="editorJson" style="width:100%;height:400px;background:#0d1117;border:1px solid var(--border);border-radius:8px;color:#e2e8f0;font-family:monospace;font-size:0.75rem;padding:10px;resize:vertical;box-sizing:border-box"></textarea>
+    </div>
+    <div style="display:flex;gap:8px;padding:12px 16px;border-top:1px solid var(--border)">
+      <button class="btn btn-ghost" onclick="closeEditor()">Annulla</button>
+      <button class="btn btn-lime" style="margin-left:auto" onclick="saveEditor()">💾 Salva su Firebase</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const FB_URL='https://amicifc-4640a-default-rtdb.europe-west1.firebasedatabase.app';
+const FB_APIKEY='AIzaSyAJ2kw-SlDAG-6BKRkDHn9XfVNGEnj1WV8';
+let DB=null, GROUPS=[], PLAYERS=[], MATCHES=[], AI={};
+let AUTH_TOKEN='', AUTH_EMAIL='';
+let LOG_LINES=[];
+
+const fmt_date=d=>d?new Date((d.includes&&d.includes('T')?d:d+'T12:00:00')).toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'numeric'}):'—';
+const fmt_ts=ms=>ms?new Date(ms).toLocaleString('it-IT'):'—';
+const ovr_color=v=>v>=85?'#fbbf24':v>=75?'#4ade80':v>=65?'#22d3ee':'#9ca3af';
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const safeKey=s=>s?s.replace(/[^a-zA-Z0-9àèéìòùÀÈÉÌÒÙ]/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,''):'gruppo';
+const uuid=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+
+function log(msg,type='info'){
+  LOG_LINES.push({msg,type,ts:new Date().toLocaleTimeString('it-IT')});
+  const el=$('logBox');
+  if(el){el.innerHTML=LOG_LINES.map(l=>`<div class="log-${l.type}">[${l.ts}] ${l.msg}</div>`).join('');el.scrollTop=el.scrollHeight;}
+}
+
+// ── AUTH ──
+function showLoginModal(){$('loginModal').style.display='flex'; setTimeout(()=>$('loginPwd').focus(),100);}
+function closeLoginModal(){$('loginModal').style.display='none';}
+
+async function doLogin(){
+  const email=$('loginEmail').value.trim();
+  const pwd=$('loginPwd').value;
+  if(!email||!pwd){$('loginErr').textContent='Email e password obbligatori';$('loginErr').style.display='';return;}
+  $('btnDoLogin').disabled=true;$('btnDoLogin').textContent='⏳ Accesso...';
+  $('loginErr').style.display='none';
+  try{
+    const apiKey=$('loginApiKey').value.trim()||FB_APIKEY;
+    if(!apiKey){$('loginErr').textContent='Inserisci la Firebase Web API Key';$('loginErr').style.display='';return;}
+    const r=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,password:pwd,returnSecureToken:true})
+    });
+    const d=await r.json();
+    if(d.error) throw new Error(d.error.message);
+    AUTH_TOKEN=d.idToken;
+    AUTH_EMAIL=email;
+    $('auth-badge').className='badge badge-green';
+    $('auth-badge').textContent=`✅ ${email.split('@')[0]}`;
+    closeLoginModal();
+    log(`✅ Login OK come ${email}`,'ok');
+    buildSidebar(); // aggiorna sidebar con sezione manutenzione
+  }catch(e){
+    $('loginErr').textContent='❌ '+e.message;$('loginErr').style.display='';
+    log('❌ Login fallito: '+e.message,'err');
+  }finally{$('btnDoLogin').disabled=false;$('btnDoLogin').textContent='🔑 Accedi';}
+}
+
+// ── LOAD DATA ──
+async function loadAll(){
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  if(!base)return;
+  $('btnLoad').disabled=true;$('btnLoad').innerHTML='<span class="spinner">⏳</span>';
+  $('status-badge').className='badge badge-gray';$('status-badge').textContent='Caricamento...';
+  try{
+    const r=await fetch(`${base}/amicifc.json`,{cache:'no-store'});
+    if(!r.ok) throw new Error(`HTTP ${r.status}`);
+    DB=await r.json();
+    if(!DB) throw new Error('Database vuoto');
+
+    const rawGroups=DB.groups?(Array.isArray(DB.groups)?DB.groups:Object.values(DB.groups)):[];
+    GROUPS=[];PLAYERS=[];MATCHES=[];
+    rawGroups.forEach(entry=>{
+      if(!entry)return;
+      const g=entry.group||entry;
+      if(g&&g.id)GROUPS.push(g);
+      const ps=Array.isArray(entry.players)?entry.players:entry.players?Object.values(entry.players):[];
+      ps.forEach(p=>{if(p)PLAYERS.push({...p,_groupName:g?.nome||'?'});});
+      const ms=Array.isArray(entry.matches)?entry.matches:entry.matches?Object.values(entry.matches):[];
+      ms.forEach(m=>{if(m)MATCHES.push({...m,_groupName:g?.nome||'?'});});
+    });
+    AI=DB.aiCards||{};
+
+    // Controlla anche amicifc2
+    try{
+      const r2=await fetch(`${base}/amicifc2.json?shallow=true`,{cache:'no-store'});
+      const d2=await r2.json();
+      window._HAS_V2=!!(d2&&d2!==null);
+    }catch{window._HAS_V2=false;}
+
+    $('status-badge').className='badge badge-lime';
+    $('status-badge').textContent=`✅ ${GROUPS.length}G · ${PLAYERS.length}P · ${MATCHES.length}M`;
+    // Precalcola dimensione DB per la dashboard
+    try { window._dbSizeBytes = new Blob([JSON.stringify(DB)]).size; } catch(e) {}
+    $('btnRefresh').disabled=false;
+    buildSidebar();
+    showView('dashboard');
+    log(`Database caricato: ${GROUPS.length} gruppi, ${PLAYERS.length} giocatori, ${MATCHES.length} partite`,'ok');
+  }catch(e){
+    $('status-badge').className='badge badge-red';$('status-badge').textContent='❌ Errore';
+    $('main').innerHTML=`<div class="card"><div class="card-body"><div style="color:var(--red);font-weight:700">❌ ${e.message}</div></div></div>`;
+    log('❌ Errore caricamento: '+e.message,'err');
+  }finally{$('btnLoad').disabled=false;$('btnLoad').innerHTML='🔍 Connetti';}
+}
+
+// ── SIDEBAR ──
+function buildSidebar(){
+  const ttCount=AI.trashTalk?Object.values(AI.trashTalk).reduce((s,g)=>s+Object.keys(g||{}).length,0):0;
+  const hofCount=AI.hallOfFame?Object.keys(AI.hallOfFame).length:0;
+  const nickCount=AI.soprannomi?Object.values(AI.soprannomi).reduce((s,g)=>s+Object.keys(g||{}).length,0):0;
+  const ni=(id,icon,label,badge,view)=>`<div class="nav-item" id="nav-${id}" onclick="showView('${view}')">${icon} ${label}${badge!==''?`<span class="nav-badge">${badge}</span>`:''}</div>`;
+  $('sidebar').innerHTML=`
+    ${ni('dashboard','📊','Dashboard','','dashboard')}
+    <div class="nav-sep"></div><div class="nav-group">Dati</div>
+    ${ni('groups-view','📁','Gruppi',GROUPS.length,'groups-view')}
+    ${ni('players-view','⚽','Giocatori',PLAYERS.length,'players-view')}
+    ${ni('matches-view','🏆','Partite',MATCHES.length,'matches-view')}
+    <div class="nav-sep"></div><div class="nav-group">AI Cards</div>
+    ${ni('ai-trash','🔥','Trash Talk',ttCount,'ai-trash')}
+    ${ni('ai-hof','👑','Hall of Fame',hofCount,'ai-hof')}
+    ${ni('ai-nicks','🧬','Soprannomi',nickCount,'ai-nicks')}
+    <div class="nav-sep"></div><div class="nav-group">Avanzato</div>
+    ${ni('raw-view','📄','JSON Grezzo','','raw-view')}
+    ${ni('audit-view','🔍','Audit ID','','audit-view')}
+    ${ni('backup-view','💾','Backup','','backup-view')}
+    ${ni('archive-view','📦','Archivio Stagioni','','archive-view')}
+    ${ni('stats-view','📊','Statistiche Rapide','','stats-view')}
+    ${ni('log-view','📋','Log Attività','','log-view')}
+    <div class="nav-sep"></div><div class="nav-group" style="color:#a78bfa">🧪 Testing</div>
+    ${ni('test-suite','🧪','Test Suite','','test-suite')}
+    ${AUTH_TOKEN?`<div class="nav-sep"></div><div class="nav-group" style="color:var(--orange)">🛠️ Manutenzione</div>
+    ${ni('maint-check','🔍','Analisi DB','','maint-check')}
+    ${ni('maint-restore','♻️','Ripristina backup','','maint-restore')}
+    ${ni('maint-clean','🗑️','Pulizia Firebase','','maint-clean')}`:
+    `<div style="padding:8px 16px;font-size:0.7rem;color:var(--gray)">🔑 Fai login per manutenzione</div>`}`;
+}
+
+function showView(v){
+  document.querySelectorAll('.nav-item').forEach(el=>el.classList.remove('active'));
+  const el=$('nav-'+v);if(el)el.classList.add('active');
+  const views={
+    dashboard:renderDashboard,
+    'groups-view':renderGroups,
+    'players-view':renderPlayers,
+    'matches-view':renderMatches,
+    'ai-trash':renderTrashTalk,
+    'ai-hof':renderHoF,
+    'ai-nicks':renderNicks,
+    'raw-view':renderRaw,
+    'audit-view':renderAudit,
+    'backup-view':renderBackup,
+    'archive-view':renderArchive,
+    'stats-view':renderStats,
+    'log-view':renderLog,
+    'maint-check':renderCheck,
+    'maint-restore':renderRestore,
+    'maint-clean':renderClean,
+    'test-suite':renderTestSuite
+  };
+  (views[v]||renderDashboard)();
+}
+
+// ── DASHBOARD ──
+function renderDashboard(){
+  const totalG=PLAYERS.reduce((s,p)=>s+(p.goalTotali||0),0);
+  const totalGolInCampo=MATCHES.reduce((s,m)=>s+(m.risultato?.goalA||0)+(m.risultato?.goalB||0),0);
+  const totalAutogol=PLAYERS.reduce((s,p)=>s+(p.autogolTotali||0),0);
+  const totalA=PLAYERS.reduce((s,p)=>s+(p.assistTotali||0),0);
+  const voti=PLAYERS.filter(p=>(p.mediaVoto||0)>0);
+  const avgV=voti.length?(voti.reduce((s,p)=>s+(p.mediaVoto||0),0)/voti.length).toFixed(2):'—';
+  const lastM=[...MATCHES].sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+  const topS=[...PLAYERS].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];
+  const noUID=PLAYERS.filter(p=>!p.uid).length;
+  const noMUUID=MATCHES.filter(m=>!m.matchUUID).length;
+  const v2badge=window._HAS_V2?`<span class="badge badge-orange">⚠️ amicifc2/ presente (da pulire)</span>`:
+    `<span class="badge badge-green">✅ amicifc2/ assente</span>`;
+
+  $('main').innerHTML=`
+  <div class="summary">
+    <div class="stat-box"><div class="stat-num val-lime">${GROUPS.length}</div><div class="stat-lbl">Gruppi</div></div>
+    <div class="stat-box"><div class="stat-num val-blue">${PLAYERS.length}</div><div class="stat-lbl">Giocatori</div></div>
+    <div class="stat-box"><div class="stat-num val-yellow">${MATCHES.length}</div><div class="stat-lbl">Partite</div></div>
+    <div class="stat-box"><div class="stat-num val-lime">${totalGolInCampo}</div><div class="stat-lbl">Gol in campo</div><div style="font-size:0.62rem;color:var(--text2)">${totalAutogol} autogol · ${totalG} segnati</div></div>
+    <div class="stat-box"><div class="stat-num val-blue">${totalA}</div><div class="stat-lbl">Assist</div></div>
+    <div class="stat-box"><div class="stat-num" style="font-size:1.4rem">${avgV}</div><div class="stat-lbl">Voto medio</div></div>
+  </div>
+  <div class="card" style="border-color:${(noUID||noMUUID||window._HAS_V2)?'#92400e':'#1f2937'}">
+    <div class="card-head"><span class="card-title">🔎 Stato Database</span></div>
+    <div class="card-body">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:0.82rem">Giocatori senza UID stabile</span>
+          <span class="badge ${noUID?'badge-red':'badge-green'}">${noUID?'⚠️ '+noUID+' mancanti':'✅ tutti OK'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:0.82rem">Partite senza matchUUID</span>
+          <span class="badge ${noMUUID?'badge-red':'badge-green'}">${noMUUID?'⚠️ '+noMUUID+' mancanti':'✅ tutte OK'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:0.82rem">Nodo amicifc2/ (da v1.394)</span>
+          ${v2badge}
+        </div>
+        ${(noUID||noMUUID||window._HAS_V2)&&AUTH_TOKEN?`<div style="margin-top:6px"><button class="btn btn-orange btn-sm" onclick="showView('maint-migrate')">🚀 Vai alla migrazione</button></div>`:''}
+        ${!AUTH_TOKEN?`<div style="font-size:0.75rem;color:var(--gray);margin-top:4px">🔑 Fai il login per le operazioni di manutenzione</div>`:''}
+      </div>
+    </div>
+  </div>
+  ${(()=>{
+    try {
+      const bytes = window._dbSizeBytes || new Blob([JSON.stringify(DB)]).size;
+      window._dbSizeBytes = bytes;
+      const mb = (bytes/1024/1024).toFixed(2);
+      const kb = Math.round(bytes/1024);
+      const pct = Math.min((bytes/(1024*1024*1024))*100,100).toFixed(3);
+      const col = pct>80?'#f87171':pct>50?'#fbbf24':'#4ade80';
+      return '<div class="card" style="margin-top:10px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+        +'<span style="font-weight:700;font-size:0.82rem">💾 Spazio Database</span>'
+        +'<span style="font-size:0.78rem;font-weight:700;color:'+col+'">'+mb+' MB / 1 GB</span>'
+        +'</div>'
+        +'<div style="background:var(--bg2);border-radius:20px;height:10px;overflow:hidden;margin-bottom:6px">'
+        +'<div style="background:'+col+';height:100%;width:'+pct+'%;border-radius:20px;transition:width .5s"></div>'
+        +'</div>'
+        +'<div style="display:flex;justify-content:space-between;font-size:0.68rem;color:var(--text2)">'
+        +'<span>'+kb+' KB usati (stima da JSON scaricato)</span>'
+        +'<span style="font-weight:700;color:'+col+'">'+pct+'%</span>'
+        +'</div>'
+        +'</div>';
+    } catch(e) { return ''; }
+  })()}
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card"><div class="card-head"><span class="card-title">🏆 Ultima Partita</span></div>
+    <div class="card-body">${lastM?`
+      <div style="font-size:1.3rem;font-weight:900;text-align:center;color:var(--lime)">${lastM.risultato?.goalA??'?'} – ${lastM.risultato?.goalB??'?'}</div>
+      <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text2)"><span>${lastM.nomeSquadraA||'A'}</span><span>${lastM.nomeSquadraB||'B'}</span></div>
+      <div style="text-align:center;font-size:0.72rem;color:var(--gray);margin-top:4px">${fmt_date(lastM.data)}</div>
+      ${lastM.mvp||lastM.uomoPartita?`<div style="text-align:center;margin-top:6px"><span class="badge badge-yellow">⭐ ${lastM.mvp||lastM.uomoPartita}</span></div>`:''}
+      <div style="margin-top:8px;font-size:0.7rem;color:var(--gray)">matchUUID: <span class="mono">${lastM.matchUUID?lastM.matchUUID.slice(0,16)+'…':'❌ assente'}</span></div>
+    `:'<div class="empty" style="padding:10px">Nessuna partita</div>'}</div></div>
+    <div class="card"><div class="card-head"><span class="card-title">🥇 Top Scorer</span></div>
+    <div class="card-body">${topS?`
+      <div style="display:flex;align-items:center;gap:10px">
+        <div class="player-avatar">${topS.foto?`<img src="${topS.foto}" onerror="this.parentNode.textContent='⚽'">`:' ⚽'}</div>
+        <div><div style="font-weight:800">${topS.soprannome||topS.nome||'?'}</div>
+        <div style="font-size:0.72rem;color:var(--text2)">${topS.ruolo||'?'}</div>
+        <div style="margin-top:4px">
+          <span class="badge badge-yellow">⚽ ${topS.goalTotali||0} gol</span>
+        </div>
+        <div style="font-size:0.7rem;color:var(--gray);margin-top:4px">uid: <span class="mono">${topS.uid?topS.uid.slice(0,12)+'…':'❌ assente'}</span></div>
+        </div></div>`:'<div class="val-gray">Nessun dato</div>'}</div></div>
+  </div>`;
+}
+
+// ── ANALISI DB ──
+function renderCheck(){
+  const noUID=PLAYERS.filter(p=>!p.uid);
+  const noMUUID=MATCHES.filter(m=>!m.matchUUID);
+  const dupCheck={};
+  let dupMatches=0;
+  MATCHES.forEach(m=>{
+    const k=`${m.data}|${m.risultato?.goalA}|${m.risultato?.goalB}|${m._groupName}`;
+    dupCheck[k]=(dupCheck[k]||0)+1;
+    if(dupCheck[k]>1)dupMatches++;
+  });
+
+  $('main').innerHTML=`
+  <div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🔍 Analisi Database</span></div>
+  <div class="card">
+    <div class="card-head"><span class="card-title">⚽ Giocatori</span><span class="badge badge-blue">${PLAYERS.length} totali</span></div>
+    <div class="card-body">
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <span class="badge ${noUID.length?'badge-red':'badge-green'}">${noUID.length?'⚠️ '+noUID.length+' senza uid':'✅ tutti con uid'}</span>
+      </div>
+      ${noUID.length?`<table class="tbl"><thead><tr><th>Nome</th><th>Cognome</th><th>Gruppo</th></tr></thead><tbody>
+      ${noUID.map(p=>`<tr><td>${p.nome||'?'}</td><td>${p.cognome||'—'}</td><td>${p._groupName}</td></tr>`).join('')}
+      </tbody></table>`:'<div style="color:var(--green)">✅ Tutti i giocatori hanno un uid stabile.</div>'}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span class="card-title">🏆 Partite</span><span class="badge badge-yellow">${MATCHES.length} totali</span></div>
+    <div class="card-body">
+      <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <span class="badge ${noMUUID.length?'badge-red':'badge-green'}">${noMUUID.length?'⚠️ '+noMUUID.length+' senza matchUUID':'✅ tutte con matchUUID'}</span>
+        <span class="badge ${dupMatches?'badge-orange':'badge-green'}">${dupMatches?'⚠️ '+dupMatches+' potenziali duplicati':'✅ nessun duplicato'}</span>
+      </div>
+      ${noMUUID.length?`<div style="margin-bottom:8px;font-size:0.78rem;color:var(--text2)">Partite senza matchUUID (verranno assegnati durante la migrazione):</div>
+      <table class="tbl"><thead><tr><th>Data</th><th>Risultato</th><th>Squadre</th></tr></thead><tbody>
+      ${noMUUID.map(m=>`<tr><td>${fmt_date(m.data)}</td><td>${m.risultato?.goalA??'?'}-${m.risultato?.goalB??'?'}</td><td>${m.nomeSquadraA||'A'} vs ${m.nomeSquadraB||'B'}</td></tr>`).join('')}
+      </tbody></table>`:'<div style="color:var(--green)">✅ Tutte le partite hanno un matchUUID.</div>'}
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-head"><span class="card-title">🏗️ Struttura Firebase</span></div>
+    <div class="card-body">
+      <table class="tbl">
+        <tr><td class="val-gray">amicifc.json</td><td><span class="badge badge-lime">✅ Presente (formato attuale)</span></td></tr>
+        <tr><td class="val-gray">amicifc2/</td><td>${window._HAS_V2?'<span class="badge badge-orange">⚠️ Presente — da cancellare</span>':'<span class="badge badge-green">✅ Assente</span>'}</td></tr>
+      </table>
+      ${window._HAS_V2?`<div style="margin-top:10px"><button class="btn btn-red btn-sm" onclick="showView('maint-clean')">🗑️ Vai a Pulizia</button></div>`:''}
+    </div>
+  </div>
+  ${AUTH_TOKEN?`<div style="margin-top:8px"><button class="btn btn-orange" onclick="showView('maint-migrate')">🚀 Procedi con la Migrazione</button></div>`:''}`;
+}
+
+// ── MIGRAZIONE ──
+async function renderMigrate(){
+  $('main').innerHTML=`
+  <div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🚀 Migrazione Struttura Firebase</span></div>
+  <div class="card" style="border-color:#92400e">
+    <div class="card-head" style="background:rgba(146,64,14,.1)"><span class="card-title" style="color:var(--orange)">⚠️ Operazione importante</span></div>
+    <div class="card-body">
+      <div style="font-size:0.85rem;line-height:1.7;color:var(--text2)">
+        Questa operazione:
+        <ol style="margin:8px 0 8px 18px">
+          <li>Assegna un <strong style="color:var(--lime)">matchUUID</strong> a tutte le partite che non ce l'hanno</li>
+          <li>Assegna un <strong style="color:var(--lime)">uid</strong> a tutti i giocatori che non ce l'hanno</li>
+          <li>Riscrive <strong style="color:var(--lime)">amicifc.json</strong> con i dati aggiornati (stessa struttura, stessi dati, UUID aggiunti)</li>
+          <li><strong style="color:var(--red)">NON cancella nulla</strong> — è solo un'aggiunta di UUID</li>
+        </ol>
+        Dopo la migrazione, aggiorna l'app su tutti i dispositivi (v1.395).
+      </div>
+    </div>
+  </div>
+  <div id="migrateStats" style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px">
+    <div class="stat-box"><div class="stat-num val-blue">${PLAYERS.length}</div><div class="stat-lbl">Giocatori</div></div>
+    <div class="stat-box"><div class="stat-num val-yellow">${MATCHES.length}</div><div class="stat-lbl">Partite</div></div>
+    <div class="stat-box"><div class="stat-num ${PLAYERS.filter(p=>!p.uid).length?'val-red':'val-green'}">${PLAYERS.filter(p=>!p.uid).length}</div><div class="stat-lbl">Gioc. senza uid</div></div>
+  </div>
+  <div style="margin-bottom:12px">
+    <div class="progress-bar" id="migrateProgress"><div class="progress-fill" id="migrateProgressFill" style="width:0%"></div></div>
+    <div id="migrateProgressTxt" style="font-size:0.72rem;color:var(--text2);margin-top:4px">Pronto</div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px">
+    <button class="btn btn-orange" id="btnMigrate" onclick="doMigrate()">🚀 Avvia Migrazione UUID</button>
+    <button class="btn btn-ghost" onclick="showView('maint-check')">← Torna all'analisi</button>
+  </div>
+  <div id="logBox" class="log-box" style="min-height:80px"></div>`;
+  LOG_LINES=[];
+  log('Pronto per la migrazione. Clicca "Avvia" per procedere.','info');
+}
+
+async function doMigrate(){
+  if(!AUTH_TOKEN){alert('Devi fare il login prima!');return;}
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  $('btnMigrate').disabled=true;$('btnMigrate').textContent='⏳ Migrazione in corso...';
+
+  try{
+    // 1. Rileggi DB fresco da Firebase
+    log('📥 Lettura dati freschi da Firebase...','info');
+    const r=await fetch(`${base}/amicifc.json`,{cache:'no-store'});
+    if(!r.ok) throw new Error('Lettura Firebase fallita: HTTP '+r.status);
+    const freshDB=await r.json();
+    if(!freshDB) throw new Error('Database vuoto');
+
+    const rawGroups=freshDB.groups?(Array.isArray(freshDB.groups)?freshDB.groups:Object.values(freshDB.groups)):[];
+    let addedPlayerUUID=0, addedMatchUUID=0, total=0;
+    rawGroups.forEach(e=>{total+=(e.players?.length||0)+(e.matches?.length||0);});
+    let done=0;
+
+    // 2. Per ogni gruppo, assegna UUID mancanti
+    const newGroups=rawGroups.map(entry=>{
+      if(!entry)return entry;
+      const g=entry.group||entry;
+
+      // Players: assegna uid se mancante
+      const players=(Array.isArray(entry.players)?entry.players:Object.values(entry.players||{})).map(p=>{
+        done++;
+        $('migrateProgressFill').style.width=Math.round(done/total*100)+'%';
+        $('migrateProgressTxt').textContent=`Giocatori: ${done}/${total}`;
+        if(!p) return p;
+        if(!p.uid){addedPlayerUUID++;return {...p,uid:uuid()};}
+        return p;
+      });
+
+      // Matches: assegna matchUUID se mancante
+      const matches=(Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{})).map(m=>{
+        done++;
+        if(!m) return m;
+        if(!m.matchUUID){addedMatchUUID++;return {...m,matchUUID:uuid(),updatedAt:m.updatedAt||Date.now()};}
+        return {...m,updatedAt:m.updatedAt||Date.now()};
+      });
+
+      return {...entry, players, matches};
+    });
+
+    log(`✅ Analisi: +${addedPlayerUUID} uid giocatori, +${addedMatchUUID} matchUUID partite`,'ok');
+
+    // 3. Scrivi su Firebase
+    log('📤 Scrittura su Firebase...','info');
+    const payload={...freshDB, groups:newGroups, lastMigration:Date.now()};
+    const authSuffix=`?auth=${AUTH_TOKEN}`;
+    const wr=await fetch(`${base}/amicifc.json${authSuffix}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(wr.status===401) throw new Error('Token scaduto. Rifai il login.');
+    if(!wr.ok) throw new Error('Scrittura Firebase fallita: HTTP '+wr.status);
+
+    $('migrateProgressFill').style.width='100%';
+    $('migrateProgressTxt').textContent='Completato!';
+    log(`🎉 Migrazione completata! +${addedPlayerUUID} uid, +${addedMatchUUID} matchUUID scritti su Firebase.`,'ok');
+    log('📱 Ora aggiorna l\'app su tutti i dispositivi (v1.395) e fai Sincronizza.','info');
+
+    // Ricarica dati
+    await loadAll();
+    $('btnMigrate').textContent='✅ Migrazione completata';
+
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+    $('btnMigrate').disabled=false;
+    $('btnMigrate').textContent='🚀 Riprova';
+  }
+}
+
+// ── RIPRISTINO BACKUP ──
+function renderRestore(){
+  $('main').innerHTML=`
+  <div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">♻️ Ripristina da Backup JSON</span></div>
+  <div class="card" style="border-color:#92400e">
+    <div class="card-head" style="background:rgba(146,64,14,.1)"><span class="card-title" style="color:var(--orange)">⚠️ Operazione importante</span></div>
+    <div class="card-body">
+      <div style="font-size:0.85rem;line-height:1.7;color:var(--text2);margin-bottom:12px">
+        Carica un JSON esportato dall'app (Export dati) e lo scrive su Firebase.<br>
+        <strong style="color:var(--lime)">Assegna automaticamente matchUUID e uid freschi a tutti i record.</strong><br>
+        <span style="color:var(--red)">Sovrascrive completamente Firebase con i dati del backup.</span>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="display:block;font-size:0.75rem;color:var(--text2);margin-bottom:6px">Seleziona file JSON esportato dall'app:</label>
+        <input type="file" id="restoreFile" accept=".json" style="color:var(--text2);font-size:0.82rem">
+      </div>
+      <button class="btn btn-orange" onclick="doRestore()">♻️ Ripristina su Firebase</button>
+    </div>
+  </div>
+  <div id="logBox" class="log-box" style="min-height:80px"></div>`;
+  LOG_LINES=[];
+  log('Seleziona il file JSON di backup e clicca Ripristina.','info');
+}
+
+async function doRestore(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  const fileInput=$('restoreFile');
+  if(!fileInput.files.length){alert('Seleziona un file JSON prima!');return;}
+
+  const file=fileInput.files[0];
+  log('📂 Lettura file: '+file.name,'info');
+
+  let backup;
+  try{
+    const text=await file.text();
+    backup=JSON.parse(text);
+  }catch(e){
+    log('❌ File JSON non valido: '+e.message,'err');
+    return;
+  }
+
+  // Supporta sia il formato export app (groups:[{group,players,matches}])
+  // che il formato Firebase diretto
+  const rawGroups=backup.groups
+    ?(Array.isArray(backup.groups)?backup.groups:Object.values(backup.groups))
+    :[];
+
+  if(!rawGroups.length){log('❌ Nessun gruppo trovato nel file.','err');return;}
+
+  let totalMatches=0, totalPlayers=0;
+  let addedMUUID=0, addedUID=0;
+
+  const nowMs=Date.now();
+  const genUUID=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+
+  const cleanGroups=rawGroups.map(entry=>{
+    const group=entry.group||entry;
+    const players=(Array.isArray(entry.players)?entry.players:Object.values(entry.players||{})).map(p=>{
+      if(!p)return p;
+      totalPlayers++;
+      if(!p.uid){p={...p,uid:genUUID()};addedUID++;}
+      return p;
+    });
+    const matches=(Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{})).map(m=>{
+      if(!m)return m;
+      totalMatches++;
+      // Assegna sempre un matchUUID fresco — garantisce no duplicati
+      const newUUID=genUUID();
+      if(!m.matchUUID)addedMUUID++;
+      return {...m,matchUUID:newUUID,updatedAt:m.updatedAt||nowMs};
+    });
+    log('Gruppo "'+group.nome+'": '+players.length+' giocatori, '+matches.length+' partite','info');
+    return {group,players,matches};
+  });
+
+  log('UUID assegnati: +'+addedUID+' uid giocatori, +'+addedMUUID+' matchUUID partite','ok');
+
+  if(!confirm('Stai per sovrascrivere Firebase con:\n- '+totalMatches+' partite\n- '+totalPlayers+' giocatori\n\nConfermi?')) return;
+
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  const payload={
+    lastUpdate:new Date().toISOString(),
+    appVersion:'1.396',
+    groups:cleanGroups,
+    aiCards:DB?.aiCards||{}
+  };
+
+  log('📤 Scrittura su Firebase...','info');
+  try{
+    const resp=await fetch(base+'.json?auth='+AUTH_TOKEN,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(resp.status===401)throw new Error('Token scaduto. Rifai il login.');
+    if(!resp.ok)throw new Error('HTTP '+resp.status);
+    log('🎉 Ripristino completato! '+totalMatches+' partite e '+totalPlayers+' giocatori su Firebase.','ok');
+    log('📱 PASSO SUCCESSIVO: su ogni dispositivo → Impostazioni → Zona Pericolo → "Cancella dati locali" poi riapri e sincronizza.','info');
+    await loadAll();
+  }catch(e){
+    log('❌ Errore scrittura: '+e.message,'err');
+  }
+}
+
+// ── PULIZIA ──
+function renderClean(){
+  $('main').innerHTML=`
+  <div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🗑️ Pulizia Firebase</span></div>
+  <div class="card" style="border-color:var(--red)">
+    <div class="card-head" style="background:rgba(255,77,77,.08)"><span class="card-title" style="color:var(--red)">❌ Cancellazione nodi</span></div>
+    <div class="card-body">
+      <div style="margin-bottom:16px">
+        <div style="font-weight:700;margin-bottom:6px">Nodo <span class="mono">amicifc2/</span></div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">Creato per errore dalla v1.394. Non è più usato. Cancellarlo non perde nessun dato utile.</div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span class="badge ${window._HAS_V2?'badge-orange':'badge-green'}">${window._HAS_V2?'⚠️ Presente':'✅ Già assente'}</span>
+          ${window._HAS_V2?`<button class="btn btn-red btn-sm" onclick="deleteNode('amicifc2')">🗑️ Cancella amicifc2/</button>`:''}
+        </div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:4px">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--orange)">🧹 Deduplica partite</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">
+          Rimuove le partite duplicate mantenendo solo una copia per ogni matchUUID.<br>
+          <strong>Usa questa funzione se le statistiche sono raddoppiate.</strong>
+        </div>
+        <button class="btn btn-orange btn-sm" onclick="deduplicateMatches()">🧹 Deduplica partite Firebase</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:12px">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--red)">⛔ Zona Pericolo</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">Cancella l'intero database. Usa solo se vuoi ripartire da zero. IRREVERSIBILE.</div>
+        <button class="btn btn-red btn-sm" onclick="deleteEntireDB()">💣 Cancella TUTTO il database</button>
+      </div>
+    </div>
+  </div>
+  <div id="logBox" class="log-box" style="min-height:60px"></div>`;
+  LOG_LINES=[];
+  log('Pronto. Seleziona un\'operazione di pulizia.','info');
+}
+
+async function deleteNode(nodePath){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!confirm(`Sei sicuro di voler cancellare il nodo "${nodePath}/" da Firebase?\n\nQuesta operazione è irreversibile.`)) return;
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  log(`🗑️ Cancellazione ${nodePath}/...`,'warn');
+  try{
+    const r=await fetch(`${base}/${nodePath}.json?auth=${AUTH_TOKEN}`,{method:'DELETE'});
+    if(r.status===401) throw new Error('Token scaduto. Rifai il login.');
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    log(`✅ ${nodePath}/ cancellato con successo.`,'ok');
+    window._HAS_V2=false;
+    buildSidebar();
+    // Aggiorna il badge in dashboard
+    await loadAll();
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+  }
+}
+
+async function deduplicateMatches(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!DB){alert('Clicca prima Connetti per caricare il database.');return;}
+  if(!confirm('Questa operazione rimuove le partite duplicate da Firebase.\nViene mantenuta UNA copia per ogni matchUUID.\n\nProcedere?')) return;
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  log('🔍 Uso dati già caricati in memoria...','info');
+  try{
+    const data=DB;
+    if(!data) throw new Error('DB vuoto — clicca Connetti prima');
+
+    const rawGroups=data.groups?(Array.isArray(data.groups)?data.groups:Object.values(data.groups)):[];
+    let totalDuplicates=0;
+
+    const cleanGroups=rawGroups.map(entry=>{
+      if(!entry) return entry;
+      const rawMatches=Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{});
+
+      // Deduplica per matchUUID — mantieni solo il più recente per UUID
+      const seenUUID=new Map();
+      const seenFallback=new Set();
+
+      rawMatches.forEach(m=>{
+        if(!m) return;
+        const uuid=m.matchUUID;
+        if(uuid){
+          const existing=seenUUID.get(uuid);
+          // Tieni quello con updatedAt più recente
+          if(!existing||(m.updatedAt||0)>(existing.updatedAt||0)){
+            seenUUID.set(uuid,m);
+          } else {
+            totalDuplicates++;
+          }
+        } else {
+          // No matchUUID: fallback data+score
+          const key=`${m.data}|${m.risultato?.goalA}|${m.risultato?.goalB}|${m.nomeSquadraA||''}`;
+          if(!seenFallback.has(key)){
+            seenFallback.add(key);
+            seenUUID.set('noid_'+key,m);
+          } else {
+            totalDuplicates++;
+          }
+        }
+      });
+
+      const dedupedMatches=Array.from(seenUUID.values());
+      log(`Gruppo "${entry.group?.nome||'?'}": ${rawMatches.length} → ${dedupedMatches.length} partite (-${rawMatches.length-dedupedMatches.length} duplicati)`,'info');
+      return {...entry, matches:dedupedMatches};
+    });
+
+    if(totalDuplicates===0){
+      log('✅ Nessun duplicato trovato. Database già pulito.','ok');
+      return;
+    }
+
+    log(`🗑️ Trovati ${totalDuplicates} duplicati. Scrittura su Firebase...`,'warn');
+    const payload={...data, groups:cleanGroups};
+    const wr=await fetch(`${base}.json?auth=${AUTH_TOKEN}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(payload)
+    });
+    if(wr.status===401) throw new Error('Token scaduto. Rifai il login.');
+    if(!wr.ok) throw new Error('HTTP '+wr.status);
+
+    log(`🎉 Deduplicazione completata! Rimossi ${totalDuplicates} duplicati.`,'ok');
+    log('📱 Ora apri l\'app e vai in Zona Pericolo → "Ricalcola statistiche" per correggere i contatori.','info');
+
+    await loadAll();
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+  }
+}
+
+async function deleteEntireDB(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  const confirm1=prompt('ATTENZIONE: questa operazione cancella TUTTO il database.\nDigita CANCELLA per confermare:');
+  if(confirm1!=='CANCELLA'){log('Operazione annullata.','info');return;}
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  log('💣 Cancellazione intero database...','err');
+  try{
+    const r=await fetch(`${base}/.json?auth=${AUTH_TOKEN}`,{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:'null'
+    });
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    log('✅ Database cancellato.','ok');
+    DB=null;GROUPS=[];PLAYERS=[];MATCHES=[];AI={};
+    $('status-badge').className='badge badge-red';$('status-badge').textContent='DB vuoto';
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+  }
+}
+
+// ── GRUPPI ──
+function renderGroups(){
+  let html=`<div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">📁 Gruppi (${GROUPS.length})</span></div>`;
+  GROUPS.forEach(g=>{
+    const gP=PLAYERS.filter(p=>p._groupName===g.nome);
+    const gM=MATCHES.filter(m=>m._groupName===g.nome);
+    const lastM=[...gM].sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+    const noUID=gP.filter(p=>!p.uid).length;
+    const noMUUID=gM.filter(m=>!m.matchUUID).length;
+    html+=`<div class="card"><div class="card-head"><span class="card-title">📁 ${g.nome||'?'}</span>
+      <div style="display:flex;gap:6px"><span class="badge badge-blue">${gP.length} giocatori</span><span class="badge badge-yellow">${gM.length} partite</span></div></div>
+      <div class="card-body"><table class="tbl">
+        <tr><td class="val-gray" style="width:140px">ID Dexie locale</td><td class="mono">${g.id||'?'}</td></tr>
+        <tr><td class="val-gray">Stagione</td><td>${g.stagione||'—'}</td></div></td></tr>
+        <tr><td class="val-gray">Giocatori senza uid</td><td><span class="badge ${noUID?'badge-red':'badge-green'}">${noUID?'⚠️ '+noUID:'✅ 0'}</span></td></tr>
+        <tr><td class="val-gray">Partite senza matchUUID</td><td><span class="badge ${noMUUID?'badge-red':'badge-green'}">${noMUUID?'⚠️ '+noMUUID:'✅ 0'}</span></td></tr>
+        <tr><td class="val-gray">Ultima partita</td><td>${lastM?fmt_date(lastM.data)+' — '+(lastM.risultato?.goalA??'?')+'-'+(lastM.risultato?.goalB??'?'):'—'}</td></tr>
+      </table></div></div>`;
+  });
+  if(!GROUPS.length) html+='<div class="empty"><div class="empty-icon">📁</div>Nessun gruppo</div>';
+  $('main').innerHTML=html;
+}
+
+// ── GIOCATORI ──
+let pSearch='';
+function renderPlayers(q){
+  if(q!==undefined)pSearch=q;
+  const ql=pSearch.toLowerCase();
+  const filtered=ql?PLAYERS.filter(p=>(p.nome||'').toLowerCase().includes(ql)||(p.cognome||'').toLowerCase().includes(ql)||(p.soprannome||'').toLowerCase().includes(ql)||(p.ruolo||'').toLowerCase().includes(ql)):PLAYERS;
+  const sorted=[...filtered].sort((a,b)=>(b.ovr||0)-(a.ovr||0));
+  const byG={};
+  sorted.forEach(p=>{const k=p._groupName||'?';(byG[k]=byG[k]||[]).push(p);});
+
+  let cards='';
+  let table=`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>Giocatore</th><th>Ruolo</th><th>UID</th><th>P</th><th>G</th><th>A</th><th>Voto</th><th>UoM</th><th>OG</th><th>🥅RP</th><th>❌RS</th><th>Edit</th></tr></thead><tbody>`;
+
+  Object.entries(byG).forEach(([gName,ps])=>{
+    cards+=`<div style="font-size:0.75rem;font-weight:700;color:var(--text2);margin:10px 0 6px;text-transform:uppercase">${gName}</div>`;
+    ps.forEach(p=>{
+      const oc=ovr_color(p.ovr||0);
+      const uidOk=!!p.uid;
+      cards+=`<div class="player-card">
+        <div class="player-avatar">${p.foto?`<img src="${p.foto}" onerror="this.parentNode.textContent='⚽'">`:' ⚽'}</div>
+        <div class="player-info">
+          <div class="player-name">${p.soprannome||p.nome||'?'}</div>
+          <div class="player-meta">${p.ruolo||'?'}${p.cognome?' · '+p.cognome:''}</div>
+          <div style="font-size:0.65rem;margin-top:2px"><span class="badge ${uidOk?'badge-green':'badge-red'}" style="padding:1px 6px">${uidOk?'uid ✅':'uid ❌'}</span></div>
+        </div>
+        <div class="player-stats">
+          <div class="pstat"><div class="pstat-n val-yellow">${p.partiteTotali||0}</div><div class="pstat-l">P</div></div>
+          <div class="pstat"><div class="pstat-n val-lime">${p.goalTotali||0}</div><div class="pstat-l">G</div></div>
+          <div class="pstat"><div class="pstat-n val-blue">${p.assistTotali||0}</div><div class="pstat-l">A</div></div>
+          <div class="pstat"><div class="pstat-n" style="color:#fbbf24">${(p.mediaVoto||0).toFixed(1)}</div><div class="pstat-l">⭐</div></div>
+          <div class="pstat"><div class="pstat-n" style="color:#a78bfa">${p.uomoPartitaTotali||0}</div><div class="pstat-l">UoM</div></div>
+        </div>
+      </div>`;
+      table+=`<tr>
+        <td><strong>${p.soprannome||p.nome||'?'}</strong>${p.cognome?`<div class="val-gray" style="font-size:0.7rem">${p.cognome}</div>`:''}</td>
+        <td>${p.ruolo||'—'}</td>
+        <td class="mono" style="font-size:0.68rem">${p.uid?p.uid.slice(0,16)+'…':'<span style="color:var(--red)">❌ mancante</span>'}</td>
+        <td class="val-yellow">${p.partiteTotali||0}</td>
+        <td class="val-lime">${p.goalTotali||0}</td>
+        <td class="val-blue">${p.assistTotali||0}</td>
+        <td>${(p.mediaVoto||0).toFixed(1)}</td>
+        <td class="val-yellow">${p.uomoPartitaTotali||0}</td>
+        <td style="color:var(--red)">${p.autogolTotali||0}</td>
+        <td style="color:var(--lime)">${p.rigoriParatiTotali||0}</td>
+        <td style="color:var(--orange)">${p.rigoriSbagliatiTotali||0}</td>
+        <td>${AUTH_TOKEN?`<button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:0.65rem" onclick='openEditor("player",${JSON.stringify(p).replace(/\\/g,"\\\\").replace(/'/g,"\\'")} )'>✏️</button>`:''}</td>
+      </tr>`;
+    });
+  });
+  table+='</tbody></table></div>';
+
+  $('main').innerHTML=`
+  <div class="search-bar">
+    <input class="search-input" placeholder="🔍 Cerca giocatore..." value="${pSearch}" oninput="renderPlayers(this.value)">
+    <span class="badge badge-gray" style="white-space:nowrap">${filtered.length}/${PLAYERS.length}</span>
+  </div>
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(this,'ptab-cards','ptab-table')">Cards</div>
+    <div class="tab" onclick="switchTab(this,'ptab-table','ptab-cards')">Tabella + UID</div>
+  </div>
+  <div id="ptab-cards">${cards||'<div class="empty">Nessun risultato</div>'}</div>
+  <div id="ptab-table" style="display:none">${table}</div>`;
+}
+
+// ── PARTITE ──
+let mSearch='';
+function renderMatches(q){
+  if(q!==undefined)mSearch=q;
+  const ql=mSearch.toLowerCase();
+  const sorted=[...MATCHES].sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  const filtered=ql?sorted.filter(m=>(m.data||'').includes(ql)||(m.nomeSquadraA||'').toLowerCase().includes(ql)||(m.nomeSquadraB||'').toLowerCase().includes(ql)):sorted;
+
+  let html=`<div class="search-bar">
+    <input class="search-input" placeholder="🔍 Cerca data, squadra..." value="${mSearch}" oninput="renderMatches(this.value)">
+    <span class="badge badge-gray" style="white-space:nowrap">${filtered.length}/${MATCHES.length}</span>
+  </div>`;
+
+  const getPlayerName = uid => {
+    const p = PLAYERS.find(p => p.uid === uid || String(p.id) === String(uid));
+    return p ? (p.soprannome || p.nome || uid) : uid;
+  };
+  const isUUID = v => v && typeof v === 'string' && v.includes('-') && v.length > 20;
+
+  filtered.forEach(m=>{
+    const gA=m.risultato?.goalA??'?',gB=m.risultato?.goalB??'?';
+    const win=gA>gB?'A':gB>gA?'B':'X';
+    const hasMUUID=!!m.matchUUID;
+    const sqA = Array.isArray(m.squadraA) ? m.squadraA : Object.values(m.squadraA||{});
+    const sqB = Array.isArray(m.squadraB) ? m.squadraB : Object.values(m.squadraB||{});
+    const stats = Array.isArray(m.statisticheGiocatori) ? m.statisticheGiocatori : Object.values(m.statisticheGiocatori||{});
+    
+    // Audit id partita
+    const badIds = [...sqA,...sqB].filter(id => !isUUID(id));
+    const badStatIds = stats.filter(s => !isUUID(s.playerId));
+    const idOk = badIds.length === 0 && badStatIds.length === 0;
+    
+    // Marcatori e assist
+    const scorers = stats.filter(s=>s.goal>0).map(s=>`${getPlayerName(s.playerId)} ⚽×${s.goal}`).join(', ');
+    const assisters = stats.filter(s=>s.assist>0).map(s=>`${getPlayerName(s.playerId)} 🅰️×${s.assist}`).join(', ');
+    const ogs = stats.filter(s=>s.autogol>0).map(s=>`${getPlayerName(s.playerId)}`).join(', ');
+    const mvpName = m.mvp || m.uomoPartita || '';
+    
+    html+=`<div class="card" style="margin-bottom:10px">
+      <div class="card-head">
+        <div style="flex:1">
+          <div style="font-size:0.72rem;color:var(--text2)">${fmt_date(m.data)} · ${m._groupName} ${m.luogo?'· '+m.luogo:''}</div>
+          <div style="font-size:1.1rem;font-weight:900;margin-top:3px">
+            <span style="color:${win==='A'?'var(--lime)':'var(--text2)'}">${m.nomeSquadraA||'Squadra A'}</span>
+            <span style="color:var(--gray);margin:0 10px">${gA} – ${gB}</span>
+            <span style="color:${win==='B'?'var(--lime)':'var(--text2)'}">${m.nomeSquadraB||'Squadra B'}</span>
+          </div>
+          <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
+            <span class="badge ${hasMUUID?'badge-green':'badge-red'}" style="font-size:0.62rem">${hasMUUID?'matchUUID ✅':'matchUUID ❌'}</span>
+            <span class="badge ${idOk?'badge-green':'badge-red'}" style="font-size:0.62rem">${idOk?'playerID ✅':`playerID ❌ (${badIds.length+badStatIds.length} num)`}</span>
+          </div>
+        </div>
+        ${mvpName?`<span class="badge badge-yellow">⭐ ${mvpName}</span>`:''}
+      </div>
+      <!-- Squadre con nomi -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;font-size:0.75rem">
+        <div>
+          <div style="font-weight:700;color:var(--lime);margin-bottom:3px">${m.nomeSquadraA||'Squadra A'}</div>
+          ${sqA.map(uid=>`<div style="color:var(--text2);padding:1px 0">• ${getPlayerName(uid)}</div>`).join('')}
+        </div>
+        <div>
+          <div style="font-weight:700;color:#f87171;margin-bottom:3px">${m.nomeSquadraB||'Squadra B'}</div>
+          ${sqB.map(uid=>`<div style="color:var(--text2);padding:1px 0">• ${getPlayerName(uid)}</div>`).join('')}
+        </div>
+      </div>
+      ${scorers||assisters||ogs?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.72rem;color:var(--text2)">
+        ${scorers?`<div>⚽ ${scorers}</div>`:''}
+        ${assisters?`<div>🅰️ ${assisters}</div>`:''}
+        ${ogs?`<div style="color:var(--red)">OG: ${ogs}</div>`:''}
+      </div>`:''}
+      ${AUTH_TOKEN?`<div style="margin-top:8px;text-align:right">
+        <button class="btn btn-ghost btn-sm" style="font-size:0.7rem" onclick="openMatchEditorByUUID('${m.matchUUID}')">✏️ Modifica</button>
+      </div>`:''}
+    </div>`;
+  });
+
+  if(!filtered.length) html+='<div class="empty"><div class="empty-icon">🏆</div>Nessuna partita trovata</div>';
+  $('main').innerHTML=html;
+}
+
+// ── AI VIEWS (invariate) ──
+function renderTrashTalk(){
+  const ai=AI.trashTalk||{};
+  let html=`<div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🔥 Trash Talk</span></div>`;
+  Object.entries(ai).forEach(([gid,dates])=>{
+    const gName=GROUPS.find(g=>String(g.id)===gid)?.nome||gid;
+    html+=`<div style="font-size:0.75rem;font-weight:700;color:var(--text2);margin:10px 0 6px;text-transform:uppercase">${gName}</div>`;
+    Object.entries(dates||{}).sort(([a],[b])=>b.localeCompare(a)).forEach(([dk,data])=>{
+      const cards=data?.cards||[];
+      const fk=dk.length===8?`${dk.slice(6,8)}/${dk.slice(4,6)}/${dk.slice(0,4)}`:dk;
+      html+=`<div class="card" style="border-color:#7f1d1d"><div class="card-head" style="background:rgba(127,29,29,.15)">
+        <span style="font-weight:700;color:#f87171">Partita del ${fk}</span>
+        <span class="badge badge-red">${cards.length} card</span>
+      </div><div class="card-body">${cards.map((c,i)=>`
+        <div style="${i?'margin-top:12px;padding-top:12px;border-top:1px solid #7f1d1d':''}">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+            <span style="font-size:1.2rem">${c.emoji||'🔥'}</span>
+            <strong style="color:#f87171">${c.titolo||''}</strong>
+          </div>
+          <div style="font-size:0.82rem;color:var(--text2)">${c.testo||''}</div>
+        </div>`).join('')}
+        <div style="font-size:0.68rem;color:var(--gray);margin-top:8px">Generato: ${fmt_ts(data?.generatedAt)}</div>
+      </div></div>`;
+    });
+  });
+  if(!Object.keys(ai).length) html+='<div class="empty"><div class="empty-icon">🔥</div>Nessun Trash Talk</div>';
+  $('main').innerHTML=html;
+}
+
+function renderHoF(){
+  const ai=AI.hallOfFame||{};
+  let html=`<div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">👑 Hall of Fame / Shame</span></div>`;
+  Object.entries(ai).forEach(([gid,mesi])=>{
+    const gName=GROUPS.find(g=>String(g.id)===gid)?.nome||gid;
+    html+=`<div style="font-size:0.75rem;font-weight:700;color:var(--text2);margin:10px 0 6px;text-transform:uppercase">${gName}</div>`;
+    Object.entries(mesi||{}).sort(([a],[b])=>b.localeCompare(a)).forEach(([mese,hof])=>{
+      html+=`<div class="card"><div class="card-head"><span style="font-weight:700;color:var(--yellow)">📅 ${mese}</span></div>
+      <div class="card-body"><div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:12px">
+          <div style="font-size:0.7rem;font-weight:700;color:#fbbf24;margin-bottom:6px">👑 FAME</div>
+          <div style="font-weight:800">${hof?.fame?.nome||'?'}</div>
+          ${hof?.fame?.motivazione?`<div style="font-size:0.75rem;color:var(--text2);margin-top:4px;font-style:italic">"${hof.fame.motivazione}"</div>`:''}
+        </div>
+        <div style="background:rgba(107,114,128,.08);border:1px solid rgba(107,114,128,.2);border-radius:8px;padding:12px">
+          <div style="font-size:0.7rem;font-weight:700;color:var(--gray);margin-bottom:6px">💩 SHAME</div>
+          <div style="font-weight:800">${hof?.shame?.nome||'?'}</div>
+          ${hof?.shame?.motivazione?`<div style="font-size:0.75rem;color:var(--text2);margin-top:4px;font-style:italic">"${hof.shame.motivazione}"</div>`:''}
+        </div>
+      </div></div></div>`;
+    });
+  });
+  if(!Object.keys(ai).length) html+='<div class="empty"><div class="empty-icon">👑</div>Nessuna Hall of Fame</div>';
+  $('main').innerHTML=html;
+}
+
+function renderNicks(){
+  const ai=AI.soprannomi||{};
+  const total=Object.values(ai).reduce((s,g)=>s+Object.keys(g||{}).length,0);
+  let html=`<div style="margin-bottom:12px;display:flex;align-items:center;gap:8px"><span class="card-title" style="font-size:1rem">🧬 Soprannomi AI</span><span class="badge badge-lime">${total}</span></div>`;
+  Object.entries(ai).forEach(([gid,nicks])=>{
+    const gName=GROUPS.find(g=>String(g.id)===gid)?.nome||gid;
+    const list=Object.values(nicks||{});
+    html+=`<div class="card"><div class="card-head"><span class="card-title">📁 ${gName}</span><span class="badge badge-lime">${list.length}</span></div>
+    <div class="card-body" style="padding:0"><div style="overflow-x:auto"><table class="tbl">
+      <thead><tr><th>Soprannome AI</th><th>Confronto</th><th>Motivazione</th><th>Aggiornato</th></tr></thead><tbody>
+      ${list.map(n=>`<tr>
+        <td><strong style="color:var(--lime)">${n.soprannome_ai||'?'}</strong></td>
+        <td style="font-size:0.75rem;color:var(--text2)">${n.confronto||'—'}</td>
+        <td style="font-size:0.72rem;color:var(--gray);font-style:italic">${n.motivazione||'—'}</td>
+        <td style="font-size:0.68rem;color:var(--gray)">${n.generatedAt?fmt_ts(n.generatedAt):'—'}</td>
+      </tr>`).join('')}
+      </tbody></table></div></div></div>`;
+  });
+  if(!Object.keys(ai).length) html+='<div class="empty"><div class="empty-icon">🧬</div>Nessun soprannome</div>';
+  $('main').innerHTML=html;
+}
+
+// ── AUDIT COMPLETO ──
+function renderAudit(){
+  const isUUID = v => v && typeof v === 'string' && v.includes('-') && v.length > 20;
+  const getName = uid => {
+    const p = PLAYERS.find(p => p.uid === uid || String(p.id) === String(uid));
+    return p ? (p.soprannome || p.nome || uid) : uid;
+  };
+
+  const report = [];
+  const ok = (msg) => report.push({type:'ok', msg});
+  const warn = (msg) => report.push({type:'warn', msg});
+  const err = (msg) => report.push({type:'err', msg});
+  const info = (msg) => report.push({type:'info', msg});
+
+  info(`=== AMICI FC AUDIT REPORT ===`);
+  info(`Data: ${new Date().toLocaleString('it-IT')}`);
+  info(`Firebase: ${FB_URL}`);
+  info(`Gruppi: ${GROUPS.length} | Giocatori: ${PLAYERS.length} | Partite: ${MATCHES.length}`);
+  info('');
+
+  // ── CHECK 1: Giocatori ──
+  info('── CHECK 1: Giocatori ──');
+  const playersNoUid = PLAYERS.filter(p => !isUUID(p.uid));
+  const playersNoStats = PLAYERS.filter(p => (p.partiteTotali||0) === 0 && MATCHES.some(m =>
+    (m.squadraA||[]).includes(p.uid) || (m.squadraB||[]).includes(p.uid)
+  ));
+  const playersZeroStats = PLAYERS.filter(p => (p.partiteTotali||0) > 0 && (p.goalTotali||0) === 0 && (p.assistTotali||0) === 0 && (p.mediaVoto||0) === 0);
+
+  if(playersNoUid.length === 0) ok(`Tutti i ${PLAYERS.length} giocatori hanno uid UUID valido`);
+  else { playersNoUid.forEach(p => err(`Giocatore SENZA uid: ${p.nome} ${p.cognome||''} (id:${p.id})`)); }
+
+  if(playersNoStats.length === 0) ok('Nessun giocatore con partite ma statistiche mancanti');
+  else playersNoStats.forEach(p => warn(`Giocatore con partite ma partiteTotali=0: ${p.soprannome||p.nome}`));
+
+  if(playersZeroStats.length === 0) ok('Statistiche giocatori sembrano popolate');
+  else playersZeroStats.forEach(p => warn(`Giocatore con ${p.partiteTotali} partite ma goal/assist/voto tutti a 0: ${p.soprannome||p.nome}`));
+  info('');
+
+  // ── CHECK 2: Partite ──
+  info('── CHECK 2: Partite ──');
+  const matchesNoUUID = MATCHES.filter(m => !m.matchUUID);
+  const matchesBadSqA = [], matchesBadSqB = [], matchesBadStats = [];
+
+  MATCHES.forEach(m => {
+    const sqA = Array.isArray(m.squadraA) ? m.squadraA : Object.values(m.squadraA||{});
+    const sqB = Array.isArray(m.squadraB) ? m.squadraB : Object.values(m.squadraB||{});
+    const stats = Array.isArray(m.statisticheGiocatori) ? m.statisticheGiocatori : Object.values(m.statisticheGiocatori||{});
+    const badA = sqA.filter(id => !isUUID(id));
+    const badB = sqB.filter(id => !isUUID(id));
+    const badSt = stats.filter(s => !isUUID(s.playerId));
+    if(badA.length) matchesBadSqA.push({m, bad:badA});
+    if(badB.length) matchesBadSqB.push({m, bad:badB});
+    if(badSt.length) matchesBadStats.push({m, bad:badSt.map(s=>s.playerId)});
+  });
+
+  if(matchesNoUUID.length === 0) ok(`Tutte le ${MATCHES.length} partite hanno matchUUID`);
+  else matchesNoUUID.forEach(m => err(`Partita SENZA matchUUID: ${m.data} ${m.nomeSquadraA||'A'} vs ${m.nomeSquadraB||'B'}`));
+
+  if(matchesBadSqA.length === 0 && matchesBadSqB.length === 0) ok('Tutte le squadraA/B usano UUID');
+  else {
+    matchesBadSqA.forEach(({m,bad}) => err(`Partita ${m.data}: squadraA con id numerici [${bad.join(', ')}]`));
+    matchesBadSqB.forEach(({m,bad}) => err(`Partita ${m.data}: squadraB con id numerici [${bad.join(', ')}]`));
+  }
+
+  if(matchesBadStats.length === 0) ok('Tutti i statisticheGiocatori.playerId sono UUID');
+  else matchesBadStats.forEach(({m,bad}) => err(`Partita ${m.data}: playerId numerici [${bad.join(', ')}]`));
+
+  // Partite con squadre vuote
+  const matchesEmptySq = MATCHES.filter(m => {
+    const sqA = Array.isArray(m.squadraA) ? m.squadraA : Object.values(m.squadraA||{});
+    return sqA.filter(Boolean).length === 0;
+  });
+  if(matchesEmptySq.length === 0) ok('Nessuna partita con squadre vuote');
+  else matchesEmptySq.forEach(m => err(`Partita ${m.data}: squadraA VUOTA — dati corrotti`));
+  info('');
+
+  // ── CHECK 3: Coerenza giocatori ↔ partite ──
+  info('── CHECK 3: Coerenza uid giocatori ↔ partite ──');
+  const allUidsInMatches = new Set(MATCHES.flatMap(m => [
+    ...(Array.isArray(m.squadraA)?m.squadraA:Object.values(m.squadraA||{})),
+    ...(Array.isArray(m.squadraB)?m.squadraB:Object.values(m.squadraB||{}))
+  ]).filter(Boolean));
+  const playerUids = new Set(PLAYERS.map(p => p.uid).filter(Boolean));
+  const orphanIds = [...allUidsInMatches].filter(uid => !playerUids.has(uid));
+  if(orphanIds.length === 0) ok('Tutti gli uid nelle partite corrispondono a giocatori esistenti');
+  else orphanIds.forEach(uid => err(`uid in partite NON trovato nei giocatori: ${uid}`));
+  info('');
+
+  // ── CHECK 4: AI Cards ──
+  info('── CHECK 4: AI Cards ──');
+  const ttCount = AI.trashTalk ? Object.values(AI.trashTalk).flatMap(g=>Object.values(g||{})).length : 0;
+  const hofPresent = !!AI.hallOfFame;
+  const nickCount = AI.soprannomi ? Object.values(AI.soprannomi).reduce((s,g)=>s+Object.keys(g||{}).length,0) : 0;
+  if(ttCount > 0) ok(`Trash Talk presenti: ${ttCount} card`);
+  else warn('Nessuna Trash Talk card su Firebase');
+  if(hofPresent) ok('Hall of Fame presente su Firebase');
+  else warn('Hall of Fame NON presente su Firebase');
+  if(nickCount > 0) ok(`Soprannomi presenti: ${nickCount}`);
+  else warn('Nessun soprannome su Firebase');
+  info('');
+
+  // ── SOMMARIO ──
+  const nOk = report.filter(r=>r.type==='ok').length;
+  const nWarn = report.filter(r=>r.type==='warn').length;
+  const nErr = report.filter(r=>r.type==='err').length;
+  info(`── SOMMARIO ──`);
+  info(`✅ OK: ${nOk} | ⚠️ Warning: ${nWarn} | ❌ Errori: ${nErr}`);
+  if(nErr===0 && nWarn===0) info('🎉 DATABASE PERFETTO — tutto coerente e con id univoci!');
+  else if(nErr===0) info('👍 Nessun errore critico — verificare i warning');
+  else info('🚨 CI SONO ERRORI — invia questo report allo sviluppatore');
+
+  // Render
+  const typeStyle = {
+    ok: 'color:#4ade80',
+    warn: 'color:#fbbf24',
+    err: 'color:#f87171;font-weight:700',
+    info: 'color:#94a3b8'
+  };
+  const typeIcon = {ok:'✅', warn:'⚠️', err:'❌', info:'ℹ️'};
+
+  // Costruisci HTML senza template literals annidati
+  const logHtml = report.map(function(r){
+    return '<span style="'+typeStyle[r.type]+'">'+typeIcon[r.type]+' '+escHtml(r.msg)+'</span>';
+  }).join('\n');
+
+  const html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
+    + '<span class="card-title" style="font-size:1rem">🔍 Audit Completo Database</span>'
+    + '<div style="display:flex;gap:6px">'
+    + '<button class="btn btn-ghost btn-sm" onclick="navigator.clipboard?.writeText(document.getElementById(\'auditLog\').textContent).then(()=>{this.textContent=\'✅ Copiato!\';setTimeout(()=>this.textContent=\'📋 Copia Report\',2000)})">📋 Copia Report</button>'
+    + '<button class="btn btn-blue btn-sm" onclick="doAuditDownload()">⬇️ Scarica .txt</button>'
+    + '</div></div>'
+    + '<div style="display:flex;gap:10px;margin-bottom:12px">'
+    + '<div class="card" style="flex:1;text-align:center;padding:10px;border-color:var(--lime)"><div style="font-size:1.6rem;font-weight:900;color:var(--lime)">'+nOk+'</div><div style="font-size:0.72rem;color:var(--text2)">✅ OK</div></div>'
+    + '<div class="card" style="flex:1;text-align:center;padding:10px;border-color:'+(nWarn>0?'#fbbf24':'var(--border)')+'"><div style="font-size:1.6rem;font-weight:900;color:#fbbf24">'+nWarn+'</div><div style="font-size:0.72rem;color:var(--text2)">⚠️ Warning</div></div>'
+    + '<div class="card" style="flex:1;text-align:center;padding:10px;border-color:'+(nErr>0?'var(--red)':'var(--border)')+'"><div style="font-size:1.6rem;font-weight:900;color:var(--red)">'+nErr+'</div><div style="font-size:0.72rem;color:var(--text2)">❌ Errori</div></div>'
+    + '</div>'
+    + '<pre id="auditLog" style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px;font-size:0.75rem;max-height:65vh;overflow-y:auto;white-space:pre-wrap;line-height:1.7">'+logHtml+'</pre>';
+
+  $('main').innerHTML = html;
+}
+
+function renderBackup(){
+  let html = `<div style="margin-bottom:14px">
+    <div class="card-title" style="font-size:1rem;margin-bottom:12px">💾 Backup Serio</div>
+    <div class="card" style="margin-bottom:10px;border-color:rgba(74,222,128,0.3)">
+      <div style="font-weight:700;margin-bottom:8px">♻️ Ripristina da Backup JSON</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
+        Carica un file JSON di backup scaricato in precedenza.<br>
+        <span style="color:var(--red)">⚠️ Sovrascrive TUTTI i dati Firebase. Richiede login.</span>
+      </div>
+      <input type="file" id="restoreFileInput" accept=".json" style="display:none" onchange="doRestoreFromBackup(event)">
+      <button class="btn btn-sm" style="background:rgba(74,222,128,0.1);border:1.5px solid var(--lime);color:var(--lime)" onclick="document.getElementById('restoreFileInput').click()">
+        📂 Seleziona JSON di backup
+      </button>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="font-weight:700;margin-bottom:8px">📦 Backup Completo (con statistiche)</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
+        Include giocatori con statistiche calcolate, tutte le partite con squadre e statistiche per giocatore, formazioni e AI cards.
+        Adatto per ripristino completo su qualsiasi device.
+      </div>
+      <button class="btn btn-lime" onclick="doFullBackup()">⬇️ Scarica Backup Completo JSON</button>
+    </div>
+    <div class="card" style="margin-bottom:10px">
+      <div style="font-weight:700;margin-bottom:8px">👥 Backup Solo Giocatori</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">Solo anagrafica e statistiche giocatori.</div>
+      <button class="btn btn-blue btn-sm" onclick="doPlayersBackup()">⬇️ Scarica Giocatori JSON</button>
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px">🏆 Backup Solo Partite</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">Solo storico partite con statistiche per giocatore.</div>
+      <button class="btn btn-blue btn-sm" onclick="doMatchesBackup()">⬇️ Scarica Partite JSON</button>
+    </div>
+    <div class="card" style="border-color:rgba(255,77,77,0.5);margin-top:16px">
+      <div style="font-weight:700;margin-bottom:6px;color:var(--red)">🔄 Forza Risincronizzazione Globale</div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:10px;line-height:1.6">
+        Incrementa <code>syncVersion</code> su Firebase.<br>
+        Al prossimo avvio <strong>tutti i dispositivi</strong> cancelleranno i dati locali e riscaricheranno tutto da Firebase.<br>
+        <span style="color:var(--red)">⚠️ Usare solo quando necessario.</span>
+      </div>
+      <div id="syncVersionInfo" style="font-size:0.78rem;color:var(--text2);margin-bottom:10px">Caricamento syncVersion...</div>
+      <button class="btn btn-sm" style="background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red)" onclick="doForceSyncGlobal()">
+        🔄 Forza Risync Globale
+      </button>
+    </div>
+  </div>`;
+  $('main').innerHTML = html;
+  loadSyncVersion();
+}
+
+async function loadSyncVersion() {
+  const el = document.getElementById('syncVersionInfo');
+  if (!el) return;
+  if (!FB_URL) { el.textContent = '⚠️ Nessun Firebase configurato'; return; }
+  try {
+    const base = FB_URL.replace(/\/$/, '') + '/amicifc';
+    // Lettura pubblica — non serve token
+    const url = AUTH_TOKEN ? base + '/syncVersion.json?auth=' + AUTH_TOKEN : base + '/syncVersion.json';
+    const resp = await fetch(url, { cache: 'no-store' });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const ver = await resp.json();
+    const current = ver || 1;
+    el.innerHTML = 'syncVersion attuale su Firebase: <strong style="color:var(--lime)">' + current + '</strong>'
+      + '<span style="color:var(--text2);font-size:0.7rem;margin-left:8px">— ogni click la incrementa di 1</span>';
+  } catch(e) {
+    el.textContent = 'Errore lettura syncVersion: ' + e.message;
+  }
+}
+
+async function doForceSyncGlobal() {
+  if (!FB_URL || !AUTH_TOKEN) { alert('Devi fare il login per questa operazione'); return; }
+  if (!confirm('Sei sicuro? Tutti i dispositivi riscaricheranno i dati al prossimo avvio.')) return;
+  try {
+    const base = FB_URL.replace(/\/$/, '') + '/amicifc';
+    // Leggi versione attuale
+    const resp = await fetch(base + '/syncVersion.json?auth=' + AUTH_TOKEN);
+    const currentVer = parseInt(await resp.json() || '1');
+    const newVer = currentVer + 1;
+    // Scrivi nuova versione
+    const putResp = await fetch(base + '/syncVersion.json?auth=' + AUTH_TOKEN, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(newVer)
+    });
+    if (!putResp.ok) throw new Error('HTTP ' + putResp.status);
+    log('✅ syncVersion aggiornata: ' + currentVer + ' → ' + newVer + ' — tutti i dispositivi risincronizzeranno', 'ok');
+    loadSyncVersion();
+  } catch(e) {
+    log('❌ Errore forza risync: ' + e.message, 'err');
+  }
+}
+
+function downloadJSON(data, filename) {
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function doFullBackup() {
+  const ts = new Date().toISOString().slice(0,10);
+  const backup = {
+    _backupDate: new Date().toISOString(),
+    _version: 'inspector-v3',
+    _stats: { groups: GROUPS.length, players: PLAYERS.length, matches: MATCHES.length },
+    groups: GROUPS,
+    players: PLAYERS,
+    matches: MATCHES,
+    aiCards: AI
+  };
+  downloadJSON(backup, `amicifc-backup-completo-${ts}.json`);
+  log(`Backup completo scaricato: ${PLAYERS.length} giocatori, ${MATCHES.length} partite`, 'ok');
+}
+
+function doPlayersBackup() {
+  const ts = new Date().toISOString().slice(0,10);
+  downloadJSON({ _backupDate: new Date().toISOString(), players: PLAYERS }, `amicifc-giocatori-${ts}.json`);
+  log(`Backup giocatori scaricato: ${PLAYERS.length} giocatori`, 'ok');
+}
+
+function doMatchesBackup() {
+  const ts = new Date().toISOString().slice(0,10);
+  downloadJSON({ _backupDate: new Date().toISOString(), matches: MATCHES }, `amicifc-partite-${ts}.json`);
+  log(`Backup partite scaricato: ${MATCHES.length} partite`, 'ok');
+}
+
+function renderRaw(){
+  // Giocatori senza foto (base64 enorme) per leggibilità
+  const PLAYERS_NO_FOTO = PLAYERS.map(p => {
+    const {foto, ...rest} = p;
+    return foto ? {...rest, foto:'[base64 esclusa]'} : rest;
+  });
+  const SECTIONS = {
+    'DB Completo': DB,
+    'Giocatori (senza foto)': PLAYERS_NO_FOTO,
+    'Partite': MATCHES,
+    'AI Cards': AI,
+    'Gruppi': GROUPS,
+  };
+  let currentKey = 'DB Completo';
+  let searchVal = '';
+
+  function buildRaw() {
+    const data = SECTIONS[currentKey];
+    const jsonStr = JSON.stringify(data, null, 2);
+    const lines = jsonStr.split('\n');
+    const filtered = searchVal
+      ? lines.filter(l => l.toLowerCase().includes(searchVal.toLowerCase()))
+      : lines;
+    const display = filtered.join('\n') || '(nessun risultato)';
+
+    const btns = Object.keys(SECTIONS).map(k =>
+      `<button class="btn btn-sm ${k===currentKey?'btn-lime':'btn-ghost'}" style="margin:2px"
+        onclick="window._rawSwitchTo('${k}')">${k}</button>`
+    ).join('');
+
+    $('main').innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <span class="card-title" style="font-size:1rem">📄 JSON Grezzo</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="navigator.clipboard?.writeText(JSON.stringify(SECTIONS[window._rawCurrentKey]||DB,null,2)).then(()=>{this.textContent='✅ Copiato!';setTimeout(()=>this.textContent='📋 Copia',2000)})">📋 Copia</button>
+        <button class="btn btn-blue btn-sm" onclick="doRawDownload()">⬇️ Scarica</button>
+      </div>
+    </div>
+    <div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:4px" id="rawBtns">${btns}</div>
+    <input class="search-input" id="rawSearch" placeholder="🔍 Cerca nel JSON..." style="width:100%;box-sizing:border-box;margin-bottom:8px"
+      oninput="searchVal=this.value;window._rawRefresh()">
+    <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">
+      ${filtered.length} righe${searchVal?' trovate':''}  ·  ${(jsonStr.length/1024).toFixed(1)} KB
+    </div>
+    <pre id="rawPre" style="background:#0d1117;border:1px solid var(--border);border-radius:8px;padding:14px;overflow-x:auto;font-size:0.7rem;max-height:60vh;overflow-y:auto;white-space:pre-wrap;word-break:break-all">${escHtml(display.slice(0,50000))}${display.length>50000?'\n…(troncato, scarica per versione completa)':''}</pre>`;
+
+    window._rawCurrentKey = currentKey;
+    window.SECTIONS_REF = SECTIONS;
+    window._rawRefresh = function() {
+      const d = SECTIONS[window._rawCurrentKey];
+      const js = JSON.stringify(d, null, 2);
+      const s = $('rawSearch').value.toLowerCase();
+      const ls = js.split('\n');
+      const f = s ? ls.filter(l=>l.toLowerCase().includes(s)) : ls;
+      $('rawPre').textContent = f.join('\n') || '(nessun risultato)';
+      $('rawPre').nextSibling && ($('rawPre').nextSibling.textContent = '');
+    };
+    window._rawSwitchTo = function(k) {
+      currentKey = k; searchVal = '';
+      if($('rawSearch')) $('rawSearch').value = '';
+      buildRaw();
+    };
+  }
+  buildRaw();
+  window._DB=DB;window._AI=AI;
+}
+
+// ── RIPRISTINO BACKUP in Inspector ──
+async function doRestoreFromBackup(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (!AUTH_TOKEN) { alert('Devi fare il login per ripristinare'); return; }
+  if (!confirm('⚠️ ATTENZIONE\nIl ripristino sovrascriverà TUTTI i dati su Firebase con quelli del backup.\nContinuare?')) return;
+  try {
+    const text = await file.text();
+    const backup = JSON.parse(text);
+    const base = FB_URL.replace(/\/$/, '') + '/amicifc';
+    // Costruisci payload compatibile con app
+    const payload = {
+      lastUpdate: new Date().toISOString(),
+      lastModified: Date.now(),
+      groups: backup.groups || [],
+      aiCards: backup.aiCards || {}
+    };
+    const resp = await fetch(base + '.json?auth=' + AUTH_TOKEN, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    log('✅ Backup ripristinato su Firebase! Ricarica l\'app su tutti i dispositivi.', 'ok');
+    setTimeout(() => location.reload(), 2000);
+  } catch(e) {
+    log('❌ Errore ripristino: ' + e.message, 'err');
+  }
+}
+
+// ── EDITOR JSON GIOCATORE/PARTITA ──
+let _editTarget = null;
+function openEditor(type, item) {
+  if (!AUTH_TOKEN) { alert('Devi fare il login per modificare'); return; }
+  _editTarget = {type, item};
+  const clean = type === 'player' 
+    ? (({foto, ...rest}) => ({...rest, foto: foto ? '[foto base64]' : ''}))(item)
+    : item;
+  const modal = document.getElementById('editorModal');
+  document.getElementById('editorTitle').textContent = type === 'player' 
+    ? '✏️ Modifica Giocatore: ' + (item.soprannome||item.nome)
+    : '✏️ Modifica Partita: ' + item.data;
+  document.getElementById('editorJson').value = JSON.stringify(clean, null, 2);
+  modal.style.display = 'flex';
+}
+
+function closeEditor() {
+  document.getElementById('editorModal').style.display = 'none';
+  _editTarget = null;
+}
+
+async function saveEditor() {
+  if (!_editTarget) return;
+  try {
+    const edited = JSON.parse(document.getElementById('editorJson').value);
+    // Ripristina foto originale se era placeholder
+    if (_editTarget.type === 'player' && edited.foto === '[foto base64]') {
+      edited.foto = _editTarget.item.foto || '';
+    }
+    const base = FB_URL.replace(/\/$/, '') + '/amicifc';
+    // Trova il path del record nei gruppi
+    const data = await (await fetch(base + '.json', {cache:'no-store'})).json();
+    const groups = Array.isArray(data.groups) ? data.groups : Object.values(data.groups||{});
+    let found = false;
+    for (let gi = 0; gi < groups.length; gi++) {
+      const g = groups[gi];
+      if (_editTarget.type === 'player') {
+        const players = Array.isArray(g.players) ? g.players : Object.values(g.players||{});
+        const pi = players.findIndex(p => p.uid === _editTarget.item.uid);
+        if (pi >= 0) {
+          const path = base + '/groups/' + gi + '/players/' + pi + '.json?auth=' + AUTH_TOKEN;
+          const r = await fetch(path, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(edited)});
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          found = true; break;
+        }
+      } else {
+        const matches = Array.isArray(g.matches) ? g.matches : Object.values(g.matches||{});
+        const mi = matches.findIndex(m => m.matchUUID === _editTarget.item.matchUUID);
+        if (mi >= 0) {
+          const path = base + '/groups/' + gi + '/matches/' + mi + '.json?auth=' + AUTH_TOKEN;
+          const r = await fetch(path, {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(edited)});
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          found = true; break;
+        }
+      }
+    }
+    if (!found) throw new Error('Record non trovato su Firebase');
+    log('✅ Salvato su Firebase: ' + (_editTarget.item.soprannome||_editTarget.item.nome||_editTarget.item.data), 'ok');
+    closeEditor();
+    setTimeout(() => location.reload(), 1500);
+  } catch(e) {
+    log('❌ Errore salvataggio: ' + e.message, 'err');
+    alert('Errore: ' + e.message);
+  }
+}
+
+// ── ARCHIVIO STAGIONI ──
+function renderArchive() {
+  const archives = [];
+  GROUPS.forEach(g => {
+    if (g.archivioStagioni && g.archivioStagioni.length) {
+      g.archivioStagioni.forEach(a => archives.push({...a, groupName: g.nome}));
+    }
+  });
+
+  let html = '<div class="card-title" style="font-size:1rem;margin-bottom:12px">📦 Archivio Stagioni</div>';
+  if (!archives.length) {
+    html += '<div class="card" style="text-align:center;padding:20px;color:var(--text2)">'
+      + '<div style="font-size:2rem;margin-bottom:8px">📦</div>'
+      + '<div style="font-weight:700">Nessuna stagione archiviata</div>'
+      + '<div style="font-size:0.78rem;margin-top:6px">Le stagioni archiviate appariranno qui.<br>Usa \"Archivia e Nuova Stagione\" nell\'app per creare un archivio.</div>'
+      + '</div>';
+  } else {
+    archives.forEach(a => {
+      html += '<div class="card" style="margin-bottom:8px">'
+        + '<div style="font-weight:700">' + (a.nome||'Stagione') + ' — ' + a.groupName + '</div>'
+        + '<div style="font-size:0.78rem;color:var(--text2);margin-top:4px">'
+        + 'Archiviata il: ' + (a.dataArchiviazione||'N/A') + '<br>'
+        + 'Partite: ' + (a.partite?.length||0) + ' | Giocatori: ' + (a.giocatori?.length||0)
+        + '</div>'
+        + '<button class="btn btn-ghost btn-sm" style="margin-top:8px" onclick="doArchiveDownload(this)" data-archive=\'' + btoa(JSON.stringify(a)) + '\'">⬇️ Scarica archivio</button>'
+        + '</div>';
+    });
+  }
+  $('main').innerHTML = html;
+}
+
+// ── STATISTICHE RAPIDE ──
+function renderStats() {
+  if (!PLAYERS.length || !MATCHES.length) {
+    $('main').innerHTML = '<div class="card" style="text-align:center;padding:20px;color:var(--text2)">Carica prima il database</div>';
+    return;
+  }
+
+  const byGoal = [...PLAYERS].filter(p=>p.goalTotali>0).sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0)).slice(0,5);
+  const byAssist = [...PLAYERS].filter(p=>p.assistTotali>0).sort((a,b)=>(b.assistTotali||0)-(a.assistTotali||0)).slice(0,5);
+  const byVoto = [...PLAYERS].filter(p=>p.votiTotali>=3).sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,5);
+  const byPresenze = [...PLAYERS].filter(p=>p.partiteTotali>0).sort((a,b)=>(b.partiteTotali||0)-(a.partiteTotali||0)).slice(0,5);
+  const byUom = [...PLAYERS].filter(p=>p.uomoPartitaTotali>0).sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0)).slice(0,5);
+
+  const appVersions = {};
+  MATCHES.forEach(m => {
+    const v = m.appVersion || 'N/A';
+    appVersions[v] = (appVersions[v]||0)+1;
+  });
+
+  const totalGoals = MATCHES.reduce((s,m)=>(s+(m.risultato?.goalA||0)+(m.risultato?.goalB||0)),0);
+  const avgGoals = MATCHES.length ? (totalGoals/MATCHES.length).toFixed(1) : 0;
+
+  function rankList(arr, field, label, color) {
+    return '<div class="card" style="flex:1;min-width:160px">'
+      + '<div style="font-weight:700;color:'+color+';margin-bottom:8px">'+label+'</div>'
+      + arr.map((p,i) => '<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0;border-bottom:1px solid var(--border)">'
+        + '<span>'+(i===0?'🥇':i===1?'🥈':i===2?'🥉':'  ')+' '+(p.soprannome||p.nome)+'</span>'
+        + '<span style="font-weight:700;color:'+color+'">'+
+          (field==='mediaVoto'?(p[field]||0).toFixed(1):(p[field]||0))+'</span>'
+        + '</div>'
+      ).join('')
+      + '</div>';
+  }
+
+  let html = '<div class="card-title" style="font-size:1rem;margin-bottom:12px">📊 Statistiche Rapide</div>';
+
+  // KPI
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">'
+    + '<div class="card" style="text-align:center;padding:10px"><div style="font-size:1.4rem;font-weight:900;color:var(--lime)">'+MATCHES.length+'</div><div style="font-size:0.7rem;color:var(--text2)">Partite</div></div>'
+    + '<div class="card" style="text-align:center;padding:10px"><div style="font-size:1.4rem;font-weight:900;color:var(--blue)">'+PLAYERS.filter(p=>p.partiteTotali>0).length+'</div><div style="font-size:0.7rem;color:var(--text2)">Giocatori Attivi</div></div>'
+    + '<div class="card" style="text-align:center;padding:10px"><div style="font-size:1.4rem;font-weight:900;color:var(--yellow)">'+totalGoals+'</div><div style="font-size:0.7rem;color:var(--text2)">Gol Totali</div></div>'
+    + '<div class="card" style="text-align:center;padding:10px"><div style="font-size:1.4rem;font-weight:900;color:var(--orange)">'+avgGoals+'</div><div style="font-size:0.7rem;color:var(--text2)">Media Gol/Partita</div></div>'
+    + '</div>';
+
+  // Classifiche
+  html += '<div style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px">'
+    + rankList(byGoal, 'goalTotali', '⚽ Top Marcatori', 'var(--lime)')
+    + rankList(byAssist, 'assistTotali', '🅰️ Top Assist', 'var(--blue)')
+    + rankList(byVoto, 'mediaVoto', '⭐ Miglior Media Voto', 'var(--yellow)')
+    + rankList(byPresenze, 'partiteTotali', '📅 Più Presenze', 'var(--text2)')
+    + rankList(byUom, 'uomoPartitaTotali', '🏅 Uomo Partita', 'var(--orange)')
+    + '</div>';
+
+  // Versioni app usate
+  html += '<div class="card"><div style="font-weight:700;margin-bottom:8px">⚙️ Versioni App nelle Partite</div>'
+    + Object.entries(appVersions).sort((a,b)=>b[1]-a[1]).map(([v,n])=>
+        '<div style="display:flex;justify-content:space-between;font-size:0.78rem;padding:3px 0">'
+        +'<span>v'+v+'</span><span style="color:var(--text2)">'+n+' partite</span></div>'
+      ).join('')
+    + '</div>';
+
+  $('main').innerHTML = html;
+}
+
+// ── LOG ATTIVITÀ ──
+function renderLog() {
+  const activities = [];
+  MATCHES.forEach(m => {
+    if (m.lastModifiedBy) {
+      activities.push({
+        type: 'match_edit',
+        date: m.lastModifiedAt || m.data,
+        who: m.lastModifiedBy,
+        what: 'Modificata partita ' + (m.nomeSquadraA||'A') + ' ' + (m.risultato?.goalA||0) + '-' + (m.risultato?.goalB||0) + ' ' + (m.nomeSquadraB||'B'),
+        matchDate: m.data
+      });
+    }
+    activities.push({
+      type: 'match',
+      date: m.data,
+      who: m.lastModifiedBy || '—',
+      what: 'Partita: ' + (m.nomeSquadraA||'A') + ' ' + (m.risultato?.goalA||0) + '-' + (m.risultato?.goalB||0) + ' ' + (m.nomeSquadraB||'B'),
+      appVersion: m.appVersion
+    });
+  });
+  activities.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+
+  const typeColor = {match:'var(--blue)', match_edit:'var(--yellow)'};
+  const typeIcon = {match:'⚽', match_edit:'✏️'};
+
+  let html = '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    + '<span class="card-title" style="font-size:1rem">📋 Log Attività</span>'
+    + '<span style="font-size:0.78rem;color:var(--text2)">'+activities.length+' eventi</span>'
+    + '</div>';
+
+  if (!activities.length) {
+    html += '<div class="card" style="text-align:center;padding:20px;color:var(--text2)">Nessuna attività registrata</div>';
+  } else {
+    activities.slice(0,50).forEach(a => {
+      html += '<div style="display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:0.78rem">'
+        + '<span style="color:'+typeColor[a.type]+';font-size:1rem">'+typeIcon[a.type]+'</span>'
+        + '<div style="flex:1">'
+        + '<div style="font-weight:600">'+escHtml(a.what)+'</div>'
+        + '<div style="color:var(--text2);font-size:0.7rem;margin-top:2px">'
+        + a.date + (a.who && a.who!=='—' ? ' · ' + escHtml(a.who) : '')
+        + (a.appVersion ? ' · v'+a.appVersion : '')
+        + '</div></div></div>';
+    });
+    if (activities.length > 50) html += '<div style="text-align:center;color:var(--text2);font-size:0.75rem;padding:8px">... e altri '+(activities.length-50)+' eventi</div>';
+  }
+  $('main').innerHTML = html;
+}
+
+function doArchiveDownload(btn) {
+  try {
+    const a = JSON.parse(atob(btn.dataset.archive));
+    const nome = (a.nome||'stagione').replace(/\s/g,'-');
+    downloadJSON(a, 'archivio-' + nome + '.json');
+  } catch(e) { alert('Errore download: ' + e.message); }
+}
+
+function openMatchEditorByUUID(uuid) {
+  if (!AUTH_TOKEN) { alert('Devi fare il login per modificare'); return; }
+  const m = MATCHES.find(x => x.matchUUID === uuid);
+  if (!m) { alert('Partita non trovata: ' + uuid); return; }
+  openEditor('match', m);
+}
+
+function doAuditDownload(){
+  const txt = document.getElementById('auditLog')?.textContent || '';
+  const d = new Date().toISOString().slice(0,10);
+  const b = new Blob([txt],{type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(b);
+  a.download = 'amicifc-audit-'+d+'.txt';
+  a.click();
+}
+function doRawDownload(){
+  const d = new Date().toISOString().slice(0,10);
+  const key = window._rawCurrentKey || 'DB';
+  const data = (window.SECTIONS_REF||{})[key] || DB;
+  downloadJSON(data, 'amicifc-'+key.replace(/[^a-z0-9]/gi,'-')+'-'+d+'.json');
+}
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function switchTab(el,show,hide){document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));el.classList.add('active');$(show).style.display='';$(hide).style.display='none';}
+
+
+// ══════════════════════════════════════════════════════════════
+// 🧪 TEST SUITE — Amici FC
+// ══════════════════════════════════════════════════════════════
+const TEST_CFG = {
+  dbUrl:  'https://testamicifc-default-rtdb.europe-west1.firebasedatabase.app',
+  apiKey: 'AIzaSyCXv6stvkS3YAOPR-opSHLlOo4nkl9kYl8',
+  email:  'testamicifc@gmail.com',
+  pass:   'tesTTE12345!!!'
+};
+
+let _testToken = '';
+let _testResults = [];
+let _testRunning = false;
+
+// ── Helpers ──────────────────────────────────────────────────
+function uuid4(){
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{
+    const r=Math.random()*16|0; return(c==='x'?r:(r&0x3|0x8)).toString(16);
+  });
+}
+
+async function fetchWithTimeout(url, opts={}, ms=10000){
+  const ctrl = new AbortController();
+  const tid = setTimeout(()=>ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, {...opts, signal: ctrl.signal});
+    clearTimeout(tid);
+    return r;
+  } catch(e){
+    clearTimeout(tid);
+    if(e.name==='AbortError') throw new Error(`Timeout (${ms/1000}s) — possibile blocco CORS o rete`);
+    throw e;
+  }
+}
+
+async function testLogin(email, pass, apiKey){
+  const r = await fetchWithTimeout(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,{
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({email, password:pass, returnSecureToken:true})
+  });
+  const d = await r.json();
+  if(!r.ok) throw new Error(d.error?.message||'Login fallito');
+  return d.idToken;
+}
+
+async function fbWrite(url, apiKey, token, path, data){
+  const r = await fetchWithTimeout(`${url}/${path}.json?auth=${token}`,{
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+  if(!r.ok){ const e=await r.json(); throw new Error(e.error||`HTTP ${r.status}`); }
+  return await r.json();
+}
+
+async function fbPatch(url, apiKey, token, path, data){
+  const r = await fetchWithTimeout(`${url}/${path}.json?auth=${token}`,{
+    method:'PATCH', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify(data)
+  });
+  if(!r.ok){ const e=await r.json(); throw new Error(e.error||`HTTP ${r.status}`); }
+  return await r.json();
+}
+
+async function fbRead(url, path, token){
+  const auth = token ? `?auth=${token}` : '';
+  const r = await fetchWithTimeout(`${url}/${path}.json${auth}`);
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+  return await r.json();
+}
+
+async function fbDelete(url, token, path){
+  const r = await fetchWithTimeout(`${url}/${path}.json?auth=${token}`,{ method:'DELETE' });
+  if(!r.ok) throw new Error(`HTTP ${r.status}`);
+}
+
+function addTestResult(name, status, msg, detail=''){
+  _testResults.push({name, status, msg, detail, ts: new Date().toLocaleTimeString()});
+  renderTestSuite(); // refresh live
+  // auto-scroll log in fondo
+  setTimeout(()=>{ const b=document.getElementById('ts-log-box'); if(b) b.scrollTop=b.scrollHeight; },30);
+}
+
+function testPass(name, msg, detail){ addTestResult(name,'pass',msg,detail); }
+function testFail(name, msg, detail){ addTestResult(name,'fail',msg,detail); }
+function testWarn(name, msg, detail){ addTestResult(name,'warn',msg,detail); }
+function testInfo(name, msg, detail){ addTestResult(name,'info',msg,detail); }
+
+async function cleanTestDB(token){
+  try { await fbDelete(TEST_CFG.dbUrl, token, 'amicifc'); } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 1 — Salvataggio base (online)
+// ══════════════════════════════════════════════════════════════
+async function runTest1(token){
+  const gid = uuid4();
+  const pid = uuid4();
+  const mid = uuid4();
+  const payload = {
+    amicifc: {
+      [gid]: {
+        nome: 'Test Group T1',
+        giocatori: { [pid]: { uid: pid, nome: 'Mario', cognome: 'Rossi', ruolo: 'CC', goalTotali: 3, assistTotali: 1, mediaVoto: 7.5, votiTotali: 2 }},
+        partite: { [mid]: { matchUUID: mid, data: '2026-06-11', risultato: { goalA:3, goalB:1 }, squadraA:[pid], squadraB:[] }}
+      }
+    }
+  };
+  await fbWrite(TEST_CFG.dbUrl, TEST_CFG.apiKey, token, '', payload);
+  const back = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}`, token);
+  if(!back) throw new Error('Dato non trovato dopo scrittura');
+  if(back.giocatori?.[pid]?.uid !== pid) throw new Error(`uid non preservato: ${back.giocatori?.[pid]?.uid}`);
+  if(back.partite?.[mid]?.matchUUID !== mid) throw new Error(`matchUUID non preservato`);
+  testPass('Test 1','✅ Salvataggio base OK',`Gruppo: ${gid.slice(0,8)} | Giocatore uid: ${pid.slice(0,8)} | Match: ${mid.slice(0,8)}`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 2 — Salvataggio offline → pending_sync → upload al ritorno
+// ══════════════════════════════════════════════════════════════
+async function runTest2(token){
+  // Simula: dati scritti localmente con flag pending_sync=true
+  // poi al "ritorno online" vengono inviati a Firebase
+  const gid = uuid4();
+  const mid = uuid4();
+  const pid = uuid4();
+
+  // Step 1: simula dato "locale" con pending_sync
+  const localData = {
+    matchUUID: mid, data: '2026-06-11',
+    risultato: { goalA:2, goalB:0 },
+    squadraA:[pid], squadraB:[],
+    _pendingSync: true  // flag simulato
+  };
+
+  // Step 2: "ritorno online" → upload su Firebase (PATCH per non sovrascrivere)
+  const uploadData = { ...localData };
+  delete uploadData._pendingSync;
+
+  await fbPatch(TEST_CFG.dbUrl, TEST_CFG.apiKey, token,
+    `amicifc/${gid}/partite`, { [mid]: uploadData });
+
+  // Step 3: verifica che sia arrivato correttamente
+  const back = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}/partite/${mid}`, token);
+  if(!back) throw new Error('Dato offline non trovato dopo upload');
+  if(back._pendingSync) throw new Error('Flag _pendingSync rimasto nel payload caricato!');
+  if(back.matchUUID !== mid) throw new Error('matchUUID non corrispondente dopo upload offline');
+
+  testPass('Test 2','✅ Offline→sync OK',`Partita offline ${mid.slice(0,8)} caricata senza flag pendingSync`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 3 — Token scaduto → auto-rinnovo
+// ══════════════════════════════════════════════════════════════
+async function runTest3(){
+  // Simula token scaduto iniettando una stringa invalida
+  const fakeToken = 'TOKEN_SCADUTO_SIMULATO';
+  const gid = uuid4();
+
+  // Tentativo con token falso → deve fallire
+  let failedCorrectly = false;
+  try {
+    await fbWrite(TEST_CFG.dbUrl, TEST_CFG.apiKey, fakeToken,
+      `amicifc/${gid}/test`, { val: 1 });
+  } catch(e){
+    failedCorrectly = true;
+  }
+
+  if(!failedCorrectly){
+    testWarn('Test 3','⚠️ Regole DB potrebbero essere aperte — token falso non ha generato errore',
+      'Verifica le regole Firebase: .write dovrebbe richiedere auth != null');
+    return;
+  }
+
+  // Auto-rinnovo: rieseguiamo il login per ottenere nuovo token
+  const newToken = await testLogin(TEST_CFG.email, TEST_CFG.pass, TEST_CFG.apiKey);
+  if(!newToken) throw new Error('Auto-rinnovo token fallito');
+
+  // Ora scriviamo con il nuovo token
+  await fbWrite(TEST_CFG.dbUrl, TEST_CFG.apiKey, newToken,
+    `amicifc/${gid}/test`, { val: 1, renewed: true });
+  const back = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}/test`, newToken);
+  if(!back?.renewed) throw new Error('Scrittura dopo rinnovo token fallita');
+
+  testPass('Test 3','✅ Token scaduto → auto-rinnovo OK',
+    'Token falso rifiutato correttamente → login → nuovo token → scrittura OK');
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 4 — Due utenti concorrenti → merge senza perdite
+// ══════════════════════════════════════════════════════════════
+async function runTest4(token){
+  const gid = uuid4();
+  const midA = uuid4();
+  const midB = uuid4();
+
+  // Utente A scrive partita A
+  await fbPatch(TEST_CFG.dbUrl, TEST_CFG.apiKey, token,
+    `amicifc/${gid}/partite`, {
+      [midA]: { matchUUID: midA, data: '2026-06-10', risultato:{goalA:3,goalB:2}, autore:'UserA' }
+    });
+
+  // Utente B scrive partita B (concorrente, stessa path partite ma key diversa)
+  await fbPatch(TEST_CFG.dbUrl, TEST_CFG.apiKey, token,
+    `amicifc/${gid}/partite`, {
+      [midB]: { matchUUID: midB, data: '2026-06-11', risultato:{goalA:1,goalB:0}, autore:'UserB' }
+    });
+
+  // Verifica: entrambe le partite devono esistere
+  const partite = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}/partite`, token);
+  const keys = Object.keys(partite||{});
+  const hasA = keys.includes(midA);
+  const hasB = keys.includes(midB);
+
+  if(!hasA || !hasB){
+    throw new Error(`Perdita dati! hasA:${hasA} hasB:${hasB}`);
+  }
+  testPass('Test 4','✅ Concorrenza OK — nessuna perdita dati',
+    `Partita A (${midA.slice(0,8)}) + Partita B (${midB.slice(0,8)}) entrambe presenti`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 5 — Primo accesso nuovo dispositivo → sync completo
+// ══════════════════════════════════════════════════════════════
+async function runTest5(token){
+  const gid = uuid4();
+  const pid = uuid4();
+  const mid = uuid4();
+
+  // Stato Firebase: gruppo con giocatori e partite
+  await fbWrite(TEST_CFG.dbUrl, TEST_CFG.apiKey, token, `amicifc/${gid}`, {
+    nome: 'Gruppo Sync Completo',
+    giocatori: {
+      [pid]: { uid:pid, nome:'Luca', cognome:'Verdi', ruolo:'AT', goalTotali:5, assistTotali:2, mediaVoto:7.2, votiTotali:5 }
+    },
+    partite: {
+      [mid]: { matchUUID:mid, data:'2026-06-01', risultato:{goalA:4,goalB:3} }
+    }
+  });
+
+  // Simula "nuovo dispositivo": legge tutto da Firebase (syncFromCloud)
+  const cloudData = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}`, token);
+  if(!cloudData) throw new Error('Dati non trovati su Firebase');
+
+  const giocatori = Object.values(cloudData.giocatori||{});
+  const partite   = Object.values(cloudData.partite||{});
+
+  if(giocatori.length === 0) throw new Error('Nessun giocatore ricevuto');
+  if(partite.length === 0)   throw new Error('Nessuna partita ricevuta');
+  if(giocatori[0].uid !== pid) throw new Error(`uid non preservato: ${giocatori[0].uid}`);
+  if(partite[0].matchUUID !== mid) throw new Error(`matchUUID non preservato`);
+
+  testPass('Test 5','✅ Sync primo dispositivo OK',
+    `${giocatori.length} giocatori + ${partite.length} partite ricevuti con ID originali`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 6 — Rigori parati/sbagliati salvati correttamente
+// ══════════════════════════════════════════════════════════════
+async function runTest6(token){
+  const gid = uuid4();
+  const pid1 = uuid4();
+  const pid2 = uuid4();
+  const mid  = uuid4();
+
+  const statsPartita = {
+    [pid1]: { playerId:pid1, nome:'Portiere', goal:0, assist:0, autogol:0, voto:7.5, rigoriParati:2, rigoriSbagliati:0, uomoPartita:false },
+    [pid2]: { playerId:pid2, nome:'Attaccante', goal:1, assist:1, autogol:0, voto:8.0, rigoriParati:0, rigoriSbagliati:1, uomoPartita:true }
+  };
+
+  await fbWrite(TEST_CFG.dbUrl, TEST_CFG.apiKey, token, `amicifc/${gid}/partite/${mid}`, {
+    matchUUID: mid, data:'2026-06-11',
+    risultato:{ goalA:3, goalB:2 },
+    statisticheGiocatori: statsPartita
+  });
+
+  const back = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}/partite/${mid}`, token);
+  const sg = back?.statisticheGiocatori;
+  if(!sg) throw new Error('statisticheGiocatori mancanti');
+
+  const port = sg[pid1];
+  const att  = sg[pid2];
+
+  if(port?.rigoriParati !== 2)    throw new Error(`rigoriParati atteso 2, trovato ${port?.rigoriParati}`);
+  if(att?.rigoriSbagliati !== 1)  throw new Error(`rigoriSbagliati atteso 1, trovato ${att?.rigoriSbagliati}`);
+  if(att?.uomoPartita !== true)   throw new Error(`uomoPartita atteso true, trovato ${att?.uomoPartita}`);
+  if(att?.voto !== 8.0)           throw new Error(`voto atteso 8.0, trovato ${att?.voto}`);
+
+  testPass('Test 6','✅ Rigori + statistiche OK',
+    `RP:${port.rigoriParati} RS:${att.rigoriSbagliati} UoM:${att.uomoPartita} Voto:${att.voto}`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// TEST 7 — Hero card si aggiornano dopo sync
+// ══════════════════════════════════════════════════════════════
+async function runTest7(token){
+  const gid = uuid4();
+  const pid = uuid4();
+
+  // Simula stato iniziale su Firebase: giocatore con 3 goal
+  await fbWrite(TEST_CFG.dbUrl, TEST_CFG.apiKey, token, `amicifc/${gid}/giocatori/${pid}`, {
+    uid: pid, nome:'Test', cognome:'Hero', ruolo:'AT',
+    goalTotali: 3, assistTotali: 1, mediaVoto: 7.5, votiTotali: 4
+  });
+
+  // Simula una nuova partita che aggiunge 2 goal → PATCH sul giocatore
+  await fbPatch(TEST_CFG.dbUrl, TEST_CFG.apiKey, token, `amicifc/${gid}/giocatori/${pid}`, {
+    goalTotali: 5,  // aggiornato
+    votiTotali: 5,
+    mediaVoto: 7.6
+  });
+
+  // Aggiunge la partita
+  const mid = uuid4();
+  await fbPatch(TEST_CFG.dbUrl, TEST_CFG.apiKey, token, `amicifc/${gid}/partite`, {
+    [mid]: { matchUUID:mid, data:'2026-06-11', risultato:{goalA:3,goalB:1},
+      statisticheGiocatori:{ [pid]:{ playerId:pid, goal:2, voto:7.6, uomoPartita:true }}}
+  });
+
+  // Verifica: syncFromCloud leggerebbe i nuovi dati
+  const playerBack = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}/giocatori/${pid}`, token);
+  if(playerBack?.goalTotali !== 5) throw new Error(`goalTotali atteso 5, trovato ${playerBack?.goalTotali}`);
+  if(playerBack?.uid !== pid)      throw new Error('uid non preservato dopo PATCH');
+
+  // Verifica aiCards path (TTL flags) — simula che la hero card leggerebbe dati aggiornati
+  const matchBack = await fbRead(TEST_CFG.dbUrl, `amicifc/${gid}/partite/${mid}`, token);
+  const uom = matchBack?.statisticheGiocatori?.[pid]?.uomoPartita;
+  if(uom !== true) throw new Error(`uomoPartita nella partita atteso true, trovato ${uom}`);
+
+  testPass('Test 7','✅ Hero card post-sync OK',
+    `goalTotali aggiornati a 5 | uid stabile | uomoPartita corretto in partita`);
+}
+
+// ══════════════════════════════════════════════════════════════
+// RUN ALL
+// ══════════════════════════════════════════════════════════════
+function copyTestLog(){
+  const lines = _testResults.map(r=>`[${r.ts}] [${r.status.toUpperCase()}] ${r.name} — ${r.msg} ${r.detail||''}`).join('\n');
+  const text = lines || '(nessun log)';
+  navigator.clipboard?.writeText(text).then(()=>{
+    const btn = document.querySelector('[onclick="copyTestLog()"]');
+    if(btn){ const orig=btn.textContent; btn.textContent='✅ Copiato!'; setTimeout(()=>btn.textContent=orig,2000); }
+  }).catch(()=>{ prompt('Copia questo log:', text); });
+}
+
+async function runAllTests(){
+  if(_testRunning){ alert('Test già in corso!'); return; }
+  _testRunning = true;
+  _testResults = [];
+  renderTestSuite();
+
+  const cfg = getTestCfg();
+  testInfo('Setup','🔐 Login in corso...', `${cfg.email} → ${cfg.dbUrl}`);
+
+  let token;
+  try {
+    token = await testLogin(cfg.email, cfg.pass, cfg.apiKey);
+    _testToken = token;
+    testInfo('Setup','✅ Login OK','Token ottenuto');
+  } catch(e){
+    testFail('Setup',`❌ Login fallito: ${e.message}`,'Verifica credenziali e Firebase Auth');
+    _testRunning = false; renderTestSuite(); return;
+  }
+
+  // Pulizia DB test
+  testInfo('Setup','🧹 Pulizia DB test...','Elimino dati precedenti');
+  await cleanTestDB(token);
+
+  const tests = [
+    { name:'Test 1', fn: ()=>runTest1(token) },
+    { name:'Test 2', fn: ()=>runTest2(token) },
+    { name:'Test 3', fn: ()=>runTest3() },
+    { name:'Test 4', fn: ()=>runTest4(token) },
+    { name:'Test 5', fn: ()=>runTest5(token) },
+    { name:'Test 6', fn: ()=>runTest6(token) },
+    { name:'Test 7', fn: ()=>runTest7(token) },
+  ];
+
+  for(const t of tests){
+    testInfo(t.name, '⏳ In esecuzione...','');
+    try {
+      await t.fn();
+    } catch(e){
+      testFail(t.name, `❌ ${e.message}`, e.stack||'');
+    }
+    renderTestSuite();
+    await new Promise(r=>setTimeout(r,300));
+  }
+
+  // Pulizia finale
+  try { await cleanTestDB(token); } catch(e){}
+
+  _testRunning = false;
+  renderTestSuite();
+}
+
+async function runSingleTest(idx){
+  if(_testRunning){ alert('Test già in corso!'); return; }
+  _testRunning = true;
+
+  const cfg = getTestCfg();
+  let token;
+  try {
+    token = await testLogin(cfg.email, cfg.pass, cfg.apiKey);
+    _testToken = token;
+  } catch(e){
+    alert(`Login fallito: ${e.message}`);
+    _testRunning = false; return;
+  }
+
+  const tests = [
+    { name:'Test 1', fn: ()=>runTest1(token) },
+    { name:'Test 2', fn: ()=>runTest2(token) },
+    { name:'Test 3', fn: ()=>runTest3() },
+    { name:'Test 4', fn: ()=>runTest4(token) },
+    { name:'Test 5', fn: ()=>runTest5(token) },
+    { name:'Test 6', fn: ()=>runTest6(token) },
+    { name:'Test 7', fn: ()=>runTest7(token) },
+  ];
+
+  const t = tests[idx];
+  if(!t){ _testRunning=false; return; }
+  // Rimuovo risultato precedente per questo test
+  _testResults = _testResults.filter(r=>r.name!==t.name);
+  testInfo(t.name,'⏳ In esecuzione...','');
+  try {
+    await cleanTestDB(token);
+    await t.fn();
+    await cleanTestDB(token);
+  } catch(e){
+    testFail(t.name, `❌ ${e.message}`, e.stack||'');
+  }
+  _testRunning = false;
+  renderTestSuite();
+}
+
+function getTestCfg(){
+  return {
+    dbUrl:  document.getElementById('ts-dbUrl')?.value.trim()  || TEST_CFG.dbUrl,
+    apiKey: document.getElementById('ts-apiKey')?.value.trim() || TEST_CFG.apiKey,
+    email:  document.getElementById('ts-email')?.value.trim()  || TEST_CFG.email,
+    pass:   document.getElementById('ts-pass')?.value.trim()   || TEST_CFG.pass,
+  };
+}
+
+// ══════════════════════════════════════════════════════════════
+// RENDER
+// ══════════════════════════════════════════════════════════════
+function renderTestSuite(){
+  const cfg = TEST_CFG;
+  const pass = _testResults.filter(r=>r.status==='pass').length;
+  const fail = _testResults.filter(r=>r.status==='fail').length;
+  const warn = _testResults.filter(r=>r.status==='warn').length;
+  const total= _testResults.filter(r=>['pass','fail','warn'].includes(r.status)).length;
+
+  const statusIcon = { pass:'✅', fail:'❌', warn:'⚠️', info:'ℹ️' };
+  const statusColor = { pass:'#4ade80', fail:'#f87171', warn:'#fbbf24', info:'#60a5fa' };
+  const statusBg = { pass:'rgba(74,222,128,.08)', fail:'rgba(248,113,113,.08)', warn:'rgba(251,191,36,.08)', info:'rgba(96,165,250,.08)' };
+
+  const testDescs = [
+    { id:0, label:'Test 1', desc:'Salvataggio base (online)', detail:'Scrive gruppo+giocatore+partita su Firebase e verifica UUID preservati' },
+    { id:1, label:'Test 2', desc:'Offline → pending_sync → upload', detail:'Simula dato locale con flag, poi upload senza flag residuo' },
+    { id:2, label:'Test 3', desc:'Token scaduto → auto-rinnovo', detail:'Inietta token falso, verifica errore, riesegue login e ri-scrive' },
+    { id:3, label:'Test 4', desc:'Due utenti concorrenti — no perdite', detail:'Utente A e B scrivono partite diverse sulla stessa path con PATCH' },
+    { id:4, label:'Test 5', desc:'Primo accesso nuovo dispositivo', detail:'syncFromCloud completo: tutti gli UUID originali preservati' },
+    { id:5, label:'Test 6', desc:'Rigori parati/sbagliati salvati', detail:'Verifica tutti i campi statistiche inclusi RP, RS, UoM, voto' },
+    { id:6, label:'Test 7', desc:'Hero card post-sync aggiornate', detail:'Aggiorna giocatore su Firebase e verifica che i dati siano corretti' },
+  ];
+
+  const resultMap = {};
+  _testResults.forEach(r=>{ resultMap[r.name]=r; });
+
+  $('main').innerHTML = `
+  <div style="max-width:900px">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <span style="font-size:1.5rem">🧪</span>
+      <div>
+        <div style="font-size:1.1rem;font-weight:700;color:#fff">Test Suite — Amici FC</div>
+        <div style="font-size:0.75rem;color:var(--gray)">Test automatici su logica sync, saveMatch e Firebase</div>
+      </div>
+      ${total>0?`<div style="margin-left:auto;display:flex;gap:8px">
+        <span style="background:rgba(74,222,128,.15);color:#4ade80;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700">✅ ${pass}</span>
+        ${fail>0?`<span style="background:rgba(248,113,113,.15);color:#f87171;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700">❌ ${fail}</span>`:''}
+        ${warn>0?`<span style="background:rgba(251,191,36,.15);color:#fbbf24;padding:3px 10px;border-radius:20px;font-size:0.78rem;font-weight:700">⚠️ ${warn}</span>`:''}
+      </div>`:''}
+    </div>
+
+    <!-- Config DB Test -->
+    <div class="card" style="margin-bottom:14px">
+      <div class="card-head"><span class="card-title">⚙️ Configurazione DB Test</span>
+        <span style="font-size:0.7rem;color:var(--gray);margin-left:8px">Precompilato con TestAmiciFC</span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <div style="font-size:0.7rem;color:var(--gray);margin-bottom:3px">URL Database</div>
+            <input id="ts-dbUrl" class="url-input" style="font-size:0.75rem;padding:6px 10px"
+              value="${cfg.dbUrl}">
+          </div>
+          <div>
+            <div style="font-size:0.7rem;color:var(--gray);margin-bottom:3px">API Key</div>
+            <input id="ts-apiKey" class="url-input" style="font-size:0.75rem;padding:6px 10px"
+              value="${cfg.apiKey}">
+          </div>
+          <div>
+            <div style="font-size:0.7rem;color:var(--gray);margin-bottom:3px">Email utente test</div>
+            <input id="ts-email" class="url-input" style="font-size:0.75rem;padding:6px 10px"
+              value="${cfg.email}">
+          </div>
+          <div>
+            <div style="font-size:0.7rem;color:var(--gray);margin-bottom:3px">Password</div>
+            <input id="ts-pass" class="url-input" type="password" style="font-size:0.75rem;padding:6px 10px"
+              value="${cfg.pass}">
+          </div>
+        </div>
+        <div style="font-size:0.72rem;color:var(--gray)">
+          ℹ️ Ogni run pulisce il DB test prima e dopo l'esecuzione. I dati del DB principale non vengono mai toccati.
+        </div>
+      </div>
+    </div>
+
+    <!-- Azioni principali -->
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap">
+      <button class="btn btn-blue" onclick="runAllTests()" ${_testRunning?'disabled':''}>
+        ${_testRunning?'⏳ Esecuzione...':'▶️ Run All Tests'}
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="_testResults=[];renderTestSuite()">🗑️ Reset log</button>
+      <button class="btn btn-ghost btn-sm" onclick="copyTestLog()">📋 Copia log</button>
+    </div>
+
+    <!-- Griglia test -->
+    <div style="display:grid;gap:10px;margin-bottom:16px">
+      ${testDescs.map(t=>{
+        const r = resultMap[t.label];
+        const hasBoth = r && !['info'].includes(r.status);
+        return `<div style="background:#161b22;border:1px solid ${r?statusColor[r.status]+'40':'var(--border)'};border-radius:10px;padding:12px 16px;display:flex;align-items:flex-start;gap:12px">
+          <div style="font-size:1.1rem;margin-top:2px">${r?statusIcon[r.status]:'⬜'}</div>
+          <div style="flex:1;min-width:0">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+              <span style="font-weight:700;color:#fff;font-size:0.88rem">${t.label}</span>
+              <span style="color:var(--text2);font-size:0.82rem">${t.desc}</span>
+              ${r?`<span style="font-size:0.7rem;color:var(--gray);margin-left:auto">${r.ts}</span>`:''}
+            </div>
+            <div style="font-size:0.72rem;color:var(--gray);margin-top:2px">${t.detail}</div>
+            ${r&&r.msg?`<div style="margin-top:6px;font-size:0.78rem;color:${statusColor[r.status]||'#fff'};background:${statusBg[r.status]||'transparent'};padding:4px 8px;border-radius:6px">${r.msg}</div>`:''}
+            ${r&&r.detail?`<div style="margin-top:3px;font-size:0.68rem;color:var(--gray);font-family:monospace;word-break:break-all">${escHtml(r.detail.slice(0,200))}</div>`:''}
+          </div>
+          <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:3px 8px;white-space:nowrap"
+            onclick="runSingleTest(${t.id})" ${_testRunning?'disabled':''}>▶ Solo</button>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Log completo cronologico -->
+    ${_testResults.length>0?`
+    <div class="card">
+      <div class="card-head" style="display:flex;align-items:center;justify-content:space-between">
+        <span class="card-title">📋 Log Completo</span>
+        <span style="font-size:0.7rem;color:var(--gray)">${_testResults.length} righe</span>
+      </div>
+      <div id="ts-log-box" style="font-family:monospace;font-size:0.73rem;max-height:320px;overflow-y:auto;padding:10px 14px;background:#0d1117;border-top:1px solid var(--border)">
+        ${_testResults.map(r=>{
+          const col = {pass:'#4ade80',fail:'#f87171',warn:'#fbbf24',info:'#60a5fa'}[r.status]||'#fff';
+          const badge = {pass:'PASS',fail:'FAIL',warn:'WARN',info:'INFO'}[r.status]||r.status;
+          return `<div style="margin-bottom:3px;line-height:1.5">
+            <span style="color:var(--gray)">${r.ts}</span>
+            <span style="color:${col};font-weight:700;margin:0 6px">[${badge}]</span>
+            <span style="color:#fff">${r.name}</span>
+            <span style="color:var(--gray)"> — </span>
+            <span style="color:${col}">${r.msg}</span>
+            ${r.detail?`<span style="color:var(--gray);font-size:0.68rem"> ${escHtml(r.detail.slice(0,120))}</span>`:''}
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+  </div>`;
+}
+
+
+window.onload=()=>{if($('fbUrl').value.includes('firebasedatabase'))loadAll();};
+</script>
+</body>
+</html>

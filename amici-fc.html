@@ -6080,7 +6080,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.507',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.509',date:'2026-06-12',items:[
+      'Diagnostica: log dettagliato per ogni foto — HTTP status e risposta Firebase',
+    ]},{version:'v1.508',date:'2026-06-12',items:[
+      'Tool: pulsante forza re-upload foto in Zona Pericolo',
+      'Fix: log upload foto con esito per diagnosi',
+    ]},{version:'v1.507',date:'2026-06-12',items:[
       'Fix: pulizia flag foto legacy amicifc_foto_checked_ ad ogni avvio',
       'Fix: usa nuova chiave amicifc_foto_ per tutti i check',
     ]},{version:'v1.506',date:'2026-06-12',items:[
@@ -6803,7 +6808,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.507');
+    const appVersion = ref('1.509');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9370,6 +9375,19 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       });
     };
 
+    const forceReuploadFotos = async () => {
+      if (!confirm('Forza il re-upload di tutte le foto su Firebase?')) return;
+      // Cancella gli hash di sync così syncToCloud ricarica tutte le foto
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('amicifc_foto_synced_') || k.startsWith('amicifc_foto_'))
+        .forEach(k => localStorage.removeItem(k));
+      logEvent('info', 'sync', '📷 Hash foto azzerati — ri-upload al prossimo sync');
+      toast('📷 Forza sync foto... attendi', 'info', 3000);
+      // Esegui subito syncToCloud per caricare le foto
+      await syncToCloud().catch(e => toast('❌ ' + e.message, 'error', 5000));
+      toast('✅ Foto caricate su Firebase', 'success', 3000);
+    };
+
     const forceTrashTalk = () => {
       const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
       if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
@@ -10541,7 +10559,9 @@ Niente altro, nessuna spiegazione.`;
                   });
                   if (fotoResp.ok) {
                     localStorage.setItem(fotoKey, fotoHash);
-                    logEvent('info', 'sync', 'Foto caricata: ' + (p.soprannome||p.nome));
+                    logEvent('info', 'sync', '📷 Foto caricata: ' + (p.soprannome||p.nome));
+                  } else {
+                    logEvent('warn', 'sync', '📷 Upload foto fallito (' + fotoResp.status + '): ' + (p.soprannome||p.nome));
                   }
                 } catch(e) { /* foto upload non critico */ }
               }
@@ -14143,7 +14163,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceSoprannomi, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceReuploadFotos, forceSoprannomi, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
     };
   }
 }).mount('#app');
