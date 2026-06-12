@@ -6080,7 +6080,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.497',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.498',date:'2026-06-12',items:[
+      'Fix critico: localSyncTs aggiornato con timestamp Firebase (non Date.now()) dopo sync',
+      'Fix: debounce checkSyncNeeded persistente su localStorage — sopravvive ai reload',
+    ]},{version:'v1.497',date:'2026-06-12',items:[
       'Fix: debounce 60s su checkSyncNeeded — evita 4 check in rapida successione',
     ]},{version:'v1.496',date:'2026-06-12',items:[
       'Fix CRITICO: checkSyncNeeded leggeva shallow=true che dava true invece dei valori reali',
@@ -6774,7 +6777,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.497');
+    const appVersion = ref('1.498');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10180,14 +10183,14 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // Controlla se serve sync da Firebase confrontando syncVersion e lastModified
-    let _lastCheckAt = 0;
     const checkSyncNeeded = async () => {
       const base = getFirebaseBase();
       if (!base) return false;
-      // Debounce: non ricontrollare se l'ultimo check è avvenuto meno di 60s fa
+      // Debounce persistente: non ricontrollare se l'ultimo check è avvenuto meno di 60s fa
       const now = Date.now();
-      if (now - _lastCheckAt < 60000) return false;
-      _lastCheckAt = now;
+      const lastCheck = parseInt(localStorage.getItem('amicifc_last_check_ts') || '0');
+      if (now - lastCheck < 60000) return false;
+      localStorage.setItem('amicifc_last_check_ts', String(now));
       try {
         // Leggi solo lastModified e syncVersion — non usare shallow=true (ritorna solo true/false per chiave)
         const authSuffix = fbIdToken.value ? `?auth=${fbIdToken.value}` : '';
@@ -10732,11 +10735,14 @@ Niente altro, nessuna spiegazione.`;
             logEvent('info', 'sync', `OK: ${syncedPlayers} giocatori, ${syncedMatches} partite da Firebase`);
             setSyncStatus('ok');
             // Salva syncVersion e timestamp locale
+            // USA il timestamp Firebase (lastModified) — così il prossimo check
+            // confronta FB.lastModified vs locale e funziona correttamente
             const _fbSyncVer = parseInt(data.syncVersion || '1');
+            const _fbLastMod = parseInt(data.lastModified || String(Date.now()));
             localSyncVersion.value = _fbSyncVer;
-            localSyncTs.value = Date.now();
+            localSyncTs.value = _fbLastMod;
             localStorage.setItem('amicifc_sync_version', String(_fbSyncVer));
-            localStorage.setItem('amicifc_sync_ts', String(Date.now()));
+            localStorage.setItem('amicifc_sync_ts', String(_fbLastMod));
 
             _syncInProgress = false;
             _scheduleInitAiCards();
