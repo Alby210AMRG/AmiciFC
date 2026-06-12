@@ -6080,7 +6080,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.499',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.500',date:'2026-06-12',items:[
+      'Fix: foto giocatori scaricate con auth token — visibili dopo sync',
+      'Fix: foto skip logic corretta con flag _hasFoto',
+      'Fix: uomoPartita salva uid oltre al nome — consistente tra dispositivi',
+    ]},{version:'v1.499',date:'2026-06-12',items:[
       'Fix: auto-reset localSyncTs se corrotto (locale > Firebase di più di 1 ora)',
     ]},{version:'v1.498',date:'2026-06-12',items:[
       'Fix critico: localSyncTs aggiornato con timestamp Firebase (non Date.now()) dopo sync',
@@ -6779,7 +6783,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.499');
+    const appVersion = ref('1.500');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9840,7 +9844,8 @@ Niente altro, nessuna spiegazione.`;
         fotoPartita:     matchPhoto.value || '',
         notePartita: matchNotes.value,
         mvp:         mvpName,
-        uomoPartita: upName,
+        uomoPartita: upName,   // nome per compatibilità display
+        uomoPartitaUid: upId,  // uid per confronti cross-device
         pngFormazione: pngForm,
         pngRisultato:  pngRes,
         pngPagelle:    pngPag,
@@ -10688,12 +10693,17 @@ Niente altro, nessuna spiegazione.`;
               // Scarica foto mancanti da Firebase (path separato)
               let fotoDownloaded = 0;
               for (const cp of cloudPlayers) {
-                if (!cp?.uid || cp.foto?.startsWith('data:')) continue;
-                // Controlla se la foto esiste già in locale
+                if (!cp?.uid) continue;
+                // Se il giocatore ha già la foto base64 in cp (vecchio formato), skippa
+                if (cp.foto?.startsWith('data:')) continue;
+                // Se non ha _hasFoto=true e niente foto, non c'è foto su Firebase
+                if (!cp._hasFoto && !cp.foto) continue;
+                // Controlla se la foto è già scaricata in locale
                 const existing = await db.players.where('uid').equals(cp.uid).first();
                 if (existing?.foto?.startsWith('data:')) continue; // già in locale
                 try {
-                  const fotoResp = await fetch(base + '/playerFotos/' + cp.uid + '.json', { cache: 'no-store' });
+                  const _fotoAuth = fbIdToken.value ? '?auth=' + fbIdToken.value : '';
+                  const fotoResp = await fetch(base + '/playerFotos/' + cp.uid + '.json' + _fotoAuth, { cache: 'no-store' });
                   if (fotoResp.ok) {
                     const fotoData = await fotoResp.json();
                     if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
