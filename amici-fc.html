@@ -6080,7 +6080,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.510',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.511',date:'2026-06-12',items:[
+      'Fix: _downloadMissingPhotos pulisce tutti i flag e forza sync completo se mancano foto',
+    ]},{version:'v1.510',date:'2026-06-12',items:[
       'Fix definitivo foto: le foto restano nel payload Firebase principale',
       'Rimosso path /playerFotos separato che non veniva mai popolato',
       'syncFromCloud ora recupera le foto direttamente dal campo foto del giocatore',
@@ -6812,7 +6814,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.510');
+    const appVersion = ref('1.511');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11010,8 +11012,7 @@ Niente altro, nessuna spiegazione.`;
       });
 
       // Log diagnostico
-      logEvent('info', 'sync', `📷 Foto check: ${players.length} giocatori totali, ${toCheck.length} da verificare`);
-      // (diagnostica rimossa — usare log 📷 per monitoraggio)
+      // diagnostica foto rimossa
       if (!toCheck.length) return;
 
       const token = await getValidToken().catch(() => '');
