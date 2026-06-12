@@ -6080,7 +6080,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.502',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.504',date:'2026-06-12',items:[
+      'Fix foto: flag localStorage per ogni giocatore — scarica solo se non già verificato',
+      'Zero fetch inutili: giocatori senza foto vengono verificati una sola volta',
+    ]},{version:'v1.503',date:'2026-06-12',items:[
+      'Fix definitivo foto: download separato dal sync — scarica sempre le foto mancanti',
+      'Foto scaricate sia all avvio che dopo ogni sync completo',
+    ]},{version:'v1.502',date:'2026-06-12',items:[
       'Fix foto: scarica sempre da Firebase per ogni uid — non dipende da _hasFoto',
     ]},{version:'v1.501',date:'2026-06-12',items:[
       'Fix: sync errori ora visibili nel log — debuggabile',
@@ -6788,7 +6794,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.502');
+    const appVersion = ref('1.504');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7139,6 +7145,7 @@ createApp({
             });
           }
         }
+        _resetFotoChecked(editingPlayer.value?.uid); // reset check foto
         toast('✅ Giocatore aggiornato!');
         await autoSyncToCloud();
       } else {
@@ -10778,6 +10785,11 @@ Niente altro, nessuna spiegazione.`;
             _syncInProgress = false;
             _scheduleInitAiCards();
             try { await _loadHallOfFame(); } catch(_e) {}
+            // Reset flag foto dopo sync — Firebase potrebbe avere foto aggiornate
+            const _fotoKeys = Object.keys(localStorage).filter(k => k.startsWith('amicifc_foto_checked_'));
+            _fotoKeys.forEach(k => localStorage.removeItem(k));
+            // Scarica foto mancanti dopo sync
+            setTimeout(() => _downloadMissingPhotos().catch(()=>{}), 500);
 
           } catch (e) {
             const errMsg = e.message || 'Errore sconosciuto';
@@ -10951,6 +10963,61 @@ Niente altro, nessuna spiegazione.`;
 
     // ── SIMPLE PHOTO HELPER — synchronous, no async, no reactive map ──
     const SILHOUETTE = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj4KICA8Y2lyY2xlIGN4PSI1MCIgY3k9IjUwIiByPSI1MCIgZmlsbD0iIzJhM2E0YSIvPgogIDxjaXJjbGUgY3g9IjUwIiBjeT0iMzUiIHI9IjE4IiBmaWxsPSIjNGE1YTZhIi8+CiAgPGVsbGlwc2UgY3g9IjUwIiBjeT0iODUiIHJ4PSIyOCIgcnk9IjIyIiBmaWxsPSIjNGE1YTZhIi8+Cjwvc3ZnPg==';
+    // ── Download foto mancanti da Firebase ──
+    // Usa localStorage per ricordare quali foto sono già state cercate
+    // Evita fetch ripetuti ad ogni avvio per giocatori senza foto
+    const _downloadMissingPhotos = async () => {
+      const base = getFirebaseBase();
+      if (!base || !currentGroup.value) return;
+      const players = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
+
+      // Filtra: solo giocatori senza foto base64 in locale
+      // E che non abbiamo già verificato di non avere foto su Firebase
+      const toCheck = players.filter(p => {
+        if (!p.uid) return false;
+        if (p.foto?.startsWith('data:')) return false; // già ha foto
+        const checked = localStorage.getItem('amicifc_foto_checked_' + p.uid);
+        if (checked === 'none') return false; // già verificato: non c'è foto su Firebase
+        if (checked === 'ok') return false;   // già scaricata con successo
+        return true; // non ancora verificato
+      });
+
+      if (!toCheck.length) return;
+
+      const token = await getValidToken().catch(() => '');
+      const auth = token ? '?auth=' + token : '';
+      let downloaded = 0;
+
+      for (const p of toCheck) {
+        try {
+          const resp = await fetch(`${base}/playerFotos/${p.uid}.json${auth}`, { cache: 'no-store' });
+          if (!resp.ok) {
+            localStorage.setItem('amicifc_foto_checked_' + p.uid, 'none');
+            continue;
+          }
+          const fotoData = await resp.json();
+          if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
+            await db.players.update(p.id, { foto: fotoData });
+            localStorage.setItem('amicifc_foto_checked_' + p.uid, 'ok');
+            downloaded++;
+          } else {
+            // Firebase ha risposto ma senza foto — marca come verificato
+            localStorage.setItem('amicifc_foto_checked_' + p.uid, 'none');
+          }
+        } catch(e) { /* silenzioso — riprova al prossimo avvio */ }
+      }
+
+      if (downloaded > 0) {
+        logEvent('info', 'sync', `📷 ${downloaded} foto scaricate da Firebase`);
+        await loadGroupData();
+      }
+    };
+
+    // Reset flag foto quando viene caricata/modificata una foto in locale
+    const _resetFotoChecked = (uid) => {
+      if (uid) localStorage.removeItem('amicifc_foto_checked_' + uid);
+    };
+
     const getPlayerPhoto = (foto, uid) => {
       if (foto && typeof foto === 'string' && foto.trim()) {
         const driveMatch = foto.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
@@ -12726,6 +12793,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         }
       }
 
+      // ── Download foto mancanti (indipendente dal sync) ──
+      setTimeout(() => _downloadMissingPhotos().catch(()=>{}), 2000);
+
       // repairPlayerUids rimossa: syncFromCloud garantisce uid corretti da Firebase
       // ── Sync pendente: se il precedente upload è fallito, riprova ──
       if (currentGroup.value?.firebaseUrl) {
@@ -14041,7 +14111,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       showApiKey, showOvrInfo, showAISection, tutorialEnabled, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
-      generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, SILHOUETTE,
+      generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE,
       precachePlayerPhotos,
       sharePNG,
       createGroupAndGo, importDataAndGo, syncFromCloudAndGo,
