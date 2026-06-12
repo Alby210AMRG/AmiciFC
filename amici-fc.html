@@ -6080,7 +6080,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.496',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.497',date:'2026-06-12',items:[
+      'Fix: debounce 60s su checkSyncNeeded — evita 4 check in rapida successione',
+    ]},{version:'v1.496',date:'2026-06-12',items:[
       'Fix CRITICO: checkSyncNeeded leggeva shallow=true che dava true invece dei valori reali',
       'Fix: lastModified e syncVersion ora letti direttamente — sync funziona correttamente',
       'Questo era il motivo per cui la partita non arrivava agli altri dispositivi',
@@ -6772,7 +6774,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.496');
+    const appVersion = ref('1.497');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10178,9 +10180,14 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // Controlla se serve sync da Firebase confrontando syncVersion e lastModified
+    let _lastCheckAt = 0;
     const checkSyncNeeded = async () => {
       const base = getFirebaseBase();
       if (!base) return false;
+      // Debounce: non ricontrollare se l'ultimo check è avvenuto meno di 60s fa
+      const now = Date.now();
+      if (now - _lastCheckAt < 60000) return false;
+      _lastCheckAt = now;
       try {
         // Leggi solo lastModified e syncVersion — non usare shallow=true (ritorna solo true/false per chiave)
         const authSuffix = fbIdToken.value ? `?auth=${fbIdToken.value}` : '';
