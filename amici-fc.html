@@ -6080,7 +6080,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.509',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.510',date:'2026-06-12',items:[
+      'Fix definitivo foto: le foto restano nel payload Firebase principale',
+      'Rimosso path /playerFotos separato che non veniva mai popolato',
+      'syncFromCloud ora recupera le foto direttamente dal campo foto del giocatore',
+    ]},{version:'v1.509',date:'2026-06-12',items:[
       'Diagnostica: log dettagliato per ogni foto — HTTP status e risposta Firebase',
     ]},{version:'v1.508',date:'2026-06-12',items:[
       'Tool: pulsante forza re-upload foto in Zona Pericolo',
@@ -6808,7 +6812,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.509');
+    const appVersion = ref('1.510');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10536,13 +10540,9 @@ Niente altro, nessuna spiegazione.`;
         for (const g of groups.value) {
           const _rawPlayers = await db.players.where('groupId').equals(g.id).toArray();
           // Foto base64: caricale separatamente solo se cambiate, non nel payload principale
-          const players = _rawPlayers.map(p => {
-            if (p.foto && p.foto.startsWith('data:')) {
-              const { foto, ...rest } = p;
-              return { ...rest, _hasFoto: true }; // indica che la foto esiste localmente
-            }
-            return p;
-          });
+          // Includi le foto nel payload — sono già salvate come base64
+          // Il path /playerFotos separato non viene usato
+          const players = _rawPlayers;
           const matches = await db.matches.where('groupId').equals(g.id).toArray();
           allGroups.push({ group: g, players, matches });
           // Carica foto cambiate su Firebase (path separato)
@@ -10726,16 +10726,14 @@ Niente altro, nessuna spiegazione.`;
                   storicoPartite: toArr(cp.storicoPartite),
                   rivali: toArr(cp.rivali),
                   affinita: toArr(cp.affinita),
-                  foto: cp.foto || '', // foto viene scaricata separatamente sotto
+                  foto: cp.foto || cp._hasFoto ? (cp.foto || '') : '',
                 });
                 syncedPlayers++;
               }
 
-              // Scarica foto mancanti da Firebase (path separato)
+              // Foto già incluse nel payload principale — nessun download separato
               let fotoDownloaded = 0;
-              // Scarica foto per tutti i giocatori con uid
-              // (Firebase ritorna null se non c'è foto — nessun danno)
-              const _fotoAuth = fbIdToken.value ? '?auth=' + fbIdToken.value : '';
+              const _fotoAuth = ''; // non usato
               for (const cp of cloudPlayers) {
                 if (!cp?.uid) continue;
                 // Se la foto è già inline in cp (vecchio formato base64), usala direttamente
