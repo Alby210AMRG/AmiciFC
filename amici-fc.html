@@ -6080,7 +6080,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.501',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.502',date:'2026-06-12',items:[
+      'Fix foto: scarica sempre da Firebase per ogni uid — non dipende da _hasFoto',
+    ]},{version:'v1.501',date:'2026-06-12',items:[
       'Fix: sync errori ora visibili nel log — debuggabile',
       'Fix: foto download semplificato e con log errori per diagnosi',
     ]},{version:'v1.500',date:'2026-06-12',items:[
@@ -6786,7 +6788,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.501');
+    const appVersion = ref('1.502');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10695,14 +10697,22 @@ Niente altro, nessuna spiegazione.`;
 
               // Scarica foto mancanti da Firebase (path separato)
               let fotoDownloaded = 0;
+              // Scarica foto per tutti i giocatori con uid
+              // (Firebase ritorna null se non c'è foto — nessun danno)
+              const _fotoAuth = fbIdToken.value ? '?auth=' + fbIdToken.value : '';
               for (const cp of cloudPlayers) {
                 if (!cp?.uid) continue;
-                // Se la foto è già inline in cp (vecchio formato), skippa download
-                if (cp.foto?.startsWith('data:')) continue;
-                // Scarica foto se _hasFoto=true (nuovo formato) o se c'è un path foto
-                if (!cp._hasFoto && !cp.foto) continue;
+                // Se la foto è già inline in cp (vecchio formato base64), usala direttamente
+                if (cp.foto?.startsWith('data:')) {
+                  const player = await db.players.where('uid').equals(cp.uid).first();
+                  if (player && !player.foto?.startsWith('data:')) {
+                    await db.players.update(player.id, { foto: cp.foto });
+                    fotoDownloaded++;
+                  }
+                  continue;
+                }
+                // Prova sempre a scaricare da /playerFotos/{uid}
                 try {
-                  const _fotoAuth = fbIdToken.value ? '?auth=' + fbIdToken.value : '';
                   const _fotoUrl = base + '/playerFotos/' + cp.uid + '.json' + _fotoAuth;
                   const fotoResp = await fetch(_fotoUrl, { cache: 'no-store' });
                   if (!fotoResp.ok) continue;
@@ -10716,9 +10726,7 @@ Niente altro, nessuna spiegazione.`;
                       fotoDownloaded++;
                     }
                   }
-                } catch(e) {
-                  logEvent('info', 'sync', 'Foto ' + cp.uid + ' non scaricata: ' + e.message);
-                }
+                } catch(e) { /* foto non critica */ }
               }
               if (fotoDownloaded > 0) logEvent('info', 'sync', fotoDownloaded + ' foto scaricate da Firebase');
 
