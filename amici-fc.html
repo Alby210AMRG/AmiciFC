@@ -6080,7 +6080,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.506',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.507',date:'2026-06-12',items:[
+      'Fix: pulizia flag foto legacy amicifc_foto_checked_ ad ogni avvio',
+      'Fix: usa nuova chiave amicifc_foto_ per tutti i check',
+    ]},{version:'v1.506',date:'2026-06-12',items:[
       'Fix definitivo foto: distingue assenza confermata da errore rete',
       'Flag absent = Firebase conferma nessuna foto (non riprova)',
       'Nessun flag = da verificare (riprova ad ogni avvio finché non riesce)',
@@ -6800,7 +6803,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.506');
+    const appVersion = ref('1.507');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10990,11 +10993,7 @@ Niente altro, nessuna spiegazione.`;
 
       // Log diagnostico
       logEvent('info', 'sync', `📷 Foto check: ${players.length} giocatori totali, ${toCheck.length} da verificare`);
-      players.forEach(p => {
-        const flag = localStorage.getItem('amicifc_foto_checked_' + p.uid);
-        const hasFoto = p.foto?.startsWith('data:');
-        if (!hasFoto) logEvent('info', 'sync', `  → ${p.soprannome||p.nome}: foto=${p.foto?.slice(0,20)||'vuota'} flag=${flag||'nessuno'}`);
-      });
+      // (diagnostica rimossa — usare log 📷 per monitoraggio)
       if (!toCheck.length) return;
 
       const token = await getValidToken().catch(() => '');
