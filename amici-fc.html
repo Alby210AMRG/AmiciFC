@@ -6080,7 +6080,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.514',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.515',date:'2026-06-12',items:[
+      'Fix critico: PNG formazioni esclusi dal payload Firebase (riducono da 17MB a ~200KB)',
+      'I PNG vengono rigenerati localmente — non servono su Firebase',
+    ]},{version:'v1.514',date:'2026-06-12',items:[
       'Diagnostica: log dimensione payload e numero foto incluse in upload',
       'Diagnostica: verifica foto dopo ogni sync completo',
     ]},{version:'v1.513',date:'2026-06-12',items:[
@@ -6824,7 +6827,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.514');
+    const appVersion = ref('1.515');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10563,7 +10566,13 @@ Niente altro, nessuna spiegazione.`;
             }
             return p; // sempre inclusa nel payload
           });
-          const matches = await db.matches.where('groupId').equals(g.id).toArray();
+          // Escludi PNG base64 dal payload Firebase (sono enormi - fino a 500KB ciascuno)
+          // I PNG vengono rigenerati dall'app quando necessario
+          const _rawMatches = await db.matches.where('groupId').equals(g.id).toArray();
+          const matches = _rawMatches.map(m => {
+            const { pngFormazione, pngRisultato, pngPagelle, ...rest } = m;
+            return rest; // PNG esclusi dal payload cloud
+          });
           allGroups.push({ group: g, players, matches });
           // Carica foto cambiate su Firebase (path separato)
         }
