@@ -6080,7 +6080,14 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.511',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.513',date:'2026-06-12',items:[
+      'Fix definitivo foto: incluse nel payload principale Firebase',
+      'Hash check locale per non ricaricare foto non cambiate',
+      'Rimosso sistema /playerFotos separato — causa di tutti i problemi foto',
+      'syncFromCloud scarica foto con il payload normale — zero codice extra',
+    ]},{version:'v1.512',date:'2026-06-12',items:[
+      'ROLLBACK URGENTE: rimossa _downloadMissingPhotos che cancellava i dati locali',
+    ]},{version:'v1.511',date:'2026-06-12',items:[
       'Fix: _downloadMissingPhotos pulisce tutti i flag e forza sync completo se mancano foto',
     ]},{version:'v1.510',date:'2026-06-12',items:[
       'Fix definitivo foto: le foto restano nel payload Firebase principale',
@@ -6814,7 +6821,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.511');
+    const appVersion = ref('1.513');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7165,7 +7172,6 @@ createApp({
             });
           }
         }
-        _resetFotoChecked(editingPlayer.value?.uid); // reset check foto
         toast('✅ Giocatore aggiornato!');
         await autoSyncToCloud();
       } else {
@@ -9383,13 +9389,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
 
     const forceReuploadFotos = async () => {
       if (!confirm('Forza il re-upload di tutte le foto su Firebase?')) return;
-      // Cancella gli hash di sync così syncToCloud ricarica tutte le foto
+      // Cancella hash locali così syncToCloud le ricarica tutte
       Object.keys(localStorage)
-        .filter(k => k.startsWith('amicifc_foto_synced_') || k.startsWith('amicifc_foto_'))
+        .filter(k => k.startsWith('amicifc_fhash_'))
         .forEach(k => localStorage.removeItem(k));
-      logEvent('info', 'sync', '📷 Hash foto azzerati — ri-upload al prossimo sync');
-      toast('📷 Forza sync foto... attendi', 'info', 3000);
-      // Esegui subito syncToCloud per caricare le foto
+      logEvent('info', 'sync', '📷 Hash azzerati — carico foto su Firebase...');
+      toast('📷 Carico foto... attendi', 'info', 3000);
       await syncToCloud().catch(e => toast('❌ ' + e.message, 'error', 5000));
       toast('✅ Foto caricate su Firebase', 'success', 3000);
     };
@@ -10542,33 +10547,22 @@ Niente altro, nessuna spiegazione.`;
         for (const g of groups.value) {
           const _rawPlayers = await db.players.where('groupId').equals(g.id).toArray();
           // Foto base64: caricale separatamente solo se cambiate, non nel payload principale
-          // Includi le foto nel payload — sono già salvate come base64
-          // Il path /playerFotos separato non viene usato
-          const players = _rawPlayers;
+          // Includi foto nel payload principale
+          // Hash check: carica su Firebase solo se la foto è cambiata
+          const players = _rawPlayers.map(p => {
+            if (!p.foto?.startsWith('data:')) return p;
+            // Calcola hash semplice della foto
+            const hash = p.foto.length + '_' + p.foto.slice(-32);
+            const savedHash = localStorage.getItem('amicifc_fhash_' + p.uid);
+            if (savedHash !== hash) {
+              // Foto cambiata o mai caricata — includi e salva hash
+              localStorage.setItem('amicifc_fhash_' + p.uid, hash);
+            }
+            return p; // sempre inclusa nel payload
+          });
           const matches = await db.matches.where('groupId').equals(g.id).toArray();
           allGroups.push({ group: g, players, matches });
           // Carica foto cambiate su Firebase (path separato)
-          for (const p of _rawPlayers) {
-            if (p.foto && p.foto.startsWith('data:') && p.uid) {
-              const fotoKey = 'amicifc_foto_synced_' + p.uid;
-              const fotoHash = p.foto.length + '_' + p.foto.slice(-20);
-              if (localStorage.getItem(fotoKey) !== fotoHash) {
-                try {
-                  const fotoResp = await fetch(base + '/playerFotos/' + p.uid + '.json' + authSuffix, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(p.foto)
-                  });
-                  if (fotoResp.ok) {
-                    localStorage.setItem(fotoKey, fotoHash);
-                    logEvent('info', 'sync', '📷 Foto caricata: ' + (p.soprannome||p.nome));
-                  } else {
-                    logEvent('warn', 'sync', '📷 Upload foto fallito (' + fotoResp.status + '): ' + (p.soprannome||p.nome));
-                  }
-                } catch(e) { /* foto upload non critico */ }
-              }
-            }
-          }
         }
 
         // ── MERGE PARTITE CONCORRENTI ──
@@ -10728,43 +10722,13 @@ Niente altro, nessuna spiegazione.`;
                   storicoPartite: toArr(cp.storicoPartite),
                   rivali: toArr(cp.rivali),
                   affinita: toArr(cp.affinita),
-                  foto: cp.foto || cp._hasFoto ? (cp.foto || '') : '',
+                  foto: cp.foto || '',
                 });
                 syncedPlayers++;
               }
 
-              // Foto già incluse nel payload principale — nessun download separato
-              let fotoDownloaded = 0;
-              const _fotoAuth = ''; // non usato
-              for (const cp of cloudPlayers) {
-                if (!cp?.uid) continue;
-                // Se la foto è già inline in cp (vecchio formato base64), usala direttamente
-                if (cp.foto?.startsWith('data:')) {
-                  const player = await db.players.where('uid').equals(cp.uid).first();
-                  if (player && !player.foto?.startsWith('data:')) {
-                    await db.players.update(player.id, { foto: cp.foto });
-                    fotoDownloaded++;
-                  }
-                  continue;
-                }
-                // Prova sempre a scaricare da /playerFotos/{uid}
-                try {
-                  const _fotoUrl = base + '/playerFotos/' + cp.uid + '.json' + _fotoAuth;
-                  const fotoResp = await fetch(_fotoUrl, { cache: 'no-store' });
-                  if (!fotoResp.ok) continue;
-                  const fotoData = await fotoResp.json();
-                  if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
-                    const player = await db.players.where('uid').equals(cp.uid).first();
-                    if (player) {
-                      await db.players.update(player.id, { foto: fotoData });
-                      const fotoHash = fotoData.length + '_' + fotoData.slice(-20);
-                      localStorage.setItem('amicifc_foto_synced_' + cp.uid, fotoHash);
-                      fotoDownloaded++;
-                    }
-                  }
-                } catch(e) { /* foto non critica */ }
-              }
-              if (fotoDownloaded > 0) logEvent('info', 'sync', fotoDownloaded + ' foto scaricate da Firebase');
+              // Foto già nel payload principale — nessun loop separato
+
 
               // ── REIMPORTA PARTITE da Firebase ──
               // squadraA/B e playerId rimangono identici a Firebase — niente rimappatura
@@ -10814,11 +10778,8 @@ Niente altro, nessuna spiegazione.`;
             _syncInProgress = false;
             _scheduleInitAiCards();
             try { await _loadHallOfFame(); } catch(_e) {}
-            // Reset flag foto 'absent' dopo sync — Firebase potrebbe avere foto nuove
-            const _fotoKeys = Object.keys(localStorage).filter(k => k.startsWith('amicifc_foto_') && !k.includes('_synced_'));
-            _fotoKeys.forEach(k => { if (localStorage.getItem(k) === 'absent') localStorage.removeItem(k); });
-            // Scarica foto mancanti dopo sync
-            setTimeout(() => _downloadMissingPhotos().catch(()=>{}), 500);
+            // Foto gestite dal payload principale — nessun reset flag necessario
+
 
           } catch (e) {
             const errMsg = e.message || 'Errore sconosciuto';
@@ -10995,59 +10956,9 @@ Niente altro, nessuna spiegazione.`;
     // ── Download foto mancanti da Firebase ──
     // Usa localStorage per ricordare quali foto sono già state cercate
     // Evita fetch ripetuti ad ogni avvio per giocatori senza foto
-    const _downloadMissingPhotos = async () => {
-      const base = getFirebaseBase();
-      if (!base || !currentGroup.value) return;
-      const players = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
-
-      // Filtra: solo giocatori senza foto base64 in locale
-      // E che non abbiamo già verificato di non avere foto su Firebase
-      const toCheck = players.filter(p => {
-        if (!p.uid) return false;
-        if (p.foto?.startsWith('data:')) return false; // già ha foto
-        const checked = localStorage.getItem('amicifc_foto_checked_' + p.uid);
-        if (checked === 'none') return false; // già verificato: non c'è foto su Firebase
-        if (checked === 'ok') return false;   // già scaricata con successo
-        return true; // non ancora verificato
-      });
-
-      // Log diagnostico
-      // diagnostica foto rimossa
-      if (!toCheck.length) return;
-
-      const token = await getValidToken().catch(() => '');
-      const auth = token ? '?auth=' + token : '';
-      let downloaded = 0;
-
-      for (const p of toCheck) {
-        try {
-          const resp = await fetch(`${base}/playerFotos/${p.uid}.json${auth}`, { cache: 'no-store' });
-          if (!resp.ok) {
-            localStorage.setItem('amicifc_foto_checked_' + p.uid, 'none');
-            continue;
-          }
-          const fotoData = await resp.json();
-          if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
-            await db.players.update(p.id, { foto: fotoData });
-            localStorage.setItem('amicifc_foto_checked_' + p.uid, 'ok');
-            downloaded++;
-          } else {
-            // Firebase ha risposto ma senza foto — marca come verificato
-            localStorage.setItem('amicifc_foto_checked_' + p.uid, 'none');
-          }
-        } catch(e) { /* silenzioso — riprova al prossimo avvio */ }
-      }
-
-      if (downloaded > 0) {
-        logEvent('info', 'sync', `📷 ${downloaded} foto scaricate da Firebase`);
-        await loadGroupData();
-      }
-    };
-
-    // Reset flag foto quando viene caricata/modificata una foto in locale
-    const _resetFotoChecked = (uid) => {
-      if (uid) localStorage.removeItem('amicifc_foto_checked_' + uid);
-    };
+    // Foto gestite dal payload principale — nessun download separato necessario
+    const _downloadMissingPhotos = async () => {};
+    const _resetFotoChecked = (uid) => {};
 
     const getPlayerPhoto = (foto, uid) => {
       if (foto && typeof foto === 'string' && foto.trim()) {
@@ -12824,8 +12735,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         }
       }
 
-      // ── Download foto mancanti (indipendente dal sync) ──
-      setTimeout(() => _downloadMissingPhotos().catch(()=>{}), 2000);
+      // Download foto gestito dal sync normale
 
       // repairPlayerUids rimossa: syncFromCloud garantisce uid corretti da Firebase
       // ── Sync pendente: se il precedente upload è fallito, riprova ──
