@@ -6080,7 +6080,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.498',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.499',date:'2026-06-12',items:[
+      'Fix: auto-reset localSyncTs se corrotto (locale > Firebase di più di 1 ora)',
+    ]},{version:'v1.498',date:'2026-06-12',items:[
       'Fix critico: localSyncTs aggiornato con timestamp Firebase (non Date.now()) dopo sync',
       'Fix: debounce checkSyncNeeded persistente su localStorage — sopravvive ai reload',
     ]},{version:'v1.497',date:'2026-06-12',items:[
@@ -6777,7 +6779,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.498');
+    const appVersion = ref('1.499');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10211,6 +10213,15 @@ Niente altro, nessuna spiegazione.`;
 
         // Check 2: lastModified — se Firebase è più recente di 30s → sync
         const myLastModified = localSyncTs.value;
+        // Se localSyncTs è più recente di fbLastModified di più di 1 ora → timestamp locale corrotto
+        // (es. salvato con Date.now() invece di fbLastModified) → forza reset
+        if (myLastModified > fbLastModified + 3600000) {
+          logEvent('info', 'sync', `⚠️ Timestamp locale corrotto (locale:${new Date(myLastModified).toLocaleTimeString()} > FB:${new Date(fbLastModified).toLocaleTimeString()}) — reset e sync`);
+          localSyncTs.value = 0;
+          localStorage.setItem('amicifc_sync_ts', '0');
+          localStorage.removeItem('amicifc_last_check_ts');
+          return 'update';
+        }
         if (fbLastModified > myLastModified + 30000) {
           logEvent('info', 'sync', `🔄 Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
           return 'update';
