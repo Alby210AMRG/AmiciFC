@@ -6080,7 +6080,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.504',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.505',date:'2026-06-12',items:[
+      'Diagnostica: log dettagliato foto per trovare il problema',
+    ]},{version:'v1.504',date:'2026-06-12',items:[
       'Fix foto: flag localStorage per ogni giocatore — scarica solo se non già verificato',
       'Zero fetch inutili: giocatori senza foto vengono verificati una sola volta',
     ]},{version:'v1.503',date:'2026-06-12',items:[
@@ -6794,7 +6796,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.504');
+    const appVersion = ref('1.505');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10982,6 +10984,13 @@ Niente altro, nessuna spiegazione.`;
         return true; // non ancora verificato
       });
 
+      // Log diagnostico
+      logEvent('info', 'sync', `📷 Foto check: ${players.length} giocatori totali, ${toCheck.length} da verificare`);
+      players.forEach(p => {
+        const flag = localStorage.getItem('amicifc_foto_checked_' + p.uid);
+        const hasFoto = p.foto?.startsWith('data:');
+        if (!hasFoto) logEvent('info', 'sync', `  → ${p.soprannome||p.nome}: foto=${p.foto?.slice(0,20)||'vuota'} flag=${flag||'nessuno'}`);
+      });
       if (!toCheck.length) return;
 
       const token = await getValidToken().catch(() => '');
