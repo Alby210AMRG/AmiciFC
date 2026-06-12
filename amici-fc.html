@@ -6080,7 +6080,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.513',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.514',date:'2026-06-12',items:[
+      'Diagnostica: log dimensione payload e numero foto incluse in upload',
+      'Diagnostica: verifica foto dopo ogni sync completo',
+    ]},{version:'v1.513',date:'2026-06-12',items:[
       'Fix definitivo foto: incluse nel payload principale Firebase',
       'Hash check locale per non ricaricare foto non cambiate',
       'Rimosso sistema /playerFotos separato — causa di tutti i problemi foto',
@@ -6821,7 +6824,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.513');
+    const appVersion = ref('1.514');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10599,10 +10602,15 @@ Niente altro, nessuna spiegazione.`;
           aiCards: cloudAiCards
         };
 
+        const payloadStr = JSON.stringify(payload);
+        const payloadKB = Math.round(payloadStr.length / 1024);
+        const fotoCount = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
+        logEvent('info', 'sync', `📤 Upload: ${payloadKB}KB, ${fotoCount} foto incluse`);
+
         let resp = await fetch(`${base}.json${authSuffix}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
+          body: payloadStr
         });
 
         if (resp.status === 401) {
@@ -10616,7 +10624,7 @@ Niente altro, nessuna spiegazione.`;
           resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: payloadStr
           });
         }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
