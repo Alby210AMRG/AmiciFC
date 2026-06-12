@@ -6080,7 +6080,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.495',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.496',date:'2026-06-12',items:[
+      'Fix CRITICO: checkSyncNeeded leggeva shallow=true che dava true invece dei valori reali',
+      'Fix: lastModified e syncVersion ora letti direttamente — sync funziona correttamente',
+      'Questo era il motivo per cui la partita non arrivava agli altri dispositivi',
+    ]},{version:'v1.495',date:'2026-06-12',items:[
       'Fix critico: checkSyncNeeded ora logga sempre nel log app — visibile cosa succede',
       'Fix: startup sync logga errori nel log invece di solo console.warn',
       'Fix: checkSyncNeeded con tolleranza 30s per differenze di clock tra dispositivi',
@@ -6768,7 +6772,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.495');
+    const appVersion = ref('1.496');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10178,13 +10182,17 @@ Niente altro, nessuna spiegazione.`;
       const base = getFirebaseBase();
       if (!base) return false;
       try {
-        const resp = await fetch(`${base}.json?shallow=true`, { cache: 'no-store' });
-        if (!resp.ok) return false;
-        const data = await resp.json();
-        if (!data) return false;
+        // Leggi solo lastModified e syncVersion — non usare shallow=true (ritorna solo true/false per chiave)
+        const authSuffix = fbIdToken.value ? `?auth=${fbIdToken.value}` : '';
+        const [respV, respM] = await Promise.all([
+          fetch(`${base}/syncVersion.json${authSuffix}`, { cache: 'no-store' }),
+          fetch(`${base}/lastModified.json${authSuffix}`, { cache: 'no-store' }),
+        ]);
+        if (!respV.ok || !respM.ok) return false;
+        const fbSyncVersion = parseInt(await respV.json() || '1');
+        const fbLastModified = parseInt(await respM.json() || '0');
 
         // Check 1: syncVersion — se Firebase ha versione maggiore → sync forzato
-        const fbSyncVersion = parseInt(data.syncVersion || '1');
         const myVersion = localSyncVersion.value;
         if (fbSyncVersion > myVersion) {
           logEvent('info', 'sync', `syncVersion aggiornata (${myVersion} → ${fbSyncVersion}) — sync forzato`);
@@ -10192,14 +10200,12 @@ Niente altro, nessuna spiegazione.`;
         }
 
         // Check 2: lastModified — se Firebase è più recente di 30s → sync
-        // (tolleranza 30s per differenze di clock tra dispositivi)
-        const fbLastModified = parseInt(data.lastModified || '0');
         const myLastModified = localSyncTs.value;
         if (fbLastModified > myLastModified + 30000) {
-          logEvent('info', 'sync', `Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
+          logEvent('info', 'sync', `🔄 Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
           return 'update';
         }
-        logEvent('info', 'sync', `✅ Dati locali aggiornati (FB:${new Date(fbLastModified).toLocaleTimeString()} / locale:${new Date(myLastModified).toLocaleTimeString()})`);
+        logEvent('info', 'sync', `✅ Dati aggiornati (FB:${new Date(fbLastModified).toLocaleTimeString()} locale:${new Date(myLastModified).toLocaleTimeString()})`);
 
         return false;
       } catch(e) {
