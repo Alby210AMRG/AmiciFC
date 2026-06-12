@@ -6080,7 +6080,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.500',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.501',date:'2026-06-12',items:[
+      'Fix: sync errori ora visibili nel log — debuggabile',
+      'Fix: foto download semplificato e con log errori per diagnosi',
+    ]},{version:'v1.500',date:'2026-06-12',items:[
       'Fix: foto giocatori scaricate con auth token — visibili dopo sync',
       'Fix: foto skip logic corretta con flag _hasFoto',
       'Fix: uomoPartita salva uid oltre al nome — consistente tra dispositivi',
@@ -6783,7 +6786,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.500');
+    const appVersion = ref('1.501');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10694,29 +10697,28 @@ Niente altro, nessuna spiegazione.`;
               let fotoDownloaded = 0;
               for (const cp of cloudPlayers) {
                 if (!cp?.uid) continue;
-                // Se il giocatore ha già la foto base64 in cp (vecchio formato), skippa
+                // Se la foto è già inline in cp (vecchio formato), skippa download
                 if (cp.foto?.startsWith('data:')) continue;
-                // Se non ha _hasFoto=true e niente foto, non c'è foto su Firebase
+                // Scarica foto se _hasFoto=true (nuovo formato) o se c'è un path foto
                 if (!cp._hasFoto && !cp.foto) continue;
-                // Controlla se la foto è già scaricata in locale
-                const existing = await db.players.where('uid').equals(cp.uid).first();
-                if (existing?.foto?.startsWith('data:')) continue; // già in locale
                 try {
                   const _fotoAuth = fbIdToken.value ? '?auth=' + fbIdToken.value : '';
-                  const fotoResp = await fetch(base + '/playerFotos/' + cp.uid + '.json' + _fotoAuth, { cache: 'no-store' });
-                  if (fotoResp.ok) {
-                    const fotoData = await fotoResp.json();
-                    if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
-                      const player = await db.players.where('uid').equals(cp.uid).first();
-                      if (player) {
-                        await db.players.update(player.id, { foto: fotoData });
-                        const fotoHash = fotoData.length + '_' + fotoData.slice(-20);
-                        localStorage.setItem('amicifc_foto_synced_' + cp.uid, fotoHash);
-                        fotoDownloaded++;
-                      }
+                  const _fotoUrl = base + '/playerFotos/' + cp.uid + '.json' + _fotoAuth;
+                  const fotoResp = await fetch(_fotoUrl, { cache: 'no-store' });
+                  if (!fotoResp.ok) continue;
+                  const fotoData = await fotoResp.json();
+                  if (fotoData && typeof fotoData === 'string' && fotoData.startsWith('data:')) {
+                    const player = await db.players.where('uid').equals(cp.uid).first();
+                    if (player) {
+                      await db.players.update(player.id, { foto: fotoData });
+                      const fotoHash = fotoData.length + '_' + fotoData.slice(-20);
+                      localStorage.setItem('amicifc_foto_synced_' + cp.uid, fotoHash);
+                      fotoDownloaded++;
                     }
                   }
-                } catch(e) { /* foto non critica */ }
+                } catch(e) {
+                  logEvent('info', 'sync', 'Foto ' + cp.uid + ' non scaricata: ' + e.message);
+                }
               }
               if (fotoDownloaded > 0) logEvent('info', 'sync', fotoDownloaded + ' foto scaricate da Firebase');
 
@@ -10773,14 +10775,14 @@ Niente altro, nessuna spiegazione.`;
             const errMsg = e.message || 'Errore sconosciuto';
             const isOffline = errMsg.includes('fetch') || errMsg.includes('network') || errMsg.includes('NetworkError') || !navigator.onLine;
             if (isOffline) {
-              // Offline — silenzioso, icona normale
               logEvent('info', 'sync', '📵 Offline — sync non disponibile');
-              setSyncStatus('idle'); // non mostrare errore
+              setSyncStatus('idle');
             } else {
               lastSyncError.value = errMsg;
-              logEvent('error', 'sync', errMsg);
+              logEvent('error', 'sync', '❌ Sync fallito: ' + errMsg);
               localStorage.setItem('amicifc_last_sync_error', errMsg);
               setSyncStatus('error');
+              console.error('[syncFromCloud]', e);
             }
           }
           syncLoading.value = false;
