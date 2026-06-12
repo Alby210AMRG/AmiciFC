@@ -6080,7 +6080,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.505',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.506',date:'2026-06-12',items:[
+      'Fix definitivo foto: distingue assenza confermata da errore rete',
+      'Flag absent = Firebase conferma nessuna foto (non riprova)',
+      'Nessun flag = da verificare (riprova ad ogni avvio finché non riesce)',
+    ]},{version:'v1.505',date:'2026-06-12',items:[
       'Diagnostica: log dettagliato foto per trovare il problema',
     ]},{version:'v1.504',date:'2026-06-12',items:[
       'Fix foto: flag localStorage per ogni giocatore — scarica solo se non già verificato',
@@ -6796,7 +6800,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.505');
+    const appVersion = ref('1.506');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10787,9 +10791,9 @@ Niente altro, nessuna spiegazione.`;
             _syncInProgress = false;
             _scheduleInitAiCards();
             try { await _loadHallOfFame(); } catch(_e) {}
-            // Reset flag foto dopo sync — Firebase potrebbe avere foto aggiornate
-            const _fotoKeys = Object.keys(localStorage).filter(k => k.startsWith('amicifc_foto_checked_'));
-            _fotoKeys.forEach(k => localStorage.removeItem(k));
+            // Reset flag foto 'absent' dopo sync — Firebase potrebbe avere foto nuove
+            const _fotoKeys = Object.keys(localStorage).filter(k => k.startsWith('amicifc_foto_') && !k.includes('_synced_'));
+            _fotoKeys.forEach(k => { if (localStorage.getItem(k) === 'absent') localStorage.removeItem(k); });
             // Scarica foto mancanti dopo sync
             setTimeout(() => _downloadMissingPhotos().catch(()=>{}), 500);
 
