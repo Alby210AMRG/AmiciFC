@@ -2425,6 +2425,37 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
 
             <!-- SOPRANNOME / IDENTIKIT AI -->
+            <!-- ── PRONOSTICO PROSSIMA PARTITA ── -->
+            <template v-else-if="s.type==='pronostico'">
+              <div class="hc-label" style="color:#a78bfa">{{s.label}}</div>
+              <div class="hc-title" style="color:#fff;margin-bottom:10px;position:relative;z-index:1">{{s.titolo}}</div>
+              <div class="hc-scroll-box" style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3)"
+                :ref="el => el && _heroAutoScroll(el, s, 'prono')">
+                <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
+                  <div v-if="s.primoGol" style="background:rgba(74,222,128,.1);border-radius:8px;padding:8px">
+                    <div style="font-size:10px;font-weight:700;color:#4ade80;letter-spacing:1px;margin-bottom:3px">⚽ PRIMO GOL</div>
+                    <div class="hc-body" style="color:#fff;font-weight:700">{{s.primoGol.nome}}</div>
+                    <div class="hc-body-em" style="color:rgba(255,255,255,.7)">{{s.primoGol.motivo}}</div>
+                  </div>
+                  <div v-if="s.mvp" style="background:rgba(251,191,36,.1);border-radius:8px;padding:8px">
+                    <div style="font-size:10px;font-weight:700;color:#fbbf24;letter-spacing:1px;margin-bottom:3px">🌟 MVP PREVISTO</div>
+                    <div class="hc-body" style="color:#fff;font-weight:700">{{s.mvp.nome}}</div>
+                    <div class="hc-body-em" style="color:rgba(255,255,255,.7)">{{s.mvp.motivo}}</div>
+                  </div>
+                  <div v-if="s.disastro" style="background:rgba(248,113,113,.1);border-radius:8px;padding:8px">
+                    <div style="font-size:10px;font-weight:700;color:#f87171;letter-spacing:1px;margin-bottom:3px">💥 DISASTRO ANNUNCIATO</div>
+                    <div class="hc-body" style="color:#fff;font-weight:700">{{s.disastro.nome}}</div>
+                    <div class="hc-body-em" style="color:rgba(255,255,255,.7)">{{s.disastro.motivo}}</div>
+                  </div>
+                  <div v-if="s.assurda" style="background:rgba(96,165,250,.1);border-radius:8px;padding:8px">
+                    <div style="font-size:10px;font-weight:700;color:#60a5fa;letter-spacing:1px;margin-bottom:3px">🎲 PREVISIONE ASSURDA</div>
+                    <div class="hc-body" style="color:rgba(255,255,255,.85)">{{s.assurda}}</div>
+                  </div>
+                  <div v-if="s.firma" class="hc-meta" style="color:rgba(167,139,250,.6);border:none;padding:0;text-align:right">— {{s.firma}}</div>
+                </div>
+              </div>
+            </template>
+
             <!-- ── RECORD PERSONALE ── -->
             <template v-else-if="s.type==='record'">
               <div class="hc-label" style="color:#fbbf24">{{s.label}}</div>
@@ -4382,19 +4413,89 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <span class="toggle-slider"></span>
           </label>
         </div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Tutorial ❓</div>
-            <div class="setting-sub">Mostra i suggerimenti di utilizzo nell'app</div>
-          </div>
-          <label class="toggle">
-            <input type="checkbox" v-model="tutorialEnabled">
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
       </div>
 
-      
+      <!-- Manuale del Campetto -->
+      <div class="card" style="border-color:rgba(96,165,250,0.3)">
+        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0"
+          @click="manualeExpanded=!manualeExpanded">
+          <div class="card-title" style="margin:0">📖 Manuale del Campetto</div>
+          <span style="font-size:1.3rem;transition:transform .3s;color:var(--text2)" :style="manualeExpanded?'transform:rotate(180deg)':''">▾</span>
+        </div>
+        <div v-if="manualeExpanded" style="margin-top:14px">
+
+          <!-- Come iniziare (ex Tutorial) -->
+          <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-weight:700;font-size:0.78rem;color:var(--lime);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">🚀 Come Iniziare</div>
+            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+              <li>Vai in <strong>Giocatori</strong> e aggiungi i tuoi amici con foto e ruolo</li>
+              <li>Premi il tasto <strong>▶ Play</strong> verde per creare una formazione</li>
+              <li>Scegli <strong>AI</strong> per formazioni bilanciate o <strong>Manuale</strong></li>
+              <li>A fine partita inserisci voti, gol e assist per ogni giocatore</li>
+              <li>Le <strong>statistiche</strong> e le <strong>card AI</strong> si aggiornano automaticamente</li>
+              <li>Configura una <strong>API key AI</strong> per le card intelligenti</li>
+            </ol>
+          </div>
+
+          <!-- Card Statistiche -->
+          <div style="margin-bottom:12px">
+            <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📊 Card Statistiche</div>
+            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+              <div>🏅 <strong>Overall Rating</strong> — podio top 3 OVR · ad ogni sync</div>
+              <div>⚽ <strong>Classifica Gol</strong> — podio top 3 marcatori · ad ogni sync</div>
+              <div>🏅 <strong>Classifica Punti</strong> — podio top 3 · ad ogni sync</div>
+              <div>📈 <strong>Forma Recente</strong> — top vs flop ultime 3 partite · ad ogni sync</div>
+              <div>⚖️ <strong>La Bilancia</strong> — confronto voti 2 giocatori · ogni 30 min</div>
+              <div>🏆 <strong>Record Personale</strong> — record gol/assist/voto · ogni 30 min</div>
+              <div>🎂 <strong>Il Gruppo nel Tempo</strong> — anniversary prima partita · statica</div>
+              <div>⚔️ <strong>Testa a Testa</strong> — H2H tra 2 giocatori · ogni 30 min</div>
+              <div>🔥 <strong>Trending Ora</strong> — giocatore in forma · ad ogni sync</div>
+              <div>🏟️ <strong>Rivivi la Partita</strong> — riepilogo ultima partita · ad ogni sync</div>
+              <div>🌟 <strong>Dream Team</strong> — formazione ideale · ogni giorno</div>
+              <div>📊 <strong>Stagione</strong> — totale partite e giocatori · ad ogni sync</div>
+            </div>
+          </div>
+
+          <!-- Card Cronaca -->
+          <div style="margin-bottom:12px">
+            <div style="font-weight:700;font-size:0.78rem;color:#fbbf24;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📰 Card Cronaca</div>
+            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+              <div>📰 <strong>Cronaca</strong> — evento saliente ultima partita · ogni ora</div>
+              <div>😰 <strong>Crisi di Forma</strong> — sconfitte consecutive · ogni ora</div>
+              <div>🎯 <strong>L'Infallibile</strong> — alta media gol · ogni ora</div>
+              <div>🤝 <strong>Re del Pareggio</strong> — striscia pareggi · ogni ora</div>
+              <div>💪 <strong>Il Guascone</strong> — striscia vittorie · ogni ora</div>
+            </div>
+          </div>
+
+          <!-- Card Sfide -->
+          <div style="margin-bottom:12px">
+            <div style="font-weight:700;font-size:0.78rem;color:#f87171;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">⚡ Card Sfide</div>
+            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+              <div>⚡ <strong>Sfida della Settimana</strong> — 2 giocatori a confronto · ogni ora</div>
+              <div>⚔️ <strong>Rivalità Reale</strong> — H2H con barre · ogni ora</div>
+              <div>📊 <strong>Classifica Marcatori</strong> — confronto top 2 scorer · ogni ora</div>
+              <div>⚡ <strong>Rivali Dichiarati</strong> — coppia configurata · ogni ora</div>
+              <div>🤝 <strong>Coppia Affiatata</strong> — coppia con affinità · ogni ora</div>
+            </div>
+          </div>
+
+          <!-- Card AI -->
+          <div>
+            <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🤖 Card AI — richiedono API key</div>
+            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+              <div>🧬 <strong>Identikit AI</strong> — soprannome e profilo · ogni 7 giorni</div>
+              <div>💬 <strong>Trash Talk</strong> — commento provocatorio · ogni 3 giorni</div>
+              <div>🏆 <strong>Hall of Fame</strong> — MVP del mese · ogni 30 giorni</div>
+              <div>😈 <strong>Hall of Shame</strong> — peggiore del mese · ogni 30 giorni</div>
+              <div>🔮 <strong>Pronostico</strong> — previsione prossima partita · ogni 7 giorni</div>
+              <div>💡 <strong>Frase Celebre</strong> — citazione di un giocatore · statica</div>
+              <div>📰 <strong>Telecronista</strong> — commento AI ultima partita · ad ogni partita</div>
+            </div>
+          </div>
+
+        </div>
+      </div>
 
       <div class="card">
         <!-- Header collassabile -->
@@ -4765,6 +4866,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(255,100,100,.35)" @click="forceTrashTalk">🔥 Rigenera Trash Talk</button>
                   <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(251,191,36,.35)" @click="forceHallOfFame">👑 Rigenera Hall of Fame</button>
                   <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(45,212,191,.35)" @click="forceSoprannomi">🧬 Rigenera Soprannomi</button>
+                  <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;border-color:rgba(124,58,237,.35)" @click="forcePronostico">🔮 Rigenera Pronostico</button>
+                </div>
+                <div style="font-size:0.72rem;margin-top:6px;padding:6px 10px;border-radius:6px"
+                  :style="aiPronostico?.titolo ? 'background:rgba(124,58,237,.12);color:rgba(167,139,250,.8)' : 'background:rgba(255,255,255,.05);color:rgba(255,255,255,.3)'">
+                  <span v-if="aiPronostico?.titolo">🔮 <strong>{{aiPronostico.titolo?.slice(0,45)}}{{aiPronostico.titolo?.length>45?'...':''}}</strong>
+                    · {{aiPronostico.generatedAt ? new Date(aiPronostico.generatedAt).toLocaleDateString('it-IT') : '?'}}</span>
+                  <span v-else>🔮 Pronostico: non ancora generato</span>
                 </div>
               </div>
             </div>
@@ -6080,7 +6188,23 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.515',date:'2026-06-12',items:[
+    const changelogEntries = [{version:'v1.519',date:'2026-06-13',items:[
+      'Fix: Manuale del Campetto ora si espande (manualeExpanded dichiarato)',
+      'Fix: box info Pronostico visibile in Zona Pericolo',
+    ]},{version:'v1.518',date:'2026-06-13',items:[
+      'Fix: syncToCloud include aiCards locali (pronostico, trashTalk, HoF, soprannomi)',
+      'Fix: syncFromCloud aggiorna aiCards locali dal payload Firebase',
+      'Ora le card AI si propagano su tutti i dispositivi come partite e giocatori',
+    ]},{version:'v1.517',date:'2026-06-13',items:[
+      'Fix: Manuale del Campetto visibile nelle impostazioni — Tutorial spostato qui',
+      'UI: box info stato Pronostico in Zona Pericolo',
+      'Fix: cardId univoco per card AI Pronostico',
+    ]},{version:'v1.516',date:'2026-06-13',items:[
+      'Nuovo: 📖 Manuale del Campetto nelle impostazioni con elenco tutte le card',
+      'Fix: Rigenera Soprannomi ora svuota tutto e rigenera davvero',
+      'Nuovo: 🔮 Card AI Pronostico Prossima Partita (ogni 7 giorni)',
+      'Nuovo: pulsante Rigenera Pronostico in Zona Pericolo',
+    ]},{version:'v1.515',date:'2026-06-12',items:[
       'Fix critico: PNG formazioni esclusi dal payload Firebase (riducono da 17MB a ~200KB)',
       'I PNG vengono rigenerati localmente — non servono su Firebase',
     ]},{version:'v1.514',date:'2026-06-12',items:[
@@ -6624,6 +6748,7 @@ createApp({
     const showOvrInfo       = ref(false);
     const showAISection     = ref(false); // collassato di default
     const tutorialEnabled   = ref(true); // tutorial attivo di default
+    const manualeExpanded   = ref(false);
     watch(tutorialEnabled, v => {
       localStorage.setItem('amicifc_tutorial', v ? '1' : '0');
     });
@@ -6827,7 +6952,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.515');
+    const appVersion = ref('1.519');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8925,6 +9050,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // ══════════════════════════════════════════════════════════════
     // ══════════════════════════════════════════════════════════════
     const aiCardsHallOfFame = ref(null); // { fame: {...}, shame: {...}, mese: 'YYYY-MM' }
+    const aiPronostico      = ref(null);
 
     const _generateHallOfFame = async (force=false) => {
       if (!settings.value.apiKey) { _aiLog('HallOfFame','⚠️ Nessuna API key',false); return; }
@@ -9099,9 +9225,10 @@ OUTPUT: Rispondi SOLO con JSON valido:
 
     // ── Flag AI Cards — controlla se serve aggiornare Firebase ──
     const AI_FLAGS = {
-      tt:    { key: g => 'amicifc_ai_tt_'+g,    ttl: 3 * 24 * 60 * 60 * 1000  }, // 3 giorni
-      hof:   { key: g => 'amicifc_ai_hof_'+g,   ttl: 30 * 24 * 60 * 60 * 1000 }, // 30 giorni
-      nicks: { key: g => 'amicifc_ai_nicks_'+g, ttl: 7 * 24 * 60 * 60 * 1000  }, // 7 giorni
+      tt:          { key: g => 'amicifc_ai_tt_'+g,    ttl: 3 * 24 * 60 * 60 * 1000  }, // 3 giorni
+      hof:         { key: g => 'amicifc_ai_hof_'+g,   ttl: 30 * 24 * 60 * 60 * 1000 }, // 30 giorni
+      nicks:       { key: g => 'amicifc_ai_nicks_'+g, ttl: 7 * 24 * 60 * 60 * 1000  }, // 7 giorni
+      pronostico:  { key: g => 'amicifc_ai_prono_'+g, ttl: 7 * 24 * 60 * 60 * 1000  }, // 7 giorni
     };
     const aiFlagValid = (tipo, gid) => {
       const cfg = AI_FLAGS[tipo];
@@ -9405,6 +9532,48 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       toast('✅ Foto caricate su Firebase', 'success', 3000);
     };
 
+    const _generatePronostico = async () => {
+      if (!settings.value.apiKey) return;
+      if (!currentGroup.value) return;
+      const players = groupPlayers.value.filter(p => (p.partiteTotali||0) >= 2);
+      const matches = groupMatches.value;
+      if (players.length < 4 || matches.length < 2) return;
+      _aiLog('Pronostico','▶️ Generazione pronostico...');
+      const top3 = [...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0)).slice(0,3);
+      const topMvp = [...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
+      const last3 = [...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
+      const profili = players.slice(0,10).map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,ast:p.assistTotali||0,voto:(p.mediaVoto||0).toFixed(1),uom:p.uomoPartitaTotali||0,pti:(p.mediaPunti||0).toFixed(1)}));
+      const prompt = `Sei un telecronista calcistico ironico. Basandoti SOLO sui dati reali, fai un pronostico per la prossima partita di calcetto tra amici.
+GIOCATORI: ${JSON.stringify(profili)}
+TOP SCORER: ${top3.map(p=>p.soprannome||p.nome).join(', ')}
+MVP PIÙ FREQUENTE: ${topMvp?.soprannome||topMvp?.nome||'?'}
+ULTIMI RISULTATI: ${last3.map(m=>`${m.risultato?.goalA||0}-${m.risultato?.goalB||0}`).join(', ')}
+REGOLE: basati sui dati reali, tono ironico mai offensivo.
+JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto":{"nome":"...","motivo":"..."},"disastroAnnunciato":{"nome":"...","motivo":"..."},"previsione_assurda":"...","firma":"..."}`;
+      const raw = await _callAI(prompt, 600);
+      if (!raw) { _aiLog('Pronostico','❌ Nessuna risposta',false); return; }
+      const parsed = _parseAIJson(raw);
+      if (!parsed?.titolo) { _aiLog('Pronostico','❌ JSON non valido',false); return; }
+      const _pronoId = (currentGroup.value.id||'') + '_pronostico_' + Date.now();
+      aiPronostico.value = { ...parsed, generatedAt: Date.now(), cardId: _pronoId };
+      localStorage.setItem('amicifc_prono_' + currentGroup.value.id, JSON.stringify(aiPronostico.value));
+      aiFlagSet('pronostico', currentGroup.value.id);
+      _aiLog('Pronostico','✅ ' + parsed.titolo);
+      if (currentGroup.value?.firebaseUrl) {
+        const token = await getValidToken() || '';
+        if (token) { await _fbWrite('aiCards/pronostico/' + _aiCardGroupKey(), aiPronostico.value, token); }
+      }
+    };
+
+    const forcePronostico = () => {
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI','error',3000); return; }
+      aiFlagClear('pronostico', currentGroup.value?.id);
+      aiPronostico.value = null;
+      localStorage.removeItem('amicifc_prono_' + (currentGroup.value?.id||''));
+      _aiLog('UI','🔮 Rigenerazione pronostico...');
+      _generatePronostico().catch(e => _aiLog('UI','❌ '+e.message,false));
+    };
+
     const forceTrashTalk = () => {
       const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
       if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
@@ -9421,8 +9590,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
     };
     const forceSoprannomi = () => {
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
-      aiFlagClear('nicks', currentGroup.value.id); // forza rigenerazione
-      _aiLog('UI','🧬 Forzatura soprannomi...');
+      // Svuota completamente i soprannomi esistenti per forzare rigenerazione totale
+      aiNicknames.value = {};
+      const _lsNK = 'amicifc_nicks_' + (currentGroup.value?.id||'');
+      localStorage.removeItem(_lsNK);
+      aiFlagClear('nicks', currentGroup.value?.id); // cancella flag temporale
+      _aiLog('UI','🧬 Soprannomi azzerati — rigenerazione completa in corso...');
       _generateNicknames().catch(e => _aiLog('UI','❌ '+e.message,false));
     };
 
@@ -9515,7 +9688,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
       const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
       if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
 
-      if (aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid)) {
+      if (aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
         const _lsKeyTT = 'amicifc_tt_' + _gid;
         if (!aiCardsTrashTalk.value.length) {
@@ -10533,19 +10706,31 @@ Niente altro, nessuna spiegazione.`;
         }
         const authSuffix = token ? `?auth=${token}` : '';
 
-        // Leggi aiCards da Firebase per preservarle (non sono locali)
-        // base = ${url}/amicifc, quindi aiCards sta su ${base}/aiCards.json
+        // Costruisci aiCards dal locale — include tutto quello che è stato generato
+        // Poi merge con Firebase per preservare card generate su altri dispositivi
         let cloudAiCards = {};
         try {
-          const aiResp = await fetch(`${base}/aiCards.json`, { cache: 'no-store' });
+          const aiResp = await fetch(`${base}/aiCards.json${authSuffix}`, { cache: 'no-store' });
           if (aiResp.ok) cloudAiCards = await aiResp.json() || {};
         } catch {}
-        // Fallback: leggi dal root completo
-        if (!Object.keys(cloudAiCards).length) {
-          try {
-            const rootResp = await fetch(`${base}.json`, { cache: 'no-store' });
-            if (rootResp.ok) { const d = await rootResp.json(); cloudAiCards = d?.aiCards || {}; }
-          } catch {}
+
+        // Merge: le card locali sovrascrivono quelle Firebase (sono più aggiornate)
+        const _gKey = _aiCardGroupKey();
+        if (aiCardsTrashTalk.value?.length) {
+          cloudAiCards.trashTalk = cloudAiCards.trashTalk || {};
+          cloudAiCards.trashTalk[_gKey] = aiCardsTrashTalk.value;
+        }
+        if (aiCardsHallOfFame.value) {
+          cloudAiCards.hallOfFame = cloudAiCards.hallOfFame || {};
+          cloudAiCards.hallOfFame[_gKey] = aiCardsHallOfFame.value;
+        }
+        if (aiNicknames.value && Object.keys(aiNicknames.value).length) {
+          cloudAiCards.soprannomi = cloudAiCards.soprannomi || {};
+          cloudAiCards.soprannomi[_gKey] = aiNicknames.value;
+        }
+        if (aiPronostico.value?.titolo) {
+          cloudAiCards.pronostico = cloudAiCards.pronostico || {};
+          cloudAiCards.pronostico[_gKey] = aiPronostico.value;
         }
 
         // Costruisci payload con i dati locali
@@ -10791,6 +10976,31 @@ Niente altro, nessuna spiegazione.`;
             localSyncTs.value = _fbLastMod;
             localStorage.setItem('amicifc_sync_version', String(_fbSyncVer));
             localStorage.setItem('amicifc_sync_ts', String(_fbLastMod));
+
+            // Aggiorna aiCards locali dal payload Firebase
+            const _fbAiCards = data.aiCards || {};
+            const _gKey2 = _aiCardGroupKey();
+            if (_fbAiCards.trashTalk?.[_gKey2]) {
+              aiCardsTrashTalk.value = _fbAiCards.trashTalk[_gKey2];
+              localStorage.setItem('amicifc_tt_' + currentGroup.value.id, JSON.stringify(aiCardsTrashTalk.value));
+              aiFlagSet('tt', currentGroup.value.id);
+            }
+            if (_fbAiCards.hallOfFame?.[_gKey2]) {
+              aiCardsHallOfFame.value = _fbAiCards.hallOfFame[_gKey2];
+              localStorage.setItem('amicifc_hof_' + currentGroup.value.id, JSON.stringify(aiCardsHallOfFame.value));
+              aiFlagSet('hof', currentGroup.value.id);
+            }
+            if (_fbAiCards.soprannomi?.[_gKey2]) {
+              aiNicknames.value = _fbAiCards.soprannomi[_gKey2];
+              localStorage.setItem('amicifc_nicks_' + currentGroup.value.id, JSON.stringify(aiNicknames.value));
+              aiFlagSet('nicks', currentGroup.value.id);
+            }
+            if (_fbAiCards.pronostico?.[_gKey2]) {
+              aiPronostico.value = _fbAiCards.pronostico[_gKey2];
+              localStorage.setItem('amicifc_prono_' + currentGroup.value.id, JSON.stringify(aiPronostico.value));
+              aiFlagSet('pronostico', currentGroup.value.id);
+              logEvent('info','sync','🔮 Pronostico aggiornato da Firebase');
+            }
 
             _syncInProgress = false;
             _scheduleInitAiCards();
@@ -13294,6 +13504,15 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       }
 
       if(aiCardsTrashTalk.value.length>0){
+      // Pronostico Prossima Partita
+      if (aiPronostico.value?.titolo) {
+        const _pr = aiPronostico.value;
+        slides.push({type:'pronostico',dur:9000,label:'🔮 PRONOSTICO',
+          titolo:_pr.titolo,primoGol:_pr.primoGol,mvp:_pr.mvpPrevisto,
+          disastro:_pr.disastroAnnunciato,assurda:_pr.previsione_assurda,firma:_pr.firma,
+          bg:'linear-gradient(145deg,#0a0a2e,#1e1b4b 60%,#7c3aed)',dest:'stats'});
+      }
+
         const ttIdx=aiCardsTrashTalkIdx.value%aiCardsTrashTalk.value.length;
         const tt=aiCardsTrashTalk.value[ttIdx];
         if(tt){
@@ -14089,7 +14308,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceReuploadFotos, forceSoprannomi, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceReuploadFotos, forceSoprannomi, forcePronostico, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
     };
   }
 }).mount('#app');
