@@ -6188,7 +6188,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.525',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.526',date:'2026-06-13',items:[
+      'Fix urgente: rimosso sync forzato su foto mancanti che causava loop infinito',
+    ]},{version:'v1.525',date:'2026-06-13',items:[
       'Diagnostica: log foto importate da Firebase durante syncFromCloud',
     ]},{version:'v1.524',date:'2026-06-13',items:[
       'Fix: sync forzato se foto o soprannomi mancanti — recupero automatico',
@@ -6970,7 +6972,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.525');
+    const appVersion = ref('1.526');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10486,13 +10488,6 @@ Niente altro, nessuna spiegazione.`;
         }
         if (fbLastModified > myLastModified + 30000) {
           logEvent('info', 'sync', `🔄 Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
-          return 'update';
-        }
-        // Se i dati sono allineati ma mancano foto o soprannomi, forza sync
-        const _missingFoto = groupPlayers.value.filter(p=>p.uid&&!p.foto?.startsWith('data:')).length;
-        const _missingNicks = Object.keys(aiNicknames.value||{}).length === 0 && groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3).length > 0;
-        if (_missingFoto > 0 || _missingNicks) {
-          logEvent('info', 'sync', `🔄 Dati incompleti (${_missingFoto} foto mancanti, soprannomi: ${_missingNicks?'vuoti':'ok'}) — sync forzato`);
           return 'update';
         }
         logEvent('info', 'sync', `✅ Dati aggiornati (FB:${new Date(fbLastModified).toLocaleTimeString()} locale:${new Date(myLastModified).toLocaleTimeString()})`);
