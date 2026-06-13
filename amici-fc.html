@@ -6188,7 +6188,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.527',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.528',date:'2026-06-13',items:[
+      'Fix: nextTick prima di syncToCloud post-nicks — soprannomi sempre nel payload',
+    ]},{version:'v1.527',date:'2026-06-13',items:[
       'Fix soprannomi: cerca in locale → localStorage → Firebase path dedicato',
     ]},{version:'v1.526',date:'2026-06-13',items:[
       'Fix urgente: rimosso sync forzato su foto mancanti che causava loop infinito',
@@ -6974,7 +6976,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.527');
+    const appVersion = ref('1.528');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9390,10 +9392,14 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         }
         if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, failedBatches > 0 ? 15000 : 3000));
       }
-      // Sync completo dopo rigenerazione — aggiorna payload root Firebase
-      // così tutti i dispositivi ricevono i nuovi soprannomi al prossimo sync
-      if (currentGroup.value?.firebaseUrl) {
-        _aiLog('Soprannomi','🔄 Aggiornamento payload Firebase...');
+      // Sync completo dopo rigenerazione
+      if (currentGroup.value?.firebaseUrl && Object.keys(updated).length > 0) {
+        // Assicura che aiNicknames.value sia aggiornato prima del sync
+        aiNicknames.value = { ...updated };
+        const _lsNKFinal = 'amicifc_nicks_' + currentGroup.value.id;
+        localStorage.setItem(_lsNKFinal, JSON.stringify(updated));
+        await nextTick();
+        _aiLog('Soprannomi', `🔄 Sync payload Firebase (${Object.keys(updated).length} soprannomi)...`);
         syncToCloud().catch(e => _aiLog('Soprannomi','⚠️ Sync post-nicks: '+e.message,false));
       }
     };
