@@ -6188,7 +6188,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.523',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.525',date:'2026-06-13',items:[
+      'Diagnostica: log foto importate da Firebase durante syncFromCloud',
+    ]},{version:'v1.524',date:'2026-06-13',items:[
+      'Fix: sync forzato se foto o soprannomi mancanti — recupero automatico',
+      'Fix: soprannomi aggiornati da Firebase durante syncFromCloud con log',
+    ]},{version:'v1.523',date:'2026-06-13',items:[
       'ROLLBACK: foto sempre nel payload — nessun hash check che causava foto vuote',
     ]},{version:'v1.522',date:'2026-06-13',items:[
       'Fix critico: soprannomi sempre inclusi nel payload Firebase',
@@ -6965,7 +6970,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.523');
+    const appVersion = ref('1.525');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10483,6 +10488,13 @@ Niente altro, nessuna spiegazione.`;
           logEvent('info', 'sync', `🔄 Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
           return 'update';
         }
+        // Se i dati sono allineati ma mancano foto o soprannomi, forza sync
+        const _missingFoto = groupPlayers.value.filter(p=>p.uid&&!p.foto?.startsWith('data:')).length;
+        const _missingNicks = Object.keys(aiNicknames.value||{}).length === 0 && groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3).length > 0;
+        if (_missingFoto > 0 || _missingNicks) {
+          logEvent('info', 'sync', `🔄 Dati incompleti (${_missingFoto} foto mancanti, soprannomi: ${_missingNicks?'vuoti':'ok'}) — sync forzato`);
+          return 'update';
+        }
         logEvent('info', 'sync', `✅ Dati aggiornati (FB:${new Date(fbLastModified).toLocaleTimeString()} locale:${new Date(myLastModified).toLocaleTimeString()})`);
 
         return false;
@@ -10952,8 +10964,11 @@ Niente altro, nessuna spiegazione.`;
               // Conserva l'id originale di Firebase — niente rimappatura
               // toArr: Firebase converte array in oggetti {"0":..} — lo riconvertiamo
               const cloudPlayers = toArr(eg.players);
+              let fotoCount = 0;
               for (const cp of cloudPlayers) {
                 if (!cp) continue;
+                const hasFoto = cp.foto?.startsWith('data:');
+                if (hasFoto) fotoCount++;
                 await db.players.add({
                   ...cp,
                   groupId: gid,
@@ -10965,8 +10980,7 @@ Niente altro, nessuna spiegazione.`;
                 });
                 syncedPlayers++;
               }
-
-              // Foto già nel payload principale — nessun loop separato
+              logEvent('info', 'sync', `📷 Foto importate da Firebase: ${fotoCount}/${cloudPlayers.length}`);
 
 
               // ── REIMPORTA PARTITE da Firebase ──
@@ -11028,9 +11042,14 @@ Niente altro, nessuna spiegazione.`;
               aiFlagSet('hof', currentGroup.value.id);
             }
             if (_fbAiCards.soprannomi?.[_gKey2]) {
-              aiNicknames.value = _fbAiCards.soprannomi[_gKey2];
-              localStorage.setItem('amicifc_nicks_' + currentGroup.value.id, JSON.stringify(aiNicknames.value));
-              aiFlagSet('nicks', currentGroup.value.id);
+              const _newNicks = _fbAiCards.soprannomi[_gKey2];
+              const _nkCount = Object.keys(_newNicks).length;
+              if (_nkCount > 0) {
+                aiNicknames.value = _newNicks;
+                localStorage.setItem('amicifc_nicks_' + currentGroup.value.id, JSON.stringify(_newNicks));
+                aiFlagSet('nicks', currentGroup.value.id);
+                logEvent('info', 'sync', `🧬 ${_nkCount} soprannomi aggiornati da Firebase`);
+              }
             }
             if (_fbAiCards.pronostico?.[_gKey2]) {
               aiPronostico.value = _fbAiCards.pronostico[_gKey2];
