@@ -6188,7 +6188,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.519',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.520',date:'2026-06-13',items:[
+      'Fix critico: syncToCloud dopo rigenerazione soprannomi e pronostico',
+      'Tutti i dispositivi ricevono le nuove card AI al prossimo sync',
+    ]},{version:'v1.519',date:'2026-06-13',items:[
       'Fix: Manuale del Campetto ora si espande (manualeExpanded dichiarato)',
       'Fix: box info Pronostico visibile in Zona Pericolo',
     ]},{version:'v1.518',date:'2026-06-13',items:[
@@ -6952,7 +6955,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.519');
+    const appVersion = ref('1.520');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9368,6 +9371,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         }
         if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, failedBatches > 0 ? 15000 : 3000));
       }
+      // Sync completo dopo rigenerazione — aggiorna payload root Firebase
+      // così tutti i dispositivi ricevono i nuovi soprannomi al prossimo sync
+      if (currentGroup.value?.firebaseUrl) {
+        _aiLog('Soprannomi','🔄 Aggiornamento payload Firebase...');
+        syncToCloud().catch(e => _aiLog('Soprannomi','⚠️ Sync post-nicks: '+e.message,false));
+      }
     };
 
     // ── Slide soprannomi per l'hero: pesca un giocatore con soprannome AI ──
@@ -9561,7 +9570,11 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       _aiLog('Pronostico','✅ ' + parsed.titolo);
       if (currentGroup.value?.firebaseUrl) {
         const token = await getValidToken() || '';
-        if (token) { await _fbWrite('aiCards/pronostico/' + _aiCardGroupKey(), aiPronostico.value, token); }
+        if (token) {
+          await _fbWrite('aiCards/pronostico/' + _aiCardGroupKey(), aiPronostico.value, token);
+          // Sync completo per aggiornare payload root
+          syncToCloud().catch(e => _aiLog('Pronostico','⚠️ Sync: '+e.message,false));
+        }
       }
     };
 
