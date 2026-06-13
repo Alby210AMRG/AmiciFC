@@ -6188,7 +6188,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.526',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.527',date:'2026-06-13',items:[
+      'Fix soprannomi: cerca in locale → localStorage → Firebase path dedicato',
+    ]},{version:'v1.526',date:'2026-06-13',items:[
       'Fix urgente: rimosso sync forzato su foto mancanti che causava loop infinito',
     ]},{version:'v1.525',date:'2026-06-13',items:[
       'Diagnostica: log foto importate da Firebase durante syncFromCloud',
@@ -6972,7 +6974,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.526');
+    const appVersion = ref('1.527');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10759,26 +10761,36 @@ Niente altro, nessuna spiegazione.`;
           cloudAiCards.hallOfFame[_gKey] = aiCardsHallOfFame.value;
         }
 
-        // Soprannomi — sempre inclusi se presenti, anche se Firebase non li aveva
-        const _localNicks = aiNicknames.value || {};
-        const _nickKeys = Object.keys(_localNicks);
-        if (_nickKeys.length > 0) {
-          cloudAiCards.soprannomi = cloudAiCards.soprannomi || {};
-          cloudAiCards.soprannomi[_gKey] = _localNicks;
-          logEvent('info', 'sync', `🧬 Soprannomi inclusi nel payload: ${_nickKeys.length}`);
-        } else {
-          // Soprannomi locali vuoti — prova a leggere da Firebase path dedicato
-          try {
-            const _nkResp = await fetch(`${base}/aiCards/soprannomi/${_gKey}.json${authSuffix}`, {cache:'no-store'});
-            if (_nkResp.ok) {
-              const _nkData = await _nkResp.json();
-              if (_nkData && Object.keys(_nkData).length > 0) {
-                cloudAiCards.soprannomi = cloudAiCards.soprannomi || {};
-                cloudAiCards.soprannomi[_gKey] = _nkData;
-                logEvent('info', 'sync', `🧬 Soprannomi da Firebase path dedicato: ${Object.keys(_nkData).length}`);
-              }
+        // Soprannomi: prima prova in locale, poi dal path dedicato Firebase
+        {
+          let _nicks = aiNicknames.value && Object.keys(aiNicknames.value).length > 0
+            ? aiNicknames.value : null;
+          if (!_nicks) {
+            // Leggi dal localStorage
+            try {
+              const _lsN = localStorage.getItem('amicifc_nicks_' + (currentGroup.value?.id||''));
+              if (_lsN) { const _p = JSON.parse(_lsN); if (Object.keys(_p).length > 0) _nicks = _p; }
+            } catch(e) {}
+          }
+          if (!_nicks) {
+            // Leggi dal path dedicato Firebase
+            try {
+              const _nr = await fetch(`${base}/aiCards/soprannomi/${_gKey}.json${authSuffix}`, {cache:'no-store'});
+              if (_nr.ok) { const _nd = await _nr.json(); if (_nd && Object.keys(_nd).length > 0) _nicks = _nd; }
+            } catch(e) {}
+          }
+          if (_nicks && Object.keys(_nicks).length > 0) {
+            cloudAiCards.soprannomi = cloudAiCards.soprannomi || {};
+            cloudAiCards.soprannomi[_gKey] = _nicks;
+            // Aggiorna anche il locale
+            if (!aiNicknames.value || Object.keys(aiNicknames.value).length === 0) {
+              aiNicknames.value = _nicks;
+              localStorage.setItem('amicifc_nicks_' + (currentGroup.value?.id||''), JSON.stringify(_nicks));
             }
-          } catch(e) { /* silenzioso */ }
+            logEvent('info', 'sync', `🧬 Soprannomi nel payload: ${Object.keys(_nicks).length}`);
+          } else {
+            logEvent('info', 'sync', '🧬 Soprannomi: nessuno disponibile');
+          }
         }
 
         // Pronostico
