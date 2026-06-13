@@ -6188,7 +6188,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.522',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.523',date:'2026-06-13',items:[
+      'ROLLBACK: foto sempre nel payload — nessun hash check che causava foto vuote',
+    ]},{version:'v1.522',date:'2026-06-13',items:[
       'Fix critico: soprannomi sempre inclusi nel payload Firebase',
       'Fallback: se locali vuoti, legge soprannomi dal path dedicato Firebase',
       'Log: conta soprannomi inclusi in ogni upload',
@@ -6963,7 +6965,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.522');
+    const appVersion = ref('1.523');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10784,20 +10786,8 @@ Niente altro, nessuna spiegazione.`;
           const _rawPlayers = await db.players.where('groupId').equals(g.id).toArray();
           // Foto base64: caricale separatamente solo se cambiate, non nel payload principale
           // Includi foto nel payload principale
-          // Hash check: includi foto solo se cambiata dall'ultimo upload
-          const players = _rawPlayers.map(p => {
-            if (!p.foto?.startsWith('data:')) return p;
-            const hash = p.foto.length + '_' + p.foto.slice(-32);
-            const savedHash = localStorage.getItem('amicifc_fhash_' + p.uid);
-            if (savedHash === hash) {
-              // Foto non cambiata — escludi dal payload per ridurre traffico
-              const { foto, ...rest } = p;
-              return { ...rest, _hasFoto: true };
-            }
-            // Foto nuova o cambiata — includi e salva hash
-            localStorage.setItem('amicifc_fhash_' + p.uid, hash);
-            return p;
-          });
+          // Foto sempre incluse nel payload — garantisce che tutti i dispositivi le ricevano
+          const players = _rawPlayers;
           // Escludi PNG base64 dal payload Firebase (sono enormi - fino a 500KB ciascuno)
           // I PNG vengono rigenerati dall'app quando necessario
           const _rawMatches = await db.matches.where('groupId').equals(g.id).toArray();
@@ -10845,9 +10835,8 @@ Niente altro, nessuna spiegazione.`;
 
         const payloadStr = JSON.stringify(payload);
         const payloadKB = Math.round(payloadStr.length / 1024);
-        const fotoIncluse = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
-        const fotoEscluse = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p._hasFoto===true).length, 0);
-        logEvent('info', 'sync', `📤 Upload: ${payloadKB}KB, ${fotoIncluse} foto nuove, ${fotoEscluse} foto cache`);
+        const fotoCount = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
+        logEvent('info', 'sync', `📤 Upload: ${payloadKB}KB, ${fotoCount} foto incluse`);
 
         let resp = await fetch(`${base}.json${authSuffix}`, {
           method: 'PUT',
@@ -10965,10 +10954,6 @@ Niente altro, nessuna spiegazione.`;
               const cloudPlayers = toArr(eg.players);
               for (const cp of cloudPlayers) {
                 if (!cp) continue;
-                // Se _hasFoto=true la foto non è nel payload ma potrebbe essere in locale
-                const _existingFoto = cp._hasFoto
-                  ? (await db.players.where('uid').equals(cp.uid||'').first())?.foto || ''
-                  : (cp.foto || '');
                 await db.players.add({
                   ...cp,
                   groupId: gid,
@@ -10976,8 +10961,7 @@ Niente altro, nessuna spiegazione.`;
                   storicoPartite: toArr(cp.storicoPartite),
                   rivali: toArr(cp.rivali),
                   affinita: toArr(cp.affinita),
-                  foto: _existingFoto,
-                  _hasFoto: undefined,
+                  foto: cp.foto || '',
                 });
                 syncedPlayers++;
               }
