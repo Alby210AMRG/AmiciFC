@@ -6188,7 +6188,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.520',date:'2026-06-13',items:[
+    const changelogEntries = [{version:'v1.522',date:'2026-06-13',items:[
+      'Fix critico: soprannomi sempre inclusi nel payload Firebase',
+      'Fallback: se locali vuoti, legge soprannomi dal path dedicato Firebase',
+      'Log: conta soprannomi inclusi in ogni upload',
+    ]},{version:'v1.521',date:'2026-06-13',items:[
+      'Fix foto: hash check funzionante — foto escluse dal payload se non cambiate',
+      'Fix syncFromCloud: preserva foto locale quando riceve _hasFoto=true',
+      'Log upload: mostra foto nuove vs foto cache',
+    ]},{version:'v1.520',date:'2026-06-13',items:[
       'Fix critico: syncToCloud dopo rigenerazione soprannomi e pronostico',
       'Tutti i dispositivi ricevono le nuove card AI al prossimo sync',
     ]},{version:'v1.519',date:'2026-06-13',items:[
@@ -6955,7 +6963,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.520');
+    const appVersion = ref('1.522');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10729,18 +10737,42 @@ Niente altro, nessuna spiegazione.`;
 
         // Merge: le card locali sovrascrivono quelle Firebase (sono più aggiornate)
         const _gKey = _aiCardGroupKey();
+
+        // TrashTalk
         if (aiCardsTrashTalk.value?.length) {
           cloudAiCards.trashTalk = cloudAiCards.trashTalk || {};
           cloudAiCards.trashTalk[_gKey] = aiCardsTrashTalk.value;
         }
+
+        // HoF
         if (aiCardsHallOfFame.value) {
           cloudAiCards.hallOfFame = cloudAiCards.hallOfFame || {};
           cloudAiCards.hallOfFame[_gKey] = aiCardsHallOfFame.value;
         }
-        if (aiNicknames.value && Object.keys(aiNicknames.value).length) {
+
+        // Soprannomi — sempre inclusi se presenti, anche se Firebase non li aveva
+        const _localNicks = aiNicknames.value || {};
+        const _nickKeys = Object.keys(_localNicks);
+        if (_nickKeys.length > 0) {
           cloudAiCards.soprannomi = cloudAiCards.soprannomi || {};
-          cloudAiCards.soprannomi[_gKey] = aiNicknames.value;
+          cloudAiCards.soprannomi[_gKey] = _localNicks;
+          logEvent('info', 'sync', `🧬 Soprannomi inclusi nel payload: ${_nickKeys.length}`);
+        } else {
+          // Soprannomi locali vuoti — prova a leggere da Firebase path dedicato
+          try {
+            const _nkResp = await fetch(`${base}/aiCards/soprannomi/${_gKey}.json${authSuffix}`, {cache:'no-store'});
+            if (_nkResp.ok) {
+              const _nkData = await _nkResp.json();
+              if (_nkData && Object.keys(_nkData).length > 0) {
+                cloudAiCards.soprannomi = cloudAiCards.soprannomi || {};
+                cloudAiCards.soprannomi[_gKey] = _nkData;
+                logEvent('info', 'sync', `🧬 Soprannomi da Firebase path dedicato: ${Object.keys(_nkData).length}`);
+              }
+            }
+          } catch(e) { /* silenzioso */ }
         }
+
+        // Pronostico
         if (aiPronostico.value?.titolo) {
           cloudAiCards.pronostico = cloudAiCards.pronostico || {};
           cloudAiCards.pronostico[_gKey] = aiPronostico.value;
@@ -10752,17 +10784,19 @@ Niente altro, nessuna spiegazione.`;
           const _rawPlayers = await db.players.where('groupId').equals(g.id).toArray();
           // Foto base64: caricale separatamente solo se cambiate, non nel payload principale
           // Includi foto nel payload principale
-          // Hash check: carica su Firebase solo se la foto è cambiata
+          // Hash check: includi foto solo se cambiata dall'ultimo upload
           const players = _rawPlayers.map(p => {
             if (!p.foto?.startsWith('data:')) return p;
-            // Calcola hash semplice della foto
             const hash = p.foto.length + '_' + p.foto.slice(-32);
             const savedHash = localStorage.getItem('amicifc_fhash_' + p.uid);
-            if (savedHash !== hash) {
-              // Foto cambiata o mai caricata — includi e salva hash
-              localStorage.setItem('amicifc_fhash_' + p.uid, hash);
+            if (savedHash === hash) {
+              // Foto non cambiata — escludi dal payload per ridurre traffico
+              const { foto, ...rest } = p;
+              return { ...rest, _hasFoto: true };
             }
-            return p; // sempre inclusa nel payload
+            // Foto nuova o cambiata — includi e salva hash
+            localStorage.setItem('amicifc_fhash_' + p.uid, hash);
+            return p;
           });
           // Escludi PNG base64 dal payload Firebase (sono enormi - fino a 500KB ciascuno)
           // I PNG vengono rigenerati dall'app quando necessario
@@ -10811,8 +10845,9 @@ Niente altro, nessuna spiegazione.`;
 
         const payloadStr = JSON.stringify(payload);
         const payloadKB = Math.round(payloadStr.length / 1024);
-        const fotoCount = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
-        logEvent('info', 'sync', `📤 Upload: ${payloadKB}KB, ${fotoCount} foto incluse`);
+        const fotoIncluse = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
+        const fotoEscluse = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p._hasFoto===true).length, 0);
+        logEvent('info', 'sync', `📤 Upload: ${payloadKB}KB, ${fotoIncluse} foto nuove, ${fotoEscluse} foto cache`);
 
         let resp = await fetch(`${base}.json${authSuffix}`, {
           method: 'PUT',
@@ -10930,6 +10965,10 @@ Niente altro, nessuna spiegazione.`;
               const cloudPlayers = toArr(eg.players);
               for (const cp of cloudPlayers) {
                 if (!cp) continue;
+                // Se _hasFoto=true la foto non è nel payload ma potrebbe essere in locale
+                const _existingFoto = cp._hasFoto
+                  ? (await db.players.where('uid').equals(cp.uid||'').first())?.foto || ''
+                  : (cp.foto || '');
                 await db.players.add({
                   ...cp,
                   groupId: gid,
@@ -10937,7 +10976,8 @@ Niente altro, nessuna spiegazione.`;
                   storicoPartite: toArr(cp.storicoPartite),
                   rivali: toArr(cp.rivali),
                   affinita: toArr(cp.affinita),
-                  foto: cp.foto || '',
+                  foto: _existingFoto,
+                  _hasFoto: undefined,
                 });
                 syncedPlayers++;
               }
