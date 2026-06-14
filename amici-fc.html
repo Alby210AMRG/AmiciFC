@@ -2123,7 +2123,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='forma'||s.type==='h2hCard'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
@@ -6242,7 +6242,17 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.541',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.543',date:'2026-06-14',items:[
+      'Squadra Perfetta -> "Squadra Perfetta al Momento": ora basata su media punti ultime 5 presenze (min 4 partite), non più su media storica totale',
+      'Nuovo: file CHANGELOG.md e REGOLE-PROGETTO.md per documentazione esterna del progetto',
+    ]},{version:'v1.542',date:'2026-06-14',items:[
+      'Fix grafica: card "Forma Recente" e "Testa a Testa" ora partono dall\'alto',
+      'Fix CRITICO: Trending Ora confrontava id Dexie invece di uid — valori sempre a 0',
+      'Fix: Trending Ora ora richiede presenza in almeno 3 ultime partite (no più giocatori marginali)',
+      'Fix CRITICO: Sfida della Settimana e Rivalità Reale — confronti squadraA/B con uid invece di id',
+      'Fix: streak Top Scorer e card Crisi/Pareggio/Guascone — confronti con uid invece di id',
+      'Manutenzione: changelog in-app ridotto alle ultime 15 versioni (38KB → 2.7KB)',
+    ]},{version:'v1.541',date:'2026-06-14',items:[
       'Soprannomi: soglia rigenerazione abbassata da 5 a 4 partite (~1 mese)',
       'Fix: toggle Tutorial ora visibile nel Manuale del Campetto',
     ]},{version:'v1.540',date:'2026-06-14',items:[
@@ -6277,542 +6287,8 @@ createApp({
       'UI: Generazione AI Cards riprogettata — card singole con stato e pulsante',
     ]},{version:'v1.528',date:'2026-06-13',items:[
       'Fix: nextTick prima di syncToCloud post-nicks — soprannomi sempre nel payload',
-    ]},{version:'v1.527',date:'2026-06-13',items:[
-      'Fix soprannomi: cerca in locale → localStorage → Firebase path dedicato',
-    ]},{version:'v1.526',date:'2026-06-13',items:[
-      'Fix urgente: rimosso sync forzato su foto mancanti che causava loop infinito',
-    ]},{version:'v1.525',date:'2026-06-13',items:[
-      'Diagnostica: log foto importate da Firebase durante syncFromCloud',
-    ]},{version:'v1.524',date:'2026-06-13',items:[
-      'Fix: sync forzato se foto o soprannomi mancanti — recupero automatico',
-      'Fix: soprannomi aggiornati da Firebase durante syncFromCloud con log',
-    ]},{version:'v1.523',date:'2026-06-13',items:[
-      'ROLLBACK: foto sempre nel payload — nessun hash check che causava foto vuote',
-    ]},{version:'v1.522',date:'2026-06-13',items:[
-      'Fix critico: soprannomi sempre inclusi nel payload Firebase',
-      'Fallback: se locali vuoti, legge soprannomi dal path dedicato Firebase',
-      'Log: conta soprannomi inclusi in ogni upload',
-    ]},{version:'v1.521',date:'2026-06-13',items:[
-      'Fix foto: hash check funzionante — foto escluse dal payload se non cambiate',
-      'Fix syncFromCloud: preserva foto locale quando riceve _hasFoto=true',
-      'Log upload: mostra foto nuove vs foto cache',
-    ]},{version:'v1.520',date:'2026-06-13',items:[
-      'Fix critico: syncToCloud dopo rigenerazione soprannomi e pronostico',
-      'Tutti i dispositivi ricevono le nuove card AI al prossimo sync',
-    ]},{version:'v1.519',date:'2026-06-13',items:[
-      'Fix: Manuale del Campetto ora si espande (manualeExpanded dichiarato)',
-      'Fix: box info Pronostico visibile in Zona Pericolo',
-    ]},{version:'v1.518',date:'2026-06-13',items:[
-      'Fix: syncToCloud include aiCards locali (pronostico, trashTalk, HoF, soprannomi)',
-      'Fix: syncFromCloud aggiorna aiCards locali dal payload Firebase',
-      'Ora le card AI si propagano su tutti i dispositivi come partite e giocatori',
-    ]},{version:'v1.517',date:'2026-06-13',items:[
-      'Fix: Manuale del Campetto visibile nelle impostazioni — Tutorial spostato qui',
-      'UI: box info stato Pronostico in Zona Pericolo',
-      'Fix: cardId univoco per card AI Pronostico',
-    ]},{version:'v1.516',date:'2026-06-13',items:[
-      'Nuovo: 📖 Manuale del Campetto nelle impostazioni con elenco tutte le card',
-      'Fix: Rigenera Soprannomi ora svuota tutto e rigenera davvero',
-      'Nuovo: 🔮 Card AI Pronostico Prossima Partita (ogni 7 giorni)',
-      'Nuovo: pulsante Rigenera Pronostico in Zona Pericolo',
-    ]},{version:'v1.515',date:'2026-06-12',items:[
-      'Fix critico: PNG formazioni esclusi dal payload Firebase (riducono da 17MB a ~200KB)',
-      'I PNG vengono rigenerati localmente — non servono su Firebase',
-    ]},{version:'v1.514',date:'2026-06-12',items:[
-      'Diagnostica: log dimensione payload e numero foto incluse in upload',
-      'Diagnostica: verifica foto dopo ogni sync completo',
-    ]},{version:'v1.513',date:'2026-06-12',items:[
-      'Fix definitivo foto: incluse nel payload principale Firebase',
-      'Hash check locale per non ricaricare foto non cambiate',
-      'Rimosso sistema /playerFotos separato — causa di tutti i problemi foto',
-      'syncFromCloud scarica foto con il payload normale — zero codice extra',
-    ]},{version:'v1.512',date:'2026-06-12',items:[
-      'ROLLBACK URGENTE: rimossa _downloadMissingPhotos che cancellava i dati locali',
-    ]},{version:'v1.511',date:'2026-06-12',items:[
-      'Fix: _downloadMissingPhotos pulisce tutti i flag e forza sync completo se mancano foto',
-    ]},{version:'v1.510',date:'2026-06-12',items:[
-      'Fix definitivo foto: le foto restano nel payload Firebase principale',
-      'Rimosso path /playerFotos separato che non veniva mai popolato',
-      'syncFromCloud ora recupera le foto direttamente dal campo foto del giocatore',
-    ]},{version:'v1.509',date:'2026-06-12',items:[
-      'Diagnostica: log dettagliato per ogni foto — HTTP status e risposta Firebase',
-    ]},{version:'v1.508',date:'2026-06-12',items:[
-      'Tool: pulsante forza re-upload foto in Zona Pericolo',
-      'Fix: log upload foto con esito per diagnosi',
-    ]},{version:'v1.507',date:'2026-06-12',items:[
-      'Fix: pulizia flag foto legacy amicifc_foto_checked_ ad ogni avvio',
-      'Fix: usa nuova chiave amicifc_foto_ per tutti i check',
-    ]},{version:'v1.506',date:'2026-06-12',items:[
-      'Fix definitivo foto: distingue assenza confermata da errore rete',
-      'Flag absent = Firebase conferma nessuna foto (non riprova)',
-      'Nessun flag = da verificare (riprova ad ogni avvio finché non riesce)',
-    ]},{version:'v1.505',date:'2026-06-12',items:[
-      'Diagnostica: log dettagliato foto per trovare il problema',
-    ]},{version:'v1.504',date:'2026-06-12',items:[
-      'Fix foto: flag localStorage per ogni giocatore — scarica solo se non già verificato',
-      'Zero fetch inutili: giocatori senza foto vengono verificati una sola volta',
-    ]},{version:'v1.503',date:'2026-06-12',items:[
-      'Fix definitivo foto: download separato dal sync — scarica sempre le foto mancanti',
-      'Foto scaricate sia all avvio che dopo ogni sync completo',
-    ]},{version:'v1.502',date:'2026-06-12',items:[
-      'Fix foto: scarica sempre da Firebase per ogni uid — non dipende da _hasFoto',
-    ]},{version:'v1.501',date:'2026-06-12',items:[
-      'Fix: sync errori ora visibili nel log — debuggabile',
-      'Fix: foto download semplificato e con log errori per diagnosi',
-    ]},{version:'v1.500',date:'2026-06-12',items:[
-      'Fix: foto giocatori scaricate con auth token — visibili dopo sync',
-      'Fix: foto skip logic corretta con flag _hasFoto',
-      'Fix: uomoPartita salva uid oltre al nome — consistente tra dispositivi',
-    ]},{version:'v1.499',date:'2026-06-12',items:[
-      'Fix: auto-reset localSyncTs se corrotto (locale > Firebase di più di 1 ora)',
-    ]},{version:'v1.498',date:'2026-06-12',items:[
-      'Fix critico: localSyncTs aggiornato con timestamp Firebase (non Date.now()) dopo sync',
-      'Fix: debounce checkSyncNeeded persistente su localStorage — sopravvive ai reload',
-    ]},{version:'v1.497',date:'2026-06-12',items:[
-      'Fix: debounce 60s su checkSyncNeeded — evita 4 check in rapida successione',
-    ]},{version:'v1.496',date:'2026-06-12',items:[
-      'Fix CRITICO: checkSyncNeeded leggeva shallow=true che dava true invece dei valori reali',
-      'Fix: lastModified e syncVersion ora letti direttamente — sync funziona correttamente',
-      'Questo era il motivo per cui la partita non arrivava agli altri dispositivi',
-    ]},{version:'v1.495',date:'2026-06-12',items:[
-      'Fix critico: checkSyncNeeded ora logga sempre nel log app — visibile cosa succede',
-      'Fix: startup sync logga errori nel log invece di solo console.warn',
-      'Fix: checkSyncNeeded con tolleranza 30s per differenze di clock tra dispositivi',
-      'Fix: log timestamp FB vs locale per diagnosi problemi sync',
-    ]},{version:'v1.494',date:'2026-06-11',items:[
-      'Fix: formazione manuale usa solo uid — coerente con architettura UUID',
-      'Rimosso fallback su p.id — tutti i giocatori hanno uid garantito dalla migrazione Dexie',
-    ]},{version:'v1.493',date:'2026-06-11',items:[
-      'Fix: formazione manuale mostra i giocatori selezionati — usava id invece di uid',
-    ]},{version:'v1.492',date:'2026-06-11',items:[
-      'Fix: formazione manuale — pulsanti A/B si colorano correttamente (uid invece di id)',
-      'Fix: autogol visualizzati nella squadra corretta nel riepilogo SBS',
-    ]},{version:'v1.491',date:'2026-06-11',items:[
-      'Fix: watch _heroRawData ripristinato nel posto corretto — hero si aggiorna dopo sync',
-    ]},{version:'v1.490',date:'2026-06-11',items:[
-      'Fix: rigoriParati e rigoriSbagliati ora salvati correttamente in saveMatch',
-    ]},{version:'v1.489',date:'2026-06-11',items:[
-      'Fix: utente senza credenziali scrittura non entra in loop pending_sync',
-      'Fix: merge partite concorrenti in syncToCloud — nessuna perdita dati',
-    ]},{version:'v1.488',date:'2026-06-09',items:[
-      'Fix Caso 4: retry automatico sync con backoff (3 tentativi, 5/10/15s)',
-      'Fix Caso 6: merge partite concorrenti — nessuna perdita di dati tra utenti',
-      'Fix Caso 7: utente senza token non entra in loop infinito pending_sync',
-    ]},{version:'v1.487',date:'2026-06-09',items:[
-      'Fix Caso 3: al ritorno online carica automaticamente partite salvate offline',
-      'Fix Caso 2: token rinnovato silenziosamente — log non più allarmante',
-      'Fix: pending sync verificato sia all avvio che al ritorno online con toast conferma',
-    ]},{version:'v1.486',date:'2026-06-09',items:[
-      'Fix PNG: punteggio previsto colorato — gol squadra B arancio, gol squadra A blu',
-    ]},{version:'v1.485',date:'2026-06-09',items:[
-      'Fix PNG: nomi squadre su 3 righe sotto le quote (NomeB / score / NomeA)',
-      'Fix PNG: commento risultato 28px bold — leggibile',
-      'UI PNG: glow fluo arancio sul box squadra B, blu sul box squadra A',
-    ]},{version:'v1.484',date:'2026-06-09',items:[
-      'Fix: PNG formazioni — campo ridotto, quote scommessa più grandi (58px), commento 24px leggibile',
-      'Fix: marcatori recap usa uid con fallback nome',
-    ]},{version:'v1.483',date:'2026-06-09',items:[
-      'Nuovo: 7 nuove hero card — Record, Forma, Anniversary, Bilancia, Classifica Gol, Classifica Punti, H2H',
-      'Seed 30min per varietà massima nel carosello',
-      'Ordine carosello preservato: ovr3/nick1/rest/nick2/rest/nick3',
-    ]},{version:'v1.482',date:'2026-06-09',items:[
-      'Fix: testo AI nella card news completo — rimossa troncatura a 120 caratteri',
-    ]},{version:'v1.481',date:'2026-06-09',items:[
-      'Fix definitivo: scroll testo hero card via scrollTop — il testo scorre completamente',
-    ]},{version:'v1.480',date:'2026-06-09',items:[
-      'Fix: card news testo non più troncato — scroll automatico',
-    ]},{version:'v1.479',date:'2026-06-09',items:[
-      'Nuovo: sistema tipografico unificato per tutte le hero card',
-      'Nuovo: scroll automatico testo — 3s fermo poi una riga ogni 2s',
-      'Fix definitivo: font uguale in tutte le card — hc-body 14px, hc-title 17px, hc-name 20px',
-    ]},{version:'v1.478',date:'2026-06-09',items:[
-      'Fix definitivo: Identikit AI usa classi CSS con !important — funziona davvero',
-    ]},{version:'v1.477',date:'2026-06-09',items:[
-      'Fix definitivo: Identikit AI font-size con !important — nessun override CSS possibile',
-    ]},{version:'v1.476',date:'2026-06-09',items:[
-      'Fix: Identikit AI font adattivo via Vue (no DOM) — testo bianco e verde stessa dimensione',
-    ]},{version:'v1.475',date:'2026-06-09',items:[
-      'UI: Identikit AI testo verde stesso font del testo bianco',
-    ]},{version:'v1.474',date:'2026-06-09',items:[
-      'Fix: Identikit AI testo verde (motivazione) scala con stesso font del testo principale',
-    ]},{version:'v1.473',date:'2026-06-09',items:[
-      'Fix: Identikit AI font auto-fit — parte da 17px e si riduce solo se necessario',
-    ]},{version:'v1.472',date:'2026-06-09',items:[
-      'Fix: Rivivi la Partita — marcatori mostrano nome corretto (uid invece di id)',
-      'Fix: Dream Team ruota ogni giorno con seed giornaliero',
-      'Fix: Rivali e Affinità usano uid per trovare i giocatori',
-      'Fix: Identikit AI — testo parte dall alto del box con font adattivo migliorato',
-    ]},{version:'v1.471',date:'2026-06-09',items:[
-      'Fix: watch _heroRawData spostato dopo dichiarazione — app torna a partire',
-      'Fix: confirmDeleteModal ref aggiunto',
-    ]},{version:'v1.470',date:'2026-06-09',items:[
-      'Fix: hero card si aggiornano automaticamente quando cambiano i dati (sync, nuova partita)',
-      'Fix: duel e story mostrano giocatori aggiornati invece dei primi al lancio',
-    ]},{version:'v1.469',date:'2026-06-09',items:[
-      'Fix: card AI visibili nella home — hero aspetta _initAiCards prima di costruire le slide',
-      'Fix: se le slide sono vuote riprova dopo 1s',
-    ]},{version:'v1.468',date:'2026-06-09',items:[
-      'Fix: Rig.Parato e Rig.Sbag non escono dallo schermo in SBS',
-    ]},{version:'v1.467',date:'2026-06-09',items:[
-      'Fix: card Statistiche OVERALL mostra OVR corretto (es 82) invece di mediaPunti (es 1.3)',
-    ]},{version:'v1.466',date:'2026-06-09',items:[
-      'Fix: OVR hero card usa topOverall computed — valori corretti (es. 82 non 1.3)',
-      'UI: SBS spazio tra nome squadra/nav/foto',
-    ]},{version:'v1.465',date:'2026-06-09',items:[
-      'UI: SBS spaziatura verticale tra blocchi voto/gol/assist',
-      'Fix: OVR hero card mostra valore corretto (no NaN, pMaxOvr minimo 8)',
-    ]},{version:'v1.464',date:'2026-06-09',items:[
-      'UI: SBS schermata giocatore riorganizzata — NomeSquadra/Nav/Foto/Nome/Voto/Gol/Assist+OG/RP+RS',
-      'UI: tema chiaro aggiornato con sfondo verde tenue #EBF6EB',
-    ]},{version:'v1.463',date:'2026-06-09',items:[
-      'Fix CRITICO: modalità classica non mostra più il riepilogo SBS',
-      'Fix: OG/RP/RS in SBS su layout a righe separate — tutto visibile',
-      'Fix: saveMatch resetta stato SBS correttamente',
-    ]},{version:'v1.462',date:'2026-06-08',items:[
-      'Fix: scroll in cima funzionante quando si passa a step 2',
-    ]},{version:'v1.461',date:'2026-06-08',items:[
-      'Fix: scroll in cima quando si passa a step 2',
-      'Fix: UoM duplicato rimosso dal riepilogo SBS',
-      'Fix: indietro da riepilogo SBS torna all ultimo giocatore',
-      'Fix: step 2 via SBS non mostra UoM (gia selezionato nel riepilogo)',
-      'Fix: indietro da AI torna a SBS o step 1 con scroll in cima',
-    ]},{version:'v1.460',date:'2026-06-08',items:[
-      'Fix: SBS navigazione sopra la foto (non sotto)',
-      'Fix: SBS riepilogo con UoM + Top Scorer + bottoni corretti',
-      'Fix: SBS Articolo AI torna al riepilogo SBS con Indietro',
-      'Fix: step 2 classico rinominato Uomo Partita invece di Pagelle',
-    ]},{version:'v1.459',date:'2026-06-08',items:[
-      'Fix: sync post-offline con retry automatico (fino a 3 tentativi)',
-      'Fix: layout classico giocatore — Voto+Gol / Assist+OG / RP+RS',
-      'Fix: SBS — navigazione in alto, UoM rimosso (c è nel riepilogo)',
-      'Fix: SBS — indietro da AI torna al riepilogo SBS, non alla modalità classica',
-    ]},{version:'v1.458',date:'2026-06-08',items:[
-      'Nuovo: modalità inserimento "🎯 Uno alla Volta" — step by step per giocatore',
-      'Nuovo: modal scelta modalità prima di ogni partita',
-      'Nuovo: schermata riepilogo con marcatori, autogol, risultato da confermare',
-    ]},{version:'v1.457',date:'2026-06-08',items:[
-      'UI: step 1 — giocatori prima, risultato in fondo',
-      'UI: legenda valori dopo le squadre, non prima',
-      'UI: RS non più troncato nei counter',
-      'Fix: step 2 — rimossa lista riepilogativa giocatori',
-      'Fix: Top Scorer non appare se partita 0-0 senza dati inseriti',
-    ]},{version:'v1.456',date:'2026-06-08',items:[
-      'UI: banner aggiornamento ridisegnato — scuro con bordo lime, più info',
-      'Fix: rimosso toast aggiornamento ridondante col banner',
-    ]},{version:'v1.455',date:'2026-06-08',items:[
-      'Fix: toast checkForUpdates rimosso quando offline — era il toast residuo',
-    ]},{version:'v1.454',date:'2026-06-08',items:[
-      'Log: registra quando il dispositivo va offline e torna online con durata',
-      'Fix: al ritorno online controlla automaticamente aggiornamenti Firebase',
-    ]},{version:'v1.453',date:'2026-06-08',items:[
-      'Fix: offline silenzioso — nessun toast di errore quando non c è rete',
-      'Fix: icona cloud mostra 📵 quando offline invece di ⚠️',
-      'Fix: pannello Firebase non mostra errori di rete come errori reali',
-    ]},{version:'v1.452',date:'2026-06-08',items:[
-      'Fix: Verificato si aggiorna ad ogni check Firebase (visibilitychange e timer 10min)',
-    ]},{version:'v1.451',date:'2026-06-08',items:[
-      'Fix: pannello Firebase mostra sia ultima sync che ultima verifica',
-    ]},{version:'v1.450',date:'2026-06-08',items:[
-      'UI: data verifica Firebase aggiornata anche quando sync non necessario',
-      'UI: mostra "Verificato: HH:MM" quando dati locali già aggiornati',
-    ]},{version:'v1.449',date:'2026-06-08',items:[
-      'Fix: flag AI Cards settati retroattivamente da localStorage esistente',
-      'Risultato: early exit immediato — solo 2 righe di log invece di 8',
-    ]},{version:'v1.448',date:'2026-06-08',items:[
-      'Fix: TrashTalk imposta flag dopo generazione — early exit funziona ora',
-      'Fix: log duplicato sync rimosso definitivamente da tutte le sorgenti',
-    ]},{version:'v1.447',date:'2026-06-08',items:[
-      'Fix: _initAiCards early exit — carica localStorage e mostra solo 2 righe di log',
-      'Fix: log duplicato sync rimosso definitivamente',
-    ]},{version:'v1.446',date:'2026-06-08',items:[
-      'Fix: AI Cards non vengono più controllate due volte ad ogni avvio',
-      'Fix: _initAiCards esce subito se tutti i flag sono validi — zero log inutili',
-      'Rimosso: caricamento diretto AI cards prima dell hero (duplicato)',
-    ]},{version:'v1.445',date:'2026-06-08',items:[
-      'FIX CRITICO banda: rimosso syncFromCloud diretto su visibilitychange hero',
-      'Era la causa dei 28MB/ora — scattava ad ogni sblocco schermo senza check',
-    ]},{version:'v1.444',date:'2026-06-08',items:[
-      'Fix: log duplicato sync rimosso',
-      'Fix: HoF check saltato se flag valido (evita tentativi inutili)',
-      'Fix: log più chiari per sync — visibile se scarica o salta',
-      'Fix: log import JSON — mostra nuovi dati aggiunti o deduplicati',
-    ]},{version:'v1.443',date:'2026-06-07',items:[
-      'Fix: visibilitychange usa checkSyncNeeded — sync completo solo se dati cambiati',
-    ]},{version:'v1.442',date:'2026-06-07',items:[
-      'Nuovo: sistema flag AI Cards — Firebase letto solo se flag scaduto',
-      'Soprannomi: flag 7 giorni, rigenerazione settimanale automatica',
-      'Hall of Fame: flag 30 giorni — lettura Firebase una volta al mese',
-      'Trash Talk: flag 3 giorni — lettura Firebase ogni 3 giorni',
-      'Fix: pulsanti Forza nelle impostazioni resettano il flag corretto',
-    ]},{version:'v1.441',date:'2026-06-07',items:[
-      'Fix: TrashTalk generato ogni 3 giorni invece di ogni partita',
-      'Fix: TrashTalk letto da Firebase solo se locale più vecchio di 3 giorni',
-      'Fix: lazySyncIfNeeded usa checkSyncNeeded (200B invece di 100KB)',
-    ]},{version:'v1.440',date:'2026-06-07',items:[
-      'Fix CRITICO banda: sync automatico ogni 3min → check leggero ogni 10min (200B invece di 100KB)',
-      'Fix: visibilitychange sync da 5min → 15min di inattività minima',
-      'Riduzione traffico stimata: da 14MB/ora a <1MB/ora',
-    ]},{version:'v1.439',date:'2026-06-07',items:[
-      'Nuovo: box Import/Export collassabile con sezioni dedicate',
-      'Nuovo: Export Partite parziale (ultime 1/3/5/10/tutte) con ID univoci Firebase-compatibili',
-      'Nuovo: Export Completo con opzione includi/escludi foto',
-      'Fix: import JSON usa deduplicazione per uid/matchUUID — nessun duplicato',
-    ]},{version:'v1.438',date:'2026-06-07',items:[
-      'Fix banda: foto giocatori su path Firebase separato (/playerFotos/{uid})',
-      'Fix: foto caricate su Firebase solo quando cambiano (hash check locale)',
-      'Fix: foto scaricate da Firebase solo se mancanti in locale',
-      'Fix: payload syncToCloud senza foto — drastica riduzione traffico dati',
-    ]},{version:'v1.437',date:'2026-06-07',items:[
-      'FIX CRITICO: foto base64 escluse dal payload Firebase — riduzione drastica traffico dati',
-      'FIX CRITICO: rimosso autoSync duplicato su visibilitychange (causava loop upload)',
-      'FIX: recomputeStats non chiama più syncToCloud automaticamente — solo il pulsante manuale',
-    ]},{version:'v1.436',date:'2026-06-07',items:[
-      'Fix: rimosso box Gestione Stagione dalle impostazioni (spostato in Gestione Gruppi)',
-      'UI: bottoni gruppo — solo icone (✏️ 🗑️ ⚽→📦), più compatti',
-      'UI: elimina gruppo richiede digitazione ELIMINA per confermare',
-    ]},{version:'v1.435',date:'2026-06-07',items:[
-      'Fix: archivio stagione ha UUID univoco (archivioId) identico su tutti i dispositivi e Firebase',
-    ]},{version:'v1.434',date:'2026-06-07',items:[
-      'Nuovo: Archivia Stagione — wizard 4 step nella gestione gruppi',
-      'Nuovo: lista gruppi espandibile con dettagli stagione e pulsante Archivia',
-      'Nuovo: selezione giocatori per nuova stagione, reset statistiche, archivio su Firebase',
-    ]},{version:'v1.433',date:'2026-06-07',items:[
-      'Pulizia: rimossa migrazione playerId (non più necessaria — db già pulito)',
-      'Pulizia: rimosso log ridondante sync in avvio',
-    ]},{version:'v1.432',date:'2026-06-07',items:[
-      'Nuovo: sistema sync intelligente con syncVersion e lastModified',
-      'Nuovo: checkSyncNeeded — confronta versione e timestamp prima di scaricare',
-      'Nuovo: sync forzato globale tramite syncVersion su Firebase (da Inspector)',
-      'Ottimizzazione: avvio più veloce se dati locali già aggiornati',
-    ]},{version:'v1.431',date:'2026-06-07',items:[
-      'Fix architettura statistiche: recomputeStats non gira più ad ogni loadGroupData',
-      'Statistiche calcolate solo dopo saveMatch o Ricalcola manuale, poi salvate su Firebase',
-      'syncFromCloud scarica giocatori già con stats da Firebase — nessun ricalcolo automatico',
-    ]},{version:'v1.430',date:'2026-06-06',items:[
-      'Fix: H2H ora usa uid UUID per trovare le partite — sfide dirette finalmente corrette',
-    ]},{version:'v1.429',date:'2026-06-06',items:[
-      'Fix: toast "Token non valido" rimosso per utenti in sola lettura — sync stats solo con token',
-    ]},{version:'v1.428',date:'2026-06-06',items:[
-      'Fix: statistiche salvate su Firebase dopo ricalcolo — tutti i device le vedono subito',
-      'Fix: secondo sync non cancella più le statistiche calcolate',
-    ]},{version:'v1.427',date:'2026-06-06',items:[
-      'Fix DEFINITIVO statistiche: rimossa repairMatchPlayerIds che svuotava squadraA/B dopo il sync',
-      'Questa funzione filtrava via gli UUID dalle squadre cercando vecchi id numerici',
-    ]},{version:'v1.426',date:'2026-06-06',items:[
-      'Fix: errore JS in Ricalcola Statistiche — riferimento a variabile diagnostica rimossa',
-    ]},{version:'v1.425',date:'2026-06-06',items:[
-      'Fix DEFINITIVO statistiche: rimossa repairPlayerUids che sovrascriveva uid Firebase con uuid casuali',
-      'Fix: uid giocatori sempre coerenti con Firebase dopo sync — statistiche ora corrette',
-    ]},{version:'v1.424',date:'2026-06-06',items:[
-      'Debug: stack trace nel log sync per identificare doppio sync',
-    ]},{version:'v1.423',date:'2026-06-06',items:[
-      'Fix CRITICO: repairPlayerUids spostata dopo syncFromCloud — uid coerenti con Firebase',
-      'Fix definitivo statistiche: statsMap e partite ora usano gli stessi uid',
-    ]},{version:'v1.422',date:'2026-06-06',items:[
-      'Fix CRITICO: toArr ora ordina per chiave numerica e filtra null — fix statistiche vuote',
-    ]},{version:'v1.421',date:'2026-06-06',items:[
-      'Fix CRITICO: players e matches da Firebase erano oggetti non array — ora normalizzati con toArr()',
-      'Fix: statistiche finalmente corrette dopo sync da Firebase',
-    ]},{version:'v1.420',date:'2026-06-06',items:[
-      'Fix CRITICO: Firebase restituisce array come oggetti — normalizzazione automatica al sync',
-      'Fix: squadraA, squadraB, statisticheGiocatori ora sempre array dopo syncFromCloud',
-      'Fix: storicoPartite, rivali, affinita giocatori normalizzati da oggetto a array',
-    ]},{version:'v1.419',date:'2026-06-06',items:[
-      'Debug: log diagnostico in Ricalcola Statistiche per trovare causa statistiche vuote',
-    ]},{version:'v1.418',date:'2026-06-06',items:[
-      'Fix: toast "Inserisci URL Firebase" non appare più all avvio — migrazione eseguita dopo selectGroup',
-      'Fix: syncToCloud e syncFromCloud silenziosamente ignorati se Firebase non configurato',
-    ]},{version:'v1.417',date:'2026-06-06',items:[
-      'Fix DEFINITIVO: migrazione automatica playerId numerici → uid in tutte le partite (locale + Firebase)',
-      'Fix: recomputeStats semplificato — nessuna patch, solo uid ovunque',
-      'Migrazione eseguita una volta al primo avvio, poi dati sempre coerenti',
-    ]},{version:'v1.416',date:'2026-06-06',items:[
-      'Fix CRITICO: statistiche giocatori vuote — recomputeStats ora risolve vecchi id numerici → uid',
-      'Fix: partite con playerId numerico ora vengono aggregate correttamente nelle statistiche',
-    ]},{version:'v1.415',date:'2026-06-06',items:[
-      'Fix: spiegazione OVR nelle statistiche aggiornata con formula per ruolo e rigori',
-    ]},{version:'v1.414',date:'2026-06-06',items:[
-      'Fix: card "In Diretta dallo Spogliatoio" — font quote adattivo, foto non schiacciata',
-      'Fix: OVR portiere include bonus rigori parati (+max 15) e malus sbagliati',
-      'Fix: OVR universale include malus rigori sbagliati da rigorista',
-    ]},{version:'v1.413',date:'2026-06-06',items:[
-      'Fix CRITICO audit uid completo: statsMap, saveMatch, recomputeStats, calcStats, resolveIds, import JSON',
-      'Fix: manualFormation, last10Pids, AI profiles, generateTeamsBalanced, soprannomi — tutti su uid',
-      'Fix: import JSON senza rimappatura id — stesso approccio di syncFromCloud',
-      'Fix: saveMatch post-save update player usa uid per find, id Dexie per update DB',
-    ]},{version:'v1.412',date:'2026-06-06',items:[
-      'Fix: selezione giocatori — spunta verde visibile al tap (confronto uid corretto)',
-    ]},{version:'v1.411',date:'2026-06-06',items:[
-      'Fix CRITICO: tutti i riferimenti ai giocatori usano p.uid (UUID stabile) invece di p.id Dexie',
-      'Fix: selezione giocatori, formazioni, drag&drop, statistiche — tutti basati su uid',
-      'Fix: getPlayer cerca per uid come priorità assoluta',
-    ]},{version:'v1.410',date:'2026-06-06',items:[
-      'Fix: getPlayer ora confronta id come stringa e numero — nomi giocatori visibili in inserimento partita',
-    ]},{version:'v1.409',date:'2026-06-06',items:[
-      'Fix: layout giocatore — 4 righe: Nome+Ruolo / Voto(+/-0.5)+UoM / Gol+Assist / OG+RP+RS',
-      'Fix: voto con pulsanti +/- da 1 a 10 a passi di 0.5 (parte da 6)',
-      'Nuovo: risultato auto-calcolato dai gol in tempo reale con pulsante "Usa →"',
-    ]},{version:'v1.408',date:'2026-06-06',items:[
-      'UI: Card Identikit AI — font adattivo: testo lungo riduce automaticamente la dimensione',
-      'UI: Hall of Fame — label "👑 Miglior Giocatore · Maggio 2026" invece di "Hall of Fame · 2026-05"',
-      'UI: Modifica partita — sezione Rigori (segnato/sbagliato/parato per giocatore) prima delle Note',
-      'UI: Inserimento partita — statistiche squadre con accordion collassabile + voto numerico',
-    ]},{version:'v1.407',date:'2026-06-06',items:[
-      'UI: "Versione App" rinominata "Info & Diagnostica" — include Log di sistema e Crediti',
-      'UI: Zona Pericolo riorganizzata — avviso + countdown 3s + pulsante sblocco esplicito',
-      'UI: Zona Pericolo — sottosezioni collassabili (Foto, AI Cards, Backup, Statistiche, Reset)',
-      'UI: Zona Pericolo si blocca automaticamente quando si rientra nelle impostazioni',
-    ]},{version:'v1.406',date:'2026-06-06',items:[
-      'Fix: log di sistema — buffer reale ora 250 voci (costante LOG_MAX e UI allineate)',
-    ]},{version:'v1.405',date:'2026-06-06',items:[
-      'UI: icona nuvola ☁️ con animazione durante sync (pulse), flash verde OK, shake giallo errore',
-      'UI: toast di sync routine rimossi — solo log (buffer aumentato a 250 entry)',
-      'Fix: syncToCloud non sovrascriveva più le aiCards — path corretto',
-    ]},{version:'v1.404',date:'2026-06-06',items:[
-      'Fix CRITICO: syncFromCloud conserva id originali di Firebase — niente rimappatura id',
-      'Fix CRITICO: giocatori e partite in locale sono identici a Firebase (stesso id, stessi playerId)',
-      'Fix: path aiCards corretto in syncToCloud — TrashTalk e HoF non vengono più cancellate al sync',
-    ]},{version:'v1.403',date:'2026-06-06',items:[
-      'Fix: soprannomi AI usano p.uid (UUID stabile multi-device) come chiave, non p.id Dexie',
-      'Fix: migrazione pulisce chiavi vecchie (nome/soprannome/id-numerico) → uid su Firebase',
-      'Fix: getPlayerNick cerca per uid come priorità assoluta',
-    ]},{version:'v1.402',date:'2026-06-06',items:[
-      'Fix: soprannomi AI salvati con chiave id invece di nome — 19 giocatori = 19 entry (non 30)',
-      'Fix: migrazione automatica che pulisce le vecchie chiavi nome/soprannome da Firebase',
-      'Fix: _buildNick hero usa lookup per id invece che per nome',
-    ]},{version:'v1.401',date:'2026-06-06',items:[
-      'Fix: hero card "Goal Totali" — aggiunta etichetta "gol totali" sotto il numero grande',
-      'Fix: tab Autogol — aggiunto tasto Condividi con generazione PNG',
-      'Fix AI: Gemini MAX_TOKENS — retry automatico con doppio token invece di fallire',
-      'Fix AI: aumentati token HoF (800→1200), TrashTalk (700→900), Soprannomi (600→800)',
-    ]},{version:'v1.400',date:'2026-06-06',items:[
-      'Fix: rimossa card "Hall of Shame Autogol" dalla tab Uomo Partita',
-      'Fix: rimosso suffisso "OG" nella classifica Autogol (solo numero)',
-    ]},{version:'v1.393',date:'2026-06-05',items:[
-  '🔧 Fix CRITICO sync: salvataggio partita non salta più syncToCloud se token sembra scaduto',
-  '🔄 Sync pendente: se upload fallisce viene riprovato al prossimo avvio'
-]},
-{version:'v1.392',date:'2026-06-05',items:[
-  '🔧 Fix CRITICO: auto-refresh usa solo syncFromCloud (download) — non sovrascrive più dati altrui su Firebase',
-  '🔍 Log: conteggio partite cloud vs locali ad ogni sync per diagnostica'
-]},
-{version:'v1.391',date:'2026-06-05',items:[
-  '🔍 Sync: log conteggio partite cloud vs locali per diagnostica',
-  '⚡ Sync: skip update giocatori se firma invariata — risolve "10 giocatori aggiornati" ad ogni sync'
-]},
-{version:'v1.390',date:'2026-06-05',items:[
-  '🔄 Sync: chiave duplicati migliorata (data+score+nomeSquadra) — rileva correttamente partite nuove',
-  '🔄 Sync: aggiunto updatedAt nel remapped per aggiornamenti cloud più recenti',
-  '⏰ Auto-refresh: sync automatico ogni 3min in foreground + al ritorno da background'
-]},
-{version:'v1.389',date:'2026-06-05',items:[
-  '🔧 Fix HoF: throttle giornaliero — non riprova se già tentato oggi e fallito',
-  '🔧 Fix HoF: controlla localStorage prima di decidere se generare',
-  '⏱️ Debounce init AI Cards aumentato a 3s'
-]},
-{version:'v1.388',date:'2026-06-05',items:[
-  '📊 Excel: Classifica aggiunta colonne Rig.Parati e Rig.Sbagliati',
-  '📊 Excel: Storico Partite aggiunta colonne Rigori Parati/Sbagliati totali per partita',
-  '✅ JSON/Firebase: export/import già completo automaticamente (serializza tutto il player object)'
-]},
-{version:'v1.387',date:'2026-06-04',items:[
-  '👤 Scheda giocatore: layout 2 colonne label+valore — 5 righe simmetriche, niente spazi vuoti'
-]},
-{version:'v1.386',date:'2026-06-04',items:[
-  '📋 Legenda match: aggiunte spiegazioni 🥅 RP e ❌ RS',
-  '📊 Spiegazione OVR aggiornata con formula reale e pesi rigori'
-]},
-{version:'v1.385',date:'2026-06-04',items:[
-  '🥅 Rigori parati/sbagliati: contatore nel match form per ogni giocatore',
-  '📊 recomputeStats: calcola rigoriParatiTotali e rigoriSbagliatiTotali',
-  '💫 OVR: +1.5 rigore parato, -0.8 rigore sbagliato',
-  '👤 Scheda giocatore: 10 statistiche in griglia 3 colonne (punti, pt/gara, rigori, autogol)'
-]},
-{version:'v1.384',date:'2026-06-04',items:[
-  '🔗 Configurazione AI: link provider cliccabili (aistudio, groq, openrouter, openai)'
-]},
-{version:'v1.383',date:'2026-06-04',items:[
-  '🧬 Identikit AI scheda: cerca per nome, soprannome, id e uid — trova sempre il nick corretto'
-]},
-{version:'v1.382',date:'2026-06-04',items:[
-  '🔧 Fix AI cards hero: carica esplicitamente nicknames e HoF prima di _heroLaunch',
-  '🔧 Fix Identikit scheda: chiave nome.toLowerCase() (corretta, non p.id)'
-]},
-{version:'v1.381',date:'2026-06-04',items:[
-  '🔧 Fix Identikit AI: usa p.id come chiave (non nome) — ora visibile in scheda giocatore',
-  '👆 Stats: tap su giocatore in tutte le classifiche apre la scheda dettaglio'
-]},
-{version:'v1.380',date:'2026-06-04',items:[
-  '👤 Scheda giocatore: avatar 90px → 130px con glow colorato',
-  '🧬 Scheda giocatore: Identikit AI visibile sotto la sezione Qualità'
-]},
-{version:'v1.379',date:'2026-06-04',items:[
-  '🧹 Pulizia codice: rimossi console.log, commenti verbose, changelog ridotto a 15 versioni',
-  '📦 Riduzione file: ~40KB in meno — caricamento PWA più veloce'
-]},
-{version:'v1.378',date:'2026-06-04',items:[
-  '💬 Giornale: font commento aumentato 18→21px (con MVP) e 19→22px (senza MVP)'
-]},
-{version:'v1.377',date:'2026-06-04',items:[
-  '📰 Giornale: MVP box ridotto a 1/3, Commento espanso a 2/3 — font commento 18px (era 15px)',
-  '🎯 MVP: avatar centrato con nome e voto sotto, layout compatto',
-  '💬 Commento: più spazio, testo più grande e leggibile'
-]},
-{version:'v1.376',date:'2026-06-04',items:[
-  '📦 AI Cards: locale-first — usa sempre localStorage, Firebase solo se dati più recenti',
-  '🔄 Timestamp check: confronta generatedAt locale vs Firebase prima di scaricare',
-  '📴 Offline safe: se Firebase non raggiungibile logga warning e usa locale senza bloccare',
-  '⚠️ Badge ☁️⚠️ già esistente mostra errore Firebase anche per AI cards'
-]},
-{version:'v1.375',date:'2026-06-03',items:[
-  '🔧 Fix: apostrofo in frase welcome card causava SyntaxError'
-]},
-{version:'v1.374',date:'2026-06-03',items:[
-  '🎙️ Welcome card: frasi notiziario sportivo rotanti ogni 2s con fade in/out',
-  '🔴 Badge IN DIRETTA pulsante + barra caricamento animata',
-  '🔤 Rimossi nome e slogan — solo logo + notiziario in caricamento'
-]},
-{version:'v1.373',date:'2026-06-03',items:[
-  '✅ Hero: singolo aggiornamento dopo sync completo — zero flickering barre',
-  '🎴 Welcome card sola fino al completamento, poi tutte le card in un colpo'
-]},
-{version:'v1.372',date:'2026-06-03',items:[
-  '🚫 Barra avanzamento nascosta sulla welcome card (niente flickering)',
-  '⏱️ Welcome card: dur infinita durante caricamento → 1s quando le card sono pronte'
-]},
-{version:'v1.371',date:'2026-06-03',items:[
-  '🎴 Fix: welcome card mostrata con heroGo(0) — avanza da sola dopo 2.5s al timer naturale'
-]},
-{version:'v1.370',date:'2026-06-03',items:[
-  '🎴 Hero a fasi: welcome(2.5s)→4 locali→AI cards→tutte le card',
-  '⚡ Zero attese: ogni fase alimenta la successiva, carosello parte in <3s',
-  '🔀 Shuffle indipendente per ogni fase'
-]},
-{version:'v1.369',date:'2026-06-03',items:[
-  '🔧 Fix CRITICO welcome card: heroGo(1) non heroGo(0) — non aspetta più dur:99999ms',
-  '⚡ Carosello parte immediatamente dalla prima card reale dopo il caricamento'
-]},
-{version:'v1.368',date:'2026-06-03',items:[
-  '⚡ Hero: _heroFinalize chiamata SUBITO dopo selectGroup (dati locali) — carosello parte in <1s',
-  '✅ Sync Firebase in background — non blocca più il carosello'
-]},
-{version:'v1.367',date:'2026-06-03',items:[
-  '🔧 Hero: finalizzazione esplicita post-sync (dati stabili) — no watch anticipato su dati parziali',
-  '⚡ Fallback offline: finalizza subito dopo loadGroupData se no Firebase'
-]},
-{version:'v1.366',date:'2026-06-03',items:[
-  '🔧 Hero v2: watch diretto su _heroRawData con immediate:true — scatta appena currentGroup ha dati',
-  '✅ No timer, no polling: il watch auto-stop dopo il primo uso garantisce zero flash e zero attesa'
-]},
-{version:'v1.365',date:'2026-06-03',items:[
-  '🔧 Fix CRITICO welcome card: se dati non pronti a 2.5s usa watch — non svuota più l\'array',
-  '✅ _heroFinalize: logica separata _heroApplyFinal + watch una tantum sui dati'
-]},
-{version:'v1.364',date:'2026-06-03',items:[
-  '⚡ Timer hero spostato all inizio di onMounted — scatta entro 2.5s dall apertura app',
-  '🔠 Welcome card: logo 180px, titolo 2.4rem, slogan 1rem, frase 0.85rem'
-]}
-    ];
+    ]}
+    ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
@@ -7063,7 +6539,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.541');
+    const appVersion = ref('1.543');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13487,8 +12963,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
           const[a,b]=best, na=a.soprannome||a.nome, nb=b.soprannome||b.nome;
           const oa=((a.mediaPunti||0)*(a.partiteTotali||1)).toFixed(0), ob=((b.mediaPunti||0)*(b.partiteTotali||1)).toFixed(0);
           const titles=['SFIDA','DERBY','DUELLO','RIVALITA'];
-          const sfide=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});
-          let wa=0,wb=0; sfide.forEach(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((ia&&gA>gB)||(!ia&&gB>gA))wa++;else if((ia&&gB>gA)||(!ia&&gA>gB))wb++;});
+          const sfide=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.uid)),ib=(m.squadraB||[]).map(String).includes(String(a.uid)),ja=(m.squadraA||[]).map(String).includes(String(b.uid)),jb=(m.squadraB||[]).map(String).includes(String(b.uid));return(ia&&jb)||(ib&&ja);});
+          let wa=0,wb=0; sfide.forEach(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.uid)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((ia&&gA>gB)||(!ia&&gB>gA))wa++;else if((ia&&gB>gA)||(!ia&&gA>gB))wb++;});
           slides.push({type:'duel',dur:6000,label:titles[Math.floor(Date.now()/3600000)%titles.length]+' della Settimana',val:(a.goalTotali||0)+'-'+(b.goalTotali||0),name:na+' vs '+nb,sub:'Overall '+oa+' vs '+ob,bg:'linear-gradient(145deg,#1a0800,#7c2d00 60%,#c2410c)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,rec:[{l:'Sfide',v:sfide.length},{l:'Record',v:wa+'-'+wb},{l:'UoM',v:(a.uomoPartitaTotali||0)+'-'+(b.uomoPartitaTotali||0)}]});
         }
       }
@@ -13496,12 +12972,12 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       if(el.length>=2&&matches.length>=2){
         let bRiv=null,maxM=0;
         for(let i=0;i<el.length;i++)for(let j=i+1;j<el.length;j++){
-          const a=el[i],b=el[j],ms=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),ib=(m.squadraB||[]).map(String).includes(String(a.id)),ja=(m.squadraA||[]).map(String).includes(String(b.id)),jb=(m.squadraB||[]).map(String).includes(String(b.id));return(ia&&jb)||(ib&&ja);});
+          const a=el[i],b=el[j],ms=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.uid)),ib=(m.squadraB||[]).map(String).includes(String(a.uid)),ja=(m.squadraA||[]).map(String).includes(String(b.uid)),jb=(m.squadraB||[]).map(String).includes(String(b.uid));return(ia&&jb)||(ib&&ja);});
           if(ms.length>maxM){maxM=ms.length;bRiv=[a,b,ms];}
         }
         if(bRiv&&maxM>=2){
           const[a,b,ms]=bRiv,na=a.soprannome||a.nome,nb=b.soprannome||b.nome;let wa=0,wb=0;
-          const bars=ms.slice(-9).map(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.id)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0,aw=(ia&&gA>gB)||(!ia&&gB>gA),bw=(ia&&gB>gA)||(!ia&&gA>gB);if(aw)wa++;if(bw)wb++;return{h:aw?100:bw?80:30,c:aw?'#FF6B35':bw?'#3b82f6':'#374151'};});
+          const bars=ms.slice(-9).map(m=>{const ia=(m.squadraA||[]).map(String).includes(String(a.uid)),gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0,aw=(ia&&gA>gB)||(!ia&&gB>gA),bw=(ia&&gB>gA)||(!ia&&gA>gB);if(aw)wa++;if(bw)wb++;return{h:aw?100:bw?80:30,c:aw?'#FF6B35':bw?'#3b82f6':'#374151'};});
           const phase=wa>wb+1?'Dominio di '+na:wb>wa+1?'Dominio di '+nb:wa===wb?'Equilibrio totale':'Rimonta in corso';
           const txta=wa>wb+1?na+' domina: '+wa+' vittorie su '+maxM+' sfide dirette. '+nb+' cerca la rimonta.':wb>wa+1?nb+' ha ribaltato tutto: '+wb+'-'+wa+'. '+na+' vuole la rivincita.':wa===wb?'Equilibrio perfetto: '+wa+'-'+wb+' nelle sfide dirette. Tutto aperto.':'Rivalita in evoluzione: '+wa+'-'+wb+'. Chi allunga?';
           slides.push({type:'story',dur:7500,label:'Rivalita Reale',phase,title:na+' vs '+nb,txt:txta,bars,legend:[{c:'#FF6B35',l:na},{c:'#3b82f6',l:nb},{c:'#374151',l:'Pari'}],bg:'linear-gradient(145deg,#0f0a2e,#3c1c8c 60%,#7c3aed)',foto:a.foto,uid:a.uid,foto2:b.foto,uid2:b.uid,na,nb});
@@ -13529,13 +13005,20 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       }
 
       if(players.length>=4&&matches.length>=2){
-        const topAll=[...players].filter(p=>(p.partiteTotali||0)>=2).sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0));
+        const sortedAll=[...matches].sort((a,b)=>b.data.localeCompare(a.data));
+        const elig=[...players].filter(p=>(p.partiteTotali||0)>=4);
+        const topAll=elig.map(p=>{
+          const pms=sortedAll.filter(m=>(m.squadraA||[]).map(String).includes(String(p.uid))||(m.squadraB||[]).map(String).includes(String(p.uid))).slice(0,5);
+          const tot=pms.reduce((s,m)=>{const st=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.uid));return s+(st?.punti||0);},0);
+          const mp5=pms.length?tot/pms.length:0;
+          return {...p,_mp5:mp5,_n5:pms.length};
+        }).sort((a,b)=>b._mp5-a._mp5);
         if(topAll.length>=4){
           const squad=topAll.slice(0,Math.min(6,topAll.length));
           const names=squad.map(p=>p.soprannome||p.nome).join(', ');
-          const worst=[...players].filter(p=>(p.partiteTotali||0)>=2).sort((a,b)=>(a.mediaPunti||0)-(b.mediaPunti||0))[0];
-          const txtDT='Se si potesse scegliere liberamente: '+names+'. '+(worst?'E '+(worst.soprannome||worst.nome)+' in tribuna. Scherziamo... forse.':'Una formazione da paura.');
-          slides.push({type:'dreamteam',dur:7000,label:'Dream Team',phase:'La Squadra Perfetta',txt:txtDT,bg:'linear-gradient(145deg,#0a1a00,#1a4d00 60%,#166534)',squad:squad.slice(0,4).map(p=>({foto:p.foto,uid:p.uid,nome:p.soprannome||p.nome})),dest:'stats',statsTab:'overall'});
+          const worst=topAll[topAll.length-1];
+          const txtDT='In base alle ultime presenze, la formazione del momento e: '+names+'. '+(worst?'E '+(worst.soprannome||worst.nome)+' in tribuna. Scherziamo... forse.':'Una formazione da paura.');
+          slides.push({type:'dreamteam',dur:7000,label:'Dream Team',phase:'Squadra Perfetta al Momento',txt:txtDT,bg:'linear-gradient(145deg,#0a1a00,#1a4d00 60%,#166534)',squad:squad.slice(0,4).map(p=>({foto:p.foto,uid:p.uid,nome:p.soprannome||p.nome})),dest:'stats',statsTab:'overall'});
         }
       }
 
@@ -13546,7 +13029,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         if(matches.length>=1&&sorted3.length>0){
           const topS=sorted3[0];
           const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
-          const streak=l3.filter(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(topS.id)&&(s.goal||0)>0)).length;
+          const streak=l3.filter(m=>(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(topS.uid)&&(s.goal||0)>0)).length;
           cronItems.push({kicker:streak>=2?'FORMA SMAGLIANTE':'TOP SCORER',headline:(topS.soprannome||topS.nome)+' guida la classifica',body:(topS.soprannome||topS.nome)+' in cima con '+(topS.goalTotali||0)+' gol in '+(topS.partiteTotali||0)+' partite. Media: '+((topS.goalTotali||0)/Math.max(topS.partiteTotali||1,1)).toFixed(2)+' gol/p.',sub:'Top scorer del gruppo'});
         }
         if(matches.length>0){const lm=[...matches].sort((a,b)=>b.data.localeCompare(a.data))[0];const hat=(lm.statisticheGiocatori||[]).find(s=>(s.goal||0)>=3);if(hat){const hp2=players.find(p=>p.uid===hat.playerId||String(p.id)===String(hat.playerId));if(hp2)cronItems.push({kicker:'IMPRESA!',headline:'Hat-trick di '+(hp2.soprannome||hp2.nome),body:hat.goal+' gol in una sola partita. Un\'esibizione da ricordare per sempre.',sub:'Ultima partita - '+formatDate(lm.data)});}}
@@ -13569,10 +13052,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         let ls=0;
         const _pMatches=[...matches]
           .sort((a,b)=>b.data.localeCompare(a.data))
-          .filter(m=>(m.squadraA||[]).map(String).includes(String(p.id))||(m.squadraB||[]).map(String).includes(String(p.id)))
+          .filter(m=>(m.squadraA||[]).map(String).includes(String(p.uid))||(m.squadraB||[]).map(String).includes(String(p.uid)))
           .slice(0,5);
         for(const m of _pMatches){
-          const inA=(m.squadraA||[]).map(String).includes(String(p.id));
+          const inA=(m.squadraA||[]).map(String).includes(String(p.uid));
           const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;
           if((inA&&gA<gB)||(!inA&&gB<gA))ls++;
           else break; // streak interrotta
@@ -13596,7 +13079,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
       for(const p of el){
         let ds=0;
-        for(const m of _last5){const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if(gA===gB)ds++;else break;}
+        for(const m of _last5){const inA=(m.squadraA||[]).map(String).includes(String(p.uid)),inB=(m.squadraB||[]).map(String).includes(String(p.uid));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if(gA===gB)ds++;else break;}
         if(ds>=3){
           const nome=p.soprannome||p.nome;
           const frP=['Non vince, non perde. Esiste e basta.','Il pareggio non e un risultato, e una filosofia di vita.','Neutrale come la Svizzera, ma meno puntuale.','3 pareggi di fila. Il karma esiste.'];
@@ -13607,7 +13090,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
       for(const p of el){
         let ws=0;
-        for(const m of _last5){const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((inA&&gA>gB)||(inB&&gB>gA))ws++;else break;}
+        for(const m of _last5){const inA=(m.squadraA||[]).map(String).includes(String(p.uid)),inB=(m.squadraB||[]).map(String).includes(String(p.uid));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((inA&&gA>gB)||(inB&&gB>gA))ws++;else break;}
         if(ws>=3){
           const nome=p.soprannome||p.nome;
           const frG=['Nessuno ti ferma piu. Scommettiamo che perdi la prossima?',''+nome+' sfida l universo: chi vuole perdere?','Troppe vittorie portano sfortuna. E legge del calcetto.','Ha dimenticato com e perdere. Qualcuno glielo ricordi.'];
@@ -13755,7 +13238,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         const l3=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3),rg={};
         for(const m of l3)for(const s of m.statisticheGiocatori||[]){rg[s.playerId]=(rg[s.playerId]||0)+(s.goal||0);}
         let best=null,bestD=-999;
-        for(const p of el){const pg=rg[p.id]||0,avg=(p.goalTotali||0)/Math.max(p.partiteTotali||1,1),ro=l3.reduce((s,m)=>{const st=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.id));return s+(st?((st.goal||0)*3+(st.assist||0)*1.5+(st.uomoPartita?3:0)):0);},0)/3,cd=(pg/3-avg)*2+(ro-(p.mediaPunti||0));if(cd>bestD){bestD=cd;best={p,pg,ro,delta:cd};}}
+        const elTrend=el.filter(p=>l3.filter(m=>(m.squadraA||[]).map(String).includes(String(p.uid))||(m.squadraB||[]).map(String).includes(String(p.uid))).length>=Math.min(3,l3.length));
+        for(const p of elTrend){const pg=rg[p.uid]||0,avg=(p.goalTotali||0)/Math.max(p.partiteTotali||1,1),ro=l3.reduce((s,m)=>{const st=(m.statisticheGiocatori||[]).find(x=>String(x.playerId)===String(p.uid));return s+(st?((st.goal||0)*3+(st.assist||0)*1.5+(st.uomoPartita?3:0)):0);},0)/3,cd=(pg/3-avg)*2+(ro-(p.mediaPunti||0));if(cd>bestD){bestD=cd;best={p,pg,ro,delta:cd};}}
         if(best){const{p,pg,ro}=best,mgol=((p.goalTotali||0)/Math.max(p.partiteTotali||1,1)).toFixed(2);slides.push({type:'trend',dur:5000,label:'Trending ora',name:(p.soprannome||p.nome)+' in gran forma!',sub:pg+' gol nelle ultime 3',delta:'+'+(best.delta>0?best.delta.toFixed(1):'0.1'),foto:p.foto,uid:p.uid,bg:'linear-gradient(145deg,#052e16,#065f46 60%,#059669)',cmp:[{l:'Media stagione',v:mgol+' gol/p'},{l:'Ultime 3',v:(pg/3).toFixed(1)+' gol/p'},{l:'Overall rec.',v:ro.toFixed(1)+' pts'}]});}
       }
 
