@@ -6232,7 +6232,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.530',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.531',date:'2026-06-14',items:[
+      'Debug: log diagnostico per capire perché sync post-nicks non parte',
+    ]},{version:'v1.530',date:'2026-06-14',items:[
       'Fix critico: modal-box, modal-header, modal-close non avevano CSS — log apparivano trasparenti',
       'Fix: modal Log, Invia Formazione e Ricevi Formazione ora hanno box visibile e centrato',
     ]},{version:'v1.529',date:'2026-06-14',items:[
@@ -7026,7 +7028,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.530');
+    const appVersion = ref('1.531');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9443,6 +9445,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, failedBatches > 0 ? 15000 : 3000));
       }
       // Sync completo dopo rigenerazione
+      _aiLog('Soprannomi', `🔍 Debug: firebaseUrl=${currentGroup.value?.firebaseUrl ? 'OK' : 'MANCANTE'}, keys=${Object.keys(updated).length}`);
       if (currentGroup.value?.firebaseUrl && Object.keys(updated).length > 0) {
         // Assicura che aiNicknames.value sia aggiornato prima del sync
         aiNicknames.value = { ...updated };
