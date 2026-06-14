@@ -6232,7 +6232,13 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.531',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.534',date:'2026-06-14',items:[
+      'Debug: log quando AI ritorna un id che non matcha nessun giocatore del batch',
+    ]},{version:'v1.533',date:'2026-06-14',items:[
+      'Debug: log conteggio chiavi updated dopo ogni batch',
+    ]},{version:'v1.532',date:'2026-06-14',items:[
+      'Debug: log per ogni chiave aggiunta a updated nei soprannomi',
+    ]},{version:'v1.531',date:'2026-06-14',items:[
       'Debug: log diagnostico per capire perché sync post-nicks non parte',
     ]},{version:'v1.530',date:'2026-06-14',items:[
       'Fix critico: modal-box, modal-header, modal-close non avevano CSS — log apparivano trasparenti',
@@ -7028,7 +7034,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.531');
+    const appVersion = ref('1.534');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9416,7 +9422,8 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
 
         for (const s of parsed.soprannomi) {
           const p = batch.find(x => String(x.id) === String(s.id));
-          if (!p || !s.soprannome_ai) continue;
+          if (!p) { _aiLog('Soprannomi', `⚠️ Nessun match per id=${s.id} nel batch (ids batch: ${batch.map(x=>x.id).join(',')})`, false); continue; }
+          if (!s.soprannome_ai) continue;
           const _entry = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
           // Salva SOLO per uid (UUID stabile multi-device) — una entry per giocatore
           const _uidKey = p.uid || String(p.id);
@@ -9429,7 +9436,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           if (_oldSKey && _oldSKey !== _uidKey && _oldSKey !== _oldNKey) delete updated[_oldSKey];
           if (_oldIdKey && _oldIdKey !== _uidKey) delete updated[_oldIdKey];
         }
-        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
+        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', ')+' | updated ora ha '+Object.keys(updated).length+' chiavi');
         aiNicknames.value = { ...updated };
 
         const _lsNK = `amicifc_nicks_${currentGroup.value.id}`;
