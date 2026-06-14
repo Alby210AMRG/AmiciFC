@@ -4901,6 +4901,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     </span>
                   </div>
                   <button class="btn btn-sm btn-full" style="background:rgba(45,212,191,.1);border:1.5px solid rgba(45,212,191,.3);color:#2dd4bf" @click="forceSoprannomi">🧬 Rigenera Soprannomi</button>
+                  <button class="btn btn-sm btn-full" style="background:rgba(45,212,191,.06);border:1.5px solid rgba(45,212,191,.2);color:#2dd4bf;margin-top:6px;font-size:0.7rem" @click="exportPlayerUids">📤 Esporta UID Giocatori (debug)</button>
                 </div>
 
                 <!-- Pronostico -->
@@ -6232,7 +6233,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.534',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.537',date:'2026-06-14',items:[
+      'Nuovo: pulsante Esporta UID Giocatori in Zona Pericolo (debug, zero token)',
+      'Rimosso check uid pre-generazione (sostituito da export)',
+    ]},{version:'v1.536',date:'2026-06-14',items:[
+      'Debug: controllo giocatori senza uid prima di generare soprannomi',
+    ]},{version:'v1.535',date:'2026-06-14',items:[
+      'Fix CRITICO soprannomi: AI a volte inventa id non corrispondenti — ora fallback per posizione nel batch',
+      'Causa trovata: gemini-2.5-flash-lite sotto stress token ritorna UUID casuali invece degli id reali',
+    ]},{version:'v1.534',date:'2026-06-14',items:[
       'Debug: log quando AI ritorna un id che non matcha nessun giocatore del batch',
     ]},{version:'v1.533',date:'2026-06-14',items:[
       'Debug: log conteggio chiavi updated dopo ogni batch',
@@ -7034,7 +7043,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.534');
+    const appVersion = ref('1.537');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9420,10 +9429,15 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
         failedBatches = 0;
 
-        for (const s of parsed.soprannomi) {
-          const p = batch.find(x => String(x.id) === String(s.id));
-          if (!p) { _aiLog('Soprannomi', `⚠️ Nessun match per id=${s.id} nel batch (ids batch: ${batch.map(x=>x.id).join(',')})`, false); continue; }
-          if (!s.soprannome_ai) continue;
+        for (let _si = 0; _si < parsed.soprannomi.length; _si++) {
+          const s = parsed.soprannomi[_si];
+          // Match primario per id; fallback per posizione (l'AI a volte inventa id)
+          let p = batch.find(x => String(x.id) === String(s.id));
+          if (!p && batch[_si]) {
+            p = batch[_si];
+            _aiLog('Soprannomi', `ℹ️ id AI non valido (${s.id}) — uso posizione ${_si} → ${p.nome}`);
+          }
+          if (!p || !s.soprannome_ai) continue;
           const _entry = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
           // Salva SOLO per uid (UUID stabile multi-device) — una entry per giocatore
           const _uidKey = p.uid || String(p.id);
@@ -9436,7 +9450,7 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           if (_oldSKey && _oldSKey !== _uidKey && _oldSKey !== _oldNKey) delete updated[_oldSKey];
           if (_oldIdKey && _oldIdKey !== _uidKey) delete updated[_oldIdKey];
         }
-        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', ')+' | updated ora ha '+Object.keys(updated).length+' chiavi');
+        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
         aiNicknames.value = { ...updated };
 
         const _lsNK = `amicifc_nicks_${currentGroup.value.id}`;
@@ -9452,7 +9466,6 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         if (bi + BATCH < toGenerate.length) await new Promise(r => setTimeout(r, failedBatches > 0 ? 15000 : 3000));
       }
       // Sync completo dopo rigenerazione
-      _aiLog('Soprannomi', `🔍 Debug: firebaseUrl=${currentGroup.value?.firebaseUrl ? 'OK' : 'MANCANTE'}, keys=${Object.keys(updated).length}`);
       if (currentGroup.value?.firebaseUrl && Object.keys(updated).length > 0) {
         // Assicura che aiNicknames.value sia aggiornato prima del sync
         aiNicknames.value = { ...updated };
@@ -9661,6 +9674,25 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
           syncToCloud().catch(e => _aiLog('Pronostico','⚠️ Sync: '+e.message,false));
         }
       }
+    };
+
+    const exportPlayerUids = () => {
+      if (!currentGroup.value) return;
+      const data = groupPlayers.value.map(p => ({
+        id: p.id,
+        uid: p.uid || null,
+        nome: p.nome,
+        soprannome: p.soprannome || ''
+      }));
+      const blob = new Blob([JSON.stringify({ gruppo: currentGroup.value.nome, giocatori: data }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `uid_check_${currentGroup.value.nome.replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      const senzaUid = data.filter(d => !d.uid).length;
+      toast(senzaUid ? `⚠️ ${senzaUid} giocatori senza uid!` : '✅ Tutti i giocatori hanno uid', senzaUid ? 'error' : 'success', 4000);
     };
 
     const forcePronostico = () => {
@@ -14437,7 +14469,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceReuploadFotos, forceSoprannomi, forcePronostico, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceReuploadFotos, forceSoprannomi, forcePronostico, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
     };
   }
 }).mount('#app');
