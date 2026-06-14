@@ -6233,7 +6233,15 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.537',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.540',date:'2026-06-14',items:[
+      'Soprannomi AI: prompt arricchito con piede preferito, descrizione/qualità, autogol, rigori, punti medi',
+      'Campi rinominati senza abbreviazioni (partite_giocate invece di "g") per evitare ambiguità AI',
+    ]},{version:'v1.539',date:'2026-06-14',items:[
+      'Soprannomi: log batch mostra "Nome → Soprannome" per verifica immediata dei match',
+    ]},{version:'v1.538',date:'2026-06-14',items:[
+      'Fix definitivo soprannomi: prompt usa indice numerico 1-4 invece di UUID — gli UUID confondevano gemini sotto stress token',
+      'Match rigoroso: se il numero non è valido, il soprannome viene scartato (non più assegnato a caso)',
+    ]},{version:'v1.537',date:'2026-06-14',items:[
       'Nuovo: pulsante Esporta UID Giocatori in Zona Pericolo (debug, zero token)',
       'Rimosso check uid pre-generazione (sostituito da export)',
     ]},{version:'v1.536',date:'2026-06-14',items:[
@@ -7043,7 +7051,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.537');
+    const appVersion = ref('1.540');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9401,27 +9409,47 @@ OUTPUT: Rispondi SOLO con JSON valido:
       for (let bi = 0; bi < toGenerate.length; bi += BATCH) {
         if (failedBatches >= 2) { _aiLog('Soprannomi','⛔ Troppi errori, stop batch'); break; }
         const batch = toGenerate.slice(bi, bi + BATCH);
-        const profili = batch.map(p => ({
-          id: p.uid || String(p.id),
-          nome: p.soprannome || p.nome,
-          ruolo: p.ruolo || 'Jolly',
-          g: p.partiteTotali||0,
-          gol: p.goalTotali||0,
-          ast: p.assistTotali||0,
-          voto: (p.mediaVoto||0).toFixed(1),
-          uom: p.uomoPartitaTotali||0
-        }));
+        // Usiamo un indice numerico semplice (1,2,3,4) come riferimento per l'AI:
+        // gli UUID lunghi confondono i modelli sotto stress di token e vengono
+        // alterati nella risposta. L'indice numerico è più robusto.
+        const profili = batch.map((p, idx) => {
+          const obj = {
+            numero_riferimento: idx + 1, // numero di riferimento 1-based, usato SOLO per il match nella risposta
+            nome: p.soprannome || p.nome,
+            ruolo: p.ruolo || 'Jolly',
+            piede: p.piede || 'Destro',
+            partite_giocate: p.partiteTotali||0,
+            gol_fatti: p.goalTotali||0,
+            assist: p.assistTotali||0,
+            voto_medio: (p.mediaVoto||0).toFixed(1),
+            volte_uomo_partita: p.uomoPartitaTotali||0,
+            punti_medi_a_partita: (p.mediaPunti||0).toFixed(2)
+          };
+          if (p.autogolTotali) obj.autogol_totali = p.autogolTotali;
+          if (p.rigoriSbagliatiTotali) obj.rigori_sbagliati = p.rigoriSbagliatiTotali;
+          if (p.rigoriParatiTotali) obj.rigori_parati = p.rigoriParatiTotali;
+          if (p.descrizione) obj.descrizione_qualita = p.descrizione;
+          return obj;
+        });
 
         const prompt = `Sei uno scout calcistico ironico. Per ogni giocatore genera soprannome e confronto con calciatore famoso BASANDOTI SOLO SUI DATI REALI forniti. NON inventare statistiche.
 GIOCATORI (dati reali da usare): ${JSON.stringify(profili)}
-CAMPI: g=partite, gol=goal fatti, ast=assist, voto=voto medio (0 se non votato), uom=uomo partita.
+NOTE CAMPI:
+- numero_riferimento: riportalo identico in output nel campo "n" (numero da 1 a ${profili.length})
+- partite_giocate: quante partite ha disputato in totale (NON è un punteggio)
+- punti_medi_a_partita: rendimento medio (punti per presenza, scala calcistica)
+- descrizione_qualita (se presente): note personali su stile di gioco, pregi e difetti — usale per personalizzare il soprannome e il confronto
+- autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
 REGOLE OBBLIGATORIE:
+- Riporta SEMPRE il campo "n" come numero, esattamente uguale a numero_riferimento
 - Il confronto DEVE riflettere i dati reali (es: 0 gol → NON paragonare a Ronaldo o bomber)
 - Difensore con gol subiti → NON dire che non subisce goal
 - Se voto è basso → motivazione ironica sul rendimento scarso
+- Usa piede preferito e descrizione_qualita per rendere il soprannome più specifico e personale
+- Se ci sono autogol o rigori sbagliati, puoi citarli con ironia leggera
 - Confronto ironico ma calcisticamente sensato basato sui numeri
 - Mai offensivo, sempre divertente
-JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
+JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
 
         const raw = await _callAI(prompt, 800);
         if (!raw) { failedBatches++; continue; }
@@ -9429,14 +9457,13 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
         if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
         failedBatches = 0;
 
-        for (let _si = 0; _si < parsed.soprannomi.length; _si++) {
-          const s = parsed.soprannomi[_si];
-          // Match primario per id; fallback per posizione (l'AI a volte inventa id)
-          let p = batch.find(x => String(x.id) === String(s.id));
-          if (!p && batch[_si]) {
-            p = batch[_si];
-            _aiLog('Soprannomi', `ℹ️ id AI non valido (${s.id}) — uso posizione ${_si} → ${p.nome}`);
+        for (const s of parsed.soprannomi) {
+          const _n = parseInt(s.n);
+          if (!_n || _n < 1 || _n > batch.length) {
+            _aiLog('Soprannomi', `⚠️ Scartato: campo "n" non valido (${s.n})`, false);
+            continue;
           }
+          const p = batch[_n - 1]; // n è 1-based
           if (!p || !s.soprannome_ai) continue;
           const _entry = { soprannome_ai: s.soprannome_ai, confronto: s.confronto, motivazione: s.motivazione, nomeOriginale: p.soprannome||p.nome, generatedAt: Date.now(), partiteAl: p.partiteTotali||0 };
           // Salva SOLO per uid (UUID stabile multi-device) — una entry per giocatore
@@ -9450,7 +9477,12 @@ JSON ONLY: {"soprannomi":[{"id":"...","soprannome_ai":"...","confronto":"...","m
           if (_oldSKey && _oldSKey !== _uidKey && _oldSKey !== _oldNKey) delete updated[_oldSKey];
           if (_oldIdKey && _oldIdKey !== _uidKey) delete updated[_oldIdKey];
         }
-        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(x=>x.soprannome_ai||x.id).join(', '));
+        _aiLog('Soprannomi','✅ Batch '+(Math.floor(bi/BATCH)+1)+': '+parsed.soprannomi.map(s=>{
+          const _n2 = parseInt(s.n);
+          const _p2 = (_n2>=1 && _n2<=batch.length) ? batch[_n2-1] : null;
+          const _nomeGioc = _p2 ? (_p2.soprannome||_p2.nome) : '???';
+          return _nomeGioc + ' → ' + (s.soprannome_ai||'?');
+        }).join(' | '));
         aiNicknames.value = { ...updated };
 
         const _lsNK = `amicifc_nicks_${currentGroup.value.id}`;
