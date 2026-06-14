@@ -4450,7 +4450,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
           <!-- Come iniziare (ex Tutorial) -->
           <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
-            <div style="font-weight:700;font-size:0.78rem;color:var(--lime);margin-bottom:8px;text-transform:uppercase;letter-spacing:1px">🚀 Come Iniziare</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-weight:700;font-size:0.78rem;color:var(--lime);text-transform:uppercase;letter-spacing:1px">🚀 Come Iniziare</div>
+              <label class="toggle" style="flex-shrink:0" @click.stop>
+                <input type="checkbox" v-model="tutorialEnabled">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+            <div style="font-size:0.7rem;color:var(--text2);margin-bottom:8px;opacity:.8">
+              Mostra suggerimenti contestuali durante l'uso dell'app
+            </div>
             <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
               <li>Vai in <strong>Giocatori</strong> e aggiungi i tuoi amici con foto e ruolo</li>
               <li>Premi il tasto <strong>▶ Play</strong> verde per creare una formazione</li>
@@ -6233,7 +6242,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.540',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.541',date:'2026-06-14',items:[
+      'Soprannomi: soglia rigenerazione abbassata da 5 a 4 partite (~1 mese)',
+      'Fix: toggle Tutorial ora visibile nel Manuale del Campetto',
+    ]},{version:'v1.540',date:'2026-06-14',items:[
       'Soprannomi AI: prompt arricchito con piede preferito, descrizione/qualità, autogol, rigori, punti medi',
       'Campi rinominati senza abbreviazioni (partite_giocate invece di "g") per evitare ambiguità AI',
     ]},{version:'v1.539',date:'2026-06-14',items:[
@@ -7051,7 +7063,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.540');
+    const appVersion = ref('1.541');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9397,7 +9409,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
         const existing = aiNicknames.value[p.uid || String(p.id)];
         if (!existing) return true;
         const partiteDa = (p.partiteTotali||0) - (existing.partiteAl||0);
-        return partiteDa >= 5;
+        return partiteDa >= 4; // ~1 mese di partite settimanali
       });
       if (!toGenerate.length) { _aiLog('Soprannomi','✅ Tutti i soprannomi sono aggiornati'); return; }
       _aiLog('Soprannomi','📝 Da generare: '+toGenerate.map(p=>p.soprannome||p.nome).join(', '));
