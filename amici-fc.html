@@ -4885,7 +4885,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                       {{aiCardsTrashTalk.length ? aiCardsTrashTalk.length+' card pronte' : 'nessuna card'}}
                     </span>
                   </div>
-                  <button class="btn btn-sm btn-full" style="background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.3);color:#f87171" @click="forceTrashTalk">🔥 Rigenera Trash Talk</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-sm" style="flex:1;background:rgba(248,113,113,.1);border:1.5px solid rgba(248,113,113,.3);color:#f87171" @click="rigeneraTrashTalk">🔄 Rigenera</button>
+                    <button class="btn btn-sm" style="flex:1;background:rgba(248,113,113,.06);border:1.5px solid rgba(248,113,113,.2);color:#f87171" @click="azzeraRigeneraTrashTalk">🗑️ Azzera e Rigenera</button>
+                  </div>
                 </div>
 
                 <!-- Hall of Fame -->
@@ -4897,7 +4900,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                       {{aiCardsHallOfFame ? 'generata per '+aiCardsHallOfFame.mese : 'non generata'}}
                     </span>
                   </div>
-                  <button class="btn btn-sm btn-full" style="background:rgba(251,191,36,.1);border:1.5px solid rgba(251,191,36,.3);color:#fbbf24" @click="forceHallOfFame">👑 Rigenera Hall of Fame</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-sm" style="flex:1;background:rgba(251,191,36,.1);border:1.5px solid rgba(251,191,36,.3);color:#fbbf24" @click="rigeneraHallOfFame">🔄 Rigenera</button>
+                    <button class="btn btn-sm" style="flex:1;background:rgba(251,191,36,.06);border:1.5px solid rgba(251,191,36,.2);color:#fbbf24" @click="azzeraRigeneraHallOfFame">🗑️ Azzera e Rigenera</button>
+                  </div>
                 </div>
 
                 <!-- Soprannomi -->
@@ -4909,7 +4915,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                       {{Object.keys(aiNicknames).length}} / {{groupPlayers.filter(p=>(p.partiteTotali||0)>=3).length}} giocatori
                     </span>
                   </div>
-                  <button class="btn btn-sm btn-full" style="background:rgba(45,212,191,.1);border:1.5px solid rgba(45,212,191,.3);color:#2dd4bf" @click="forceSoprannomi">🧬 Rigenera Soprannomi</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-sm" style="flex:1;background:rgba(45,212,191,.1);border:1.5px solid rgba(45,212,191,.3);color:#2dd4bf" @click="rigeneraSoprannomi">🔄 Rigenera</button>
+                    <button class="btn btn-sm" style="flex:1;background:rgba(45,212,191,.06);border:1.5px solid rgba(45,212,191,.2);color:#2dd4bf" @click="azzeraRigeneraSoprannomi">🗑️ Azzera e Rigenera</button>
+                  </div>
                   <button class="btn btn-sm btn-full" style="background:rgba(45,212,191,.06);border:1.5px solid rgba(45,212,191,.2);color:#2dd4bf;margin-top:6px;font-size:0.7rem" @click="exportPlayerUids">📤 Esporta UID Giocatori (debug)</button>
                 </div>
 
@@ -4926,7 +4935,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     "{{aiPronostico.titolo?.slice(0,50)}}{{aiPronostico.titolo?.length>50?'...':''}}"
                     <div style="opacity:.65;margin-top:2px">generato il {{aiPronostico.generatedAt ? new Date(aiPronostico.generatedAt).toLocaleDateString('it-IT') : '?'}}</div>
                   </div>
-                  <button class="btn btn-sm btn-full" style="background:rgba(167,139,250,.1);border:1.5px solid rgba(167,139,250,.3);color:#a78bfa" @click="forcePronostico">🔮 Rigenera Pronostico</button>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-sm" style="flex:1;background:rgba(167,139,250,.1);border:1.5px solid rgba(167,139,250,.3);color:#a78bfa" @click="rigeneraPronostico">🔄 Rigenera</button>
+                    <button class="btn btn-sm" style="flex:1;background:rgba(167,139,250,.06);border:1.5px solid rgba(167,139,250,.2);color:#a78bfa" @click="azzeraRigeneraPronostico">🗑️ Azzera e Rigenera</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -6242,7 +6254,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.543',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.544',date:'2026-06-14',items:[
+      'Fix CRITICO: Trash Talk confrontava playerId (uid) con id Dexie — profili giocatori sempre vuoti, AI generava senza dati reali',
+      'Fix CRITICO: Hall of Fame stesso bug uid/id — statsMap sempre vuota, nessuna card generata',
+      'Zona Pericolo: ogni card AI (Trash Talk, Hall of Fame, Soprannomi, Pronostico) ora ha 2 azioni separate — "Rigenera" (solo se mancante/scaduto) e "Azzera e Rigenera" (sempre da zero)',
+      'Fix: "Rigenera Soprannomi" non azzera più i soprannomi esistenti — genera solo quelli mancanti o scaduti',
+    ]},{version:'v1.543',date:'2026-06-14',items:[
       'Squadra Perfetta -> "Squadra Perfetta al Momento": ora basata su media punti ultime 5 presenze (min 4 partite), non più su media storica totale',
       'Nuovo: file CHANGELOG.md e REGOLE-PROGETTO.md per documentazione esterna del progetto',
     ]},{version:'v1.542',date:'2026-06-14',items:[
@@ -6285,8 +6302,6 @@ createApp({
     ]},{version:'v1.529',date:'2026-06-14',items:[
       'Fix: Manuale del Campetto ora si espande (manualeExpanded nel return)',
       'UI: Generazione AI Cards riprogettata — card singole con stato e pulsante',
-    ]},{version:'v1.528',date:'2026-06-13',items:[
-      'Fix: nextTick prima di syncToCloud post-nicks — soprannomi sempre nel payload',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6539,7 +6554,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.543');
+    const appVersion = ref('1.544');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8488,17 +8503,17 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
         .slice(0, 5);
 
       const profili = statsArr.map(s => {
-        const p = players.find(x => x.id === s.playerId || String(x.id) === String(s.playerId));
+        const p = players.find(x => x.uid === s.playerId || String(x.uid) === String(s.playerId) || String(x.id) === String(s.playerId));
         if (!p) return null;
 
         const recentGol = recent.reduce((acc,m) => {
-          const st = (m.statisticheGiocatori||[]).find(x => String(x.playerId)===String(p.id));
+          const st = (m.statisticheGiocatori||[]).find(x => String(x.playerId)===String(p.uid));
           return acc + (st?.goal||0);
         }, 0);
 
         const storicoRisultati = recent.map(m => {
-          const inA_rec = (m.squadraA||[]).map(String).includes(String(p.id));
-          const inB_rec = (m.squadraB||[]).map(String).includes(String(p.id));
+          const inA_rec = (m.squadraA||[]).map(String).includes(String(p.uid));
+          const inB_rec = (m.squadraB||[]).map(String).includes(String(p.uid));
           if (!inA_rec && !inB_rec) return null;
           const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
           const vince_rec = inA_rec ? gA>gB : gB>gA;
@@ -8506,7 +8521,7 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
           return vince_rec ? 'V' : pari_rec ? 'P' : 'S';
         }).filter(Boolean);
 
-        const inA = (match.squadraA||[]).map(String).includes(String(p.id));
+        const inA = (match.squadraA||[]).map(String).includes(String(p.uid));
         const gA_now = match.risultato?.goalA||0, gB_now = match.risultato?.goalB||0;
         const vince_ora = inA ? gA_now > gB_now : gB_now > gA_now;
         const pari_ora  = gA_now === gB_now;
@@ -8695,7 +8710,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const goalA = m.risultato?.goalA||0, goalB = m.risultato?.goalB||0;
         const teamAWon = goalA > goalB, isDraw = goalA === goalB;
         for (const s of (m.statisticheGiocatori||[])) {
-          const p = groupPlayers.value.find(x => x.id===s.playerId||String(x.id)===String(s.playerId));
+          const p = groupPlayers.value.find(x => x.uid===s.playerId||String(x.uid)===String(s.playerId)||String(x.id)===String(s.playerId));
           if (!p) continue;
           if (!statsMap[s.playerId]) statsMap[s.playerId] = {
             nome: p.soprannome||p.nome, ruolo: p.ruolo||'',
@@ -9215,30 +9230,67 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       toast(senzaUid ? `⚠️ ${senzaUid} giocatori senza uid!` : '✅ Tutti i giocatori hanno uid', senzaUid ? 'error' : 'success', 4000);
     };
 
-    const forcePronostico = () => {
+    // ── Pronostico: Rigenera (solo se mancante/scaduto) vs Azzera e Rigenera (sempre da zero) ──
+    const rigeneraPronostico = () => {
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI','error',3000); return; }
+      if (aiPronostico.value?.titolo && aiFlagValid('pronostico', currentGroup.value?.id)) {
+        _aiLog('UI','🔮 Pronostico già presente e aggiornato'); return;
+      }
+      _aiLog('UI','🔮 Generazione pronostico (solo se mancante)...');
+      _generatePronostico().catch(e => _aiLog('UI','❌ '+e.message,false));
+    };
+    const azzeraRigeneraPronostico = () => {
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI','error',3000); return; }
       aiFlagClear('pronostico', currentGroup.value?.id);
       aiPronostico.value = null;
       localStorage.removeItem('amicifc_prono_' + (currentGroup.value?.id||''));
-      _aiLog('UI','🔮 Rigenerazione pronostico...');
+      _aiLog('UI','🔮 Azzero e rigenero pronostico...');
       _generatePronostico().catch(e => _aiLog('UI','❌ '+e.message,false));
     };
 
-    const forceTrashTalk = () => {
+    // ── Trash Talk: Rigenera (solo se mancante per ultima partita) vs Azzera e Rigenera (sovrascrive) ──
+    const rigeneraTrashTalk = () => {
+      const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
+      if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      if (aiCardsTrashTalk.value?.length && aiFlagValid('tt', currentGroup.value.id)) {
+        _aiLog('UI','🔥 Trash Talk già presente e aggiornato'); return;
+      }
+      _aiLog('UI','🔥 Generazione Trash Talk su: '+m.data+' (solo se mancante)');
+      _generateTrashTalk(m).catch(e => _aiLog('UI','❌ '+e.message,false));
+    };
+    const azzeraRigeneraTrashTalk = () => {
       const m = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))[0];
       if (!m) { _aiLog('UI','⚠️ Nessuna partita — inserisci prima una partita',false); return; }
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
       aiFlagClear('tt', currentGroup.value.id); // forza rigenerazione
-      _aiLog('UI','🔥 Forzatura Trash Talk su: '+m.data+' (sovrascrive Firebase)');
+      _aiLog('UI','🔥 Azzero e rigenero Trash Talk su: '+m.data+' (sovrascrive Firebase)');
       _forceGenerateTrashTalk(m).catch(e => _aiLog('UI','❌ '+e.message,false));
     };
-    const forceHallOfFame = () => {
+
+    // ── Hall of Fame: Rigenera (solo se mancante per il mese) vs Azzera e Rigenera (sovrascrive) ──
+    const rigeneraHallOfFame = () => {
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      if (aiCardsHallOfFame.value?.fame) {
+        _aiLog('UI','👑 Hall of Fame già presente per '+aiCardsHallOfFame.value.mese); return;
+      }
+      _aiLog('UI','👑 Generazione Hall of Fame (solo se mancante)...');
+      _generateHallOfFame(false).catch(e => _aiLog('UI','❌ '+e.message,false));
+    };
+    const azzeraRigeneraHallOfFame = () => {
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
       aiFlagClear('hof', currentGroup.value.id); // forza rigenerazione
-      _aiLog('UI','👑 Forzatura Hall of Fame (sovrascrive Firebase)...');
+      _aiLog('UI','👑 Azzero e rigenero Hall of Fame (sovrascrive Firebase)...');
       _generateHallOfFame(true).catch(e => _aiLog('UI','❌ '+e.message,false));
     };
-    const forceSoprannomi = () => {
+
+    // ── Soprannomi: Rigenera (solo mancanti/scaduti, anche scheduler) vs Azzera e Rigenera (sempre da zero) ──
+    const rigeneraSoprannomi = () => {
+      if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
+      _aiLog('UI','🧬 Verifica soprannomi mancanti/scaduti...');
+      _generateNicknames().catch(e => _aiLog('UI','❌ '+e.message,false));
+    };
+    const azzeraRigeneraSoprannomi = () => {
       if (!settings.value.apiKey) { toast('⚠️ Configura prima una API key AI nelle impostazioni','error',3000); return; }
       // Svuota completamente i soprannomi esistenti per forzare rigenerazione totale
       aiNicknames.value = {};
@@ -9248,6 +9300,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       _aiLog('UI','🧬 Soprannomi azzerati — rigenerazione completa in corso...');
       _generateNicknames().catch(e => _aiLog('UI','❌ '+e.message,false));
     };
+
 
     const copyAiLog = async () => {
       const sep = String.fromCharCode(10);
@@ -13997,7 +14050,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceTrashTalk, forceHallOfFame, forceReuploadFotos, forceSoprannomi, forcePronostico, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
 }).mount('#app');
