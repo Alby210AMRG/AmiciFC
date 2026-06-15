@@ -1053,13 +1053,37 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   position: fixed; top: var(--top-h); left: 0; right: 0; z-index: 99;
   background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
   border-bottom: 2px solid var(--lime);
-  padding: 10px 16px;
-  display: flex; align-items: center; gap: 12px;
+  padding: 8px 14px;
+  display: flex; flex-direction: column; gap: 4px;
   font-size: 0.82rem; font-weight: 700; color: #fff;
-  animation: slideDown 0.4s ease;
+  animation: slideDown 0.4s ease, glowPulse 2.4s ease-in-out infinite;
   box-shadow: 0 4px 20px rgba(0,0,0,0.4);
 }
+.update-banner.critical {
+  border-bottom: 2px solid #FF4D4D;
+  animation: slideDown 0.4s ease, glowPulseCritical 1.6s ease-in-out infinite;
+}
+.update-banner-row { display: flex; align-items: center; gap: 10px; }
+.update-banner-row.main { flex-wrap: nowrap; }
+.update-banner-toggle {
+  background: none; border: none; color: rgba(255,255,255,.6);
+  font-size: 0.72rem; font-weight: 600; cursor: pointer; padding: 0;
+  display: flex; align-items: center; gap: 4px;
+}
+.update-banner-highlights {
+  font-size: 0.74rem; font-weight: 400; color: rgba(255,255,255,.85);
+  line-height: 1.6; padding: 4px 0 2px;
+}
+.update-banner-highlights div { margin-bottom: 2px; }
 @keyframes slideDown { from { transform: translateY(-100%); } to { transform: translateY(0); } }
+@keyframes glowPulse {
+  0%,100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0px rgba(166,255,77,0); }
+  50%      { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 16px rgba(166,255,77,0.55); }
+}
+@keyframes glowPulseCritical {
+  0%,100% { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 0px rgba(255,77,77,0); }
+  50%      { box-shadow: 0 4px 20px rgba(0,0,0,0.4), 0 0 18px rgba(255,77,77,0.65); }
+}
 
 /* ═══════════════════════════════════════
    GROUP SELECTOR MODAL
@@ -1782,19 +1806,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   </div>
 
   <!-- ── UPDATE BANNER ── -->
-  <div v-if="updateAvailable" class="update-banner">
-    <div style="display:flex;flex-direction:column;gap:2px">
-      <div style="display:flex;align-items:center;gap:6px">
-        <span style="font-size:1.1rem">🚀</span>
-        <span>Amici FC {{ newVersion }} è disponibile!</span>
-      </div>
-      <div style="font-size:0.72rem;font-weight:400;opacity:0.85">
-        Aggiorna per le ultime novità e correzioni
-      </div>
+  <div v-if="updateAvailable" class="update-banner" :class="{critical: updateCritical}">
+    <div class="update-banner-row main">
+      <span style="font-size:1.1rem">{{ updateCritical ? '🚨' : '🏆' }}</span>
+      <span style="flex:1;min-width:0">{{ updateCritical ? 'Aggiornamento importante — v'+newVersion : 'Nuova versione in campo: v'+newVersion }}</span>
+      <button class="btn btn-sm" style="background:#fff;color:#1a1a1a;font-weight:700;flex-shrink:0" @click="doUpdate">⚡ Aggiorna ora</button>
+      <button v-if="!updateCritical" @click="updateAvailable=false" style="background:rgba(0,0,0,0.15);border:none;cursor:pointer;font-size:1rem;border-radius:6px;padding:4px 8px;color:inherit;flex-shrink:0">✕</button>
     </div>
-    <div style="display:flex;gap:6px;margin-left:auto;align-items:center">
-      <button class="btn btn-sm" style="background:#fff;color:#1a1a1a;font-weight:700" @click="doUpdate">⚡ Aggiorna ora</button>
-      <button @click="updateAvailable=false" style="background:rgba(0,0,0,0.15);border:none;cursor:pointer;font-size:1rem;border-radius:6px;padding:4px 8px;color:inherit">✕</button>
+    <div class="update-banner-row">
+      <button class="update-banner-toggle" @click="showUpdateHighlights=!showUpdateHighlights">
+        {{ updateCritical ? 'Si aggiornerà al prossimo utilizzo' : 'Cosa è cambiato?' }}
+        <span :style="'transition:transform .2s;display:inline-block'+(showUpdateHighlights?';transform:rotate(180deg)':'')">▾</span>
+      </button>
+    </div>
+    <div v-if="showUpdateHighlights" class="update-banner-highlights">
+      <div v-for="(h,hi) in updateHighlights" :key="hi">{{ h }}</div>
     </div>
   </div>
 
@@ -6287,7 +6313,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.547',date:'2026-06-15',items:[
+    const changelogEntries = [{version:'v1.548',date:'2026-06-15',items:[
+      'Nuovo: sistema aggiornamenti critici/non-critici — version.json supporta "critical" e "highlights"',
+      'Aggiornamenti critici: se app in background, reload automatico silenzioso + toast riassuntivo al ritorno',
+      'Aggiornamenti critici: se app attiva, banner non chiudibile, si applica al passaggio in background',
+      'Banner aggiornamento ridisegnato: compatto (2 righe), glow pulsante (lime=normale, rosso=critico), sezione "Cosa è cambiato?" espandibile con novità in sintesi',
+    ]},{version:'v1.547',date:'2026-06-15',items:[
       'Fix CRITICO: card "Marcatori ultima partita" mostrava sempre "?" — stesso bug uid/id (x.id vs s.playerId)',
       'Nuova card dedicata "newsGoals": Marcatori ultima partita ridisegnata con pallone animato, sfondo a tema campo, elenco verticale con foto/nome/gol',
     ]},{version:'v1.546',date:'2026-06-14',items:[
@@ -6335,8 +6366,6 @@ createApp({
       'Debug: log quando AI ritorna un id che non matcha nessun giocatore del batch',
     ]},{version:'v1.533',date:'2026-06-14',items:[
       'Debug: log conteggio chiavi updated dopo ogni batch',
-    ]},{version:'v1.532',date:'2026-06-14',items:[
-      'Debug: log per ogni chiave aggiunta a updated nei soprannomi',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6589,7 +6618,10 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.547');
+    const updateCritical  = ref(false);
+    const showUpdateHighlights = ref(false);
+    const updateHighlights = ref([]);
+    const appVersion = ref('1.548');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12505,6 +12537,14 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
         if (remoteVer > currentVer) {
           newVersion.value      = data.version;
+          updateCritical.value  = !!data.critical;
+          updateHighlights.value = Array.isArray(data.highlights) ? data.highlights : [];
+          // Aggiornamento critico + app non visibile → reload silenzioso, nessuna interazione utente
+          if (updateCritical.value && document.hidden) {
+            localStorage.setItem('amicifc_silent_update', JSON.stringify({version: data.version, highlights: updateHighlights.value}));
+            doUpdate();
+            return;
+          }
           updateAvailable.value = true;
         } else if (!silent) {
           toast('✅ App già aggiornata (v' + appVersion.value + ')', 'success', 4000);
@@ -12761,6 +12801,16 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         _heroLaunch();
       });
 
+      // ── Toast post-reload per aggiornamento critico silenzioso ──
+      try {
+        const _silentUpd = JSON.parse(localStorage.getItem('amicifc_silent_update') || 'null');
+        if (_silentUpd?.version) {
+          localStorage.removeItem('amicifc_silent_update');
+          const _hl = (_silentUpd.highlights||[]).slice(0,2).join(' · ');
+          toast('⚡ Squadra aggiornata a v'+_silentUpd.version+(_hl?' — '+_hl:''), 'success', 6000);
+        }
+      } catch(_e) {}
+
       let _offlineAt = null;
       window.addEventListener('online', () => {
         isOnline.value = true;
@@ -12853,6 +12903,12 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
             // Solo checkForUpdates — il sync è già gestito dall'altro listener con 10min minimo
             checkForUpdates(true).catch(console.warn);
           }, 1000);
+        } else if (document.visibilityState === 'hidden') {
+          // App critica già notificata mentre era visibile → aggiorna ora che è in background
+          if (updateAvailable.value && updateCritical.value) {
+            localStorage.setItem('amicifc_silent_update', JSON.stringify({version: newVersion.value, highlights: updateHighlights.value}));
+            doUpdate();
+          }
         }
       });
 
@@ -14064,7 +14120,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
-      updateAvailable, newVersion, appVersion, appDate, previewPNGUrl, previewPNGName,
+      updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName,
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
