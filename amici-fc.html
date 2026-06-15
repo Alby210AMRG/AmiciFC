@@ -6248,7 +6248,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.545',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.546',date:'2026-06-14',items:[
+      'Fix CRITICO: aiPronostico non veniva mai caricato da localStorage all\u2019avvio (a differenza di TrashTalk/HoF/Soprannomi) — card pronostico invisibile se il sync completo non scattava',
+      'Fix: aggiunto retroactive flag-set per pronostico in init AI cards, come per le altre 3 card',
+    ]},{version:'v1.545',date:'2026-06-14',items:[
       'Fix CRITICO: card Pronostico non appariva mai se Trash Talk era vuoto (condizione errata)',
       'Pronostico ridisegnato: 4 mini-card separate (Primo Gol, MVP Previsto, Disastro Annunciato, Previsione Assurda)',
       'Pronostico: le 4 mini-card ruotano a coppie casuali ogni 30 min, con foto giocatore e colori dedicati',
@@ -6294,9 +6297,6 @@ createApp({
       'Debug: log per ogni chiave aggiunta a updated nei soprannomi',
     ]},{version:'v1.531',date:'2026-06-14',items:[
       'Debug: log diagnostico per capire perché sync post-nicks non parte',
-    ]},{version:'v1.530',date:'2026-06-14',items:[
-      'Fix critico: modal-box, modal-header, modal-close non avevano CSS — log apparivano trasparenti',
-      'Fix: modal Log, Invia Formazione e Ricevi Formazione ora hanno box visibile e centrato',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6549,7 +6549,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.545');
+    const appVersion = ref('1.546');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9385,6 +9385,8 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       if (_lsHofCheck?.fame && !aiFlagValid('hof', _gid)) aiFlagSet('hof', _gid);
       const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
       if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
+      const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
+      if (_lsPronoCheck?.titolo && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
       if (aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
@@ -9406,6 +9408,10 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
         if (!Object.keys(aiNicknames.value).length) {
           const _lsNK = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
           if (Object.keys(_lsNK).length) aiNicknames.value = _lsNK;
+        }
+        if (!aiPronostico.value?.titolo) {
+          const _lsProno = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
+          if (_lsProno?.titolo) aiPronostico.value = _lsProno;
         }
         const _nOk = aiCardsTrashTalk.value.length || aiCardsHallOfFame.value || Object.keys(aiNicknames.value).length;
         _aiLog('Init', _nOk ? '✅ AI Cards pronte' : '⚠️ AI Cards: nessun dato locale');
