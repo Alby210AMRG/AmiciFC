@@ -2123,7 +2123,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='forma'||s.type==='h2hCard'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
@@ -2450,32 +2450,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- SOPRANNOME / IDENTIKIT AI -->
             <!-- ── PRONOSTICO PROSSIMA PARTITA ── -->
-            <template v-else-if="s.type==='pronostico'">
-              <div class="hc-label" style="color:#a78bfa">{{s.label}}</div>
-              <div class="hc-title" style="color:#fff;margin-bottom:10px;position:relative;z-index:1">{{s.titolo}}</div>
-              <div class="hc-scroll-box" style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.3)"
-                :ref="el => el && _heroAutoScroll(el, s, 'prono')">
+            <template v-else-if="s.type==='pronoMini'">
+              <div class="hc-label" :style="'color:'+s.color">{{s.label}} · {{s.sub}}</div>
+              <div v-if="s.nome" style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:6px 0 10px">
+                <div v-if="s.foto" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid var(--c,#fff)" :style="'border-color:'+s.color+';box-shadow:0 0 16px '+s.color+'55'">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                </div>
+                <div v-else style="width:72px;height:72px;min-width:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;border:3px solid" :style="'border-color:'+s.color+';background:'+s.color+'1a'">{{s.icon}}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="hc-name" :style="'color:'+s.color">{{s.nome}}</div>
+                </div>
+              </div>
+              <div v-else style="position:relative;z-index:1;display:flex;align-items:center;justify-content:center;margin:10px 0">
+                <div style="font-size:48px">{{s.icon}}</div>
+              </div>
+              <div class="hc-scroll-box" :style="'background:'+s.color+'1a;border:1px solid '+s.color+'4d'"
+                :ref="el => el && _heroAutoScroll(el, s, 'prono_'+s.sub)">
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
-                  <div v-if="s.primoGol" style="background:rgba(74,222,128,.1);border-radius:8px;padding:8px">
-                    <div style="font-size:10px;font-weight:700;color:#4ade80;letter-spacing:1px;margin-bottom:3px">⚽ PRIMO GOL</div>
-                    <div class="hc-body" style="color:#fff;font-weight:700">{{s.primoGol.nome}}</div>
-                    <div class="hc-body-em" style="color:rgba(255,255,255,.7)">{{s.primoGol.motivo}}</div>
-                  </div>
-                  <div v-if="s.mvp" style="background:rgba(251,191,36,.1);border-radius:8px;padding:8px">
-                    <div style="font-size:10px;font-weight:700;color:#fbbf24;letter-spacing:1px;margin-bottom:3px">🌟 MVP PREVISTO</div>
-                    <div class="hc-body" style="color:#fff;font-weight:700">{{s.mvp.nome}}</div>
-                    <div class="hc-body-em" style="color:rgba(255,255,255,.7)">{{s.mvp.motivo}}</div>
-                  </div>
-                  <div v-if="s.disastro" style="background:rgba(248,113,113,.1);border-radius:8px;padding:8px">
-                    <div style="font-size:10px;font-weight:700;color:#f87171;letter-spacing:1px;margin-bottom:3px">💥 DISASTRO ANNUNCIATO</div>
-                    <div class="hc-body" style="color:#fff;font-weight:700">{{s.disastro.nome}}</div>
-                    <div class="hc-body-em" style="color:rgba(255,255,255,.7)">{{s.disastro.motivo}}</div>
-                  </div>
-                  <div v-if="s.assurda" style="background:rgba(96,165,250,.1);border-radius:8px;padding:8px">
-                    <div style="font-size:10px;font-weight:700;color:#60a5fa;letter-spacing:1px;margin-bottom:3px">🎲 PREVISIONE ASSURDA</div>
-                    <div class="hc-body" style="color:rgba(255,255,255,.85)">{{s.assurda}}</div>
-                  </div>
-                  <div v-if="s.firma" class="hc-meta" style="color:rgba(167,139,250,.6);border:none;padding:0;text-align:right">— {{s.firma}}</div>
+                  <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.motivo||s.testo}}</div>
+                  <div v-if="s.titolo" class="hc-body-em" style="color:rgba(255,255,255,.55);font-style:italic">"{{s.titolo}}"</div>
+                  <div v-if="s.firma" class="hc-meta" style="color:rgba(255,255,255,.45);border:none;padding:0;text-align:right">— {{s.firma}}</div>
                 </div>
               </div>
             </template>
@@ -6254,7 +6248,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.544',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.545',date:'2026-06-14',items:[
+      'Fix CRITICO: card Pronostico non appariva mai se Trash Talk era vuoto (condizione errata)',
+      'Pronostico ridisegnato: 4 mini-card separate (Primo Gol, MVP Previsto, Disastro Annunciato, Previsione Assurda)',
+      'Pronostico: le 4 mini-card ruotano a coppie casuali ogni 30 min, con foto giocatore e colori dedicati',
+    ]},{version:'v1.544',date:'2026-06-14',items:[
       'Fix CRITICO: Trash Talk confrontava playerId (uid) con id Dexie — profili giocatori sempre vuoti, AI generava senza dati reali',
       'Fix CRITICO: Hall of Fame stesso bug uid/id — statsMap sempre vuota, nessuna card generata',
       'Zona Pericolo: ogni card AI (Trash Talk, Hall of Fame, Soprannomi, Pronostico) ora ha 2 azioni separate — "Rigenera" (solo se mancante/scaduto) e "Azzera e Rigenera" (sempre da zero)',
@@ -6299,9 +6297,6 @@ createApp({
     ]},{version:'v1.530',date:'2026-06-14',items:[
       'Fix critico: modal-box, modal-header, modal-close non avevano CSS — log apparivano trasparenti',
       'Fix: modal Log, Invia Formazione e Ricevi Formazione ora hanno box visibile e centrato',
-    ]},{version:'v1.529',date:'2026-06-14',items:[
-      'Fix: Manuale del Campetto ora si espande (manualeExpanded nel return)',
-      'UI: Generazione AI Cards riprogettata — card singole con stato e pulsante',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6554,7 +6549,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.544');
+    const appVersion = ref('1.545');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13244,16 +13239,34 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
         }
       }
 
-      if(aiCardsTrashTalk.value.length>0){
-      // Pronostico Prossima Partita
+      // Pronostico Prossima Partita — 4 mini-card (Primo Gol, MVP Previsto, Disastro Annunciato, Previsione Assurda)
+      // mischiate a coppie casuali, ruotano ogni 30 min (seed30) — indipendenti da TrashTalk
+      const _seed30 = Math.floor(Date.now() / 1800000); // cambia ogni 30 min
       if (aiPronostico.value?.titolo) {
         const _pr = aiPronostico.value;
-        slides.push({type:'pronostico',dur:9000,label:'🔮 PRONOSTICO',
-          titolo:_pr.titolo,primoGol:_pr.primoGol,mvp:_pr.mvpPrevisto,
-          disastro:_pr.disastroAnnunciato,assurda:_pr.previsione_assurda,firma:_pr.firma,
-          bg:'linear-gradient(145deg,#0a0a2e,#1e1b4b 60%,#7c3aed)',dest:'stats'});
+        const _findP = nome => players.find(p=>(p.soprannome||p.nome||'').toLowerCase()===(nome||'').toLowerCase())||
+                                players.find(p=>(p.soprannome||p.nome||'').toLowerCase().includes((nome||'').toLowerCase().split(' ')[0]||'\x00'));
+        const _pronoItems=[];
+        if(_pr.primoGol?.nome){const pp=_findP(_pr.primoGol.nome);_pronoItems.push({kind:'primoGol',icon:'⚽',sub:'PRIMO GOL',color:'#4ade80',nome:_pr.primoGol.nome,motivo:_pr.primoGol.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#06200f,#0f3d22 60%,#16a34a)'});}
+        if(_pr.mvpPrevisto?.nome){const pp=_findP(_pr.mvpPrevisto.nome);_pronoItems.push({kind:'mvp',icon:'🌟',sub:'MVP PREVISTO',color:'#fbbf24',nome:_pr.mvpPrevisto.nome,motivo:_pr.mvpPrevisto.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#241a02,#5c4309 60%,#d97706)'});}
+        if(_pr.disastroAnnunciato?.nome){const pp=_findP(_pr.disastroAnnunciato.nome);_pronoItems.push({kind:'disastro',icon:'💥',sub:'DISASTRO ANNUNCIATO',color:'#f87171',nome:_pr.disastroAnnunciato.nome,motivo:_pr.disastroAnnunciato.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#240505,#5c1313 60%,#dc2626)'});}
+        if(_pr.previsione_assurda){_pronoItems.push({kind:'assurda',icon:'🎲',sub:'PREVISIONE ASSURDA',color:'#60a5fa',testo:_pr.previsione_assurda,bg:'linear-gradient(145deg,#041420,#0d3050 60%,#2563eb)'});}
+        if(_pronoItems.length){
+          // shuffle deterministico basato su seed30, poi prendi le prime 2 (coppia "del momento")
+          const _shuf=[..._pronoItems];
+          let _sx=_seed30||1;
+          for(let i=_shuf.length-1;i>0;i--){_sx=(_sx*9301+49297)%233280;const j=Math.floor((_sx/233280)*(i+1));[_shuf[i],_shuf[j]]=[_shuf[j],_shuf[i]];}
+          const _pronoPair=_shuf.slice(0,Math.min(2,_shuf.length));
+          for(const it of _pronoPair){
+            slides.push({type:'pronoMini',dur:6500,label:'🔮 PRONOSTICO',
+              icon:it.icon,sub:it.sub,color:it.color,nome:it.nome,motivo:it.motivo,testo:it.testo,
+              foto:it.foto,uid:it.uid,titolo:_pr.titolo,firma:_pr.firma,
+              bg:it.bg,dest:'stats'});
+          }
+        }
       }
 
+      if(aiCardsTrashTalk.value.length>0){
         const ttIdx=aiCardsTrashTalkIdx.value%aiCardsTrashTalk.value.length;
         const tt=aiCardsTrashTalk.value[ttIdx];
         if(tt){
@@ -13302,7 +13315,6 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
       slides.push({type:'stat',dur:2500,label:'Giocatori',val:players.length,col:'#60a5fa',bg:'linear-gradient(145deg,#0c1a3a,#1e3a8a 60%,#3b82f6)',name:'Rosa completa',sub:'Premi per vedere tutti i profili',dest:'players'});
 
       // ── NUOVE CARD STATISTICHE ──
-      const _seed30 = Math.floor(Date.now() / 1800000); // cambia ogni 30 min
 
       // ── Card 1: Record Personale ──
       if (players.length >= 3 && matches.length >= 3) {
