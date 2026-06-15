@@ -144,6 +144,23 @@ function _i(e,t){const n=ns(e);class s extends xi{constructor(e){super(n,e,t)}}r
 }
 .live-dot { animation: livePulse 1s ease-in-out infinite; }
 
+/* ── Marcatori (newsGoals): pallone rotante + texture campo ── */
+@keyframes ballSpin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.ng-ball { animation: ballSpin 6s linear infinite; display:inline-block; }
+.ng-field-bg {
+  position:absolute; inset:0; pointer-events:none; opacity:.5;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 40px, transparent 40px 80px);
+}
+.ng-field-bg::before {
+  content:''; position:absolute; left:50%; top:8%; bottom:8%; width:1px;
+  background:rgba(255,255,255,.18); transform:translateX(-50%);
+}
+.ng-field-bg::after {
+  content:''; position:absolute; left:50%; top:50%; width:70px; height:70px;
+  border:1px solid rgba(255,255,255,.18); border-radius:50%; transform:translate(-50%,-50%);
+}
+
 /* ── Splash Screen ── */
 .splash-screen {
   position: fixed; inset: 0; z-index: 9999;
@@ -2123,7 +2140,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
@@ -2243,6 +2260,28 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div class="hc-scroll-inner">
                     <div class="hc-body" style="color:#fff;font-weight:700;text-align:center">{{s.quote}}</div>
                     <div v-if="s.cit" class="hc-body-em" style="color:rgba(255,255,255,.6);text-align:center;margin-top:6px">{{s.cit}}</div>
+                  </div>
+                </div>
+              </div>
+            </template>
+            <template v-else-if="s.type==='newsGoals'">
+              <div class="ng-field-bg"></div>
+              <div style="position:relative;z-index:1;display:flex;flex-direction:column;height:100%;padding:2px">
+                <div class="hc-label" style="color:rgba(255,255,255,.55);text-align:center;margin-bottom:8px">📻 In Diretta dallo Spogliatoio</div>
+                <div style="text-align:center;margin-bottom:8px">
+                  <span class="ng-ball" style="font-size:40px">⚽</span>
+                </div>
+                <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.5);text-align:center;margin-bottom:8px">Marcatori {{s.matchDate?formatDate(s.matchDate):'ultima partita'}}</div>
+                <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
+                  :ref="el => el && _heroAutoScroll(el, s, 'goals')">
+                  <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
+                    <div v-for="(sc,si) in (s.scorers||[])" :key="si" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
+                      <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(74,222,128,.5);display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.06)">
+                        <img v-if="sc.foto||sc.uid" :src="sc.foto&&sc.foto.startsWith('data:')?sc.foto:getPlayerPhoto(sc.foto,sc.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>⚽</span>
+                      </div>
+                      <div style="flex:1;font-weight:700;color:#fff;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{sc.nome}}</div>
+                      <div style="font-weight:900;color:#4ade80;font-size:14px;white-space:nowrap">⚽ ×{{sc.gol}}</div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -6248,7 +6287,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.546',date:'2026-06-14',items:[
+    const changelogEntries = [{version:'v1.547',date:'2026-06-15',items:[
+      'Fix CRITICO: card "Marcatori ultima partita" mostrava sempre "?" — stesso bug uid/id (x.id vs s.playerId)',
+      'Nuova card dedicata "newsGoals": Marcatori ultima partita ridisegnata con pallone animato, sfondo a tema campo, elenco verticale con foto/nome/gol',
+    ]},{version:'v1.546',date:'2026-06-14',items:[
       'Fix CRITICO: aiPronostico non veniva mai caricato da localStorage all\u2019avvio (a differenza di TrashTalk/HoF/Soprannomi) — card pronostico invisibile se il sync completo non scattava',
       'Fix: aggiunto retroactive flag-set per pronostico in init AI cards, come per le altre 3 card',
     ]},{version:'v1.545',date:'2026-06-14',items:[
@@ -6295,8 +6337,6 @@ createApp({
       'Debug: log conteggio chiavi updated dopo ogni batch',
     ]},{version:'v1.532',date:'2026-06-14',items:[
       'Debug: log per ogni chiave aggiunta a updated nei soprannomi',
-    ]},{version:'v1.531',date:'2026-06-14',items:[
-      'Debug: log diagnostico per capire perché sync post-nicks non parte',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6549,7 +6589,7 @@ createApp({
 
     const updateAvailable = ref(false);
     const newVersion      = ref('');
-    const appVersion = ref('1.546');
+    const appVersion = ref('1.547');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11063,11 +11103,12 @@ Niente altro, nessuna spiegazione.`;
         items.push({emoji:'🕐',text:`Ultima partita (${formatDate(last.data)}): ${winner?'Vince '+winner+' '+Math.max(gA,gB)+'-'+Math.min(gA,gB):'Pareggio '+gA+'-'+gB}${last.uomoPartita?' · 🏅 '+last.uomoPartita:''}`});
         const scorersLast=(last.statisticheGiocatori||[]).filter(s=>(s.goal||0)>0).sort((a,b)=>(b.goal||0)-(a.goal||0));
         if(scorersLast.length){
-          const names=scorersLast.slice(0,5).map(s=>{const p=players.find(x=>x.id===s.playerId||String(x.id)===String(s.playerId));return`${p?.soprannome||p?.nome||'?'} ⚽×${s.goal}`;}).join(', ');
-          items.push({emoji:'⚽',text:`Marcatori ultima partita: ${names}`});
+          const scorers=scorersLast.slice(0,6).map(s=>{const p=players.find(x=>x.uid===s.playerId||String(x.uid)===String(s.playerId)||String(x.id)===String(s.playerId));return{uid:p?.uid,foto:p?.foto,nome:p?.soprannome||p?.nome||'?',gol:s.goal};});
+          const names=scorers.map(s=>`${s.nome} ⚽×${s.gol}`).join(', ');
+          items.push({emoji:'⚽',text:`Marcatori ultima partita: ${names}`,type3:'goals',scorers,matchDate:last.data});
         }
         const ratedLast=(last.statisticheGiocatori||[]).filter(s=>(s.voto||0)>0).sort((a,b)=>(b.voto||0)-(a.voto||0));
-        if(ratedLast.length){const best=ratedLast[0];const p=players.find(x=>x.id===best.playerId||String(x.id)===String(best.playerId));if(p)items.push({uid:p.uid,foto:p.foto,emoji:'⭐',text:`Migliore in campo: ${p.soprannome||p.nome} voto ${best.voto}`});}
+        if(ratedLast.length){const best=ratedLast[0];const p=players.find(x=>x.uid===best.playerId||String(x.uid)===String(best.playerId)||String(x.id)===String(best.playerId));if(p)items.push({uid:p.uid,foto:p.foto,emoji:'⭐',text:`Migliore in campo: ${p.soprannome||p.nome} voto ${best.voto}`});}
         if(last.commentoAI?.length>20){items.push({emoji:'💬',text:`Il telecronista dell'ultima partita: "${last.commentoAI.trim()}"`,matchId:last.id,dest:'matchClick'});}
         if(last.titoloGiornale) items.push({emoji:'📰',text:`Titolo ultima partita: "${last.titoloGiornale}"`});
         const totalG=matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
@@ -13202,6 +13243,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
               na:n.na||'',nb:n.nb||'',
               foto:n.foto,uid:n.uid||'',foto2:n.foto2,uid2:n.uid2||'',
               bg:_bg});
+          } else if(n.type3==='goals'&&n.scorers?.length){
+            slides.push({type:'newsGoals',dur:Math.max(6000,Math.min(9000,n.scorers.length*1500)),
+              scorers:n.scorers,matchDate:n.matchDate,bg:_bg});
           } else {
             slides.push({type:'news',dur:_dur,badge:n.emoji||'💬',quote:n.text||'',cit:'',bg:_bg,foto:n.foto,uid:n.uid});
           }
