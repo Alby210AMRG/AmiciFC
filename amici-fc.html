@@ -5803,6 +5803,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="btn btn-ghost btn-sm" @click="syncFromCloud(true)" :disabled="syncLoading">
             {{ syncLoading ? '⏳' : '⬇️' }} Scarica
           </button>
+          <button class="btn btn-ghost btn-sm" @click="syncFromCloud(true,true)" :disabled="syncLoading" title="Scarica giocatori, partite e card AI senza riscaricare le foto (più rapido)">
+            {{ syncLoading ? '⏳' : '⬇️' }} Scarica (senza foto)
+          </button>
         </div>
       </div>
     </div>
@@ -6087,6 +6090,23 @@ db.version(4).stores({
   }
 });
 
+// VERSION 5: tabella separata playerPhotos (Sync v2) — foto per uid, fuori dal payload principale
+db.version(5).stores({
+  groups:       '++id, nome',
+  players:      '++id, groupId, uid, nome, cognome',
+  matches:      '++id, groupId, data, matchUUID',
+  formations:   '++id, groupId, stato, dataCreazione',
+  playerPhotos: 'uid, updatedAt'
+}).upgrade(async tx => {
+  // Migra le foto esistenti dai record players in playerPhotos, indicizzate per uid
+  const players = await tx.table('players').toArray();
+  for (const p of players) {
+    if (p.foto && p.uid) {
+      await tx.table('playerPhotos').put({ uid: p.uid, foto: p.foto, updatedAt: Date.now() });
+    }
+  }
+});
+
 // ──────────────────────────────────────
 // HELPER: UUID
 // ──────────────────────────────────────
@@ -6313,7 +6333,14 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.548',date:'2026-06-15',items:[
+    const changelogEntries = [{version:'v1.549',date:'2026-06-15',items:[
+      'Sync v2 (fase 1, retrocompatibile): nuova tabella locale playerPhotos, foto idratate per uid',
+      'syncFromCloud legge anche playerPhotos/{uid} su Firebase come fallback se la foto non è più inline',
+      'syncToCloud: comportamento INVARIATO finché Firebase non ha playerPhotosMigrated=true (foto ancora nel payload)',
+      'Quando playerPhotosMigrated=true: payload senza foto, upload separato solo delle foto cambiate su playerPhotos/{uid}',
+      'Nuovo bottone "Scarica (senza foto)" nella sezione Firebase del gruppo',
+      'Cancellazione giocatore: rimuove anche playerPhotos/{uid} locale e su Firebase (no foto orfane)',
+    ]},{version:'v1.548',date:'2026-06-15',items:[
       'Nuovo: sistema aggiornamenti critici/non-critici — version.json supporta "critical" e "highlights"',
       'Aggiornamenti critici: se app in background, reload automatico silenzioso + toast riassuntivo al ritorno',
       'Aggiornamenti critici: se app attiva, banner non chiudibile, si applica al passaggio in background',
@@ -6364,8 +6391,6 @@ createApp({
       'Causa trovata: gemini-2.5-flash-lite sotto stress token ritorna UUID casuali invece degli id reali',
     ]},{version:'v1.534',date:'2026-06-14',items:[
       'Debug: log quando AI ritorna un id che non matcha nessun giocatore del batch',
-    ]},{version:'v1.533',date:'2026-06-14',items:[
-      'Debug: log conteggio chiavi updated dopo ogni batch',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6621,7 +6646,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.548');
+    const appVersion = ref('1.549');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6859,11 +6884,24 @@ createApp({
       groupPlayers.value  = await db.players.where('groupId').equals(gid).toArray();
       groupMatches.value  = await db.matches.where('groupId').equals(gid).toArray();
       groupFormations.value = await db.formations.where('groupId').equals(gid).reverse().sortBy('dataCreazione');
+      await _hydratePlayerPhotos();
       await loadAllGroupsCache();
       if (groupMatches.value.length > 0) {
         _scheduleNewsCompute();
       }
       if (!_syncInProgress) _scheduleInitAiCards();
+    };
+
+    // ── Sync v2: idrata p.foto da tabella playerPhotos (uid) per i giocatori che non hanno foto inline ──
+    const _hydratePlayerPhotos = async () => {
+      const missing = groupPlayers.value.filter(p => p.uid && !p.foto);
+      if (!missing.length) return;
+      for (const p of missing) {
+        try {
+          const rec = await db.playerPhotos.get(p.uid);
+          if (rec?.foto) p.foto = rec.foto;
+        } catch(e) {}
+      }
     };
 
     const selectGroup = async g => {
@@ -6972,6 +7010,10 @@ createApp({
             });
           }
         }
+        // Sync v2: foto idratata anche nella tabella playerPhotos (uid stabile cross-device)
+        if (f.foto && editingPlayer.value.uid) {
+          await db.playerPhotos.put({ uid: editingPlayer.value.uid, foto: f.foto, updatedAt: Date.now() });
+        }
         toast('✅ Giocatore aggiornato!');
         await autoSyncToCloud();
       } else {
@@ -6983,6 +7025,10 @@ createApp({
           mediaVoto:0, votiTotali:0, uomoPartitaTotali:0,
           piede: f.piede||'Destro', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', storicoPartite:[], rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean)
         });
+        // Sync v2: foto idratata anche nella tabella playerPhotos (uid stabile cross-device)
+        if (f.foto) {
+          await db.playerPhotos.put({ uid: newUid, foto: f.foto, updatedAt: Date.now() });
+        }
         toast('✅ Giocatore aggiunto!');
         autoSyncToCloud();
       }
@@ -6993,6 +7039,17 @@ createApp({
     const deletePlayer = async p => {
       if (!confirm(`Eliminare ${p.nome}?`)) return;
       await db.players.delete(p.id);
+      if (p.uid) {
+        await db.playerPhotos.delete(p.uid);
+        // Rimuovi anche playerPhotos/{uid} su Firebase (foto orfana)
+        const _url = currentGroup.value?.firebaseUrl;
+        if (_url) {
+          try {
+            const _tok = await getValidToken();
+            if (_tok) await _fbWrite('playerPhotos/'+p.uid, null, _tok);
+          } catch(e) {}
+        }
+      }
       await loadGroupData();
       toast('🗑️ Giocatore eliminato', 'error');
     };
@@ -10562,12 +10619,16 @@ Niente altro, nessuna spiegazione.`;
           // Carica foto cambiate su Firebase (path separato)
         }
 
-        // ── MERGE PARTITE CONCORRENTI ──
+        // ── MERGE PARTITE CONCORRENTI + Sync v2: flag playerPhotosMigrated ──
         // Prima di sovrascrivere, integra partite scritte da altri utenti nel frattempo
+        let _photosMigrated = false;
+        let _cloudPlayerPhotos = {};
         try {
           const fbRootResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
           if (fbRootResp.ok) {
             const fbRoot = await fbRootResp.json();
+            _photosMigrated = !!fbRoot?.playerPhotosMigrated;
+            _cloudPlayerPhotos = fbRoot?.playerPhotos || {};
             const fbGroups = fbRoot?.groups ? (Array.isArray(fbRoot.groups) ? fbRoot.groups : Object.values(fbRoot.groups)) : [];
             for (const fbGrp of fbGroups) {
               const localGrp = allGroups.find(lg => lg.group?.nome === fbGrp?.group?.nome);
@@ -10588,6 +10649,30 @@ Niente altro, nessuna spiegazione.`;
           }
         } catch(e) { logEvent('info','sync','Merge check saltato: '+e.message); }
 
+        // ── Sync v2: se la migrazione foto è completata, escludi "foto" dal payload players
+        // e carica separatamente solo le foto cambiate localmente in playerPhotos/{uid} ──
+        const _photoUploads = {}; // {uid: {foto, updatedAt}}
+        if (_photosMigrated) {
+          for (const grp of allGroups) {
+            grp.players = await Promise.all(grp.players.map(async p => {
+              const { foto, ...rest } = p;
+              if (p.uid) {
+                const local = await db.playerPhotos.get(p.uid);
+                if (local?.foto) {
+                  const remoteUpd = _cloudPlayerPhotos[p.uid]?.updatedAt || 0;
+                  if ((local.updatedAt||0) > remoteUpd) {
+                    _photoUploads[p.uid] = { foto: local.foto, updatedAt: local.updatedAt };
+                  }
+                }
+              }
+              return rest; // foto esclusa dal payload principale
+            }));
+          }
+          if (Object.keys(_photoUploads).length) {
+            logEvent('info','sync',`📷 Upload foto separato: ${Object.keys(_photoUploads).length} foto cambiate`);
+          }
+        }
+
         const payload = {
           lastUpdate: new Date().toISOString(),
           lastModified: Date.now(),
@@ -10598,8 +10683,12 @@ Niente altro, nessuna spiegazione.`;
 
         const payloadStr = JSON.stringify(payload);
         const payloadKB = Math.round(payloadStr.length / 1024);
-        const fotoCount = allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
-        logEvent('info', 'sync', `📤 Upload: ${payloadKB}KB, ${fotoCount} foto incluse`);
+        const fotoCount = _photosMigrated
+          ? Object.keys(_photoUploads).length
+          : allGroups.reduce((s,g) => s + (g.players||[]).filter(p=>p.foto?.startsWith('data:')).length, 0);
+        logEvent('info', 'sync', _photosMigrated
+          ? `📤 Upload: ${payloadKB}KB (senza foto), ${fotoCount} foto separate da aggiornare`
+          : `📤 Upload: ${payloadKB}KB, ${fotoCount} foto incluse`);
 
         let resp = await fetch(`${base}.json${authSuffix}`, {
           method: 'PUT',
@@ -10622,6 +10711,16 @@ Niente altro, nessuna spiegazione.`;
           });
         }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+        // ── Sync v2: upload separato delle foto cambiate (solo se migrazione completata) ──
+        if (_photosMigrated && Object.keys(_photoUploads).length) {
+          for (const [uid, ph] of Object.entries(_photoUploads)) {
+            try {
+              await _fbWrite('playerPhotos/'+uid, ph, token);
+            } catch(e) { logEvent('warn','sync',`⚠️ Upload foto ${uid.slice(0,8)} fallito: ${e.message}`); }
+          }
+          logEvent('info','sync',`📷 ${Object.keys(_photoUploads).length} foto caricate su playerPhotos`);
+        }
 
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
@@ -10661,7 +10760,7 @@ Niente altro, nessuna spiegazione.`;
         // ── syncFromCloud: Firebase è la BIBBIA ──
         // Cancella tutto il locale del gruppo e riscarica da Firebase da zero.
         // Niente merge, niente duplicati possibili.
-        const syncFromCloud = async (force=false) => {
+        const syncFromCloud = async (force=false, skipPhotos=false) => {
           if (_syncInProgress) return;
           const base = getFirebaseBase();
           if (!base) return; // Firebase non configurato — silenzioso
@@ -10715,23 +10814,42 @@ Niente altro, nessuna spiegazione.`;
               // Conserva l'id originale di Firebase — niente rimappatura
               // toArr: Firebase converte array in oggetti {"0":..} — lo riconvertiamo
               const cloudPlayers = toArr(eg.players);
+              const cloudPlayerPhotos = skipPhotos ? {} : (data.playerPhotos || {}); // Sync v2: nodo separato {uid: {foto, updatedAt}}
               let fotoCount = 0;
               for (const cp of cloudPlayers) {
                 if (!cp) continue;
-                const hasFoto = cp.foto?.startsWith('data:');
-                if (hasFoto) fotoCount++;
+                const _uid = cp.uid || uuid();
+                let _foto = skipPhotos ? '' : (cp.foto || '');
+                // Sync v2: se la foto non è inline, prova playerPhotos/{uid}
+                if (!_foto && !skipPhotos && cloudPlayerPhotos[_uid]?.foto) {
+                  _foto = cloudPlayerPhotos[_uid].foto;
+                }
+                // Se skipPhotos: p.foto resta vuota qui, ma _hydratePlayerPhotos (in loadGroupData)
+                // la ripopolerà da db.playerPhotos usando l'uid, se già presente in cache locale
+                if (_foto?.startsWith('data:')) fotoCount++;
                 await db.players.add({
                   ...cp,
                   groupId: gid,
-                  uid: cp.uid || uuid(),
+                  uid: _uid,
                   storicoPartite: toArr(cp.storicoPartite),
                   rivali: toArr(cp.rivali),
                   affinita: toArr(cp.affinita),
-                  foto: cp.foto || '',
+                  foto: _foto,
                 });
+                // Aggiorna cache locale playerPhotos solo se Firebase ha una versione più recente
+                if (!skipPhotos && cloudPlayerPhotos[_uid]?.foto) {
+                  const _local = await db.playerPhotos.get(_uid);
+                  const _fbUpd = cloudPlayerPhotos[_uid].updatedAt || 0;
+                  if (!_local || (_local.updatedAt||0) < _fbUpd) {
+                    await db.playerPhotos.put({ uid: _uid, foto: cloudPlayerPhotos[_uid].foto, updatedAt: _fbUpd });
+                  }
+                }
                 syncedPlayers++;
               }
-              logEvent('info', 'sync', `📷 Foto importate da Firebase: ${fotoCount}/${cloudPlayers.length}`);
+              logEvent('info', 'sync', skipPhotos
+                ? `📷 Foto saltate (sync senza foto) — verranno idratate da cache locale`
+                : `📷 Foto importate da Firebase: ${fotoCount}/${cloudPlayers.length}`);
+
 
 
               // ── REIMPORTA PARTITE da Firebase ──
