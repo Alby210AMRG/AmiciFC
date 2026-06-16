@@ -6343,7 +6343,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.555',date:'2026-06-16',items:[
+    const changelogEntries = [{version:'v1.556',date:'2026-06-16',items:[
+      'Privacy: email nel tracking dispositivi ora offuscata (es. "al***@gmail.com") — il nodo è leggibile senza autenticazione',
+      'Aggiunto log diagnostico per capire perché il tracking non appariva su Inspector (HTTP status o motivo del salto)',
+    ]},{version:'v1.555',date:'2026-06-16',items:[
       'Fix: tracking versioni dispositivi (v1.554) scriveva solo durante syncToCloud (upload) — se non salvavi nulla, il dispositivo non veniva mai registrato',
       'Spostato in checkSyncNeeded: ora si registra ad ogni controllo periodico/avvio, anche senza modifiche da salvare',
     ]},{version:'v1.554',date:'2026-06-16',items:[
@@ -6404,9 +6407,6 @@ createApp({
     ]},{version:'v1.541',date:'2026-06-14',items:[
       'Soprannomi: soglia rigenerazione abbassata da 5 a 4 partite (~1 mese)',
       'Fix: toggle Tutorial ora visibile nel Manuale del Campetto',
-    ]},{version:'v1.540',date:'2026-06-14',items:[
-      'Soprannomi AI: prompt arricchito con piede preferito, descrizione/qualità, autogol, rigori, punti medi',
-      'Campi rinominati senza abbreviazioni (partite_giocate invece di "g") per evitare ambiguità AI',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6662,7 +6662,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.555');
+    const appVersion = ref('1.556');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10281,21 +10281,27 @@ Niente altro, nessuna spiegazione.`;
         const authSuffix = fbIdToken.value ? `?auth=${fbIdToken.value}` : '';
 
         // ── Tracking versioni dispositivi: scrittura leggera ad ogni check (solo con login) ──
+        // Email offuscata (es. "al***@gmail.com") perché il nodo è leggibile senza autenticazione.
         // Non bloccante: il tracking non deve mai interrompere il check principale.
         if (fbIdToken.value) {
           (async () => {
             try {
               const _devId = getDeviceId();
-              await fetch(`${base}/deviceVersions/${_devId}.json${authSuffix}`, {
+              const _email = firebaseUser.value?.email || '';
+              const _emailMasked = _email ? _email.slice(0,2) + '***@' + (_email.split('@')[1]||'') : '';
+              const _trackResp = await fetch(`${base}/deviceVersions/${_devId}.json${authSuffix}`, {
                 method: 'PUT', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                   version: appVersion.value,
-                  email: firebaseUser.value?.email || '',
+                  email: _emailMasked,
                   lastSeen: Date.now()
                 })
               });
-            } catch(e) {}
+              logEvent('info','sync',`📱 Tracking dispositivo: HTTP ${_trackResp.status}`);
+            } catch(e) { logEvent('warn','sync',`📱 Tracking dispositivo fallito: ${e.message}`); }
           })();
+        } else {
+          logEvent('info','sync','📱 Tracking dispositivo saltato: nessun token Firebase attivo');
         }
 
         const [respV, respM] = await Promise.all([
