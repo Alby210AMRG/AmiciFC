@@ -6333,7 +6333,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.551',date:'2026-06-16',items:[
+    const changelogEntries = [{version:'v1.552',date:'2026-06-16',items:[
+      'Fix CRITICO: il fix precedente (v1.551) rimetteva tutte le foto nel payload principale, vanificando il risparmio banda (payload tornato a 850KB)',
+      'syncToCloud ora usa PATCH invece di PUT — scrive solo le chiavi del payload, lasciando playerPhotos intatto su Firebase senza doverlo rileggere/riscrivere ogni volta',
+      'Payload principale tornato leggero (~80KB) mantenendo comunque la protezione contro la cancellazione di playerPhotos',
+    ]},{version:'v1.551',date:'2026-06-16',items:[
       'Fix CRITICO: syncToCloud non includeva playerPhotos nel payload — ogni upload cancellava tutte le foto già migrate, lasciando solo quelle modificate in quella sessione',
       'Ora il payload fonde sempre playerPhotos esistenti su Firebase con eventuali nuovi upload',
       'Le foto in cache locale verranno ri-uploadate automaticamente al prossimo sync se mancanti su Firebase',
@@ -6391,8 +6395,6 @@ createApp({
     ]},{version:'v1.537',date:'2026-06-14',items:[
       'Nuovo: pulsante Esporta UID Giocatori in Zona Pericolo (debug, zero token)',
       'Rimosso check uid pre-generazione (sostituito da export)',
-    ]},{version:'v1.536',date:'2026-06-14',items:[
-      'Debug: controllo giocatori senza uid prima di generare soprannomi',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6648,7 +6650,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.551');
+    const appVersion = ref('1.552');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10690,19 +10692,17 @@ Niente altro, nessuna spiegazione.`;
           }
         }
 
-        // Sync v2: il payload deve sempre preservare playerPhotos esistenti su Firebase,
-        // fondendoli con eventuali nuovi upload di questa sessione — un PUT sulla root
-        // senza questo campo cancellerebbe tutte le foto già migrate.
-        const _mergedPlayerPhotos = { ..._cloudPlayerPhotos, ..._photoUploads };
-
+        // Sync v2: usiamo PATCH (non PUT) per scrivere solo le chiavi del payload,
+        // lasciando intatto playerPhotos su Firebase senza doverlo rileggere/riscrivere
+        // ogni volta — evita sia di perderlo (PUT lo cancellerebbe) sia di appesantire
+        // il payload principale rimettendocelo dentro.
         const payload = {
           lastUpdate: new Date().toISOString(),
           lastModified: Date.now(),
           appVersion: appVersion.value,
           groups: allGroups,
           aiCards: cloudAiCards,
-          playerPhotosMigrated: _photosMigrated,
-          playerPhotos: _mergedPlayerPhotos
+          playerPhotosMigrated: _photosMigrated
         };
 
         const payloadStr = JSON.stringify(payload);
@@ -10715,7 +10715,7 @@ Niente altro, nessuna spiegazione.`;
           : `📤 Upload: ${payloadKB}KB, ${fotoCount} foto incluse`);
 
         let resp = await fetch(`${base}.json${authSuffix}`, {
-          method: 'PUT',
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: payloadStr
         });
@@ -10729,7 +10729,7 @@ Niente altro, nessuna spiegazione.`;
             throw new Error('Sessione scaduta. Esegui nuovamente il login.');
           }
           resp = await fetch(`${base}.json?auth=${fbIdToken.value}`, {
-            method: 'PUT',
+            method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: payloadStr
           });
