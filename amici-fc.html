@@ -6112,6 +6112,16 @@ db.version(5).stores({
 // ──────────────────────────────────────
 const uuid = () => crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2);
 
+// ── Tracking versioni dispositivi (Sync v2): id stabile per questo dispositivo/browser ──
+const getDeviceId = () => {
+  let id = localStorage.getItem('amicifc_device_id');
+  if (!id) {
+    id = uuid();
+    localStorage.setItem('amicifc_device_id', id);
+  }
+  return id;
+};
+
 // ──────────────────────────────────────
 // HELPER: Role emoji
 // ──────────────────────────────────────
@@ -6333,7 +6343,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.553',date:'2026-06-16',items:[
+    const changelogEntries = [{version:'v1.554',date:'2026-06-16',items:[
+      'Nuovo: tracking versioni dispositivi — ogni sync (solo utenti con login) scrive versione/email/ultimo accesso su deviceVersions/{deviceId}',
+      'Utile per verificare prima di operazioni critiche chi è davvero aggiornato, senza chiedere manualmente',
+    ]},{version:'v1.553',date:'2026-06-16',items:[
       'Fix: card a rotazione temporale (Identikit AI, Pronostico, Record, Forma, H2H) restavano "congelate" sugli stessi 3 elementi anche per ore',
       'Causa: Date.now() non è reattivo in Vue — il carosello si aggiornava solo quando cambiavano i dati, non col passare del tempo',
       'Nuovo refresh periodico ogni 45 minuti per far girare davvero queste card nel tempo',
@@ -6393,9 +6406,6 @@ createApp({
       'Campi rinominati senza abbreviazioni (partite_giocate invece di "g") per evitare ambiguità AI',
     ]},{version:'v1.539',date:'2026-06-14',items:[
       'Soprannomi: log batch mostra "Nome → Soprannome" per verifica immediata dei match',
-    ]},{version:'v1.538',date:'2026-06-14',items:[
-      'Fix definitivo soprannomi: prompt usa indice numerico 1-4 invece di UUID — gli UUID confondevano gemini sotto stress token',
-      'Match rigoroso: se il numero non è valido, il soprannome viene scartato (non più assegnato a caso)',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6651,7 +6661,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.553');
+    const appVersion = ref('1.554');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10746,6 +10756,16 @@ Niente altro, nessuna spiegazione.`;
           }
           logEvent('info','sync',`📷 ${Object.keys(_photoUploads).length} foto caricate su playerPhotos`);
         }
+
+        // ── Tracking versioni dispositivi: solo utenti con login (diritti di scrittura) ──
+        try {
+          const _devId = getDeviceId();
+          await _fbWrite('deviceVersions/'+_devId, {
+            version: appVersion.value,
+            email: firebaseUser.value?.email || '',
+            lastSeen: Date.now()
+          }, token);
+        } catch(e) { /* non bloccante: il tracking non deve mai far fallire il sync */ }
 
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
