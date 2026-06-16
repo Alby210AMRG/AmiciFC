@@ -6343,7 +6343,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.558',date:'2026-06-16',items:[
+    const changelogEntries = [{version:'v1.559',date:'2026-06-16',items:[
+      'Nuovo: blocco cancellazione giocatore con presenze nella stagione corrente',
+      'Un giocatore con almeno 1 partita giocata non può essere eliminato (evita "buchi" in formazioni/statistiche/PNG)',
+      'Compatibile con Archivio Stagioni: dopo un\'archiviazione, il giocatore torna eliminabile se non ha più partite nella nuova stagione',
+    ]},{version:'v1.558',date:'2026-06-16',items:[
       'Pulizia: tolto il log "Tracking dispositivo: HTTP 200" ad ogni sync riuscito — restava solo per debug',
       'Il tracking dispositivi resta attivo e silenzioso; un log appare solo se davvero fallisce',
     ]},{version:'v1.557',date:'2026-06-16',items:[
@@ -6400,9 +6404,6 @@ createApp({
       'Fix CRITICO: Hall of Fame stesso bug uid/id — statsMap sempre vuota, nessuna card generata',
       'Zona Pericolo: ogni card AI (Trash Talk, Hall of Fame, Soprannomi, Pronostico) ora ha 2 azioni separate — "Rigenera" (solo se mancante/scaduto) e "Azzera e Rigenera" (sempre da zero)',
       'Fix: "Rigenera Soprannomi" non azzera più i soprannomi esistenti — genera solo quelli mancanti o scaduti',
-    ]},{version:'v1.543',date:'2026-06-14',items:[
-      'Squadra Perfetta -> "Squadra Perfetta al Momento": ora basata su media punti ultime 5 presenze (min 4 partite), non più su media storica totale',
-      'Nuovo: file CHANGELOG.md e REGOLE-PROGETTO.md per documentazione esterna del progetto',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6658,7 +6659,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.558');
+    const appVersion = ref('1.559');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7049,6 +7050,20 @@ createApp({
     };
 
     const deletePlayer = async p => {
+      // Blocco: non si può eliminare un giocatore che ha giocato almeno una partita
+      // nella stagione corrente (altrimenti le partite restano con un giocatore "fantasma").
+      // Compatibile con l'Archivio Stagioni: dopo un'archiviazione, groupMatches.value
+      // parte vuoto, quindi un giocatore presente solo in stagioni passate (già archiviate)
+      // torna cancellabile normalmente.
+      const matchCount = groupMatches.value.filter(m =>
+        (m.squadraA||[]).includes(p.uid) ||
+        (m.squadraB||[]).includes(p.uid) ||
+        (m.statisticheGiocatori||[]).some(s => s.playerId === p.uid)
+      ).length;
+      if (matchCount > 0) {
+        toast(`⛔ ${p.nome} ha giocato ${matchCount} partit${matchCount===1?'a':'e'} in questa stagione, non può essere eliminato. Archivia la stagione per liberarlo.`, 'error', 6000);
+        return;
+      }
       if (!confirm(`Eliminare ${p.nome}?`)) return;
       await db.players.delete(p.id);
       if (p.uid) {
