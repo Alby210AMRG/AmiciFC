@@ -6333,7 +6333,11 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.550',date:'2026-06-16',items:[
+    const changelogEntries = [{version:'v1.551',date:'2026-06-16',items:[
+      'Fix CRITICO: syncToCloud non includeva playerPhotos nel payload — ogni upload cancellava tutte le foto già migrate, lasciando solo quelle modificate in quella sessione',
+      'Ora il payload fonde sempre playerPhotos esistenti su Firebase con eventuali nuovi upload',
+      'Le foto in cache locale verranno ri-uploadate automaticamente al prossimo sync se mancanti su Firebase',
+    ]},{version:'v1.550',date:'2026-06-16',items:[
       'Fix CRITICO: syncToCloud non riscriveva playerPhotosMigrated nel payload — ogni sync cancellava il flag',
       'Ora il flag viene sempre preservato/riscritto correttamente ad ogni upload',
     ]},{version:'v1.549',date:'2026-06-15',items:[
@@ -6389,9 +6393,6 @@ createApp({
       'Rimosso check uid pre-generazione (sostituito da export)',
     ]},{version:'v1.536',date:'2026-06-14',items:[
       'Debug: controllo giocatori senza uid prima di generare soprannomi',
-    ]},{version:'v1.535',date:'2026-06-14',items:[
-      'Fix CRITICO soprannomi: AI a volte inventa id non corrispondenti — ora fallback per posizione nel batch',
-      'Causa trovata: gemini-2.5-flash-lite sotto stress token ritorna UUID casuali invece degli id reali',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6647,7 +6648,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.550');
+    const appVersion = ref('1.551');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10689,13 +10690,19 @@ Niente altro, nessuna spiegazione.`;
           }
         }
 
+        // Sync v2: il payload deve sempre preservare playerPhotos esistenti su Firebase,
+        // fondendoli con eventuali nuovi upload di questa sessione — un PUT sulla root
+        // senza questo campo cancellerebbe tutte le foto già migrate.
+        const _mergedPlayerPhotos = { ..._cloudPlayerPhotos, ..._photoUploads };
+
         const payload = {
           lastUpdate: new Date().toISOString(),
           lastModified: Date.now(),
           appVersion: appVersion.value,
           groups: allGroups,
           aiCards: cloudAiCards,
-          playerPhotosMigrated: _photosMigrated
+          playerPhotosMigrated: _photosMigrated,
+          playerPhotos: _mergedPlayerPhotos
         };
 
         const payloadStr = JSON.stringify(payload);
