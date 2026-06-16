@@ -6333,7 +6333,10 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.549',date:'2026-06-15',items:[
+    const changelogEntries = [{version:'v1.550',date:'2026-06-16',items:[
+      'Fix CRITICO: syncToCloud non riscriveva playerPhotosMigrated nel payload — ogni sync cancellava il flag',
+      'Ora il flag viene sempre preservato/riscritto correttamente ad ogni upload',
+    ]},{version:'v1.549',date:'2026-06-15',items:[
       'Sync v2 (fase 1, retrocompatibile): nuova tabella locale playerPhotos, foto idratate per uid',
       'syncFromCloud legge anche playerPhotos/{uid} su Firebase come fallback se la foto non è più inline',
       'syncToCloud: comportamento INVARIATO finché Firebase non ha playerPhotosMigrated=true (foto ancora nel payload)',
@@ -6389,8 +6392,6 @@ createApp({
     ]},{version:'v1.535',date:'2026-06-14',items:[
       'Fix CRITICO soprannomi: AI a volte inventa id non corrispondenti — ora fallback per posizione nel batch',
       'Causa trovata: gemini-2.5-flash-lite sotto stress token ritorna UUID casuali invece degli id reali',
-    ]},{version:'v1.534',date:'2026-06-14',items:[
-      'Debug: log quando AI ritorna un id che non matcha nessun giocatore del batch',
     ]}
     ]
     const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
@@ -6646,7 +6647,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.549');
+    const appVersion = ref('1.550');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10343,6 +10344,21 @@ Niente altro, nessuna spiegazione.`;
         syncOnStartup: groupSyncOnStartup.value,
       });
       await loadGroups();
+      // Sync v2: se il DB Firebase è nuovo/non ancora marcato, imposta playerPhotosMigrated=true.
+      // Un DB nuovo non ha foto legacy nel payload principale, quindi parte già "nativo" in v2.
+      if (url) {
+        try {
+          const base = url.replace(/\/$/, '') + '/amicifc';
+          const tok = await getValidToken();
+          const flagResp = await fetch(`${base}/playerPhotosMigrated.json${tok ? '?auth='+tok : ''}`, { cache: 'no-store' });
+          const flagVal = flagResp.ok ? await flagResp.json() : null;
+          if (flagVal !== true) {
+            await fetch(`${base}/playerPhotosMigrated.json${tok ? '?auth='+tok : ''}`, {
+              method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(true)
+            });
+          }
+        } catch(e) { /* non bloccante: se fallisce, la prima migrazione via Inspector lo imposterà comunque */ }
+      }
       showGroupCloud.value = false;
       toast(url ? '☁️ Firebase configurato per questo gruppo!' : '☁️ Firebase rimosso dal gruppo', 'success');
     };
@@ -10678,7 +10694,8 @@ Niente altro, nessuna spiegazione.`;
           lastModified: Date.now(),
           appVersion: appVersion.value,
           groups: allGroups,
-          aiCards: cloudAiCards
+          aiCards: cloudAiCards,
+          playerPhotosMigrated: _photosMigrated
         };
 
         const payloadStr = JSON.stringify(payload);
