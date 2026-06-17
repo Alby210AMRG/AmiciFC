@@ -6343,7 +6343,12 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.559',date:'2026-06-16',items:[
+    const changelogEntries = [{version:'v1.560',date:'2026-06-17',items:[
+      'Fix CRITICO: syncToCloud non segnalava mai i propri fallimenti ai chiamanti — il sistema di retry/salvataggio pendente esisteva ma non scattava mai davvero',
+      'Nuova guardia: prima di scaricare e sovrascrivere il locale, l\'app pusha eventuali salvataggi non ancora confermati, invece di rischiare di perderli',
+      'Anche correggere una partita esistente ora ha la stessa rete di sicurezza (retry automatico) di una partita nuova',
+      'Rimossa dal blocco cancellazione giocatore la frase sull\'Archivio Stagioni (non ancora completo)',
+    ]},{version:'v1.559',date:'2026-06-16',items:[
       'Nuovo: blocco cancellazione giocatore con presenze nella stagione corrente',
       'Un giocatore con almeno 1 partita giocata non può essere eliminato (evita "buchi" in formazioni/statistiche/PNG)',
       'Compatibile con Archivio Stagioni: dopo un\'archiviazione, il giocatore torna eliminabile se non ha più partite nella nuova stagione',
@@ -6659,7 +6664,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.559');
+    const appVersion = ref('1.560');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7061,7 +7066,7 @@ createApp({
         (m.statisticheGiocatori||[]).some(s => s.playerId === p.uid)
       ).length;
       if (matchCount > 0) {
-        toast(`⛔ ${p.nome} ha giocato ${matchCount} partit${matchCount===1?'a':'e'} in questa stagione, non può essere eliminato. Archivia la stagione per liberarlo.`, 'error', 6000);
+        toast(`⛔ ${p.nome} ha giocato ${matchCount} partit${matchCount===1?'a':'e'} in questa stagione, non può essere eliminato.`, 'error', 6000);
         return;
       }
       if (!confirm(`Eliminare ${p.nome}?`)) return;
@@ -9983,26 +9988,7 @@ Niente altro, nessuna spiegazione.`;
       if (currentGroup.value?.firebaseUrl) {
         // Sincronizza sempre — syncToCloud gestisce internamente il refresh token
         // Non skippiamo se token sembra scaduto: potrebbe rinnovarsi automaticamente
-        // Tenta sync con retry automatico
-        const _doSyncWithRetry = async (attempt=1) => {
-          try {
-            await syncToCloud();
-            logEvent('info','sync',`✅ Partita sincronizzata su Firebase (tentativo ${attempt})`);
-          } catch(e) {
-            const isOffline = !navigator.onLine || e.message?.includes('fetch') || e.message?.includes('network');
-            localStorage.setItem('amicifc_pending_sync_'+currentGroup.value.id, Date.now().toString());
-            if (isOffline) {
-              logEvent('info','sync','📵 Offline — partita salvata localmente, sincronizzazione automatica al ritorno online');
-            } else if (attempt < 3) {
-              logEvent('warn','sync',`⏳ Sync fallito (${attempt}/3) — riprovo tra ${attempt*5}s`);
-              setTimeout(() => _doSyncWithRetry(attempt+1), attempt * 5000);
-            } else {
-              logEvent('warn','sync','Sync fallito dopo 3 tentativi — riproverò al prossimo avvio');
-              toast('⚠️ Sync non riuscito — riproverò automaticamente', 'error', 4000);
-            }
-          }
-        };
-        _doSyncWithRetry();
+        syncToCloudWithRetry('Partita');
       }
       // Genera TrashTalk solo se non generato negli ultimi 3 giorni
       const _lsKeyTT2 = 'amicifc_tt_' + (currentGroup.value?.id||'');
@@ -10096,8 +10082,9 @@ Niente altro, nessuna spiegazione.`;
         showEditMatch.value = false;
         editingMatch.value  = null;
         toast('✅ Partita aggiornata', 'success');
-        // Prima carica su Firebase, poi ricarica locale (evita che syncFromCloud sovrascriva)
-        try { await syncToCloud(); } catch(e) { logEvent('warn', 'match', 'sync dopo edit: ' + e.message); }
+        // Push verso Firebase in background (con retry automatico se fallisce) — i dati
+        // locali sono già aggiornati, non serve attendere l'esito prima di ricaricare la UI
+        syncToCloudWithRetry('Correzione partita');
         await recomputeStats().catch(console.warn);
         await loadGroupData().catch(console.warn);
       } catch(e) {
@@ -10587,9 +10574,10 @@ Niente altro, nessuna spiegazione.`;
     // Il sync in lettura (syncFromCloud) si occupa di scaricare le partite altrui
     const syncToCloud = async () => {
       const base = getFirebaseBase();
-      if (!base) return; // Firebase non configurato — silenzioso
+      if (!base) return null; // Firebase non configurato — nessun retry sensato
       if (!fbIdToken.value && !firebaseUser.value) {
-        return toast('⚠️ Devi fare il login per caricare dati.', 'error');
+        toast('⚠️ Devi fare il login per caricare dati.', 'error');
+        return null; // nessuna credenziale: non ha senso ritentare in automatico
       }
       syncLoading.value = true;
       try {
@@ -10602,7 +10590,7 @@ Niente altro, nessuna spiegazione.`;
             // Rimuovi pending_sync per evitare loop infinito
             localStorage.removeItem('amicifc_pending_sync_'+(currentGroup.value?.id||''));
             syncLoading.value = false;
-            return;
+            return null; // nessuna credenziale: non ha senso ritentare in automatico
           }
           throw new Error('Token non valido. Effettua il login.');
         }
@@ -10786,6 +10774,12 @@ Niente altro, nessuna spiegazione.`;
         }
         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
+        // ── Upload riuscito: il payload includeva TUTTI i gruppi locali (vedi allGroups sopra) ──
+        // quindi qualsiasi salvataggio rimasto "in sospeso" è ora al sicuro su Firebase.
+        for (const _g of groups.value) {
+          localStorage.removeItem('amicifc_pending_sync_' + _g.id);
+        }
+
         // ── Sync v2: upload separato delle foto cambiate (solo se migrazione completata) ──
         if (_photosMigrated && Object.keys(_photoUploads).length) {
           for (const [uid, ph] of Object.entries(_photoUploads)) {
@@ -10805,11 +10799,41 @@ Niente altro, nessuna spiegazione.`;
         logEvent('info', 'sync', `Upload OK: ${allGroups.reduce((s,g)=>s+g.matches.length,0)} partite`);
         setSyncStatus('ok');
         logEvent('info', 'sync', 'Upload OK su Firebase');
+        syncLoading.value = false;
+        return true;
       } catch (e) {
         logEvent('error', 'sync', 'syncToCloud: ' + e.message);
         toast('❌ ' + e.message, 'error', 8000);
+        syncLoading.value = false;
+        return false;
       }
-      syncLoading.value = false;
+    };
+
+    // ── syncToCloudWithRetry: usata da saveMatch e saveEditMatch ──
+    // syncToCloud() non lancia mai eccezioni (le gestisce internamente), quindi qui
+    // reagiamo al suo valore di ritorno: true=successo, false=fallimento vero (retriable),
+    // null=nessuna credenziale disponibile (non ha senso ritentare, syncToCloud si è già pulito da sé).
+    const syncToCloudWithRetry = async (label='dati', attempt=1) => {
+      const ok = await syncToCloud();
+      if (ok === true) {
+        logEvent('info','sync',`✅ ${label} sincronizzati su Firebase (tentativo ${attempt})`);
+        return true;
+      }
+      if (ok === null) return false; // nessuna credenziale — già gestito/loggato da syncToCloud
+      // Fallimento vero (rete/Firebase): impostiamo il flag pendente e ritentiamo
+      const gid = currentGroup.value?.id;
+      if (gid) localStorage.setItem('amicifc_pending_sync_'+gid, Date.now().toString());
+      const isOffline = !navigator.onLine;
+      if (isOffline) {
+        logEvent('info','sync','📵 Offline — dati salvati localmente, sincronizzazione automatica al ritorno online');
+      } else if (attempt < 3) {
+        logEvent('warn','sync',`⏳ Sync fallito (${attempt}/3) — riprovo tra ${attempt*5}s`);
+        setTimeout(() => syncToCloudWithRetry(label, attempt+1), attempt * 5000);
+      } else {
+        logEvent('warn','sync','Sync fallito dopo 3 tentativi — riproverò al prossimo avvio o al ritorno online');
+        toast('⚠️ Sync non riuscito — riproverò automaticamente', 'error', 4000);
+      }
+      return false;
     };
 
     // ── Resize base64 photo if needed (max 400px) ──
@@ -10840,6 +10864,41 @@ Niente altro, nessuna spiegazione.`;
           if (!base) return; // Firebase non configurato — silenzioso
           _syncInProgress = true;
           syncLoading.value = true;
+
+          // ── Guardia anti-wipe ──
+          // Se c'è un salvataggio locale non ancora confermato su Firebase (flag pending_sync),
+          // tentiamo di pusharlo PRIMA di cancellare e reimportare il locale da zero.
+          // force=true (reset forzato dall'admin) bypassa volutamente questa protezione.
+          if (!force) {
+            const _normUrl = u => (u||'').replace(/\/$/, '');
+            const _curUrl = _normUrl(currentGroup.value?.firebaseUrl);
+            const _pendingMaxAgeMs = 2 * 60 * 60 * 1000; // oltre 2 ore il flag è considerato un residuo, non un vero pendente
+            const _pendingGroupIds = groups.value
+              .filter(g => _normUrl(g.firebaseUrl) === _curUrl)
+              .map(g => g.id)
+              .filter(gid => {
+                const _ts = parseInt(localStorage.getItem('amicifc_pending_sync_'+gid) || '0', 10);
+                if (!_ts) return false;
+                if (Date.now() - _ts > _pendingMaxAgeMs) {
+                  logEvent('warn','sync',`Flag pending_sync (gruppo ${gid}) più vecchio di 2h — ignorato come residuo`);
+                  localStorage.removeItem('amicifc_pending_sync_'+gid);
+                  return false;
+                }
+                return true;
+              });
+            if (_pendingGroupIds.length > 0) {
+              logEvent('info','sync',`⏳ Upload pendente (gruppo/i: ${_pendingGroupIds.join(',')}) — push prima del download`);
+              const _pushOk = await syncToCloud();
+              if (_pushOk !== true) {
+                logEvent('warn','sync','⚠️ Push pendente non riuscito — salto il download per non perdere dati locali');
+                toast('⏳ Salvataggio in sospeso non ancora caricato — aggiornamento in pausa', 'warning', 4000);
+                syncLoading.value = false;
+                _syncInProgress = false;
+                return;
+              }
+            }
+          }
+
           setSyncStatus('syncing');
           logEvent('info', 'sync', 'Sync da Firebase (firebase è la fonte di verità)');
           try {
@@ -12991,14 +13050,19 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
 
       // repairPlayerUids rimossa: syncFromCloud garantisce uid corretti da Firebase
       // ── Sync pendente: se il precedente upload è fallito, riprova ──
+      // Copre il caso in cui checkSyncNeeded() non rilevi nulla di nuovo da Firebase
+      // (quindi lo startup sync sopra non scatta) ma noi avessimo comunque un push nostro in sospeso.
       if (currentGroup.value?.firebaseUrl) {
         const _pendingKey = 'amicifc_pending_sync_'+currentGroup.value.id;
         if (localStorage.getItem(_pendingKey)) {
           logEvent('info','sync','📤 Upload pendente trovato — riprovo sync partita...');
-          syncToCloud().then(() => {
-            localStorage.removeItem(_pendingKey);
-            logEvent('info','sync','✅ Upload pendente completato all avvio');
-            toast('✅ Partita precedentemente salvata offline ora sincronizzata', 'success', 4000);
+          syncToCloud().then((ok) => {
+            if (ok === true) {
+              logEvent('info','sync','✅ Upload pendente completato all\'avvio');
+              toast('✅ Partita precedentemente salvata offline ora sincronizzata', 'success', 4000);
+            } else {
+              logEvent('warn','sync','⚠️ Upload pendente ancora non riuscito — riproverò più tardi');
+            }
           }).catch(e => {
             logEvent('warn','sync','Upload pendente fallito: '+e.message);
           });
@@ -13037,10 +13101,13 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase.`;
               const _pending = localStorage.getItem(_pendingKey);
               if (_pending) {
                 logEvent('info', 'sync', '📤 Upload pendente trovato — sincronizzo partita salvata offline...');
-                await syncToCloud();
-                localStorage.removeItem(_pendingKey);
-                logEvent('info', 'sync', '✅ Upload pendente completato');
-                toast('✅ Partita sincronizzata su Firebase', 'success', 3000);
+                const _ok = await syncToCloud();
+                if (_ok === true) {
+                  logEvent('info', 'sync', '✅ Upload pendente completato');
+                  toast('✅ Partita sincronizzata su Firebase', 'success', 3000);
+                } else {
+                  throw new Error('Upload pendente non riuscito al ritorno online');
+                }
               } else {
                 // Nessun upload pendente — controlla solo se ci sono aggiornamenti
                 const needed = await checkSyncNeeded();
