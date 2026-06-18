@@ -6343,7 +6343,9 @@ createApp({
       toast(`🏆 Nuova stagione iniziata: ${name}`,'success',4000);
     };
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.560',date:'2026-06-17',items:[
+    const changelogEntries = [{version:'v1.561',date:'2026-06-17',items:[
+      'Corretta la card GOAL TOTALI della home: ora conta anche gli autogol, come nel resto dell\'app',
+    ]},{version:'v1.560',date:'2026-06-17',items:[
       'Fix CRITICO: syncToCloud non segnalava mai i propri fallimenti ai chiamanti — il sistema di retry/salvataggio pendente esisteva ma non scattava mai davvero',
       'Nuova guardia: prima di scaricare e sovrascrivere il locale, l\'app pusha eventuali salvataggi non ancora confermati, invece di rischiare di perderli',
       'Anche correggere una partita esistente ora ha la stessa rete di sicurezza (retry automatico) di una partita nuova',
@@ -6664,7 +6666,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.560');
+    const appVersion = ref('1.561');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6674,7 +6676,7 @@ createApp({
 
     // ── Computed ──
     const totalGoals = computed(() =>
-      groupPlayers.value.reduce((s, p) => s + (p.goalTotali||0), 0)
+      groupMatches.value.reduce((s, m) => s + (m.risultato?.goalA||0) + (m.risultato?.goalB||0), 0)
     );
 
     const recentMatches = computed(() =>
