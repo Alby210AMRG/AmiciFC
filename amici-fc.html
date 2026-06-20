@@ -3798,80 +3798,91 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="empty-state"><span class="emoji">👥</span><h3>Seleziona un gruppo prima</h3></div>
       </div>
 
-      <div v-else-if="groupMatches.length === 0">
-        <div class="empty-state">
-          <span class="emoji">📭</span>
-          <h3>Nessuna partita ancora!</h3>
-          <p>Gioca la tua prima partita e il risultato apparirà qui.</p>
-          <button class="btn btn-primary" style="margin-top:20px" @click="startNewMatch">⚽ Nuova Partita</button>
+      <template v-else>
+        <!-- ★ FILTRO STAGIONE (Rilascio 6) ★ -->
+        <div v-if="currentGroupArchivedSeasons.length" style="margin-bottom:14px;display:flex;align-items:center;gap:8px">
+          <select class="select-field" v-model="historySeasonFilter" style="flex:1">
+            <option value="attuale">📅 Stagione attuale{{currentGroup?.stagione ? ' — '+currentGroup.stagione : ''}}</option>
+            <option v-for="s in currentGroupArchivedSeasons" :key="s.archivioId" :value="s.archivioId">📦 {{s.nome}}</option>
+          </select>
+          <span v-if="isHistoryArchived" class="badge" style="background:rgba(166,255,77,.15);color:var(--lime);white-space:nowrap">📦 Sola lettura</span>
         </div>
-      </div>
 
-      <div v-else>
-        <!-- ── Ultime 5 partite ── -->
-        <div class="card-title" style="font-size:0.9rem;margin-bottom:10px">⚡ Ultime partite</div>
-        <div v-for="m in sortedMatches.slice(0,5)" :key="'r-'+m.id" class="match-card" @click="viewMatch(m)">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <span class="match-date">📅 {{ formatDate(m.data) }}</span>
-            <div style="display:flex;gap:6px">
-              <span v-if="m.uomoPartita" class="match-mvp">🏅 {{ m.uomoPartita }}</span>
-              <span v-else-if="m.mvp" class="match-mvp">⭐ {{ m.mvp }}</span>
-            </div>
-          </div>
-          <div class="match-score">
-            <div style="text-align:center">
-              <div style="font-size:0.65rem;color:var(--blue);margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{m.nomeSquadraA||'A'}}</div>
-              <div class="score-num score-a">{{ m.risultato.goalA }}</div>
-            </div>
-            <div class="score-sep">–</div>
-            <div style="text-align:center">
-              <div style="font-size:0.65rem;color:var(--red);margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{m.nomeSquadraB||'B'}}</div>
-              <div class="score-num score-b">{{ m.risultato.goalB }}</div>
-            </div>
-          </div>
-          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-            <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m)">👁️ Dettaglio</button>
-            <button class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
+        <div v-if="historySourceMatches.length === 0">
+          <div class="empty-state">
+            <span class="emoji">📭</span>
+            <h3>Nessuna partita {{ isHistoryArchived ? 'in questa stagione' : 'ancora' }}!</h3>
+            <p v-if="!isHistoryArchived">Gioca la tua prima partita e il risultato apparirà qui.</p>
+            <button v-if="!isHistoryArchived" class="btn btn-primary" style="margin-top:20px" @click="startNewMatch">⚽ Nuova Partita</button>
           </div>
         </div>
 
-        <!-- ── Calendario per il resto ── -->
-        <div v-if="sortedMatches.length > 5" style="margin-top:20px">
-          <div class="card-title" style="font-size:0.9rem;margin-bottom:14px">📆 Calendario Completo</div>
-          <div v-for="([yearMonth, monthMatches]) in matchesByMonth" :key="yearMonth" class="calendar-month">
-            <div class="calendar-month-header" @click="toggleCalMonth(yearMonth)">
-              <span>{{ formatMonth(yearMonth) }}</span>
-              <div style="display:flex;align-items:center;gap:8px">
-                <span class="badge badge-gray">{{ monthMatches.length }} {{ monthMatches.length===1?'partita':'partite' }}</span>
-                <span style="color:var(--text2);font-size:1rem">{{ openCalMonths.includes(yearMonth) ? '▲' : '▼' }}</span>
+        <div v-else>
+          <!-- ── Ultime 5 partite ── -->
+          <div class="card-title" style="font-size:0.9rem;margin-bottom:10px">⚡ {{ isHistoryArchived ? 'Partite della stagione' : 'Ultime partite' }}</div>
+          <div v-for="m in sortedMatches.slice(0,5)" :key="'r-'+m.id" class="match-card" @click="!isHistoryArchived && viewMatch(m)" :style="isHistoryArchived?'cursor:default':''">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <span class="match-date">📅 {{ formatDate(m.data) }}</span>
+              <div style="display:flex;gap:6px">
+                <span v-if="m.uomoPartita" class="match-mvp">🏅 {{ m.uomoPartita }}</span>
+                <span v-else-if="m.mvp" class="match-mvp">⭐ {{ m.mvp }}</span>
               </div>
             </div>
-            <div v-if="openCalMonths.includes(yearMonth)" class="calendar-month-body">
-              <div v-for="m in monthMatches" :key="'cal-'+m.id"
-                class="calendar-match-row" @click="viewMatch(m)">
-                <div class="calendar-day">
-                  <div style="font-size:1.1rem;font-weight:900;color:var(--lime);font-family:var(--font-title)">{{ m.data.slice(8,10) }}</div>
-                  <div style="font-size:0.6rem;color:var(--text2);text-transform:uppercase">{{ getDayName(m.data) }}</div>
+            <div class="match-score">
+              <div style="text-align:center">
+                <div style="font-size:0.65rem;color:var(--blue);margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{m.nomeSquadraA||'A'}}</div>
+                <div class="score-num score-a">{{ m.risultato.goalA }}</div>
+              </div>
+              <div class="score-sep">–</div>
+              <div style="text-align:center">
+                <div style="font-size:0.65rem;color:var(--red);margin-bottom:4px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{m.nomeSquadraB||'B'}}</div>
+                <div class="score-num score-b">{{ m.risultato.goalB }}</div>
+              </div>
+            </div>
+            <div v-if="!isHistoryArchived" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m)">👁️ Dettaglio</button>
+              <button class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
+            </div>
+          </div>
+
+          <!-- ── Calendario per il resto ── -->
+          <div v-if="sortedMatches.length > 5" style="margin-top:20px">
+            <div class="card-title" style="font-size:0.9rem;margin-bottom:14px">📆 Calendario Completo</div>
+            <div v-for="([yearMonth, monthMatches]) in matchesByMonth" :key="yearMonth" class="calendar-month">
+              <div class="calendar-month-header" @click="toggleCalMonth(yearMonth)">
+                <span>{{ formatMonth(yearMonth) }}</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <span class="badge badge-gray">{{ monthMatches.length }} {{ monthMatches.length===1?'partita':'partite' }}</span>
+                  <span style="color:var(--text2);font-size:1rem">{{ openCalMonths.includes(yearMonth) ? '▲' : '▼' }}</span>
                 </div>
-                <div class="calendar-match-info">
-                  <div style="font-weight:800;font-size:0.9rem">
-                    <span style="color:var(--blue)">{{ m.risultato.goalA }}</span>
-                    <span style="color:var(--text2);margin:0 6px">–</span>
-                    <span style="color:var(--red)">{{ m.risultato.goalB }}</span>
+              </div>
+              <div v-if="openCalMonths.includes(yearMonth)" class="calendar-month-body">
+                <div v-for="m in monthMatches" :key="'cal-'+m.id"
+                  class="calendar-match-row" @click="!isHistoryArchived && viewMatch(m)" :style="isHistoryArchived?'cursor:default':''">
+                  <div class="calendar-day">
+                    <div style="font-size:1.1rem;font-weight:900;color:var(--lime);font-family:var(--font-title)">{{ m.data.slice(8,10) }}</div>
+                    <div style="font-size:0.6rem;color:var(--text2);text-transform:uppercase">{{ getDayName(m.data) }}</div>
                   </div>
-                  <div v-if="m.uomoPartita || m.mvp" style="font-size:0.7rem;color:var(--text2)">
-                    {{ m.uomoPartita ? '🏅 '+m.uomoPartita : '⭐ '+m.mvp }}
+                  <div class="calendar-match-info">
+                    <div style="font-weight:800;font-size:0.9rem">
+                      <span style="color:var(--blue)">{{ m.risultato.goalA }}</span>
+                      <span style="color:var(--text2);margin:0 6px">–</span>
+                      <span style="color:var(--red)">{{ m.risultato.goalB }}</span>
+                    </div>
+                    <div v-if="m.uomoPartita || m.mvp" style="font-size:0.7rem;color:var(--text2)">
+                      {{ m.uomoPartita ? '🏅 '+m.uomoPartita : '⭐ '+m.mvp }}
+                    </div>
                   </div>
-                </div>
-                <div style="display:flex;gap:4px">
-                  <button class="btn btn-ghost btn-sm" style="padding:4px 8px" @click.stop="viewMatchPNG(m,'result')">🏆</button>
-                  <button class="btn btn-red btn-sm"   style="padding:4px 8px" @click.stop="deleteMatch(m.id)">🗑️</button>
+                  <div v-if="!isHistoryArchived" style="display:flex;gap:4px">
+                    <button class="btn btn-ghost btn-sm" style="padding:4px 8px" @click.stop="viewMatchPNG(m,'result')">🏆</button>
+                    <button class="btn btn-red btn-sm"   style="padding:4px 8px" @click.stop="deleteMatch(m.id)">🗑️</button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      </template>
     </template>
 
     <!-- ════ STATISTICHE ════ -->
@@ -3955,6 +3966,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- ★ FILTRO STAGIONE (Rilascio 6) ★ -->
+        <div v-if="currentGroupArchivedSeasons.length" style="margin-bottom:12px;display:flex;align-items:center;gap:8px">
+          <select class="select-field" v-model="statsSeasonFilter" style="flex:1">
+            <option value="attuale">📅 Stagione attuale{{currentGroup?.stagione ? ' — '+currentGroup.stagione : ''}}</option>
+            <option value="carriera">🏆 Carriera (tutte le stagioni)</option>
+            <option v-for="s in currentGroupArchivedSeasons" :key="s.archivioId" :value="s.archivioId">📦 {{s.nome}}</option>
+          </select>
+          <span v-if="statsSeasonFilter!=='attuale'" class="badge" style="background:rgba(166,255,77,.15);color:var(--lime);white-space:nowrap">
+            {{ statsSeasonFilter==='carriera' ? '🏆 Carriera' : '📦 Archivio' }}
+          </span>
+        </div>
+
         <!-- 🏆 TOP TEAM -->
         <template v-if="statsTab==='topteam'">
           <div class="card">
@@ -3980,10 +4003,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <span v-if="topFormationSize===11">1 🥅 · 4 🛡️ · 4 🔄 · 2 ⚡</span>
             </div>
             <!-- Players -->
-            <div v-if="!buildTopFormation(topFormationSize).length" class="empty-state" style="padding:16px">
+            <div v-if="!buildTopFormation(topFormationSize, statsSourceMatches, statsSourcePlayers).length" class="empty-state" style="padding:16px">
               <p>Non ci sono abbastanza giocatori con partite registrate.</p>
             </div>
-            <div v-for="p in buildTopFormation(topFormationSize)" :key="'tf-'+p.id" class="stats-row" style="gap:10px">
+            <div v-for="p in buildTopFormation(topFormationSize, statsSourceMatches, statsSourcePlayers)" :key="'tf-'+p.id" class="stats-row" style="gap:10px">
               <!-- Role icon -->
               <div style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0">{{ roleEmoji(p.ruolo) }}</div>
               <!-- Avatar -->
@@ -4033,8 +4056,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 📅 <strong>+Costanza</strong> (partite giocate) · 🔥 Forma ultime 5 gare
               </div>
             </div>
-            <div v-if="!topOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
-            <div v-for="(p,i) in topOverall" :key="p.id" class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-if="!statsTopOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
+            <div v-for="(p,i) in statsTopOverall" :key="p.id" class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -4064,8 +4087,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="card-title" style="margin-bottom:0">🏆 Classifica Punti</div>
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('classifica')">📤 Condividi</button>
             </div>
-            <div v-if="!topPoints.length" class="empty-state" style="padding:16px"><p>Nessuna partita ancora.</p></div>
-            <div v-for="(p,i) in topPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-if="!statsTopPoints.length" class="empty-state" style="padding:16px"><p>Nessuna partita ancora.</p></div>
+            <div v-for="(p,i) in statsTopPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
@@ -4077,7 +4100,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='goal'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⚽ Classifica Marcatori</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('goal')">📤 Condividi</button></div>
-            <div v-for="(p,i) in topScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-for="(p,i) in statsTopScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
@@ -4094,8 +4117,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('mediagol')">📤 Condividi</button>
             </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Min. 3 partite giocate</div>
-            <div v-if="!groupPlayers.filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite con gol.</p></div>
-            <div v-for="(p,i) in [...groupPlayers].filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))" :key="'mg-'+p.id" class="stats-row">
+            <div v-if="!statsSourcePlayers.filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite con gol.</p></div>
+            <div v-for="(p,i) in [...statsSourcePlayers].filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))" :key="'mg-'+p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.goalTotali}} gol in {{p.partiteTotali}} partite</div></div>
@@ -4108,8 +4131,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='altri'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🏅 Uomo Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('altri')">📤 Condividi</button></div>
-            <div v-if="!topUomoPartita.length" class="empty-state" style="padding:16px"><p>Nessun dato.</p></div>
-            <div v-for="(p,i) in topUomoPartita" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-if="!statsTopUomoPartita.length" class="empty-state" style="padding:16px"><p>Nessun dato.</p></div>
+            <div v-for="(p,i) in statsTopUomoPartita" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">volte premiato</div></div>
@@ -4123,8 +4146,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">📈 Media Punti a Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('mediapunti')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Punti medi per partita (min. 3 partite). 3=V · 1=P · 0=S</div>
-            <div v-if="!topAvgPoints.length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite.</p></div>
-            <div v-for="(p,i) in topAvgPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-if="!statsTopAvgPoints.length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite.</p></div>
+            <div v-for="(p,i) in statsTopAvgPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -4139,8 +4162,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='assist'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🅰️ Classifica Assist</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('assist')">📤 Condividi</button></div>
-            <div v-if="!topAssists.filter(x=>x.assistTotali>0).length" class="empty-state" style="padding:16px"><p>Nessun assist registrato.</p></div>
-            <div v-for="(p,i) in topAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-if="!statsTopAssists.filter(x=>x.assistTotali>0).length" class="empty-state" style="padding:16px"><p>Nessun assist registrato.</p></div>
+            <div v-for="(p,i) in statsTopAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
@@ -4155,8 +4178,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="card-title" style="margin-bottom:0">❌ Classifica Autogol</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('autogol')">📤 Condividi</button>
             </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Meno è meglio. Il meno peggio vince comunque! 😅</div>
-            <div v-if="!groupPlayers.filter(p=>(p.autogolTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Nessun autogol. Ottimo! 🎉</p></div>
-            <div v-for="(p,i) in [...groupPlayers].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0))" :key="p.id" class="stats-row">
+            <div v-if="!statsSourcePlayers.filter(p=>(p.autogolTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Nessun autogol. Ottimo! 🎉</p></div>
+            <div v-for="(p,i) in [...statsSourcePlayers].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0))" :key="p.id" class="stats-row">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
@@ -4168,8 +4191,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='voti'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⭐ Media Voto</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button></div>
-            <div v-if="!topRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
-            <div v-for="(p,i) in topRated" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p)">
+            <div v-if="!statsTopRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
+            <div v-for="(p,i) in statsTopRated" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.votiTotali}} partite votate</div></div>
@@ -4186,12 +4209,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;gap:8px;margin-bottom:12px">
               <select class="select-field" v-model="h2hPlayerA" style="flex:1;border-color:rgba(255,140,0,.4)">
                 <option value="">Giocatore A…</option>
-                <option v-for="p in groupPlayers" :key="p.uid||p.id" :value="p.uid||String(p.id)">{{p.soprannome||p.nome}}</option>
+                <option v-for="p in statsSourcePlayers" :key="p.uid||p.id" :value="p.uid||String(p.id)">{{p.soprannome||p.nome}}</option>
               </select>
               <div style="display:flex;align-items:center;font-size:12px;color:var(--text2);font-weight:700;flex-shrink:0">vs</div>
               <select class="select-field" v-model="h2hPlayerB" style="flex:1;border-color:rgba(58,123,255,.4)">
                 <option value="">Giocatore B…</option>
-                <option v-for="p in groupPlayers" :key="p.uid||p.id" :value="p.uid||String(p.id)">{{p.soprannome||p.nome}}</option>
+                <option v-for="p in statsSourcePlayers" :key="p.uid||p.id" :value="p.uid||String(p.id)">{{p.soprannome||p.nome}}</option>
               </select>
             </div>
             <div v-if="!h2hComputed" style="text-align:center;padding:24px;color:var(--text2);font-size:0.85rem">
@@ -4270,13 +4293,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="flex:1">
                     <div style="font-size:10px;color:#FF8C00;font-weight:700;margin-bottom:4px;text-align:center">{{h2hComputed.pA.soprannome||h2hComputed.pA.nome}}</div>
                     <div style="display:flex;gap:2px;align-items:flex-end;height:40px;width:100%">
-                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pA.id)" :key="i"
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pA.id, statsSourceMatches)" :key="i"
                         style="flex:1;border-radius:3px 3px 0 0;transition:height .3s;min-width:0"
                         :style="v>0?'background:#A6FF4D;height:'+Math.min(40,16+v*3)+'px':v===0?'background:var(--yellow);height:16px':'background:#FF4D4D;height:'+Math.min(40,16+Math.abs(v)*3)+'px'">
                       </div>
                     </div>
                     <div style="display:flex;gap:2px;margin-top:3px;width:100%">
-                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pA.id)" :key="i"
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pA.id, statsSourceMatches)" :key="i"
                         style="flex:1;height:3px;border-radius:1px;min-width:0"
                         :style="v>0?'background:#A6FF4D':v===0?'background:var(--yellow)':'background:#FF4D4D'">
                       </div>
@@ -4287,13 +4310,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="flex:1">
                     <div style="font-size:10px;color:var(--blue);font-weight:700;margin-bottom:4px;text-align:center">{{h2hComputed.pB.soprannome||h2hComputed.pB.nome}}</div>
                     <div style="display:flex;gap:2px;align-items:flex-end;height:40px;width:100%">
-                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pB.id)" :key="i"
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pB.id, statsSourceMatches)" :key="i"
                         style="flex:1;border-radius:3px 3px 0 0;transition:height .3s;min-width:0"
                         :style="v>0?'background:#A6FF4D;height:'+Math.min(40,16+v*3)+'px':v===0?'background:var(--yellow);height:16px':'background:#FF4D4D;height:'+Math.min(40,16+Math.abs(v)*3)+'px'">
                       </div>
                     </div>
                     <div style="display:flex;gap:2px;margin-top:3px;width:100%">
-                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pB.id)" :key="i"
+                      <div v-for="(v,i) in playerFormHistory(h2hComputed.pB.id, statsSourceMatches)" :key="i"
                         style="flex:1;height:3px;border-radius:1px;min-width:0"
                         :style="v>0?'background:#A6FF4D':v===0?'background:var(--yellow)':'background:#FF4D4D'">
                       </div>
@@ -5376,7 +5399,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- ── Grafico Andamento Forma ── -->
-      <div v-if="detailPlayer?.id && playerFormHistory(detailPlayer.id).length >= 2"
+      <div v-if="detailPlayer?.id && detailPlayerFormHistory.length >= 2"
         style="background:var(--bg3);border-radius:12px;padding:14px;margin-bottom:12px">
         <div style="font-weight:700;font-size:0.82rem;margin-bottom:10px">📈 Andamento Forma (ultime 10 partite)</div>
         <svg :viewBox="`0 0 300 80`" style="width:100%;height:80px;overflow:visible">
@@ -5384,11 +5407,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <line x1="0" y1="40" x2="300" y2="40" stroke="rgba(255,255,255,0.1)" stroke-width="1" stroke-dasharray="4,4"/>
           <!-- Form line -->
           <polyline
-            :points="(playerFormHistory(detailPlayer?.id)||[]).map((v,i,arr)=>`${arr.length>1?i*(300/(arr.length-1)):150},${40-v*3}`).join(' ')"
+            :points="detailPlayerFormHistory.map((v,i,arr)=>`${arr.length>1?i*(300/(arr.length-1)):150},${40-v*3}`).join(' ')"
             fill="none" stroke="var(--lime)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
           <!-- Points -->
-          <circle v-for="(v,i) in (playerFormHistory(detailPlayer?.id)||[])" :key="i"
-            :cx="(playerFormHistory(detailPlayer?.id)||[]).length > 1 ? i*(300/((playerFormHistory(detailPlayer?.id)||[]).length-1)) : 150" :cy="40-v*3"
+          <circle v-for="(v,i) in detailPlayerFormHistory" :key="i"
+            :cx="detailPlayerFormHistory.length > 1 ? i*(300/(detailPlayerFormHistory.length-1)) : 150" :cy="40-v*3"
             r="4"
             :fill="v>0?'var(--lime)':v<0?'var(--red)':'var(--yellow)'"
             stroke="var(--bg3)" stroke-width="2"/>
@@ -5420,9 +5443,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <div style="display:flex;gap:10px">
+      <div v-if="!detailPlayerReadOnly" style="display:flex;gap:10px">
         <button class="btn btn-blue" style="flex:1" @click="openPlayerForm(detailPlayer);showPlayerDetail=false">✏️ Modifica</button>
         <button class="btn btn-red" style="flex:1" @click="deletePlayer(detailPlayer);showPlayerDetail=false">🗑️ Elimina</button>
+      </div>
+      <div v-else style="text-align:center;font-size:0.75rem;color:var(--text2);padding:8px;background:var(--bg3);border-radius:8px">
+        📦 Dati di una stagione archiviata — sola consultazione
       </div>
     </div>
   </div>
@@ -6266,7 +6292,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.567',date:'2026-06-19',items:[
+    const changelogEntries = [{version:'v1.569',date:'2026-06-20',items:[
+      '🔴 Fix critico: archiviare una stagione poteva non funzionare davvero — il merge anti-conflitto, scambiando le partite appena cancellate per partite aggiunte da un altro dispositivo, le rimetteva dentro subito dopo. Ora l\'archiviazione pubblica lo stato pulito senza interferenze',
+      '🔴 Fix critico: cancellare una singola partita non si propagava mai su Firebase — restava solo locale, e il sync successivo per qualsiasi altro motivo la riportava indietro. Ora la cancellazione si pubblica subito, escludendo SOLO quella partita dal merge (una partita nuova di un altro dispositivo continua a integrarsi normalmente)',
+    ]},{version:'v1.568',date:'2026-06-19',items:[
+      '📅 Filtro stagione in Statistiche: Stagione attuale, Carriera (tutte le stagioni insieme) o una singola stagione archiviata — le classifiche cambiano fonte senza toccare la Home, le card AI o le formazioni, che restano sempre sui dati live',
+      '🏆 Carriera ricalcolata sempre al volo da tutte le partite di tutte le stagioni — stessa formula "somma vera poi dividi" già in uso per la stagione corrente, mai un\'approssimazione',
+      '📅 Filtro stagione anche in Storico (attuale o una stagione passata) — su una stagione archiviata le partite sono in sola consultazione: niente modifica né rigenerazione del giornale, dato che PNG e foto non sopravvivono all\'archiviazione',
+      'Il dettaglio giocatore aperto da una classifica archiviata/Carriera nasconde Modifica ed Elimina — i dati di una stagione chiusa restano congelati',
+    ]},{version:'v1.567',date:'2026-06-19',items:[
       '🔴 Fix critico cache: il Service Worker riconosceva come "Firebase, non cachare mai" solo gli URL con dominio firebaseio.com — il database di questo gruppo usa però il dominio firebasedatabase.app (regione europe-west1), quindi OGNI lettura da Firebase veniva trattata come un asset statico qualunque e servita dalla cache offline anche quando i dati su Firebase erano già cambiati',
       'Aggiornare l\'app a questa versione ripulisce automaticamente la cache vecchia (cambio nome cache interno) — necessario per eliminare le risposte Firebase rimaste intrappolate prima del fix',
     ]},{version:'v1.566',date:'2026-06-19',items:[
@@ -6529,6 +6563,11 @@ createApp({
     const editingPlayer = ref(null);
     const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[], fraseCelebre:'' });
     const detailPlayer  = ref(null);
+    const detailPlayerReadOnly = ref(false); // true se aperto da una classifica su stagione archiviata/Carriera — nasconde Modifica/Elimina
+    const detailPlayerMatches  = ref(null);  // fonte partite per il grafico forma — null = usa il default live di playerFormHistory
+    const detailPlayerFormHistory = computed(() =>
+      detailPlayer.value?.id ? playerFormHistory(detailPlayer.value.id, detailPlayerMatches.value || groupMatches.value) : []
+    );
     const detailMatch   = ref(null);
 
     const matchStep          = ref(1);
@@ -6612,7 +6651,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.567');
+    const appVersion = ref('1.569');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6630,7 +6669,7 @@ createApp({
     );
 
     const sortedMatches = computed(() =>
-      [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data))
+      [...historySourceMatches.value].sort((a,b) => b.data.localeCompare(a.data))
     );
 
     const computedUomoPartita = computed(() => {
@@ -6691,8 +6730,8 @@ createApp({
         .sort((a,b) => (b.mediaPunti||0)-(a.mediaPunti||0)).slice(0,12)
     );
 
-    const calcPlayerWins = (pid) => {
-      return groupMatches.value.filter(m => {
+    const calcPlayerWins = (pid, matches = groupMatches.value) => {
+      return matches.filter(m => {
         const inA = (m.squadraA||[]).includes(pid);
         const inB = (m.squadraB||[]).includes(pid);
         if (!inA && !inB) return false;
@@ -6701,9 +6740,9 @@ createApp({
       }).length;
     };
 
-    const calcCleanSheets = (playerId) => {
+    const calcCleanSheets = (playerId, matches = groupMatches.value) => {
       let cs = 0;
-      for (const m of groupMatches.value) {
+      for (const m of matches) {
         const inA = (m.squadraA||[]).includes(playerId);
         const inB = (m.squadraB||[]).includes(playerId);
         if (!inA && !inB) continue;
@@ -6713,7 +6752,7 @@ createApp({
     };
 
     // ── OVR (50-99, stile FIFA ibrido v3) ──
-    const overallScore = (p, pMax) => {
+    const overallScore = (p, pMax, matches = groupMatches.value, players = groupPlayers.value) => {
       const n      = Math.max(p.partiteTotali||1, 1);
       const mp     = p.mediaPunti||0;
       const mv     = p.mediaVoto||0;
@@ -6729,12 +6768,12 @@ createApp({
       const rp = p.rigoriParatiTotali || 0;    // rigori parati totali
       const rs = p.rigoriSbagliatiTotali || 0; // rigori sbagliati totali
 
-      const _pMax = pMax || Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
+      const _pMax = pMax || Math.max(...players.map(x => x.partiteTotali||0), 1);
 
       let baseOvr, bonusRuolo;
 
       if (ruolo === 'Portiere') {
-        const cs = calcCleanSheets(p.uid||String(p.id));
+        const cs = calcCleanSheets(p.uid||String(p.id), matches);
         const pCS = Math.min(50 + (cs / n * 49), 99);
         // Portiere: bonus rigori parati, malus rigori sbagliati (da rigorista)
         const bonusRP = Math.min((rp / n) * 30, 15); // max +15 da rigori parati
@@ -6743,7 +6782,7 @@ createApp({
         bonusRuolo = (pCS * 0.50) + (pVoto * 0.30) + (pPunti * 0.20) + bonusRP - malusRS;
 
       } else if (ruolo === 'Difensore') {
-        const wins  = calcPlayerWins(p.uid||String(p.id));
+        const wins  = calcPlayerWins(p.uid||String(p.id), matches);
         const pVit  = Math.min(50 + (wins / n * 49) * smorzamento, 99);
         baseOvr    = (pVoto * 0.65) + (pVit * 0.25) + (uomBonus * 0.10);
         bonusRuolo = (pVit * 0.55) + (pVoto * 0.40) + (Math.min(50+(gol/n*40.83),99)-50)*0.05;
@@ -6781,21 +6820,21 @@ createApp({
       11: { Portiere:1, Difensore:4, Centrocampista:4, Attaccante:2 }
     };
 
-    const buildTopFormation = (size) => {
+    const buildTopFormation = (size, matches = groupMatches.value, players = groupPlayers.value) => {
       const schema = FORMATION_SCHEMAS[size];
       if (!schema) return [];
-      // FIX3: min 5 partite totali + almeno 1 presenza nelle ultime 10 partite
-      const last10Matches = [...groupMatches.value]
+      // FIX3: min 5 partite totali + almeno 1 presenza nelle ultime 10 partite (della fonte data)
+      const last10Matches = [...matches]
         .sort((a,b) => b.data.localeCompare(a.data))
         .slice(0, 10);
       const last10Pids = new Set(
         last10Matches.flatMap(m => [...(m.squadraA||[]), ...(m.squadraB||[])])
       );
-      const players = groupPlayers.value.filter(p =>
+      const eligiblePlayers = players.filter(p =>
         (p.partiteTotali||0) >= 5 && (last10Pids.has(p.uid) || last10Pids.has(p.id) || last10Pids.has(String(p.id)))
       );
-      const pMaxBTF = Math.max(...groupPlayers.value.map(x => x.partiteTotali||0), 1);
-      const scored = players.map(p => ({ ...p, _score: overallScore(p, pMaxBTF) }))
+      const pMaxBTF = Math.max(...players.map(x => x.partiteTotali||0), 1);
+      const scored = eligiblePlayers.map(p => ({ ...p, _score: overallScore(p, pMaxBTF, matches, players) }))
                              .sort((a,b) => b._score - a._score);
       const result = [];
       const used = new Set();
@@ -7089,7 +7128,7 @@ createApp({
       toast('🗑️ Giocatore eliminato', 'error');
     };
 
-    const openPlayerDetail = p => { detailPlayer.value = p; showPlayerDetail.value = true; };
+    const openPlayerDetail = (p, readOnly = false, matches = null) => { detailPlayer.value = p; detailPlayerReadOnly.value = readOnly; detailPlayerMatches.value = matches; showPlayerDetail.value = true; };
 
     // Helper: trova il nick AI del giocatore cercando per tutte le chiavi possibili
     // Formatta YYYY-MM → "Miglior Giocatore · Maggio 2026"
@@ -7515,9 +7554,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const setAffinita  = (i,v) => { if(!playerForm.value.affinita) playerForm.value.affinita=[]; playerForm.value.affinita[i]=Number(v)||v; };
 
         // ── Player form history for chart (last 10 matches: +1 win, 0 draw, -1 loss) ──
-    const playerFormHistory = (pid) => {
+    const playerFormHistory = (pid, matches = groupMatches.value) => {
       if (!pid) return [];
-      const sorted = [...groupMatches.value].sort((a,b) => b.data.localeCompare(a.data));
+      const sorted = [...matches].sort((a,b) => b.data.localeCompare(a.data));
       const results = [];
       for (const m of sorted) {
         const inA = (m.squadraA||[]).includes(pid);
@@ -8155,15 +8194,15 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
       const statConfigs = {
-        goal:       {label:'CLASSIFICA MARCATORI', icon:'\u26BD', color:'#C8FF00', data:()=>topScorers.value.filter(x=>x.goalTotali>0).slice(0,10),   val:p=>`${p.goalTotali} gol`},
-        assist:     {label:'CLASSIFICA ASSIST',    icon:'\uD83C\uDD70\uFE0F', color:'#5599FF', data:()=>topAssists.value.filter(x=>x.assistTotali>0).slice(0,10), val:p=>`${p.assistTotali} ass.`},
-        classifica: {label:'CLASSIFICA PUNTI',     icon:'\uD83C\uDFC6', color:'#FFD700', data:()=>topPoints.value.slice(0,10),           val:p=>`${p.puntiTotali} pt`},
-        mediapunti: {label:'MEDIA PUNTI / PARTITA',icon:'\uD83D\uDCC8', color:'#FF9900', data:()=>topAvgPoints.value.slice(0,10),        val:p=>`${(p.mediaPunti||0).toFixed(2)}/g`},
-        voti:       {label:'MEDIA VOTO',           icon:'\u2B50', color:'#FFDD00', data:()=>topRated.value.slice(0,10),              val:p=>`${(p.mediaVoto||0).toFixed(1)}`},
-        altri:      {label:'UOMO PARTITA',         icon:'\uD83C\uDF96\uFE0F', color:'#FF6600', data:()=>topUomoPartita.value.slice(0,10),  val:p=>`${p.uomoPartitaTotali} volte`},
-        overall:    {label:'OVERALL - TOP PLAYER', icon:'\uD83E\uDD47', color:'#C8FF00', data:()=>topOverall.value.slice(0,10),    val:p=>`${p._score?.toFixed(1)||0} pts`},
-        topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'\uD83C\uDFDF\uFE0F', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value).slice(0,12), val:p=>p.ruolo||''},
-        autogol:    {label:'HALL OF SHAME - AUTOGOL', icon:'\uD83D\uDE2C', color:'#FF4D4D', data:()=>[...groupPlayers.value].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10), val:p=>`${p.autogolTotali}`},
+        goal:       {label:'CLASSIFICA MARCATORI', icon:'\u26BD', color:'#C8FF00', data:()=>statsTopScorers.value.filter(x=>x.goalTotali>0).slice(0,10),   val:p=>`${p.goalTotali} gol`},
+        assist:     {label:'CLASSIFICA ASSIST',    icon:'\uD83C\uDD70\uFE0F', color:'#5599FF', data:()=>statsTopAssists.value.filter(x=>x.assistTotali>0).slice(0,10), val:p=>`${p.assistTotali} ass.`},
+        classifica: {label:'CLASSIFICA PUNTI',     icon:'\uD83C\uDFC6', color:'#FFD700', data:()=>statsTopPoints.value.slice(0,10),           val:p=>`${p.puntiTotali} pt`},
+        mediapunti: {label:'MEDIA PUNTI / PARTITA',icon:'\uD83D\uDCC8', color:'#FF9900', data:()=>statsTopAvgPoints.value.slice(0,10),        val:p=>`${(p.mediaPunti||0).toFixed(2)}/g`},
+        voti:       {label:'MEDIA VOTO',           icon:'\u2B50', color:'#FFDD00', data:()=>statsTopRated.value.slice(0,10),              val:p=>`${(p.mediaVoto||0).toFixed(1)}`},
+        altri:      {label:'UOMO PARTITA',         icon:'\uD83C\uDF96\uFE0F', color:'#FF6600', data:()=>statsTopUomoPartita.value.slice(0,10),  val:p=>`${p.uomoPartitaTotali} volte`},
+        overall:    {label:'OVERALL - TOP PLAYER', icon:'\uD83E\uDD47', color:'#C8FF00', data:()=>statsTopOverall.value.slice(0,10),    val:p=>`${p._score?.toFixed(1)||0} pts`},
+        topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'\uD83C\uDFDF\uFE0F', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value, statsSourceMatches.value, statsSourcePlayers.value).slice(0,12), val:p=>p.ruolo||''},
+        autogol:    {label:'HALL OF SHAME - AUTOGOL', icon:'\uD83D\uDE2C', color:'#FF4D4D', data:()=>[...statsSourcePlayers.value].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10), val:p=>`${p.autogolTotali}`},
       };
       const cfg = statConfigs[tipo] || statConfigs.goal;
       const rows = cfg.data();
@@ -8193,8 +8232,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const grp=(currentGroup.value?.nome||'').toUpperCase();
       ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.4)';
       ctx.fillText(grp,W/2,logoY+70);
+      let _seasonLabelY = logoY+90;
+      if (statsSeasonFilter.value !== 'attuale') {
+        const _seasonLabel = statsSeasonFilter.value === 'carriera'
+          ? '🏆 CARRIERA — TUTTE LE STAGIONI'
+          : ('📦 ' + (_selectedArchiveFor(statsSeasonFilter.value)?.nome || '').toUpperCase());
+        ctx.font='700 14px Arial';ctx.fillStyle='rgba(166,255,77,0.65)';
+        ctx.fillText(_seasonLabel,W/2,_seasonLabelY);
+        _seasonLabelY += 22;
+      }
       const now=new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
-      ctx.font='400 14px Arial';ctx.fillStyle='rgba(255,255,255,0.28)';ctx.fillText(now,W/2,logoY+90);
+      ctx.font='400 14px Arial';ctx.fillStyle='rgba(255,255,255,0.28)';ctx.fillText(now,W/2,_seasonLabelY);
       ctx.fillStyle=acG;ctx.fillRect(PAD,HEADER_H-6,W-PAD*2,2);
       const avR=24;
       for(let i=0;i<rows.length;i++){
@@ -10135,18 +10183,35 @@ Niente altro, nessuna spiegazione.`;
       confirmDeleteModal.matchInfo = `${m.data || ''} · ${m.nomeSquadraA||'A'} ${m.risultato?.goalA||0} - ${m.risultato?.goalB||0} ${m.nomeSquadraB||'B'}`;
       confirmDeleteModal.show = true;
     };
+    // Dopo una cancellazione locale, pubblica subito lo stato su Firebase, escludendo dal merge
+    // SOLO il matchUUID appena cancellato — non un blocco totale del merge (skipMerge), perché
+    // altrimenti una partita nuova aggiunta nel frattempo da un altro dispositivo verrebbe persa
+    // insieme alla cancellazione. Senza questo push, la partita cancellata resta solo locale, e il
+    // prossimo sync per QUALSIASI altro motivo (modifica di un giocatore, salvataggio di un'altra
+    // partita) la ritroverebbe ancora su Firebase e la riporterebbe indietro tramite il merge
+    // "partite mancanti in locale" (stesso bug di fondo dietro al fix di doArchiveStagione,
+    // vedi REGOLE-PROGETTO.md, 20/6).
+    const _pushDeletionToCloud = async (deletedMatchUUID) => {
+      if (currentGroup.value?.firebaseUrl) {
+        try { await syncToCloud(false, deletedMatchUUID ? [deletedMatchUUID] : []); } catch(e) {}
+      }
+    };
     const confirmDeleteDo = async () => {
       confirmDeleteModal.show = false;
       const id = confirmDeleteModal.matchId;
       if (!id) return;
+      const _m = await db.matches.get(id);
       await db.matches.delete(id);
       await loadGroupData();
+      await _pushDeletionToCloud(_m?.matchUUID);
       toast('🗑️ Partita eliminata', 'error');
     };
     const deleteMatch = async id => {
       if (!confirm('Eliminare questa partita?')) return;
+      const _m = await db.matches.get(id);
       await db.matches.delete(id);
       await loadGroupData();
+      await _pushDeletionToCloud(_m?.matchUUID);
       toast('🗑️ Partita eliminata', 'error');
     };
 
@@ -10472,36 +10537,33 @@ Niente altro, nessuna spiegazione.`;
       }
     };
 
-    const recomputeStats = async () => {
-      if (!currentGroup.value) return;
-      const allPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
-      const allMatches = await db.matches.where('groupId').equals(currentGroup.value.id).toArray();
-
+    // Aggrega le statisticheGiocatori di un elenco di partite in un oggetto per uid — somma vera,
+    // mai una media ricostruita da un'altra media. Unica fonte della formula, usata sia da
+    // recomputeStats (stagione corrente, scrive su Dexie) sia da careerAggregate (Carriera,
+    // calcolato al volo su tutte le stagioni insieme, mai salvato — vedi REGOLE-PROGETTO.md,
+    // principio guida #6 Archivio Stagioni, esteso qui anche alla formula oltre che al dato).
+    const _aggregateMatchStats = (matches, uids) => {
       const statsMap = {};
-      allPlayers.forEach(p => {
-        statsMap[p.uid || String(p.id)] = {
+      uids.forEach(uid => {
+        statsMap[uid] = {
           goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
           puntiTotali:0, partiteTotali:0, votiTotali:0, votiSum:0,
           rigoriParatiTotali:0, rigoriSbagliatiTotali:0
         };
       });
-
-      for (const m of allMatches) {
+      for (const m of matches) {
         const goalA = m.risultato?.goalA || 0;
         const goalB = m.risultato?.goalB || 0;
         const teamAWon = goalA > goalB, isDraw = goalA === goalB;
-
         for (const s of (m.statisticheGiocatori || [])) {
           const pid = s.playerId;
           if (!statsMap[pid]) continue;
           const st = statsMap[pid];
-
           let punti = s.punti;
           if (punti === undefined || punti === null) {
             const inA = (m.squadraA||[]).includes(pid);
             punti = isDraw ? 1 : ((inA && teamAWon) || (!inA && !teamAWon)) ? 3 : 0;
           }
-
           st.goalTotali             += s.goal             || 0;
           st.assistTotali           += s.assist           || 0;
           st.autogolTotali          += s.autogol          || 0;
@@ -10516,6 +10578,15 @@ Niente altro, nessuna spiegazione.`;
           }
         }
       }
+      return statsMap;
+    };
+
+    const recomputeStats = async () => {
+      if (!currentGroup.value) return;
+      const allPlayers = await db.players.where('groupId').equals(currentGroup.value.id).toArray();
+      const allMatches = await db.matches.where('groupId').equals(currentGroup.value.id).toArray();
+      const uids = allPlayers.map(p => p.uid || String(p.id));
+      const statsMap = _aggregateMatchStats(allMatches, uids);
 
       for (const p of allPlayers) {
         const st = statsMap[p.uid || String(p.id)] || {};
@@ -10536,6 +10607,134 @@ Niente altro, nessuna spiegazione.`;
         });
       }
     };
+
+    // ══════════════════════════════════════════════════════════════
+    // ── FILTRO STAGIONE (Rilascio 6) ──
+    // Stats: "attuale" (default) / "carriera" / un archivioId di stagione passata.
+    // Storico: "attuale" (default) / un archivioId di stagione passata — niente Carriera qui
+    // (REGOLE-PROGETTO.md, sezione Archivio Stagioni → Filtri stagione Fase 1).
+    // IMPORTANTE: questi computed sono una fonte AGGIUNTIVA, non sostituiscono mai groupPlayers/
+    // groupMatches — quei due restano sempre e solo il dato live, usati ovunque altro nell'app
+    // (formazioni, editing partite, Home, card AI). Nessuna variabile reattiva live viene riusata
+    // con un flag di modalità (principio guida del progetto) — qui invece di un flag si introduce
+    // una nuova fonte dedicata, letta solo dalla vista Stats/Storico.
+    // ══════════════════════════════════════════════════════════════
+    const statsSeasonFilter   = ref('attuale');   // 'attuale' | 'carriera' | archivioId
+    const historySeasonFilter = ref('attuale');   // 'attuale' | archivioId
+
+    const _selectedArchiveFor = (filterValue) => {
+      if (filterValue === 'attuale' || filterValue === 'carriera') return null;
+      return currentGroupArchivedSeasons.value.find(s => s.archivioId === filterValue) || null;
+    };
+
+    // Tutte le partite di ogni stagione archiviata + quella attuale, in un unico elenco — serve sia
+    // per il ricalcolo Carriera sia per viste che hanno bisogno del dettaglio singola partita (es. h2h)
+    const careerMatches = computed(() => [
+      ...currentGroupArchivedSeasons.value.flatMap(s => s.partite || []),
+      ...groupMatches.value
+    ]);
+
+    // Carriera: SEMPRE ricalcolata al volo dai dati storici, mai un campo salvato (principio guida
+    // #6 Archivio Stagioni) — stessa identica formula "somma vera poi dividi" di recomputeStats,
+    // qui estesa a tutte le partite di tutte le stagioni invece che alla sola stagione corrente.
+    const careerAggregate = computed(() => {
+      // Identità (nome/ruolo/soprannome/foto): stagioni archiviate in ordine cronologico, poi quella
+      // attuale per ultima — un giocatore ancora attivo mostra sempre i dati più recenti
+      const seasonsChrono = [...currentGroupArchivedSeasons.value]
+        .sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
+      const identityMap = {};
+      for (const season of seasonsChrono) {
+        for (const p of (season.giocatori || [])) {
+          identityMap[p.uid || String(p.id)] = p;
+        }
+      }
+      for (const p of groupPlayers.value) {
+        identityMap[p.uid || String(p.id)] = p;
+      }
+
+      const uids = Object.keys(identityMap);
+      const statsMap = _aggregateMatchStats(careerMatches.value, uids);
+
+      return uids.map(uid => {
+        const st = statsMap[uid];
+        const mediaVoto  = st.votiTotali > 0   ? st.votiSum / st.votiTotali       : 0;
+        const mediaPunti = st.partiteTotali > 0 ? st.puntiTotali / st.partiteTotali : 0;
+        return {
+          ...identityMap[uid],
+          goalTotali: st.goalTotali, assistTotali: st.assistTotali, autogolTotali: st.autogolTotali,
+          uomoPartitaTotali: st.uomoPartitaTotali, puntiTotali: st.puntiTotali, partiteTotali: st.partiteTotali,
+          mediaVoto, mediaPunti, votiTotali: st.votiTotali,
+          rigoriParatiTotali: st.rigoriParatiTotali, rigoriSbagliatiTotali: st.rigoriSbagliatiTotali
+        };
+      });
+    });
+
+    // ── Fonte dati Stats: cambia in base al filtro ──
+    const statsSourcePlayers = computed(() => {
+      if (statsSeasonFilter.value === 'carriera') return careerAggregate.value;
+      const archived = _selectedArchiveFor(statsSeasonFilter.value);
+      if (archived) return archived.giocatori || [];
+      return groupPlayers.value;
+    });
+    const statsSourceMatches = computed(() => {
+      if (statsSeasonFilter.value === 'carriera') return careerMatches.value;
+      const archived = _selectedArchiveFor(statsSeasonFilter.value);
+      if (archived) return archived.partite || [];
+      return groupMatches.value;
+    });
+    const isStatsArchived = computed(() => _selectedArchiveFor(statsSeasonFilter.value) !== null);
+
+    // ── Fonte dati Storico: solo attuale o una passata, mai Carriera ──
+    const historySourceMatches = computed(() => {
+      const archived = _selectedArchiveFor(historySeasonFilter.value);
+      if (archived) return archived.partite || [];
+      return groupMatches.value;
+    });
+    const isHistoryArchived = computed(() => _selectedArchiveFor(historySeasonFilter.value) !== null);
+
+    // ── Classifiche Stats filtrate — PARALLELE alle originali (topScorers, topAssists, ecc.), che
+    // restano intatte e sempre sui dati live perché condivise con Home e generazione card AI. Stessa
+    // identica logica di ordinamento/filtro, solo la fonte cambia da groupPlayers a statsSourcePlayers.
+    const statsTotalGoals = computed(() =>
+      statsSourceMatches.value.reduce((s, m) => s + (m.risultato?.goalA||0) + (m.risultato?.goalB||0), 0)
+    );
+    const statsTopScorers = computed(() =>
+      [...statsSourcePlayers.value].sort((a,b) => (b.goalTotali||0)-(a.goalTotali||0)).slice(0,10)
+    );
+    const statsTopAssists = computed(() =>
+      [...statsSourcePlayers.value].sort((a,b) => (b.assistTotali||0)-(a.assistTotali||0)).slice(0,10)
+    );
+    const statsTopRated = computed(() =>
+      [...statsSourcePlayers.value].filter(p => p.votiTotali > 0)
+        .sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
+    );
+    const statsTopUomoPartita = computed(() =>
+      [...statsSourcePlayers.value].filter(p => p.uomoPartitaTotali > 0)
+        .sort((a,b) => (b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0)).slice(0,10)
+    );
+    const statsTopAutogol = computed(() =>
+      [...statsSourcePlayers.value].filter(p => p.autogolTotali > 0)
+        .sort((a,b) => (b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10)
+    );
+    const statsTopPoints = computed(() =>
+      [...statsSourcePlayers.value].filter(p => (p.partiteTotali||0) > 0)
+        .sort((a,b) => (b.puntiTotali||0)-(a.puntiTotali||0)).slice(0,15)
+    );
+    const statsTopAvgPoints = computed(() => {
+      const minP = Math.max(2, Math.floor((statsSourceMatches.value.length||0) * 0.25));
+      return [...statsSourcePlayers.value].filter(p => (p.partiteTotali||0) >= minP)
+        .sort((a,b) => (b.mediaPunti||0)-(a.mediaPunti||0)).slice(0,12);
+    });
+    const statsTopOverall = computed(() => {
+      const matches = statsSourceMatches.value, players = statsSourcePlayers.value;
+      const minP = Math.max(2, Math.floor((matches.length||0) * 0.25));
+      const pMax = Math.max(...players.map(x => x.partiteTotali||0), 1);
+      return [...players]
+        .filter(p => (p.partiteTotali||0) >= minP)
+        .map(p => ({ ...p, _score: overallScore(p, pMax, matches, players), _cs: calcCleanSheets(p.uid||String(p.id), matches) }))
+        .sort((a,b) => b._score - a._score);
+    });
+
     // ── Refresh expired Firebase ID token automatically ──
     const refreshFirebaseToken = async () => {
       const refreshToken = localStorage.getItem('amicifc_fb_refresh');
@@ -10609,7 +10808,7 @@ Niente altro, nessuna spiegazione.`;
     // ── syncToCloud: scrittura locale su Firebase ──
     // Prima legge Firebase, poi scrive solo i dati locali (no merge che duplica)
     // Il sync in lettura (syncFromCloud) si occupa di scaricare le partite altrui
-    const syncToCloud = async () => {
+    const syncToCloud = async (skipMerge = false, excludeFromMerge = []) => {
       const base = getFirebaseBase();
       if (!base) return null; // Firebase non configurato — nessun retry sensato
       if (!fbIdToken.value && !firebaseUser.value) {
@@ -10723,6 +10922,10 @@ Niente altro, nessuna spiegazione.`;
         //    ("vince chi ha modificato per ultimo") — fix strutturale dopo l'incidente del 18/6
         //    in cui una modifica più recente è stata silenziosamente sovrascritta da un dispositivo
         //    con dati superati. Vedi REGOLE-PROGETTO.md, sezione Sync, 19/6.
+        // skipMerge=true (es. subito dopo un'archiviazione, vedi doArchiveStagione): il locale ha
+        // GIA' di proposito zero partite — il merge "partite mancanti in locale = aggiunte da altri"
+        // le resusciterebbe per errore. Il flag salta SOLO questo loop, non la lettura foto sotto,
+        // che serve comunque indipendentemente dall'archiviazione.
         let _photosMigrated = false;
         let _cloudPlayerPhotos = {};
         try {
@@ -10731,56 +10934,62 @@ Niente altro, nessuna spiegazione.`;
             const fbRoot = await fbRootResp.json();
             _photosMigrated = !!fbRoot?.playerPhotosMigrated;
             _cloudPlayerPhotos = fbRoot?.playerPhotos || {};
-            const fbGroups = fbRoot?.groups ? (Array.isArray(fbRoot.groups) ? fbRoot.groups : Object.values(fbRoot.groups)) : [];
-            for (const fbGrp of fbGroups) {
-              const localGrp = allGroups.find(lg => lg.group?.nome === fbGrp?.group?.nome);
-              if (!localGrp) continue;
-              const fbMatches = toArr(fbGrp.matches || {});
-              const fbByUUID = new Map(fbMatches.filter(m => m?.matchUUID).map(m => [m.matchUUID, m]));
-              const localMatchesBefore = localGrp.matches || [];
-              const localUUIDs = new Set(localMatchesBefore.map(m => m.matchUUID).filter(Boolean));
-              const gid = groups.value.find(g => g.nome === localGrp.group.nome)?.id;
-
-              // 1) Partite presenti solo su Firebase — comportamento esistente, invariato
-              const onlyOnFb = fbMatches.filter(m => m?.matchUUID && !localUUIDs.has(m.matchUUID));
-              if (onlyOnFb.length > 0) {
-                logEvent('info','sync',`🔀 Merge: ${onlyOnFb.length} partite di altri utenti integrate`);
-                localGrp.matches = [...localGrp.matches, ...onlyOnFb];
-                for (const m of onlyOnFb) {
-                  if (gid) await db.matches.add({ ...m, groupId: gid }).catch(()=>{});
+            if (!skipMerge) {
+              const _excludeSet = new Set(excludeFromMerge);
+              const fbGroups = fbRoot?.groups ? (Array.isArray(fbRoot.groups) ? fbRoot.groups : Object.values(fbRoot.groups)) : [];
+              for (const fbGrp of fbGroups) {
+                const localGrp = allGroups.find(lg => lg.group?.nome === fbGrp?.group?.nome);
+                if (!localGrp) continue;
+                const fbMatches = toArr(fbGrp.matches || {});
+                const fbByUUID = new Map(fbMatches.filter(m => m?.matchUUID).map(m => [m.matchUUID, m]));
+                const localMatchesBefore = localGrp.matches || [];
+                const localUUIDs = new Set(localMatchesBefore.map(m => m.matchUUID).filter(Boolean));
+                const gid = groups.value.find(g => g.nome === localGrp.group.nome)?.id;
+  
+                // 1) Partite presenti solo su Firebase — comportamento esistente, invariato. Esclude
+                //    esplicitamente le partite appena cancellate da QUESTO dispositivo (excludeFromMerge),
+                //    altrimenti il merge le considererebbe "aggiunte da un altro device" e le resusciterebbe
+                //    (vedi REGOLE-PROGETTO.md, 20/6 — bug scoperto verificando l'archiviazione).
+                const onlyOnFb = fbMatches.filter(m => m?.matchUUID && !localUUIDs.has(m.matchUUID) && !_excludeSet.has(m.matchUUID));
+                if (onlyOnFb.length > 0) {
+                  logEvent('info','sync',`🔀 Merge: ${onlyOnFb.length} partite di altri utenti integrate`);
+                  localGrp.matches = [...localGrp.matches, ...onlyOnFb];
+                  for (const m of onlyOnFb) {
+                    if (gid) await db.matches.add({ ...m, groupId: gid }).catch(()=>{});
+                  }
                 }
-              }
-
-              // 2) Partite presenti su entrambi i lati — tieni quella modificata più di recente.
-              //    Se updatedAt manca da un lato (partite create prima di questo fix), quel lato
-              //    è considerato il più vecchio dei due, mai il vincitore di default.
-              let _conflitti = 0;
-              localGrp.matches = localGrp.matches.map(localM => {
-                if (!localM?.matchUUID) return localM;
-                const fbM = fbByUUID.get(localM.matchUUID);
-                if (!fbM) return localM; // esiste solo in locale, nessun conflitto da risolvere
-                if ((fbM.updatedAt || 0) > (localM.updatedAt || 0)) {
-                  _conflitti++;
-                  return fbM; // Firebase ha una versione più recente — la teniamo noi e la ripubblichiamo
-                }
-                return localM;
-              });
-              if (_conflitti > 0) {
-                logEvent('info','sync',`🔀 Merge: ${_conflitti} partite — mantenuta la versione Firebase più recente (conflitto risolto per data)`);
-                // Allinea anche il Dexie locale, altrimenti al prossimo sync ripartirebbe dal
-                // dato locale stale e perderemmo di nuovo la versione "vinta" da Firebase
-                if (gid) {
-                  for (const localM of localMatchesBefore) {
-                    const fbM = fbByUUID.get(localM.matchUUID);
-                    if (fbM && (fbM.updatedAt || 0) > (localM.updatedAt || 0)) {
-                      await db.matches.update(localM.id, { ...fbM, id: localM.id, groupId: gid }).catch(()=>{});
+  
+                // 2) Partite presenti su entrambi i lati — tieni quella modificata più di recente.
+                //    Se updatedAt manca da un lato (partite create prima di questo fix), quel lato
+                //    è considerato il più vecchio dei due, mai il vincitore di default.
+                let _conflitti = 0;
+                localGrp.matches = localGrp.matches.map(localM => {
+                  if (!localM?.matchUUID) return localM;
+                  const fbM = fbByUUID.get(localM.matchUUID);
+                  if (!fbM) return localM; // esiste solo in locale, nessun conflitto da risolvere
+                  if ((fbM.updatedAt || 0) > (localM.updatedAt || 0)) {
+                    _conflitti++;
+                    return fbM; // Firebase ha una versione più recente — la teniamo noi e la ripubblichiamo
+                  }
+                  return localM;
+                });
+                if (_conflitti > 0) {
+                  logEvent('info','sync',`🔀 Merge: ${_conflitti} partite — mantenuta la versione Firebase più recente (conflitto risolto per data)`);
+                  // Allinea anche il Dexie locale, altrimenti al prossimo sync ripartirebbe dal
+                  // dato locale stale e perderemmo di nuovo la versione "vinta" da Firebase
+                  if (gid) {
+                    for (const localM of localMatchesBefore) {
+                      const fbM = fbByUUID.get(localM.matchUUID);
+                      if (fbM && (fbM.updatedAt || 0) > (localM.updatedAt || 0)) {
+                        await db.matches.update(localM.id, { ...fbM, id: localM.id, groupId: gid }).catch(()=>{});
+                      }
                     }
                   }
                 }
-              }
             }
           }
-        } catch(e) { logEvent('info','sync','Merge check saltato: '+e.message); }
+        }
+      } catch(e) { logEvent('info','sync','Merge check saltato: '+e.message); }
 
 
         // ── Sync v2: se la migrazione foto è completata, escludi "foto" dal payload players
@@ -12717,7 +12926,10 @@ const toggleFont = () => {
         await loadGroups();
         await loadGroupData();
         if (g.firebaseUrl) {
-          try { await syncToCloud(); } catch(e) {}
+          // skipMerge=true: il locale ha appena, di proposito, zero partite per questo gruppo — il
+          // merge "partite mancanti in locale = aggiunte da un altro dispositivo" le resusciterebbe
+          // per errore, vanificando l'archiviazione appena fatta (vedi REGOLE-PROGETTO.md, 20/6).
+          try { await syncToCloud(true); } catch(e) {}
         }
 
         logEvent('info', 'app', `✅ Stagione "${snapshot.nome}" archiviata — nuova stagione: "${archiveStepData.nomeStagioneNuova}"`);
@@ -14223,11 +14435,11 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     const setHomeSeg=(idx)=>{homeSegIdx.value=idx;const pct=(idx*(100/3))+'%';const w=(100/3)+'%';homeSegHL.value={left:'calc('+pct+' + 3px)',width:'calc('+w+' - 6px)'};if(idx===0)currentView.value='stats';else if(idx===1)currentView.value='players';else currentView.value='history';};
 
     const statsHeroData = computed(() => {
-      const p0 = topOverall.value[0], p1 = topScorers.value[0],
-            p2 = topPoints.value[0],  p3 = topRated.value[0];
+      const p0 = statsTopOverall.value[0], p1 = statsTopScorers.value[0],
+            p2 = statsTopPoints.value[0],  p3 = statsTopRated.value[0];
       return [
         { label:'OVERALL', key:'overall',
-          val: p0 ? (p0._score||overallScore(p0, Math.max(...groupPlayers.value.map(x=>x.partiteTotali||0),1))) : '—',
+          val: p0 ? (p0._score||overallScore(p0, Math.max(...statsSourcePlayers.value.map(x=>x.partiteTotali||0),1), statsSourceMatches.value, statsSourcePlayers.value)) : '—',
           name: p0 ? (p0.soprannome||p0.nome) : '—',
           sub: 'Migliore in assoluto', foto: p0?.foto, uid: p0?.uid,
           col: 'var(--lime)', tab: 'overall' },
@@ -14253,13 +14465,13 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     const h2hComputed = computed(() => {
       if (!h2hPlayerA.value || !h2hPlayerB.value) return null;
       // Cerca per uid (priorità) o id numerico
-      const pA = groupPlayers.value.find(p => p.uid === h2hPlayerA.value || String(p.id) === String(h2hPlayerA.value));
-      const pB = groupPlayers.value.find(p => p.uid === h2hPlayerB.value || String(p.id) === String(h2hPlayerB.value));
+      const pA = statsSourcePlayers.value.find(p => p.uid === h2hPlayerA.value || String(p.id) === String(h2hPlayerA.value));
+      const pB = statsSourcePlayers.value.find(p => p.uid === h2hPlayerB.value || String(p.id) === String(h2hPlayerB.value));
       if (!pA || !pB) return null;
       const uidA = pA.uid || String(pA.id);
       const uidB = pB.uid || String(pB.id);
       const inSquad = (squadra, uid) => (squadra||[]).includes(uid);
-      const matches = groupMatches.value.filter(m => {
+      const matches = statsSourceMatches.value.filter(m => {
         const inAa = inSquad(m.squadraA, uidA), inAb = inSquad(m.squadraB, uidA);
         const inBa = inSquad(m.squadraA, uidB), inBb = inSquad(m.squadraB, uidB);
         return (inAa && inBb) || (inAb && inBa); // squadre opposte
@@ -14589,6 +14801,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName,
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
+      statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
+      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall,
+      detailPlayerReadOnly, detailPlayerFormHistory,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup,
