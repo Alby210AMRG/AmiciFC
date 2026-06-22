@@ -6307,7 +6307,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.580',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.581',date:'2026-06-22',items:[
+      '🔧 Fix: Pt/gara (mediaPunti) mostrava valori residui per giocatori con 0 partite — normalizzazione automatica al caricamento del gruppo: se partiteTotali=0 e mediaPunti>0, il valore viene azzerato in DB. Corregge retroattivamente anche i dati archiviati prima della v1.575.',
+    ]},{version:'v1.580',date:'2026-06-22',items:[
       '🐛 Fix: nel dettaglio partita da stagione archiviata i giocatori eliminati mostravano il loro UID invece del nome — getPlayerForDetail ora cerca prima nella lista giocatori dello snapshot archiviato, poi cade sui giocatori correnti come fallback',
     ]},{version:'v1.579',date:'2026-06-22',items:[
       '✨ Tutorial cards: ora compaiono nel carosello hero (le card in alto) quando la stagione non ha ancora partite, non nella lista partite. Ogni card ha icona, titolo e testo — senza bottoni CTA. Scompaiono automaticamente alla prima partita.',
@@ -6708,7 +6710,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.580');
+    const appVersion = ref('1.581');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6952,6 +6954,19 @@ createApp({
       groupPlayers.value  = await db.players.where('groupId').equals(gid).toArray();
       groupMatches.value  = await db.matches.where('groupId').equals(gid).toArray();
       groupFormations.value = await db.formations.where('groupId').equals(gid).reverse().sortBy('dataCreazione');
+      // Normalizzazione automatica: mediaPunti è un valore derivato (puntiTotali/partiteTotali) —
+      // se partiteTotali=0 deve essere 0 per definizione, indipendentemente da cosa c'è nel DB.
+      // Gestisce retroattivamente i giocatori archiviati prima di v1.575 (che non azzerava mediaPunti)
+      // e qualsiasi futura corruzione dello stesso tipo. Idempotente: si auto-limita ai soli record
+      // effettivamente sbagliati e dopo la prima correzione non riscrive più nulla.
+      const _toFix = groupPlayers.value.filter(p => !(p.partiteTotali || 0) && (p.mediaPunti || 0) > 0);
+      if (_toFix.length) {
+        for (const p of _toFix) {
+          p.mediaPunti = 0;
+          await db.players.update(p.id, { mediaPunti: 0 });
+        }
+        logEvent('info', 'app', `🔧 Normalizzati ${_toFix.length} giocatori con mediaPunti > 0 ma partiteTotali = 0`);
+      }
       try { currentGroupArchivedSeasons.value = await db.archivedSeasons.where('groupId').equals(gid).toArray(); }
       catch(e) { currentGroupArchivedSeasons.value = []; }
       await _hydratePlayerPhotos();
