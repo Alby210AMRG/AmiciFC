@@ -2829,6 +2829,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </button>
         </div>
 
+        <!-- ── Tutorial cards — visibili solo se non è ancora stata giocata nessuna partita ── -->
+        <div v-if="!groupMatches.length" style="margin-bottom:10px">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--blue);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px;padding:0 2px">
+            🚀 Come iniziare
+          </div>
+          <div v-for="(t,ti) in tutorialCards" :key="'tut'+ti"
+            style="display:flex;align-items:flex-start;gap:12px;padding:14px 14px;border-radius:14px;margin-bottom:8px;cursor:default"
+            :style="'background:'+( settings.darkTheme ? 'rgba(58,123,255,0.08)' : 'rgba(58,123,255,0.05)')+';border:1.5px solid rgba(58,123,255,0.22)'">
+            <div style="font-size:1.8rem;line-height:1;flex-shrink:0;margin-top:2px">{{t.icon}}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:800;font-size:0.9rem;margin-bottom:4px;color:var(--text)">{{t.titolo}}</div>
+              <div style="font-size:0.78rem;color:var(--text2);line-height:1.5">{{t.testo}}</div>
+              <button v-if="t.cta && t.view" class="btn btn-sm" style="margin-top:8px;background:rgba(58,123,255,0.18);border:1px solid rgba(58,123,255,0.4);color:var(--blue);font-weight:700;font-size:0.72rem;padding:4px 12px"
+                @click="currentView=t.view">{{t.cta}}</button>
+            </div>
+          </div>
+        </div>
+
         <div v-if="recentMatches.length" style="margin-bottom:10px;background:var(--card);border-radius:16px;overflow:hidden">
           <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border)">
             <span style="font-size:17px;font-weight:700;color:var(--text2);letter-spacing:1px;text-transform:uppercase">🕐 Ultime Partite</span>
@@ -3822,7 +3840,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-else>
           <!-- ── Ultime 5 partite ── -->
           <div class="card-title" style="font-size:0.9rem;margin-bottom:10px">⚡ {{ isHistoryArchived ? 'Partite della stagione' : 'Ultime partite' }}</div>
-          <div v-for="m in sortedMatches.slice(0,5)" :key="'r-'+m.id" class="match-card" @click="!isHistoryArchived && viewMatch(m)" :style="isHistoryArchived?'cursor:default':''">
+          <div v-for="m in sortedMatches.slice(0,5)" :key="'r-'+m.id" class="match-card" @click="viewMatch(m, {readonly: isHistoryArchived})">
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span class="match-date">📅 {{ formatDate(m.data) }}</span>
               <div style="display:flex;gap:6px">
@@ -3841,9 +3859,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div class="score-num score-b">{{ m.risultato.goalB }}</div>
               </div>
             </div>
-            <div v-if="!isHistoryArchived" style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
-              <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m)">👁️ Dettaglio</button>
-              <button class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
+            <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m, {readonly: isHistoryArchived})">👁️ Dettaglio</button>
+              <button v-if="!isHistoryArchived" class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
             </div>
           </div>
 
@@ -3860,7 +3878,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <div v-if="openCalMonths.includes(yearMonth)" class="calendar-month-body">
                 <div v-for="m in monthMatches" :key="'cal-'+m.id"
-                  class="calendar-match-row" @click="!isHistoryArchived && viewMatch(m)" :style="isHistoryArchived?'cursor:default':''">
+                  class="calendar-match-row" @click="viewMatch(m, {readonly: isHistoryArchived})">
                   <div class="calendar-day">
                     <div style="font-size:1.1rem;font-weight:900;color:var(--lime);font-family:var(--font-title)">{{ m.data.slice(8,10) }}</div>
                     <div style="font-size:0.6rem;color:var(--text2);text-transform:uppercase">{{ getDayName(m.data) }}</div>
@@ -5547,13 +5565,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <!-- PNG buttons + Modifica + Elimina nel dettaglio -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
         <button class="btn btn-ghost btn-sm" @click="regenerateNewspaper(detailMatch)">📰 Giornale</button>
-        <button class="btn btn-ghost btn-sm" @click="toggleMatchLock(detailMatch)">
-          {{ detailMatch.isLocked ? "🔒" : "🔓" }}
-        </button>
-        <button class="btn btn-ghost btn-sm" @click="openEditIfUnlocked(detailMatch)">
-          ✏️ Modifica
-        </button>
-        <button class="btn btn-red btn-sm" style="margin-left:auto" @click="()=>{ showMatchDetail=false; askDeleteMatch(detailMatch) }">🗑️ Elimina</button>
+        <template v-if="!detailMatchReadonly">
+          <button class="btn btn-ghost btn-sm" @click="toggleMatchLock(detailMatch)">
+            {{ detailMatch.isLocked ? "🔒" : "🔓" }}
+          </button>
+          <button class="btn btn-ghost btn-sm" @click="openEditIfUnlocked(detailMatch)">
+            ✏️ Modifica
+          </button>
+          <button class="btn btn-red btn-sm" style="margin-left:auto" @click="()=>{ showMatchDetail=false; askDeleteMatch(detailMatch) }">🗑️ Elimina</button>
+        </template>
+        <span v-else style="font-size:0.72rem;color:var(--text2);align-self:center;margin-left:auto">📦 Stagione archiviata — sola lettura</span>
       </div>
 
       <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showMatchDetail=false">Chiudi</button>
@@ -6294,7 +6315,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.575',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.578',date:'2026-06-22',items:[
+      '🔴 Fix critico: ReferenceError _heroAutoScroll — un </div> duplicato nel modale dettaglio partita rompeva la struttura HTML e impediva a Vue di compilare il template (conseguenza di un str_replace che includeva il tag di chiusura nel new_str mentre era già presente nel file). Rimosso il duplicato.',
+    ]},{version:'v1.577',date:'2026-06-22',items:[
+      '🔴 Fix critico: app non si avviava — apostrofo in stringa Vue inline nel template HTML causava parse error del compilatore. Fix: dati tutorial cards spostati in costante JS (fuori dal template HTML).',
+      '🐛 Fix: errore CORS su file:// — il controllo aggiornamenti ora salta silenziosamente se il protocollo è file:// (app aperta in locale senza server).',
+    ]},{version:'v1.576',date:'2026-06-22',items:[
+      '🐛 Fix: aprendo una partita dalla stagione archiviata (Storico) non si apriva il dettaglio — il click era bloccato. Ora si apre in sola lettura (Modifica/Elimina/Lock nascosti, Giornale visibile)',
+      '✨ Tutorial cards: quando non è ancora stata giocata nessuna partita nella stagione corrente, la Home mostra 5 card di guida rapida (Aggiungi giocatori → Crea squadre → Inserisci risultato → Condividi Giornale → Archivia a fine stagione). Scompaiono automaticamente dopo la prima partita',
+    ]},{version:'v1.575',date:'2026-06-22',items:[
       '🐛 Fix: mediaPunti (Pt/gara) non veniva azzerata all\'archiviazione — aggiunta a statsZero',
       '🐛 Fix: la stagione archiviata non compariva su un secondo dispositivo — _pullArchivedSeasonsFromFirebase usava il gid Dexie locale (auto-increment, diverso tra dispositivi) come chiave Firebase; ora scansiona tutti i key di primo livello e abbina per groupNome',
       '🐛 Fix: dopo l\'archiviazione la UI mostrava ancora il vecchio nome stagione fino al reload — currentGroup.value ora aggiornato esplicitamente con il gruppo fresco dopo loadGroups()',
@@ -6589,6 +6618,17 @@ createApp({
       detailPlayer.value?.id ? playerFormHistory(detailPlayer.value.id, detailPlayerMatches.value || groupMatches.value) : []
     );
     const detailMatch   = ref(null);
+    const detailMatchReadonly = ref(false); // true quando aperto da stagione archiviata — nasconde Modifica/Elimina/Lock
+
+    // Dati per le tutorial cards: definiti qui in JS (non inline nel template HTML) per evitare problemi
+    // con apostrofi e caratteri speciali dentro attributi Vue con apici singoli e doppi innestati.
+    const tutorialCards = [
+      { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici.', cta: 'Vai ai Giocatori', view: 'players' },
+      { icon: '⚽', titolo: 'Crea le squadre', testo: 'Prima di ogni partita usa il generatore AI per squadre bilanciate, oppure trascinale manualmente.', cta: 'Genera squadre', view: 'generate' },
+      { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'generate' },
+      { icon: '📰', titolo: 'Condividi il Giornale', testo: 'Genera il PNG del giornale con il resoconto della partita e mandalo nel gruppo — ogni partita diventa un articolo.', cta: null, view: null },
+      { icon: '📦', titolo: 'Fine stagione — Archivia', testo: 'Quando la stagione finisce, usa Archivia Stagione per conservare tutto lo storico e ripartire con statistiche a zero.', cta: null, view: null },
+    ];
 
     const matchStep          = ref(1);
     const showModeChoice     = ref(false); // modal scelta modalità
@@ -6671,7 +6711,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.575');
+    const appVersion = ref('1.578');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10334,7 +10374,7 @@ Niente altro, nessuna spiegazione.`;
       } catch { return email[0]+'***'; }
     };
 
-    const viewMatch = m => { detailMatch.value = m; showMatchDetail.value = true; };
+    const viewMatch = (m, { readonly = false } = {}) => { detailMatch.value = m; detailMatchReadonly.value = readonly; showMatchDetail.value = true; };
 
     const obfuscateEmail = (email) => {
       if(!email||email==='Utente locale') return email;
@@ -13310,6 +13350,8 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
 
     // ── Update Check ──
     const checkForUpdates = async (silent = false) => {
+      // file:// protocol: fetch locale bloccato da CORS su Firefox e Chrome — skip silenzioso
+      if (location.protocol === 'file:') return;
       try {
         const resp = await fetch('./version.json?nocache=' + Date.now(), { cache: 'no-store' });
         if (!resp.ok) { toast('⚠️ Controllo versione fallito (HTTP ' + resp.status + ')', 'error', 4000); return; }
@@ -14929,7 +14971,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       obfuscateEmail,
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
-      detailMatch, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
+      detailMatch, detailMatchReadonly, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
