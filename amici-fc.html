@@ -6294,7 +6294,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.572',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.573',date:'2026-06-22',items:[
+      '🗞️ ZIP giornale: layout corretto — ora usa le stesse funzioni del giornale normale (regenerateNewspaper + generateAndShareMatchPNG), non un Canvas custom. Ogni partita senza PNG viene generata al volo con il layout identico a quello che si vede durante l\'inserimento partita.',
+    ]},{version:'v1.572',date:'2026-06-22',items:[
       '🗞️ ZIP giornale: ora genera un PNG risultato per ogni partita della stagione che non ha ancora un PNG salvato, invece di saltarla silenziosamente — garantisce che tutte le partite siano conservate nello ZIP, non solo quelle per cui il giornale era stato generato manualmente in precedenza',
       '📸 Punto 8 test archiviazione (nota operativa): per rendere il DB di test identico alla produzione per le foto, eseguire la migrazione foto (Sync v2) da Inspector prima di archiviare',
     ]},{version:'v1.571',date:'2026-06-22',items:[
@@ -6662,7 +6664,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.572');
+    const appVersion = ref('1.573');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12818,146 +12820,60 @@ const toggleFont = () => {
       toast('✅ Backup di sicurezza scaricato', 'success', 2500);
     };
 
-    // ── Helper: genera un PNG risultato via Canvas puro per una singola partita ──────────────────
-    // Non dipende da nessun elemento DOM pre-esistente — funziona da qualsiasi contesto dell'app,
-    // incluso lo step 4 del wizard di archiviazione, dove gli elementi #png-result della schermata
-    // di inserimento partita non esistono. Stesso stile delle card risultato condivisibili ma con
-    // layout verticale ottimizzato per lo ZIP (piuttosto che per la condivisione social).
-    const _generateMatchResultPNGPure = (m, playersList) => new Promise(resolve => {
+    // ── Helper: genera il PNG giornale per una singola partita storica via le stesse funzioni
+    // usate dall'app normale — nessun Canvas custom, zero reinvenzioni.
+    // Sopprime temporaneamente showPNGPreview per non aprire il modale durante il loop.
+    const _generateGiornalePNGForMatch = async (m) => {
+      const _prev = showPNGPreview.value;
+      showPNGPreview.value = false;  // non aprire il modale durante il loop
       try {
-        const W = 900, H = 700;
-        const cvs = document.createElement('canvas');
-        cvs.width = W; cvs.height = H;
-        const ctx = cvs.getContext('2d');
-
-        // Sfondo
-        const bg = ctx.createLinearGradient(0, 0, W, H);
-        bg.addColorStop(0, '#0d0d18'); bg.addColorStop(1, '#1a1a2e');
-        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-
-        // Bordo decorativo
-        ctx.strokeStyle = 'rgba(166,255,77,0.25)'; ctx.lineWidth = 3;
-        ctx.strokeRect(12, 12, W-24, H-24);
-
-        // Header: logo + nome gruppo
-        ctx.font = '900 28px "Arial Black",Arial';
-        ctx.fillStyle = '#A6FF4D'; ctx.textAlign = 'center';
-        ctx.fillText('⚽ AMICI FC', W/2, 55);
-
-        ctx.font = '400 18px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.5)';
-        const grpNome = (currentGroup.value?.nome || '').toUpperCase();
-        ctx.fillText(grpNome, W/2, 82);
-
-        // Data
-        const dateStr = m.data ? m.data.split('-').reverse().join('/') : '—';
-        ctx.font = '500 20px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.fillText(dateStr, W/2, 110);
-
-        // Nomi squadre
-        const nomeA = (m.nomeSquadraA || 'Squadra A').substring(0, 18);
-        const nomeB = (m.nomeSquadraB || 'Squadra B').substring(0, 18);
-        ctx.font = '700 26px Arial';
-        ctx.fillStyle = '#3A7BFF'; ctx.textAlign = 'right';
-        ctx.fillText(nomeA, W/2 - 90, 185);
-        ctx.fillStyle = '#FF4D4D'; ctx.textAlign = 'left';
-        ctx.fillText(nomeB, W/2 + 90, 185);
-
-        // Score
-        const goalA = m.risultato?.goalA ?? 0, goalB = m.risultato?.goalB ?? 0;
-        const winA = goalA > goalB, winB = goalB > goalA;
-        ctx.font = '900 140px "Arial Black",Arial'; ctx.textAlign = 'center';
-        ctx.fillStyle = winA ? '#A6FF4D' : winB ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.75)';
-        ctx.fillText(String(goalA), W/2 - 120, 340);
-        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = '700 60px Arial';
-        ctx.fillText('–', W/2, 320);
-        ctx.font = '900 140px "Arial Black",Arial';
-        ctx.fillStyle = winB ? '#A6FF4D' : winA ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.75)';
-        ctx.fillText(String(goalB), W/2 + 120, 340);
-
-        // Etichetta W/D/L
-        const esito = winA ? 'VITTORIA ← ' + nomeA : winB ? nomeB + ' → VITTORIA' : '★ PAREGGIO ★';
-        ctx.font = '700 18px Arial'; ctx.fillStyle = '#A6FF4D'; ctx.textAlign = 'center';
-        ctx.fillText(esito, W/2, 380);
-
-        // MVP / Uomo Partita
-        const mvp = m.uomoPartita || m.mvp;
-        if (mvp) {
-          ctx.font = '700 22px Arial'; ctx.fillStyle = '#FFD93D'; ctx.textAlign = 'center';
-          ctx.fillText('🏅 ' + mvp, W/2, 425);
-        }
-
-        // Marcatori (max 10 nomi, due colonne)
-        const stats = m.statisticheGiocatori || [];
-        const teamASet = new Set(m.squadraA || []);
-        const scorers = stats.filter(s => (s.goal || 0) > 0).sort((a,b)=>(b.goal||0)-(a.goal||0)).slice(0,10);
-        if (scorers.length) {
-          ctx.font = '600 17px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.textAlign = 'center';
-          ctx.fillText('⚽ Marcatori', W/2, 465);
-          const colW = W/2 - 30;
-          scorers.forEach((s, i) => {
-            const pl = playersList.find(p => p.uid === s.playerId || String(p.id) === String(s.playerId));
-            const name = pl ? (pl.soprannome || pl.nome || '?').substring(0,16) : '?';
-            const inA = teamASet.has(s.playerId);
-            const col = i % 2, row = Math.floor(i / 2);
-            ctx.fillStyle = inA ? '#3A7BFF' : '#FF4D4D';
-            ctx.font = '500 16px Arial';
-            ctx.textAlign = col === 0 ? 'right' : 'left';
-            const x = col === 0 ? W/2 - 20 : W/2 + 20;
-            ctx.fillText(`${name} (${s.goal})`, x, 495 + row * 34);
-          });
-        }
-
-        // Footer
-        ctx.font = '400 15px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.textAlign = 'center';
-        ctx.fillText('AmiciFC v' + appVersion.value, W/2, H - 25);
-
-        resolve(cvs.toDataURL('image/png'));
+        await regenerateNewspaper(m);  // imposta tutti i ref + chiama generateAndShareMatchPNG
+        return previewPNGUrl.value || null;
       } catch(e) {
-        logEvent('warn', 'app', `_generateMatchResultPNGPure: ${e.message} — partita ${m.data}`);
-        resolve(null); // non blocca il ZIP per una singola partita
+        logEvent('warn', 'app', `_generateGiornalePNGForMatch: ${e.message} — partita ${m.data}`);
+        return null;
+      } finally {
+        showPNGPreview.value = _prev;
       }
-    });
+    };
 
-    // ZIP "giornale" — PNG risultato (generato al volo se non già presente) + foto partita di ogni
-    // match della stagione che si sta per archiviare. Comportamento aggiornato (22/6 — richiesta Alby):
-    // se una partita non ha un PNG risultato già salvato, lo genera sul momento via Canvas puro invece
-    // di saltarla silenziosamente, così lo ZIP conserva un ricordo di TUTTE le partite della stagione,
-    // non solo quelle per cui il giornale era stato generato manualmente.
+    // ZIP "giornale" — layout identico al giornale generato dall'app (regenerateNewspaper →
+    // generateAndShareMatchPNG), non un Canvas custom. Lo genera per ogni partita che non ha
+    // già un pngRisultato salvato, poi aggiunge al ZIP anche le fotoPartita dove presenti.
     const archiveDownloadZipGiornale = async () => {
       archiveStepData.zipLoading = true;
       try {
         const zip = new JSZip();
         const matches = (archiveWizard.value.matches || []).slice()
           .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
-        const players = archiveWizard.value.players || [];
+        const total = matches.length;
         let count = 0, generated = 0, skipped = 0;
 
-        for (let i = 0; i < matches.length; i++) {
+        for (let i = 0; i < total; i++) {
           const m = matches[i];
           const dataLabel = m.data || 'senza-data';
           const shortId = (m.matchUUID || '').slice(0, 8) || uuid().slice(0, 8);
 
-          // 1) PNG risultato — usa quello già salvato, altrimenti genera al volo
+          // 1) PNG giornale — usa quello già salvato, altrimenti genera via regenerateNewspaper
           let pngSrc = m.pngRisultato;
           if (!pngSrc) {
-            pngSrc = await _generateMatchResultPNGPure(m, players);
+            pngSrc = await _generateGiornalePNGForMatch(m);
             if (pngSrc) generated++;
             else skipped++;
           }
           if (pngSrc) {
-            zip.file(`${dataLabel}_risultato_${shortId}.png`, pngSrc.split(',').pop(), { base64: true });
+            zip.file(`${dataLabel}_giornale_${shortId}.png`, pngSrc.split(',').pop(), { base64: true });
             count++;
           }
 
-          // 2) Foto partita (JPEG) — solo se già presente, non si genera al volo
+          // 2) Foto partita (JPEG) — solo se già presente
           if (m.fotoPartita) {
             zip.file(`${dataLabel}_foto_${shortId}.jpg`, m.fotoPartita.split(',').pop(), { base64: true });
             count++;
           }
         }
 
-        const skippedMsg = skipped > 0 ? ` (${skipped} partite senza dati sufficienti per il PNG)` : '';
-        const generatedMsg = generated > 0 ? ` — ${generated} PNG generati al volo` : '';
+        const generatedMsg = generated > 0 ? ` (${generated} generati ora` + (skipped > 0 ? `, ${skipped} senza dati` : '') + ')' : skipped > 0 ? ` (${skipped} partite senza dati sufficienti)` : '';
 
         if (count === 0) {
           archiveStepData.zipScaricato = true;
@@ -12973,8 +12889,8 @@ const toggleFont = () => {
         a.click();
         URL.revokeObjectURL(url);
         archiveStepData.zipScaricato = true;
-        logEvent('info', 'app', `📦 ZIP giornale: ${count} file totali${generatedMsg}${skippedMsg}`);
-        toast(`✅ ZIP scaricato — ${matches.length} partite${generatedMsg}${skippedMsg}`, 'success', 4000);
+        logEvent('info', 'app', `📦 ZIP giornale: ${count} file — ${total} partite${generatedMsg}`);
+        toast(`✅ ZIP scaricato — ${total} partite${generatedMsg}`, 'success', 4000);
       } catch(e) {
         toast(`❌ Errore generazione ZIP: ${e.message}`, 'error', 4000);
         logEvent('error', 'app', `ZIP giornale fallito: ${e.message}`);
