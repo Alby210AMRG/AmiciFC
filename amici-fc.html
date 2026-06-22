@@ -5492,16 +5492,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <!-- Avatar -->
         <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
-          <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
+          <img v-if="getPlayerPhoto(getPlayerForDetail(pid)?.foto, getPlayerForDetail(pid)?.uid)" :src="getPlayerPhoto(getPlayerForDetail(pid)?.foto, getPlayerForDetail(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayerForDetail(pid)?.uid)">
           <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <!-- Name + role -->
         <div style="flex:1;min-width:0">
           <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}
+            {{ getPlayerForDetail(pid)?.soprannome || getPlayerForDetail(pid)?.nome || pid }}
             <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
           </div>
-          <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo }}</div>
+          <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayerForDetail(pid)?.ruolo }}</div>
         </div>
         <!-- Stats -->
         <div style="display:flex;gap:6px;align-items:center;font-size:0.78rem;color:var(--text2);flex-shrink:0">
@@ -5521,15 +5521,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-for="pid in sortedByRole(detailMatch.squadraB)" :key="'db-'+pid"
         style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
         <div style="width:32px;height:32px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:0.9rem">
-          <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayer(pid)?.uid)">
+          <img v-if="getPlayerPhoto(getPlayerForDetail(pid)?.foto, getPlayerForDetail(pid)?.uid)" :src="getPlayerPhoto(getPlayerForDetail(pid)?.foto, getPlayerForDetail(pid)?.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, getPlayerForDetail(pid)?.uid)">
           <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.55">
         </div>
         <div style="flex:1;min-width:0">
           <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
-            {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome || pid }}
+            {{ getPlayerForDetail(pid)?.soprannome || getPlayerForDetail(pid)?.nome || pid }}
             <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
           </div>
-          <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo }}</div>
+          <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayerForDetail(pid)?.ruolo }}</div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;font-size:0.78rem;color:var(--text2);flex-shrink:0">
           <span v-if="getStatForMatch(detailMatch,pid,'goal')">⚽{{ getStatForMatch(detailMatch,pid,'goal') }}</span>
@@ -6307,7 +6307,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.579',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.580',date:'2026-06-22',items:[
+      '🐛 Fix: nel dettaglio partita da stagione archiviata i giocatori eliminati mostravano il loro UID invece del nome — getPlayerForDetail ora cerca prima nella lista giocatori dello snapshot archiviato, poi cade sui giocatori correnti come fallback',
+    ]},{version:'v1.579',date:'2026-06-22',items:[
       '✨ Tutorial cards: ora compaiono nel carosello hero (le card in alto) quando la stagione non ha ancora partite, non nella lista partite. Ogni card ha icona, titolo e testo — senza bottoni CTA. Scompaiono automaticamente alla prima partita.',
     ]},{version:'v1.578',date:'2026-06-22',items:[
       '🔴 Fix critico: ReferenceError _heroAutoScroll — un </div> duplicato nel modale dettaglio partita rompeva la struttura HTML e impediva a Vue di compilare il template (conseguenza di un str_replace che includeva il tag di chiusura nel new_str mentre era già presente nel file). Rimosso il duplicato.',
@@ -6613,6 +6615,7 @@ createApp({
     );
     const detailMatch   = ref(null);
     const detailMatchReadonly = ref(false); // true quando aperto da stagione archiviata — nasconde Modifica/Elimina/Lock
+    const detailMatchPlayers = ref([]);     // giocatori della stagione archiviata per risolvere i nomi nel modale readonly
 
     // Dati per le tutorial cards: definiti qui in JS (non inline nel template HTML) per evitare problemi
     // con apostrofi e caratteri speciali dentro attributi Vue con apici singoli e doppi innestati.
@@ -6705,7 +6708,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.579');
+    const appVersion = ref('1.580');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10368,7 +10371,25 @@ Niente altro, nessuna spiegazione.`;
       } catch { return email[0]+'***'; }
     };
 
-    const viewMatch = (m, { readonly = false } = {}) => { detailMatch.value = m; detailMatchReadonly.value = readonly; showMatchDetail.value = true; };
+    const viewMatch = (m, { readonly = false } = {}) => {
+      detailMatch.value = m;
+      detailMatchReadonly.value = readonly;
+      // In modalità readonly (stagione archiviata): carica la lista giocatori dallo snapshot
+      // così i nomi si risolvono correttamente anche per i giocatori eliminati dalla nuova stagione
+      if (readonly && historySeasonFilter.value && historySeasonFilter.value !== 'attuale') {
+        const season = currentGroupArchivedSeasons.value.find(s => s.archivioId === historySeasonFilter.value);
+        detailMatchPlayers.value = season?.giocatori || [];
+      } else {
+        detailMatchPlayers.value = [];
+      }
+      showMatchDetail.value = true;
+    };
+    // Risolve un pid nel modale: se ci sono giocatori dell'archivio li usa per primi (con fallback su
+    // quelli correnti), così i giocatori eliminati vengono comunque risolti con il loro nome vero
+    const getPlayerForDetail = pid =>
+      detailMatchPlayers.value.length
+        ? (detailMatchPlayers.value.find(p => p.uid === pid || p.uid === String(pid) || p.id === pid || String(p.id) === String(pid)) || getPlayer(pid))
+        : getPlayer(pid);
 
     const obfuscateEmail = (email) => {
       if(!email||email==='Utente locale') return email;
@@ -14987,7 +15008,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       obfuscateEmail,
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
-      detailMatch, detailMatchReadonly, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
+      detailMatch, detailMatchReadonly, detailMatchPlayers, getPlayerForDetail, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
