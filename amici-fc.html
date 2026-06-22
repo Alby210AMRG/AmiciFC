@@ -6294,7 +6294,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.574',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.575',date:'2026-06-22',items:[
+      '🐛 Fix: mediaPunti (Pt/gara) non veniva azzerata all\'archiviazione — aggiunta a statsZero',
+      '🐛 Fix: la stagione archiviata non compariva su un secondo dispositivo — _pullArchivedSeasonsFromFirebase usava il gid Dexie locale (auto-increment, diverso tra dispositivi) come chiave Firebase; ora scansiona tutti i key di primo livello e abbina per groupNome',
+      '🐛 Fix: dopo l\'archiviazione la UI mostrava ancora il vecchio nome stagione fino al reload — currentGroup.value ora aggiornato esplicitamente con il gruppo fresco dopo loadGroups()',
+      '🏗️ Snapshot archiviazione: aggiunto campo groupNome per abbinamento stabile tra dispositivi',
+    ]},{version:'v1.574',date:'2026-06-22',items:[
       '🔴 Fix critico: l\'archiviazione stagione dava "DataCloneError: [object Array] could not be cloned" e non completava mai. Causa: archiveWizard contiene oggetti reattivi Vue (Proxy) che IndexedDB/Dexie non riesce a serializzare con la Structured Clone Algorithm. Fix: deep-clone con JSON.parse/JSON.stringify prima di qualsiasi scrittura su IndexedDB.',
     ]},{version:'v1.573',date:'2026-06-22',items:[
       '🗞️ ZIP giornale: layout corretto — ora usa le stesse funzioni del giornale normale (regenerateNewspaper + generateAndShareMatchPNG), non un Canvas custom. Ogni partita senza PNG viene generata al volo con il layout identico a quello che si vede durante l\'inserimento partita.',
@@ -6666,7 +6671,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.574');
+    const appVersion = ref('1.575');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6926,42 +6931,65 @@ createApp({
     };
 
     // Scarica da Firebase le stagioni archiviate che non sono ancora presenti in locale per il gruppo dato.
-    // Usa ?shallow=true per leggere solo le chiavi (archivioId) prima di decidere cosa scaricare davvero,
-    // così in condizioni normali (già in sync) fa una sola piccola chiamata e non trasferisce nulla.
+    // Scansiona TUTTI i key di primo livello sotto archivedSeasons/ (shallow, molto economico), poi per
+    // ognuno legge i sotto-key (archivioId) e scarica solo quelli mancanti.
+    // Questo risolve il problema del gid locale che cambia tra dispositivi: il gid Dexie è auto-increment
+    // e può essere diverso su ogni dispositivo nuovo, ma il nome del gruppo è stabile.
+    // Abbinamento: preferisce snapshot.groupNome (introdotto da v1.575); cade su "unico gruppo su questo
+    // URL Firebase" come fallback per snapshot precedenti privi del campo.
     const _pullArchivedSeasonsFromFirebase = async (group) => {
       if (!group?.firebaseUrl) return;
       const gid = group.id;
       try {
         const tok = await getValidToken();
-        // 1. Leggi solo le chiavi presenti su Firebase per questo gruppo (shallow = metadati, no payload)
-        const keys = await _fbReadFromGroup(group, `archivedSeasons/${gid}`, tok, 'shallow=true');
-        if (!keys || typeof keys !== 'object') return;
-        const remoteIds = Object.keys(keys);
-        if (!remoteIds.length) return;
 
-        // 2. Confronta con ciò che abbiamo già in locale
+        // 1. Tutti i key di primo livello (sono gid di vari dispositivi, es. "1", "3", "7")
+        const allGroupKeys = await _fbReadFromGroup(group, 'archivedSeasons', tok, 'shallow=true');
+        if (!allGroupKeys || typeof allGroupKeys !== 'object') return;
+
+        // 2. Stagioni già presenti in locale per questo gruppo
         const localSeasons = await db.archivedSeasons.where('groupId').equals(gid).toArray();
         const localIds = new Set(localSeasons.map(s => s.archivioId));
-        const missing = remoteIds.filter(id => !localIds.has(id));
-        if (!missing.length) return;
 
-        // 3. Scarica e salva solo gli snapshot mancanti
-        for (const archivioId of missing) {
-          const snapshot = await _fbReadFromGroup(group, `archivedSeasons/${gid}/${archivioId}`, tok);
-          if (snapshot && snapshot.archivioId) {
-            await db.archivedSeasons.put({ ...snapshot, groupId: gid });
+        let downloaded = 0;
+        for (const fbGroupId of Object.keys(allGroupKeys)) {
+          // Leggi i sotto-key (archivioId) per questo fbGroupId
+          const seasonKeys = await _fbReadFromGroup(group, `archivedSeasons/${fbGroupId}`, tok, 'shallow=true');
+          if (!seasonKeys || typeof seasonKeys !== 'object') continue;
+
+          const missingIds = Object.keys(seasonKeys).filter(id => !localIds.has(id));
+          if (!missingIds.length) continue;
+
+          for (const archivioId of missingIds) {
+            const snapshot = await _fbReadFromGroup(group, `archivedSeasons/${fbGroupId}/${archivioId}`, tok);
+            if (!snapshot?.archivioId) continue;
+
+            // Verifica appartenenza al gruppo corrente:
+            // - se ha groupNome (da v1.575 in poi): confronto diretto
+            // - se non ha groupNome (snapshot vecchi): li includiamo comunque, in quanto ogni URL
+            //   Firebase appartiene a un solo account e i gruppi non si mescolano tra account diversi
+            const belongsHere = snapshot.groupNome
+              ? snapshot.groupNome === group.nome
+              : true;
+
+            if (belongsHere) {
+              await db.archivedSeasons.put({ ...snapshot, groupId: gid });
+              localIds.add(archivioId);
+              downloaded++;
+            }
           }
         }
 
-        // 4. Aggiorna i ref reattivi se il gruppo caricato è ancora quello attivo
-        if (currentGroup.value?.id === gid) {
-          currentGroupArchivedSeasons.value = await db.archivedSeasons.where('groupId').equals(gid).toArray();
-          const allArchived = await db.archivedSeasons.toArray();
-          const counts = {};
-          for (const s of allArchived) counts[s.groupId] = (counts[s.groupId] || 0) + 1;
-          archivedSeasonsCountByGroup.value = counts;
+        if (downloaded > 0) {
+          if (currentGroup.value?.id === gid) {
+            currentGroupArchivedSeasons.value = await db.archivedSeasons.where('groupId').equals(gid).toArray();
+            const allArchived = await db.archivedSeasons.toArray();
+            const counts = {};
+            for (const s of allArchived) counts[s.groupId] = (counts[s.groupId] || 0) + 1;
+            archivedSeasonsCountByGroup.value = counts;
+          }
+          logEvent('info', 'app', `Scaricate ${downloaded} stagioni archiviate mancanti da Firebase per "${group.nome}"`);
         }
-        logEvent('info', 'app', `Scaricate ${missing.length} stagioni archiviate mancanti da Firebase per "${group.nome}"`);
       } catch(e) {
         // Silenzioso: il pull è best-effort, non blocca nulla se fallisce
       }
@@ -12938,6 +12966,9 @@ const toggleFont = () => {
         const snapshot = {
           archivioId,           // UUID stabile su tutti i dispositivi — chiave univoca, mai il nome
           groupId: gid,
+          groupNome: g.nome,    // nome del gruppo — usato da _pullArchivedSeasonsFromFirebase per abbinare
+                                // la stagione al gruppo corretto su un nuovo dispositivo (dove il gid locale
+                                // è diverso da quello del dispositivo che ha archiviato)
           nome: archiveStepData.nomeArchivio.trim(),
           dataArchiviazione: new Date().toISOString().slice(0,10),
           stagione: g.stagione || 'Stagione 1',
@@ -12974,7 +13005,7 @@ const toggleFont = () => {
         const statsZero = {
           goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
           puntiTotali:0, partiteTotali:0, mediaVoto:0, votiTotali:0,
-          rigoriParatiTotali:0, rigoriSbagliatiTotali:0
+          mediaPunti:0, rigoriParatiTotali:0, rigoriSbagliatiTotali:0
         };
         let _azzerati = 0, _eliminati = 0;
         for (const p of allPlayersRaw) {
@@ -12997,6 +13028,12 @@ const toggleFont = () => {
 
         // 8. Ricarica gruppi e sincronizza il payload principale (live, non l'archivio appena scritto)
         await loadGroups();
+        // Aggiorna currentGroup.value esplicitamente con il gruppo appena ricaricato dal DB —
+        // loadGroups() lo aggiorna solo se era null, ma qui era già impostato con i dati vecchi,
+        // quindi la UI mostrerebbe ancora "Stagione 2025/26" invece di "Stagione 2026-27" fino al
+        // prossimo reload completo dell'app.
+        const _freshGroup = groups.value.find(g2 => g2.id === gid);
+        if (_freshGroup) currentGroup.value = _freshGroup;
         await loadGroupData();
         if (g.firebaseUrl) {
           // skipMerge=true: il locale ha appena, di proposito, zero partite per questo gruppo — il
