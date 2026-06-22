@@ -6294,7 +6294,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.573',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.574',date:'2026-06-22',items:[
+      '🔴 Fix critico: l\'archiviazione stagione dava "DataCloneError: [object Array] could not be cloned" e non completava mai. Causa: archiveWizard contiene oggetti reattivi Vue (Proxy) che IndexedDB/Dexie non riesce a serializzare con la Structured Clone Algorithm. Fix: deep-clone con JSON.parse/JSON.stringify prima di qualsiasi scrittura su IndexedDB.',
+    ]},{version:'v1.573',date:'2026-06-22',items:[
       '🗞️ ZIP giornale: layout corretto — ora usa le stesse funzioni del giornale normale (regenerateNewspaper + generateAndShareMatchPNG), non un Canvas custom. Ogni partita senza PNG viene generata al volo con il layout identico a quello che si vede durante l\'inserimento partita.',
     ]},{version:'v1.572',date:'2026-06-22',items:[
       '🗞️ ZIP giornale: ora genera un PNG risultato per ogni partita della stagione che non ha ancora un PNG salvato, invece di saltarla silenziosamente — garantisce che tutte le partite siano conservate nello ZIP, non solo quelle per cui il giornale era stato generato manualmente in precedenza',
@@ -6664,7 +6666,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.573');
+    const appVersion = ref('1.574');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12911,14 +12913,22 @@ const toggleFont = () => {
 
         logEvent('info', 'app', `📦 Avvio archiviazione "${g.stagione || 'Stagione 1'}" → "${archiveStepData.nomeStagioneNuova.trim()}" (gruppo "${g.nome}", ${allPlayers.length} giocatori, ${allMatches.length} partite)`);
 
+        // Deep-clone PRIMA di qualunque elaborazione — rimuove i Proxy reattivi Vue che Dexie/IndexedDB
+        // non può serializzare con la Structured Clone Algorithm (DataCloneError: [object Array] could
+        // not be cloned). archiveWizard.value è un ref Vue, quindi players/matches e tutti i loro
+        // sotto-array (squadraA, squadraB, statisticheGiocatori…) sono Proxy che devono diventare
+        // plain JS objects prima di essere passati a db.archivedSeasons.put() o db.players.update().
+        const allPlayersRaw  = JSON.parse(JSON.stringify(allPlayers));
+        const allMatchesRaw  = JSON.parse(JSON.stringify(allMatches));
+
         // 1. Pulizia immagini — copia tutto il resto dell'oggetto, lista nera solo sui campi immagine.
         //    Qualsiasi campo nuovo aggiunto in futuro ai giocatori/partite viene incluso automaticamente
         //    (vedi REGOLE-PROGETTO.md, principio guida #4 — Archivio Stagioni).
-        const giocatoriPuliti = allPlayers.map(p => {
+        const giocatoriPuliti = allPlayersRaw.map(p => {
           const { foto, ...rest } = p;
           return rest;
         });
-        const partitePulite = allMatches.map(m => {
+        const partitePulite = allMatchesRaw.map(m => {
           const { pngFormazione, pngRisultato, pngPagelle, fotoPartita, ...rest } = m;
           return rest;
         });
@@ -12967,7 +12977,7 @@ const toggleFont = () => {
           rigoriParatiTotali:0, rigoriSbagliatiTotali:0
         };
         let _azzerati = 0, _eliminati = 0;
-        for (const p of allPlayers) {
+        for (const p of allPlayersRaw) {
           if (archiveStepData.giocatoriSelezionati.includes(p.uid)) {
             await db.players.update(p.id, statsZero);
             _azzerati++;
@@ -12980,10 +12990,10 @@ const toggleFont = () => {
         logEvent('info', 'app', `👥 Giocatori: ${_azzerati} azzerati per la nuova stagione, ${_eliminati} eliminati (non portati avanti)`);
 
         // 7. Elimina partite correnti
-        for (const m of allMatches) {
+        for (const m of allMatchesRaw) {
           await db.matches.delete(m.id);
         }
-        logEvent('info', 'app', `🗑️ ${allMatches.length} partite eliminate dal locale`);
+        logEvent('info', 'app', `🗑️ ${allMatchesRaw.length} partite eliminate dal locale`);
 
         // 8. Ricarica gruppi e sincronizza il payload principale (live, non l'archivio appena scritto)
         await loadGroups();
