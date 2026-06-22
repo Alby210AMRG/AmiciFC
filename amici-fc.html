@@ -6307,7 +6307,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.581',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.582',date:'2026-06-22',items:[
+      '🐛 Fix: reimportare un backup del pre-archiviazione mostrava stagioni archiviate che non dovevano esserci — il backup include archivedSeasons (anche vuoto), quindi ora l\'import sincronizza esattamente quello stato e sopprime il pull da Firebase che le avrebbe ri-aggiunte.',
+    ]},{version:'v1.581',date:'2026-06-22',items:[
       '🔧 Fix: Pt/gara (mediaPunti) mostrava valori residui per giocatori con 0 partite — normalizzazione automatica al caricamento del gruppo: se partiteTotali=0 e mediaPunti>0, il valore viene azzerato in DB. Corregge retroattivamente anche i dati archiviati prima della v1.575.',
     ]},{version:'v1.580',date:'2026-06-22',items:[
       '🐛 Fix: nel dettaglio partita da stagione archiviata i giocatori eliminati mostravano il loro UID invece del nome — getPlayerForDetail ora cerca prima nella lista giocatori dello snapshot archiviato, poi cade sui giocatori correnti come fallback',
@@ -6710,7 +6712,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.581');
+    const appVersion = ref('1.582');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -6977,9 +6979,12 @@ createApp({
       if (!_syncInProgress) _scheduleInitAiCards();
       // Pull silenzioso delle stagioni archiviate mancanti da Firebase (solo delta, solo se il gruppo
       // ha Firebase). Non tocca syncToCloud/syncFromCloud — canale completamente separato.
-      if (currentGroup.value.firebaseUrl) {
+      // Soppresso temporaneamente dopo un import (_skipNextArchivedPull) per evitare che Firebase
+      // ri-aggiunga stagioni archiviate di test precedenti, contaminando lo stato del backup importato.
+      if (currentGroup.value.firebaseUrl && !_skipNextArchivedPull) {
         _pullArchivedSeasonsFromFirebase(currentGroup.value).catch(() => {});
       }
+      _skipNextArchivedPull = false;
     };
 
     // Scarica da Firebase le stagioni archiviate che non sono ancora presenti in locale per il gruppo dato.
@@ -12819,8 +12824,27 @@ const toggleFont = () => {
               totalMatches++;
             }
           }
+          // ── Import archivedSeasons — sincronizzazione esatta ──────────────────────────────────
+          // Il backup include sempre `archivedSeasons` (anche array vuoto per la stagione corrente).
+          // Se il campo è presente nel JSON, è autorevole: svuotiamo le stagioni archiviate locali
+          // per questo gruppo e reimportiamo solo quelle del backup. Questo garantisce che
+          // reimportare un backup del pre-archiviazione restituisca esattamente quello stato — senza
+          // che _pullArchivedSeasonsFromFirebase aggiunga stagioni archiviate da test precedenti.
+          // Se il campo è assente (backup più vecchi), non tocchiamo le archivedSeasons locali.
+          if (Array.isArray(eg.archivedSeasons)) {
+            await db.archivedSeasons.where('groupId').equals(gid).delete();
+            for (const season of eg.archivedSeasons) {
+              if (season?.archivioId) {
+                await db.archivedSeasons.put({ ...season, groupId: gid });
+              }
+            }
+          }
         }
 
+        // Sopprime il pull da Firebase delle archivedSeasons sul prossimo loadGroupData —
+        // l'import ha già sincronizzato esattamente quelle del backup, non vogliamo che
+        // Firebase le sovrascriva con stagioni di test o sessioni precedenti.
+        _skipNextArchivedPull = true;
         await loadGroups();
         const importedGroup = groups.value.find(g => g.id === firstImportedGroupId);
         if (importedGroup) await selectGroup(importedGroup);
@@ -14598,6 +14622,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     let _heroRebuildTimer = null;
 
     let _heroLaunched = false;
+    let _skipNextArchivedPull = false; // true dopo un import — impedisce che Firebase ricontamini il locale
 
     const _heroLaunch = () => {
       if (_heroLaunched) return;
