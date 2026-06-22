@@ -96,6 +96,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   /* Dark theme default */
   --bg:        #111118;
+  --bg1:       #111118;  /* alias di --bg — usato dal wizard archiviazione e da altri modal */
   --bg2:       #1c1c28;
   --bg3:       #252535;
   --card:      #1e1e2e;
@@ -121,6 +122,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 [data-theme="light"] {
   /* Amici FC Light — Campo da calcio, verde moderno */
   --bg:        #EBF6EB;
+  --bg1:       #EBF6EB;  /* alias di --bg per tema light */
   --bg2:       #DFF0DF;
   --bg3:       #D2EAD2;
   --card:      #EBF6EB;
@@ -1810,11 +1812,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
           <div style="background:rgba(58,123,255,0.07);border:1px solid rgba(58,123,255,0.3);border-radius:10px;padding:12px;margin-bottom:14px">
             <div style="font-size:0.78rem;color:var(--blue);font-weight:700;margin-bottom:6px">🗞️ ZIP giornale obbligatorio</div>
-            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:10px">Dopo l'archiviazione le immagini delle partite (PNG risultato e foto) non vengono più conservate nello snapshot — questo ZIP è l'unica occasione per portartele a casa.</div>
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:10px">Genera un PNG risultato per ogni partita della stagione (se non già presente) e le raccoglie in uno ZIP insieme alle foto. È l'unica occasione per conservarle — dopo l'archiviazione non saranno più nello snapshot.</div>
             <button class="btn btn-sm" style="width:100%;background:rgba(58,123,255,0.15);border:1.5px solid var(--blue);color:var(--blue);font-weight:700"
               :disabled="archiveStepData.loading||archiveStepData.zipLoading"
               @click="archiveDownloadZipGiornale">
-              {{ archiveStepData.zipLoading ? '⏳ Genero lo ZIP...' : (archiveStepData.zipScaricato ? '✅ ZIP scaricato — riscarica' : '🗞️ Scarica ZIP giornale') }}
+              {{ archiveStepData.zipLoading ? '⏳ Genero PNG e ZIP...' : (archiveStepData.zipScaricato ? '✅ ZIP scaricato — riscarica' : '🗞️ Genera e scarica ZIP giornale') }}
             </button>
           </div>
           <div style="background:rgba(255,77,77,0.05);border:1px solid rgba(255,77,77,0.2);border-radius:8px;padding:10px;margin-bottom:12px">
@@ -6292,7 +6294,16 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.569',date:'2026-06-20',items:[
+    const changelogEntries = [{version:'v1.572',date:'2026-06-22',items:[
+      '🗞️ ZIP giornale: ora genera un PNG risultato per ogni partita della stagione che non ha ancora un PNG salvato, invece di saltarla silenziosamente — garantisce che tutte le partite siano conservate nello ZIP, non solo quelle per cui il giornale era stato generato manualmente in precedenza',
+      '📸 Punto 8 test archiviazione (nota operativa): per rendere il DB di test identico alla produzione per le foto, eseguire la migrazione foto (Sync v2) da Inspector prima di archiviare',
+    ]},{version:'v1.571',date:'2026-06-22',items:[
+      '🐛 Fix: le schermate del wizard "Archivia Stagione" (e altri 2 modal) erano trasparenti — la variabile CSS --bg1 usata come sfondo non era mai stata definita. Aggiunta come alias di --bg, sia in dark che in light mode.',
+    ]},{version:'v1.570',date:'2026-06-20',items:[
+      '🔍 Log diagnostico molto più dettagliato per l\'archiviazione di una stagione — ogni passaggio (snapshot, azzeramento giocatori, cancellazione partite, pubblicazione su Firebase) ora lascia una traccia chiara in Impostazioni → Log di sistema',
+      '✅ Dopo l\'archiviazione, l\'app rilegge davvero da Firebase per confermare che le partite siano sparite per davvero — non si fida solo che la richiesta sia andata a buon fine',
+      '🔍 Anche la cancellazione di una singola partita ora logga chiaramente se la pubblicazione su Firebase è riuscita o no, invece di fallire in silenzio',
+    ]},{version:'v1.569',date:'2026-06-20',items:[
       '🔴 Fix critico: archiviare una stagione poteva non funzionare davvero — il merge anti-conflitto, scambiando le partite appena cancellate per partite aggiunte da un altro dispositivo, le rimetteva dentro subito dopo. Ora l\'archiviazione pubblica lo stato pulito senza interferenze',
       '🔴 Fix critico: cancellare una singola partita non si propagava mai su Firebase — restava solo locale, e il sync successivo per qualsiasi altro motivo la riportava indietro. Ora la cancellazione si pubblica subito, escludendo SOLO quella partita dal merge (una partita nuova di un altro dispositivo continua a integrarsi normalmente)',
     ]},{version:'v1.568',date:'2026-06-19',items:[
@@ -6651,7 +6662,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.569');
+    const appVersion = ref('1.572');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10192,8 +10203,13 @@ Niente altro, nessuna spiegazione.`;
     // "partite mancanti in locale" (stesso bug di fondo dietro al fix di doArchiveStagione,
     // vedi REGOLE-PROGETTO.md, 20/6).
     const _pushDeletionToCloud = async (deletedMatchUUID) => {
-      if (currentGroup.value?.firebaseUrl) {
-        try { await syncToCloud(false, deletedMatchUUID ? [deletedMatchUUID] : []); } catch(e) {}
+      if (!currentGroup.value?.firebaseUrl) return;
+      try {
+        const ok = await syncToCloud(false, deletedMatchUUID ? [deletedMatchUUID] : []);
+        if (ok === true) logEvent('info', 'sync', `✅ Cancellazione partita pubblicata su Firebase (esclusa dal merge: ${deletedMatchUUID ? deletedMatchUUID.slice(0,8) : 'nessuna'})`);
+        else if (ok === false) logEvent('error', 'sync', `❌ Cancellazione partita NON pubblicata su Firebase — potrebbe ricomparire al prossimo sync. Premi "Sincronizza" manualmente.`);
+      } catch(e) {
+        logEvent('error', 'sync', `❌ Cancellazione partita non pubblicata su Firebase: ${e.message} — potrebbe ricomparire al prossimo sync.`);
       }
     };
     const confirmDeleteDo = async () => {
@@ -12802,34 +12818,153 @@ const toggleFont = () => {
       toast('✅ Backup di sicurezza scaricato', 'success', 2500);
     };
 
-    // ZIP "giornale" — PNG risultato + foto partita di ogni match della stagione che si sta per
-    // archiviare (NON formazione/pagelle: solo le due immagini "di ricordo" della giornata, confermato
-    // con Alby). Dopo l'archiviazione queste immagini sono perse per sempre dallo snapshot permanente,
-    // quindi questo ZIP è l'unica occasione per conservarle.
+    // ── Helper: genera un PNG risultato via Canvas puro per una singola partita ──────────────────
+    // Non dipende da nessun elemento DOM pre-esistente — funziona da qualsiasi contesto dell'app,
+    // incluso lo step 4 del wizard di archiviazione, dove gli elementi #png-result della schermata
+    // di inserimento partita non esistono. Stesso stile delle card risultato condivisibili ma con
+    // layout verticale ottimizzato per lo ZIP (piuttosto che per la condivisione social).
+    const _generateMatchResultPNGPure = (m, playersList) => new Promise(resolve => {
+      try {
+        const W = 900, H = 700;
+        const cvs = document.createElement('canvas');
+        cvs.width = W; cvs.height = H;
+        const ctx = cvs.getContext('2d');
+
+        // Sfondo
+        const bg = ctx.createLinearGradient(0, 0, W, H);
+        bg.addColorStop(0, '#0d0d18'); bg.addColorStop(1, '#1a1a2e');
+        ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+
+        // Bordo decorativo
+        ctx.strokeStyle = 'rgba(166,255,77,0.25)'; ctx.lineWidth = 3;
+        ctx.strokeRect(12, 12, W-24, H-24);
+
+        // Header: logo + nome gruppo
+        ctx.font = '900 28px "Arial Black",Arial';
+        ctx.fillStyle = '#A6FF4D'; ctx.textAlign = 'center';
+        ctx.fillText('⚽ AMICI FC', W/2, 55);
+
+        ctx.font = '400 18px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        const grpNome = (currentGroup.value?.nome || '').toUpperCase();
+        ctx.fillText(grpNome, W/2, 82);
+
+        // Data
+        const dateStr = m.data ? m.data.split('-').reverse().join('/') : '—';
+        ctx.font = '500 20px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.fillText(dateStr, W/2, 110);
+
+        // Nomi squadre
+        const nomeA = (m.nomeSquadraA || 'Squadra A').substring(0, 18);
+        const nomeB = (m.nomeSquadraB || 'Squadra B').substring(0, 18);
+        ctx.font = '700 26px Arial';
+        ctx.fillStyle = '#3A7BFF'; ctx.textAlign = 'right';
+        ctx.fillText(nomeA, W/2 - 90, 185);
+        ctx.fillStyle = '#FF4D4D'; ctx.textAlign = 'left';
+        ctx.fillText(nomeB, W/2 + 90, 185);
+
+        // Score
+        const goalA = m.risultato?.goalA ?? 0, goalB = m.risultato?.goalB ?? 0;
+        const winA = goalA > goalB, winB = goalB > goalA;
+        ctx.font = '900 140px "Arial Black",Arial'; ctx.textAlign = 'center';
+        ctx.fillStyle = winA ? '#A6FF4D' : winB ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.75)';
+        ctx.fillText(String(goalA), W/2 - 120, 340);
+        ctx.fillStyle = 'rgba(255,255,255,0.25)'; ctx.font = '700 60px Arial';
+        ctx.fillText('–', W/2, 320);
+        ctx.font = '900 140px "Arial Black",Arial';
+        ctx.fillStyle = winB ? '#A6FF4D' : winA ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.75)';
+        ctx.fillText(String(goalB), W/2 + 120, 340);
+
+        // Etichetta W/D/L
+        const esito = winA ? 'VITTORIA ← ' + nomeA : winB ? nomeB + ' → VITTORIA' : '★ PAREGGIO ★';
+        ctx.font = '700 18px Arial'; ctx.fillStyle = '#A6FF4D'; ctx.textAlign = 'center';
+        ctx.fillText(esito, W/2, 380);
+
+        // MVP / Uomo Partita
+        const mvp = m.uomoPartita || m.mvp;
+        if (mvp) {
+          ctx.font = '700 22px Arial'; ctx.fillStyle = '#FFD93D'; ctx.textAlign = 'center';
+          ctx.fillText('🏅 ' + mvp, W/2, 425);
+        }
+
+        // Marcatori (max 10 nomi, due colonne)
+        const stats = m.statisticheGiocatori || [];
+        const teamASet = new Set(m.squadraA || []);
+        const scorers = stats.filter(s => (s.goal || 0) > 0).sort((a,b)=>(b.goal||0)-(a.goal||0)).slice(0,10);
+        if (scorers.length) {
+          ctx.font = '600 17px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.textAlign = 'center';
+          ctx.fillText('⚽ Marcatori', W/2, 465);
+          const colW = W/2 - 30;
+          scorers.forEach((s, i) => {
+            const pl = playersList.find(p => p.uid === s.playerId || String(p.id) === String(s.playerId));
+            const name = pl ? (pl.soprannome || pl.nome || '?').substring(0,16) : '?';
+            const inA = teamASet.has(s.playerId);
+            const col = i % 2, row = Math.floor(i / 2);
+            ctx.fillStyle = inA ? '#3A7BFF' : '#FF4D4D';
+            ctx.font = '500 16px Arial';
+            ctx.textAlign = col === 0 ? 'right' : 'left';
+            const x = col === 0 ? W/2 - 20 : W/2 + 20;
+            ctx.fillText(`${name} (${s.goal})`, x, 495 + row * 34);
+          });
+        }
+
+        // Footer
+        ctx.font = '400 15px Arial'; ctx.fillStyle = 'rgba(255,255,255,0.2)'; ctx.textAlign = 'center';
+        ctx.fillText('AmiciFC v' + appVersion.value, W/2, H - 25);
+
+        resolve(cvs.toDataURL('image/png'));
+      } catch(e) {
+        logEvent('warn', 'app', `_generateMatchResultPNGPure: ${e.message} — partita ${m.data}`);
+        resolve(null); // non blocca il ZIP per una singola partita
+      }
+    });
+
+    // ZIP "giornale" — PNG risultato (generato al volo se non già presente) + foto partita di ogni
+    // match della stagione che si sta per archiviare. Comportamento aggiornato (22/6 — richiesta Alby):
+    // se una partita non ha un PNG risultato già salvato, lo genera sul momento via Canvas puro invece
+    // di saltarla silenziosamente, così lo ZIP conserva un ricordo di TUTTE le partite della stagione,
+    // non solo quelle per cui il giornale era stato generato manualmente.
     const archiveDownloadZipGiornale = async () => {
       archiveStepData.zipLoading = true;
       try {
         const zip = new JSZip();
         const matches = (archiveWizard.value.matches || []).slice()
           .sort((a, b) => (a.data || '').localeCompare(b.data || ''));
-        let count = 0;
-        for (const m of matches) {
+        const players = archiveWizard.value.players || [];
+        let count = 0, generated = 0, skipped = 0;
+
+        for (let i = 0; i < matches.length; i++) {
+          const m = matches[i];
           const dataLabel = m.data || 'senza-data';
           const shortId = (m.matchUUID || '').slice(0, 8) || uuid().slice(0, 8);
-          if (m.pngRisultato) {
-            zip.file(`${dataLabel}_risultato_${shortId}.png`, m.pngRisultato.split(',').pop(), { base64: true });
+
+          // 1) PNG risultato — usa quello già salvato, altrimenti genera al volo
+          let pngSrc = m.pngRisultato;
+          if (!pngSrc) {
+            pngSrc = await _generateMatchResultPNGPure(m, players);
+            if (pngSrc) generated++;
+            else skipped++;
+          }
+          if (pngSrc) {
+            zip.file(`${dataLabel}_risultato_${shortId}.png`, pngSrc.split(',').pop(), { base64: true });
             count++;
           }
+
+          // 2) Foto partita (JPEG) — solo se già presente, non si genera al volo
           if (m.fotoPartita) {
             zip.file(`${dataLabel}_foto_${shortId}.jpg`, m.fotoPartita.split(',').pop(), { base64: true });
             count++;
           }
         }
+
+        const skippedMsg = skipped > 0 ? ` (${skipped} partite senza dati sufficienti per il PNG)` : '';
+        const generatedMsg = generated > 0 ? ` — ${generated} PNG generati al volo` : '';
+
         if (count === 0) {
-          archiveStepData.zipScaricato = true; // niente immagini da perdere, non blocchiamo il passo
-          toast('ℹ️ Nessuna immagine trovata per questa stagione', 'info', 3000);
+          archiveStepData.zipScaricato = true;
+          toast('ℹ️ Nessuna immagine da includere nello ZIP', 'info', 3000);
           return;
         }
+
         const blob = await zip.generateAsync({ type: 'blob' });
         const url  = URL.createObjectURL(blob);
         const a    = document.createElement('a');
@@ -12838,9 +12973,11 @@ const toggleFont = () => {
         a.click();
         URL.revokeObjectURL(url);
         archiveStepData.zipScaricato = true;
-        toast(`✅ ZIP scaricato (${count} immagini)`, 'success', 2500);
+        logEvent('info', 'app', `📦 ZIP giornale: ${count} file totali${generatedMsg}${skippedMsg}`);
+        toast(`✅ ZIP scaricato — ${matches.length} partite${generatedMsg}${skippedMsg}`, 'success', 4000);
       } catch(e) {
         toast(`❌ Errore generazione ZIP: ${e.message}`, 'error', 4000);
+        logEvent('error', 'app', `ZIP giornale fallito: ${e.message}`);
       } finally {
         archiveStepData.zipLoading = false;
       }
@@ -12855,6 +12992,8 @@ const toggleFont = () => {
         const gid = g.id;
         const allPlayers = archiveWizard.value.players;
         const allMatches = archiveWizard.value.matches;
+
+        logEvent('info', 'app', `📦 Avvio archiviazione "${g.stagione || 'Stagione 1'}" → "${archiveStepData.nomeStagioneNuova.trim()}" (gruppo "${g.nome}", ${allPlayers.length} giocatori, ${allMatches.length} partite)`);
 
         // 1. Pulizia immagini — copia tutto il resto dell'oggetto, lista nera solo sui campi immagine.
         //    Qualsiasi campo nuovo aggiunto in futuro ai giocatori/partite viene incluso automaticamente
@@ -12882,6 +13021,7 @@ const toggleFont = () => {
 
         // 3. Salva lo snapshot in locale (tabella dedicata, fetch-once-cache — niente più group.archivioStagioni)
         await db.archivedSeasons.put(snapshot);
+        logEvent('info', 'app', `💾 Snapshot "${snapshot.nome}" salvato in locale (${giocatoriPuliti.length} giocatori, ${partitePulite.length} partite, 0 immagini)`);
 
         // 4. Se il gruppo ha Firebase, scrivi lo snapshot anche nel nodo separato (scrittura singola e
         //    indipendente, fuori dal payload principale del gruppo — vedi REGOLE-PROGETTO.md).
@@ -12891,7 +13031,8 @@ const toggleFont = () => {
           try {
             const _tok = await getValidToken();
             const ok = await _fbWriteToGroup(g, `archivedSeasons/${gid}/${archivioId}`, snapshot, _tok);
-            if (!ok) logEvent('warn', 'app', `Snapshot stagione "${snapshot.nome}" salvato solo in locale — scrittura su Firebase non riuscita`);
+            if (ok) logEvent('info', 'app', `☁️ Snapshot "${snapshot.nome}" scritto su Firebase in archivedSeasons/${gid}/${archivioId}`);
+            else logEvent('warn', 'app', `Snapshot stagione "${snapshot.nome}" salvato solo in locale — scrittura su Firebase non riuscita`);
           } catch(e) {
             logEvent('warn', 'app', `Snapshot stagione "${snapshot.nome}" salvato solo in locale — ${e.message}`);
           }
@@ -12901,6 +13042,7 @@ const toggleFont = () => {
         await db.groups.update(gid, {
           stagione: archiveStepData.nomeStagioneNuova.trim()
         });
+        logEvent('info', 'app', `🏷️ Stagione del gruppo rinominata in "${archiveStepData.nomeStagioneNuova.trim()}"`);
 
         // 6. Azzera statistiche giocatori selezionati
         const statsZero = {
@@ -12908,19 +13050,24 @@ const toggleFont = () => {
           puntiTotali:0, partiteTotali:0, mediaVoto:0, votiTotali:0,
           rigoriParatiTotali:0, rigoriSbagliatiTotali:0
         };
+        let _azzerati = 0, _eliminati = 0;
         for (const p of allPlayers) {
           if (archiveStepData.giocatoriSelezionati.includes(p.uid)) {
             await db.players.update(p.id, statsZero);
+            _azzerati++;
           } else {
             // Giocatore non selezionato: elimina dalla nuova stagione
             await db.players.delete(p.id);
+            _eliminati++;
           }
         }
+        logEvent('info', 'app', `👥 Giocatori: ${_azzerati} azzerati per la nuova stagione, ${_eliminati} eliminati (non portati avanti)`);
 
         // 7. Elimina partite correnti
         for (const m of allMatches) {
           await db.matches.delete(m.id);
         }
+        logEvent('info', 'app', `🗑️ ${allMatches.length} partite eliminate dal locale`);
 
         // 8. Ricarica gruppi e sincronizza il payload principale (live, non l'archivio appena scritto)
         await loadGroups();
@@ -12929,7 +13076,34 @@ const toggleFont = () => {
           // skipMerge=true: il locale ha appena, di proposito, zero partite per questo gruppo — il
           // merge "partite mancanti in locale = aggiunte da un altro dispositivo" le resusciterebbe
           // per errore, vanificando l'archiviazione appena fatta (vedi REGOLE-PROGETTO.md, 20/6).
-          try { await syncToCloud(true); } catch(e) {}
+          logEvent('info', 'app', `📤 Pubblico lo stato pulito su Firebase (skipMerge=true)...`);
+          let _syncOk = null;
+          try {
+            _syncOk = await syncToCloud(true);
+          } catch(e) {
+            logEvent('error', 'app', `❌ Pubblicazione su Firebase fallita: ${e.message} — le partite eliminate potrebbero ricomparire al prossimo sync da un altro dispositivo. Riprova manualmente da Impostazioni → Sincronizza.`);
+          }
+          if (_syncOk === true) {
+            // Non ci fidiamo solo che la richiesta sia andata a buon fine — rileggiamo davvero da
+            // Firebase e contiamo le partite rimaste, per una conferma esplicita nel log.
+            try {
+              const _tok2 = await getValidToken();
+              const _liveRoot = await _fbReadFromGroup(g, '', _tok2, 'shallow=false');
+              const _liveGroups = _liveRoot?.groups ? (Array.isArray(_liveRoot.groups) ? _liveRoot.groups : Object.values(_liveRoot.groups)) : [];
+              const _liveGrp = _liveGroups.find(e => e?.group?.nome === g.nome);
+              const _liveMatchesRaw = _liveGrp?.matches;
+              const _liveMatches = _liveMatchesRaw ? (Array.isArray(_liveMatchesRaw) ? _liveMatchesRaw : Object.values(_liveMatchesRaw)) : [];
+              if (_liveMatches.length === 0) {
+                logEvent('info', 'app', `✅ Verificato rileggendo da Firebase: 0 partite rimaste per "${g.nome}" — archiviazione confermata, non resuscitata dal merge`);
+              } else {
+                logEvent('error', 'app', `⚠️⚠️ ATTENZIONE: rileggendo da Firebase risultano ANCORA ${_liveMatches.length} partite per "${g.nome}" dopo l'archiviazione — controllare manualmente con l'Inspector, l'archiviazione potrebbe non essere andata a buon fine su Firebase`);
+              }
+            } catch(e) {
+              logEvent('warn', 'app', `Verifica post-archiviazione saltata (non bloccante): ${e.message}`);
+            }
+          } else if (_syncOk === false) {
+            logEvent('error', 'app', `❌ Pubblicazione su Firebase non riuscita (risposta negativa) — i dati locali sono corretti ma Firebase potrebbe avere ancora le vecchie partite. Riprova la sincronizzazione manualmente.`);
+          }
         }
 
         logEvent('info', 'app', `✅ Stagione "${snapshot.nome}" archiviata — nuova stagione: "${archiveStepData.nomeStagioneNuova}"`);
