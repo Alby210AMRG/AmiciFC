@@ -2205,6 +2205,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
+            <!-- Badge ✨ AI per le card generate dall'intelligenza artificiale -->
+            <div v-if="['trashTalk','hallFame','hallShame','nickCard','pronoMini'].includes(s.type)"
+              style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);border-radius:20px;padding:3px 8px;display:flex;align-items:center;gap:4px;pointer-events:none">
+              <span style="font-size:0.6rem;font-weight:800;letter-spacing:0.5px;color:rgba(255,255,255,0.85)">✨ AI</span>
+            </div>
             <!-- ── Welcome card (prima del caricamento dati) ── -->
             <template v-if="s.type==='welcome'">
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0;text-align:center;padding:12px 20px">
@@ -6307,7 +6312,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.586',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.587',date:'2026-06-23',items:[
+      'Badge AI in alto a destra nelle hero cards generate dall\'AI (Trash Talk, HoF, Soprannomi, Pronostico)',
+      'Pronostico: Previsione Assurda rinominata in Previsione Assurda del Pendolino con icona treno',
+      'Fix hero carousel: le card AI ora appaiono subito quando vengono caricate da Firebase senza aspettare il prossimo ciclo di sync',
+      'Inspector: sezione Soprannomi aggiornata con TTL globale del set e guardia DB come le altre viste',
+    ]},{version:'v1.586',date:'2026-06-23',items:[
       '🐛 Fix Trash Talk: con 0 partite correnti (nuova stagione) l\'app non riusciva a caricare le card dalla stagione precedente — ora le trova tramite shallow scan su Firebase e le mostra nel contatore del menu.',
       '🐛 Fix AI Cards 0 card: se il flag 3-giorni era valido ma localStorage era vuoto (restore da backup, cambio browser), l\'app mostrava 0 card invece di ricaricare da Firebase. Ora invalida il flag e forza il reload.',
     ]},{version:'v1.585',date:'2026-06-23',items:[
@@ -6725,7 +6735,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.586');
+    const appVersion = ref('1.587');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11590,6 +11600,21 @@ Niente altro, nessuna spiegazione.`;
       }
     }, { immediate: false });
 
+    // Quando le card AI arrivano da Firebase/localStorage DOPO il primo _heroLaunch,
+    // _heroRawData si ricalcola (è computed) ma _heroCards non viene aggiornato automaticamente.
+    // Questi watch forzano il refresh del carousel quando arrivano nuovi dati AI,
+    // così le card compaiono senza dover aspettare il prossimo ciclo di sync.
+    watch(aiCardsTrashTalk, (cards) => {
+      if (!_heroLaunched || !cards.length || !groupMatches.value.length) return;
+      const all = _heroRawData.value;
+      if (all.length) _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(all)];
+    });
+    watch(aiPronostico, (prono) => {
+      if (!_heroLaunched || !prono?.titolo || !groupMatches.value.length) return;
+      const all = _heroRawData.value;
+      if (all.length) _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(all)];
+    });
+
     watch(groups, (newGroups) => {
       if (!dbLoaded.value) return;
       if (newGroups.length === 0 && !_syncNavigated) {
@@ -14378,7 +14403,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         if(_pr.primoGol?.nome){const pp=_findP(_pr.primoGol.nome);_pronoItems.push({kind:'primoGol',icon:'⚽',sub:'PRIMO GOL',color:'#4ade80',nome:_pr.primoGol.nome,motivo:_pr.primoGol.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#06200f,#0f3d22 60%,#16a34a)'});}
         if(_pr.mvpPrevisto?.nome){const pp=_findP(_pr.mvpPrevisto.nome);_pronoItems.push({kind:'mvp',icon:'🌟',sub:'MVP PREVISTO',color:'#fbbf24',nome:_pr.mvpPrevisto.nome,motivo:_pr.mvpPrevisto.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#241a02,#5c4309 60%,#d97706)'});}
         if(_pr.disastroAnnunciato?.nome){const pp=_findP(_pr.disastroAnnunciato.nome);_pronoItems.push({kind:'disastro',icon:'💥',sub:'DISASTRO ANNUNCIATO',color:'#f87171',nome:_pr.disastroAnnunciato.nome,motivo:_pr.disastroAnnunciato.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#240505,#5c1313 60%,#dc2626)'});}
-        if(_pr.previsione_assurda){_pronoItems.push({kind:'assurda',icon:'🎲',sub:'PREVISIONE ASSURDA',color:'#60a5fa',testo:_pr.previsione_assurda,bg:'linear-gradient(145deg,#041420,#0d3050 60%,#2563eb)'});}
+        if(_pr.previsione_assurda){_pronoItems.push({kind:'assurda',icon:'🚆',sub:'PREVISIONE ASSURDA DEL PENDOLINO',color:'#60a5fa',testo:_pr.previsione_assurda,bg:'linear-gradient(145deg,#041420,#0d3050 60%,#2563eb)'}); }
         if(_pronoItems.length){
           // shuffle deterministico basato su seed30, poi prendi le prime 2 (coppia "del momento")
           const _shuf=[..._pronoItems];
