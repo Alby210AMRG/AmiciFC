@@ -6312,7 +6312,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.587',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.589',date:'2026-06-23',items:[
+      'Fix: il Pronostico non si rigenerava mai automaticamente alla scadenza del TTL 7 giorni — era l\'unica card AI senza auto-regen nell\'init. Ora quando il flag scade e c\'è una partita in stagione, si rigenera in background al prossimo avvio.',
+    ]},{version:'v1.588',date:'2026-06-23',items:[
+      'Fix generazione AI: max_tokens aumentati — Pronostico da 600 a 1500 (il retry arriva ora a 2048), HoF da 1200 a 1800. Risolve il fallimento MAX_TOKENS su gruppi con molti giocatori e partite.',
+    ]},{version:'v1.587',date:'2026-06-23',items:[
       'Badge AI in alto a destra nelle hero cards generate dall\'AI (Trash Talk, HoF, Soprannomi, Pronostico)',
       'Pronostico: Previsione Assurda rinominata in Previsione Assurda del Pendolino con icona treno',
       'Fix hero carousel: le card AI ora appaiono subito quando vengono caricate da Firebase senza aspettare il prossimo ciclo di sync',
@@ -6735,7 +6739,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.587');
+    const appVersion = ref('1.589');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9139,7 +9143,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
   "partite_analizzate": ${partiteMese.length}
 }`;
 
-      const raw = await _callAI(prompt, 1200);
+      const raw = await _callAI(prompt, 1800); // HoF: analizza molti giocatori, può servire più spazio su gruppi grandi
       const parsed = _parseAIJson(raw);
       if (!parsed?.fame) {
         if (hasFirebase && token) await _fbWrite(lockPath, null, token);
@@ -9564,7 +9568,7 @@ MVP PIÙ FREQUENTE: ${topMvp?.soprannome||topMvp?.nome||'?'}
 ULTIMI RISULTATI: ${last3.map(m=>`${m.risultato?.goalA||0}-${m.risultato?.goalB||0}`).join(', ')}
 REGOLE: basati sui dati reali, tono ironico mai offensivo.
 JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto":{"nome":"...","motivo":"..."},"disastroAnnunciato":{"nome":"...","motivo":"..."},"previsione_assurda":"...","firma":"..."}`;
-      const raw = await _callAI(prompt, 600);
+      const raw = await _callAI(prompt, 1500); // Pronostico: JSON con 5 campi, può servire fino a 2048 tok su gruppi grandi
       if (!raw) { _aiLog('Pronostico','❌ Nessuna risposta',false); return; }
       const parsed = _parseAIJson(raw);
       if (!parsed?.titolo) { _aiLog('Pronostico','❌ JSON non valido',false); return; }
@@ -9894,6 +9898,19 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       } else {
         _aiLog('Init','✅ Soprannomi OK ('+_nickKeys.length+' chiavi, '+_nickPlayers.length+' giocatori idonei)');
       }
+
+      // ── Auto-rigenera Pronostico se flag scaduto ──────────────────────────────────────────────
+      // Era l'unica card AI senza auto-rigenera nell'init: TrashTalk e Soprannomi la avevano già,
+      // il Pronostico veniva caricato da localStorage se presente ma non rigenerato mai in automatico
+      // alla scadenza del TTL 7gg. Questo lo lasciava scaduto silenziosamente finché l'utente non
+      // premeva manualmente "Rigenera" in Impostazioni.
+      if (!aiFlagValid('pronostico', _gid) && settings.value.apiKey && groupMatches.value.length > 0) {
+        _aiLog('Init','🔮 Pronostico scaduto (TTL 7gg) — rigenero in background...');
+        _generatePronostico().catch(e => _aiLog('Init','❌ Pronostico auto-regen: '+e.message,false));
+      } else if (aiFlagValid('pronostico', _gid)) {
+        _aiLog('Init','⏭️ Pronostico: flag valido — skip');
+      }
+
         _aiLog('Init','✅ AI Cards pronte');
       } catch(e) {
         _aiLog('Init','❌ Errore init: '+e.message,false);
