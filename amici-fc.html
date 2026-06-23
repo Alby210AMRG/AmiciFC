@@ -6312,7 +6312,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.589',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.590',date:'2026-06-23',items:[
+      'Fix doppio init AI: loadGroupData e syncFromCloud chiamavano entrambi _scheduleInitAiCards a 3 secondi di distanza, raddoppiando inutilmente le chiamate Gemini. Aggiunto guard 30s: non riesegue se ha già girato di recente.',
+      'Fix Pronostico MAX_TOKENS anche a 2048: gemini-2.5-flash ha thinking tokens che consumano il budget di output silenziosamente. Aggiunto thinkingBudget:0 per disabilitare il reasoning su questi prompt semplici.',
+    ]},{version:'v1.589',date:'2026-06-23',items:[
       'Fix: il Pronostico non si rigenerava mai automaticamente alla scadenza del TTL 7 giorni — era l\'unica card AI senza auto-regen nell\'init. Ora quando il flag scade e c\'è una partita in stagione, si rigenera in background al prossimo avvio.',
     ]},{version:'v1.588',date:'2026-06-23',items:[
       'Fix generazione AI: max_tokens aumentati — Pronostico da 600 a 1500 (il retry arriva ora a 2048), HoF da 1200 a 1800. Risolve il fallimento MAX_TOKENS su gruppi con molti giocatori e partite.',
@@ -6739,7 +6742,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.589');
+    const appVersion = ref('1.590');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8597,7 +8600,8 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
                   `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
                   { method:'POST', headers:{'Content-Type':'application/json'},
                     body: JSON.stringify({ contents:[{parts:[{text:prompt}]}],
-                      generationConfig:{maxOutputTokens:tok,temperature:0.9,topP:0.95} }) }
+                      generationConfig:{maxOutputTokens:tok,temperature:0.9,topP:0.95,
+                        thinkingConfig:{thinkingBudget:0}} }) }
                 );
                 const d = await r.json();
                 if (!d.error) {
@@ -9746,6 +9750,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
     };
 
     let _initAiCardsTimer = null;
+    let _initAiCardsLastRun = 0; // timestamp dell'ultima esecuzione reale
     const _scheduleInitAiCards = () => {
       if (_initAiCardsTimer) clearTimeout(_initAiCardsTimer);
       _initAiCardsTimer = setTimeout(() => {
@@ -9755,6 +9760,15 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
     };
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
+      // Guard: non rieseguire se già girata negli ultimi 30 secondi.
+      // Senza questo guard, loadGroupData e syncFromCloud chiamano entrambi _scheduleInitAiCards
+      // a 3 secondi di distanza — il debounce non li filtra e partono due init consecutivi che
+      // raddoppiano le chiamate AI e consumano quota Gemini inutilmente.
+      if (Date.now() - _initAiCardsLastRun < 30000) {
+        _aiLog('Init','⏭️ Init AI già eseguita di recente — skip (guard 30s)');
+        return;
+      }
+      _initAiCardsLastRun = Date.now();
       const _gid = currentGroup.value.id;
       // Se tutti i flag validi → carica solo da localStorage, skip Firebase
       // Retroattivamente setta i flag se i dati sono già in localStorage
