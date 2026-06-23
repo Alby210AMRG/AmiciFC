@@ -6307,7 +6307,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.584',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.585',date:'2026-06-23',items:[
+      '🐛 Fix: dopo l\'archiviazione le hero cards mostravano ancora dati stantii (assenze, portiere, marcatori) invece delle tutorial cards — _heroLaunched non veniva resettato dopo l\'archiviazione. Ora il sistema hero si reinizializza con 0 partite e mostra le tutorial cards.',
+      '🐛 Fix: foto dei giocatori non visibili nelle statistiche e nello storico della stagione archiviata — getPlayerPhoto non cercava nella cache locale db.playerPhotos per giocatori eliminati. Aggiunta cache sincrona uid→foto che include tutti i playerPhotos (anche degli eliminati).',
+    ]},{version:'v1.584',date:'2026-06-23',items:[
       '🐛 Fix import backup: reimportare un backup ripristinava giocatori e partite ma lasciava il nome stagione del gruppo aggiornato all\'ultima archiviazione (es. "Stagione 2026-27") invece di ripristinarlo a quello del backup ("Stagione 2025/26"). Ora le proprietà del gruppo (stagione) vengono aggiornate dal backup anche quando il gruppo esiste già.',
     ]},{version:'v1.583',date:'2026-06-22',items:[
       '🔴 Fix critico import backup: dopo l\'import i dati scomparivano perché syncFromCloud riallineava il locale con Firebase (che aveva 0 partite dall\'archiviazione precedente). Fix: dopo l\'import si pusha subito il locale su Firebase, poi si cancellano da Firebase le stagioni archiviate non presenti nel backup.',
@@ -6625,6 +6628,8 @@ createApp({
     const detailMatch   = ref(null);
     const detailMatchReadonly = ref(false); // true quando aperto da stagione archiviata — nasconde Modifica/Elimina/Lock
     const detailMatchPlayers = ref([]);     // giocatori della stagione archiviata per risolvere i nomi nel modale readonly
+    const playerPhotoCacheByUid = ref({}); // cache sincrona uid→foto costruita da db.playerPhotos — usata da getPlayerPhoto
+                                            // per risolvere foto di giocatori eliminati/archiviati senza await in template
 
     // Dati per le tutorial cards: definiti qui in JS (non inline nel template HTML) per evitare problemi
     // con apostrofi e caratteri speciali dentro attributi Vue con apici singoli e doppi innestati.
@@ -6717,7 +6722,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.584');
+    const appVersion = ref('1.585');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7067,6 +7072,15 @@ createApp({
           if (rec?.foto) p.foto = rec.foto;
         } catch(e) {}
       }
+      // Costruisce la cache sincrona uid→foto da TUTTI i playerPhotos in locale (inclusi i giocatori
+      // eliminati durante l'archiviazione) — così getPlayerPhoto può risolvere le foto delle stagioni
+      // archiviate senza await, anche per giocatori che non sono più in groupPlayers.value
+      try {
+        const allPhotos = await db.playerPhotos.toArray();
+        const cache = {};
+        for (const rec of allPhotos) { if (rec.uid && rec.foto) cache[rec.uid] = rec.foto; }
+        playerPhotoCacheByUid.value = cache;
+      } catch(e) {}
     };
 
     const selectGroup = async g => {
@@ -11680,6 +11694,8 @@ Niente altro, nessuna spiegazione.`;
         if (foto.startsWith('data:') || foto.startsWith('http') || foto.startsWith('./')) return foto;
         return `./images/players/${foto}`;
       }
+      // Cache sincrona uid→foto (include giocatori eliminati/archiviati) — fallback prima del file locale
+      if (uid && playerPhotoCacheByUid.value[uid]) return playerPhotoCacheByUid.value[uid];
       if (uid && typeof uid === 'string' && uid.includes('-')) return `./images/players/${uid}.png`;
       return SILHOUETTE;
     };
@@ -13227,6 +13243,12 @@ const toggleFont = () => {
         toast(`✅ Stagione archiviata! Nuova stagione: ${archiveStepData.nomeStagioneNuova}`, 'success', 4000);
         archiveWizard.value = null;
         currentView.value = 'home';
+        // Reset sistema hero: _heroLaunched=false + _heroRawData=[] fanno sì che _heroLaunch veda
+        // 0 partite e mostri le tutorial cards invece delle card AI stantie della stagione appena
+        // archiviata (assenze, portiere, marcatori ecc. non hanno più senso a inizio stagione).
+        _heroLaunched = false;
+        _heroRawData.value = [];
+        nextTick(() => _heroLaunch());
       } catch(e) {
         archiveStepData.error = 'Errore: ' + e.message;
         logEvent('error', 'app', 'Archiviazione fallita: ' + e.message);
@@ -15108,7 +15130,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       obfuscateEmail,
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
-      detailMatch, detailMatchReadonly, detailMatchPlayers, getPlayerForDetail, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
+      detailMatch, detailMatchReadonly, detailMatchPlayers, getPlayerForDetail, playerPhotoCacheByUid, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
