@@ -6307,7 +6307,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.585',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.586',date:'2026-06-23',items:[
+      '🐛 Fix Trash Talk: con 0 partite correnti (nuova stagione) l\'app non riusciva a caricare le card dalla stagione precedente — ora le trova tramite shallow scan su Firebase e le mostra nel contatore del menu.',
+      '🐛 Fix AI Cards 0 card: se il flag 3-giorni era valido ma localStorage era vuoto (restore da backup, cambio browser), l\'app mostrava 0 card invece di ricaricare da Firebase. Ora invalida il flag e forza il reload.',
+    ]},{version:'v1.585',date:'2026-06-23',items:[
       '🐛 Fix: dopo l\'archiviazione le hero cards mostravano ancora dati stantii (assenze, portiere, marcatori) invece delle tutorial cards — _heroLaunched non veniva resettato dopo l\'archiviazione. Ora il sistema hero si reinizializza con 0 partite e mostra le tutorial cards.',
       '🐛 Fix: foto dei giocatori non visibili nelle statistiche e nello storico della stagione archiviata — getPlayerPhoto non cercava nella cache locale db.playerPhotos per giocatori eliminati. Aggiunta cache sincrona uid→foto che include tutti i playerPhotos (anche degli eliminati).',
     ]},{version:'v1.584',date:'2026-06-23',items:[
@@ -6722,7 +6725,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.585');
+    const appVersion = ref('1.586');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9757,7 +9760,15 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
         const _lsKeyTT = 'amicifc_tt_' + _gid;
         if (!aiCardsTrashTalk.value.length) {
           const _cached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
-          if (_cached?.cards?.length) aiCardsTrashTalk.value = _cached.cards;
+          if (_cached?.cards?.length) {
+            aiCardsTrashTalk.value = _cached.cards;
+          } else {
+            // Flag valido ma localStorage vuoto (es. restore da backup, cambio browser, pulizia cache).
+            // Se torniamo qui con 0 card l'utente vedrà "nessuna card" anche se Firebase ne ha.
+            // Fix: invalidiamo il flag 'tt' per forzare il full-init che legge da Firebase.
+            aiFlagClear('tt', _gid);
+            // Non return — continua con il full-init sotto
+          }
         }
         if (!aiCardsHallOfFame.value) {
           const oggi = new Date();
@@ -9783,8 +9794,9 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
           const _nNicks = Object.keys(aiNicknames.value).length;
           const _nElig = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3).length;
           _aiLog('Init',`✅ Soprannomi OK (${_nNicks} chiavi, ${_nElig} giocatori idonei)`);
+          return; // tutto ok → esci
         }
-        return;
+        // Nessun dato nemmeno da localStorage → cade nel full-init
       }
       _aiLog('Init','🚀 Inizializzazione AI Cards: '+currentGroup.value.nome);
       try {
@@ -9808,10 +9820,11 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
           if (_ttAge > _3giorni || !_lsCached?.cards?.length) {
             const _allMatches = await db.matches.where('groupId').equals(_gid).toArray();
             const _lastM = _allMatches.sort((a,b)=>b.data.localeCompare(a.data))[0];
+            const _ttToken = await getValidToken() || '';
+            const _gKey2 = _aiCardGroupKey();
             if (_lastM) {
               const _ttKey = (_lastM.data||'').replace(/-/g,'');
-              const _ttPath = 'aiCards/trashTalk/'+_aiCardGroupKey()+'/'+_ttKey;
-              const _ttToken = await getValidToken() || '';
+              const _ttPath = 'aiCards/trashTalk/'+_gKey2+'/'+_ttKey;
               const _tt = await _fbRead(_ttPath, _ttToken);
               if (_tt?.cards?.length) {
                 const _fbTs = _tt.generatedAt || 0;
@@ -9822,6 +9835,22 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
                   _aiLog('Init','☁️ Trash Talk aggiornato da Firebase (più recente)');
                 } else {
                   _aiLog('Init','✅ Trash Talk locale già aggiornato — Firebase skip');
+                }
+              }
+            } else {
+              // Nessuna partita corrente (stagione appena archiviata o nuova) — scansiona Firebase
+              // con shallow=true per trovare il set Trash Talk più recente disponibile e mostrarlo
+              // nel contatore del menu anche se il hero carousel mostra le tutorial cards
+              const _allKeys = await _fbRead('aiCards/trashTalk/'+_gKey2, _ttToken, 'shallow=true');
+              if (_allKeys && typeof _allKeys === 'object') {
+                const _mostRecentKey = Object.keys(_allKeys).sort().pop();
+                if (_mostRecentKey) {
+                  const _tt = await _fbRead('aiCards/trashTalk/'+_gKey2+'/'+_mostRecentKey, _ttToken);
+                  if (_tt?.cards?.length) {
+                    aiCardsTrashTalk.value = _tt.cards;
+                    localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
+                    _aiLog('Init','☁️ Trash Talk da Firebase (set più recente: '+_mostRecentKey+', stagione precedente)');
+                  }
                 }
               }
             }
