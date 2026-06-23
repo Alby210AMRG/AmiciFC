@@ -6307,7 +6307,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.582',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.583',date:'2026-06-22',items:[
+      '🔴 Fix critico import backup: dopo l\'import i dati scomparivano perché syncFromCloud riallineava il locale con Firebase (che aveva 0 partite dall\'archiviazione precedente). Fix: dopo l\'import si pusha subito il locale su Firebase, poi si cancellano da Firebase le stagioni archiviate non presenti nel backup.',
+      '💬 Toast import migliorato: distingue "dati già presenti, nessun duplicato" da "N elementi importati".',
+    ]},{version:'v1.582',date:'2026-06-22',items:[
       '🐛 Fix: reimportare un backup del pre-archiviazione mostrava stagioni archiviate che non dovevano esserci — il backup include archivedSeasons (anche vuoto), quindi ora l\'import sincronizza esattamente quello stato e sopprime il pull da Firebase che le avrebbe ri-aggiunte.',
     ]},{version:'v1.581',date:'2026-06-22',items:[
       '🔧 Fix: Pt/gara (mediaPunti) mostrava valori residui per giocatori con 0 partite — normalizzazione automatica al caricamento del gruppo: se partiteTotali=0 e mediaPunti>0, il valore viene azzerato in DB. Corregge retroattivamente anche i dati archiviati prima della v1.575.',
@@ -6712,7 +6715,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.582');
+    const appVersion = ref('1.583');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12855,7 +12858,48 @@ const toggleFont = () => {
           await recomputeStats();
         }
 
-        toast(`✅ Importati: ${newGroups} gruppi, ${totalPlayers} giocatori, ${totalMatches} partite!`);
+        // ── Post-import Firebase sync ──────────────────────────────────────────────────────────
+        // Problema: syncFromCloud parte subito dopo il caricamento del gruppo e sovrascrive il
+        // locale con lo stato Firebase — che dopo un'archiviazione precedente ha 0 partite.
+        // Soluzione: pushhiamo subito il locale su Firebase (skipMerge=false, merge normale),
+        // così Firebase riflette i dati appena importati e il prossimo syncFromCloud trova
+        // tutto già allineato e non sovrascrive nulla.
+        const _importedGrp = importedGroup || (groups.value.length > 0 ? groups.value[0] : null);
+        if (_importedGrp?.firebaseUrl) {
+          try {
+            logEvent('info', 'sync', '☁️ Post-import: allineo Firebase con i dati importati...');
+            await syncToCloud();
+            logEvent('info', 'sync', '✅ Firebase allineato con i dati importati');
+
+            // Cancella da Firebase le archivedSeasons non presenti nel backup (es. stagioni di test
+            // precedenti che il backup non conosce e che _pullArchivedSeasonsFromFirebase scaricherebbe).
+            // Usiamo PUT null = DELETE su Firebase REST API.
+            const _backupSeasonIds = new Set(
+              (groupsToImport.find(eg2 => eg2.group?.nome === _importedGrp.nome)?.archivedSeasons || [])
+                .map(s => s?.archivioId).filter(Boolean)
+            );
+            const _tok = await getValidToken();
+            if (_tok) {
+              const _fbAllKeys = await _fbReadFromGroup(_importedGrp, `archivedSeasons/${firstImportedGroupId}`, _tok, 'shallow=true');
+              if (_fbAllKeys && typeof _fbAllKeys === 'object') {
+                for (const archivioId of Object.keys(_fbAllKeys)) {
+                  if (!_backupSeasonIds.has(archivioId)) {
+                    await _fbWriteToGroup(_importedGrp, `archivedSeasons/${firstImportedGroupId}/${archivioId}`, null, _tok);
+                    logEvent('info', 'sync', `🗑️ Rimossa da Firebase stagione archiviata non presente nel backup: ${archivioId.slice(0,8)}`);
+                  }
+                }
+              }
+            }
+          } catch(e) {
+            logEvent('warn', 'sync', `Post-import Firebase sync non riuscito (non bloccante): ${e.message}`);
+          }
+        }
+
+        // Messaggio finale — distingue "già presenti" da "nuovi" per non confondere
+        const hadData = totalPlayers === 0 && totalMatches === 0;
+        toast(hadData
+          ? '✅ Backup ripristinato — dati già presenti, nessun duplicato aggiunto'
+          : `✅ Importati: ${newGroups} gruppi, ${totalPlayers} giocatori, ${totalMatches} partite!`);
         return true; // success flag for importDataAndGo
       } catch (err) {
         console.error('Import error:', err);
