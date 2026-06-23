@@ -6307,7 +6307,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.583',date:'2026-06-22',items:[
+    const changelogEntries = [{version:'v1.584',date:'2026-06-23',items:[
+      '🐛 Fix import backup: reimportare un backup ripristinava giocatori e partite ma lasciava il nome stagione del gruppo aggiornato all\'ultima archiviazione (es. "Stagione 2026-27") invece di ripristinarlo a quello del backup ("Stagione 2025/26"). Ora le proprietà del gruppo (stagione) vengono aggiornate dal backup anche quando il gruppo esiste già.',
+    ]},{version:'v1.583',date:'2026-06-22',items:[
       '🔴 Fix critico import backup: dopo l\'import i dati scomparivano perché syncFromCloud riallineava il locale con Firebase (che aveva 0 partite dall\'archiviazione precedente). Fix: dopo l\'import si pusha subito il locale su Firebase, poi si cancellano da Firebase le stagioni archiviate non presenti nel backup.',
       '💬 Toast import migliorato: distingue "dati già presenti, nessun duplicato" da "N elementi importati".',
     ]},{version:'v1.582',date:'2026-06-22',items:[
@@ -6715,7 +6717,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.583');
+    const appVersion = ref('1.584');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12788,7 +12790,21 @@ const toggleFont = () => {
             ? existing.id
             : await db.groups.add({ nome: newName });
 
-          if (!existing) newGroups++;
+          if (!existing) {
+            newGroups++;
+          } else if (eg.group) {
+            // Il gruppo esiste già: aggiorna le sue proprietà dal backup.
+            // In particolare `stagione` — senza questo aggiornamento, reimportare un backup
+            // del pre-archiviazione mostrava il nome della nuova stagione (es. "Stagione 2026-27")
+            // invece di quello originale ("Stagione 2025/26") perché l'archiviazione precedente
+            // lo aveva già sovrascritto nel DB locale.
+            // Non sovrascriviamo firebaseUrl/firebaseApiKey se già impostati — l'utente potrebbe
+            // averli configurati dopo il backup e non vogliamo perderli.
+            const updateFields = { stagione: eg.group.stagione || 'Stagione 1' };
+            if (!existing.firebaseUrl && eg.group.firebaseUrl) updateFields.firebaseUrl = eg.group.firebaseUrl;
+            if (!existing.firebaseApiKey && eg.group.firebaseApiKey) updateFields.firebaseApiKey = eg.group.firebaseApiKey;
+            await db.groups.update(gid, updateFields);
+          }
           if (firstImportedGroupId === null) firstImportedGroupId = gid;
 
           // ── Import players — conserva uid e id originali (come syncFromCloud) ──
