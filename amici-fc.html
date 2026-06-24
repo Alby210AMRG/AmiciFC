@@ -6312,7 +6312,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.590',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.591',date:'2026-06-23',items:[
+      'Aggiunto campo createdBy (email offuscata) al salvataggio Firebase di tutte le card AI — TrashTalk, HoF, Soprannomi, Pronostico. Compare nella nuova AI Status Dashboard in Inspector.',
+    ]},{version:'v1.590',date:'2026-06-23',items:[
       'Fix doppio init AI: loadGroupData e syncFromCloud chiamavano entrambi _scheduleInitAiCards a 3 secondi di distanza, raddoppiando inutilmente le chiamate Gemini. Aggiunto guard 30s: non riesegue se ha già girato di recente.',
       'Fix Pronostico MAX_TOKENS anche a 2048: gemini-2.5-flash ha thinking tokens che consumano il budget di output silenziosamente. Aggiunto thinkingBudget:0 per disabilitare il reasoning su questi prompt semplici.',
     ]},{version:'v1.589',date:'2026-06-23',items:[
@@ -6742,7 +6744,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.590');
+    const appVersion = ref('1.591');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8856,7 +8858,8 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
       const parsed = _parseAIJson(raw);
       if (!parsed?.cards?.length) { _aiLog('TrashTalk','❌ JSON non valido — raw: '+raw.slice(0,100)); return; }
       aiCardsTrashTalk.value = parsed.cards;
-      const ttData = { cards: parsed.cards, generatedAt: Date.now() };
+      const _ttFbUser = JSON.parse(localStorage.getItem('amicifc_fb_user')||'null');
+      const ttData = { cards: parsed.cards, generatedAt: Date.now(), createdBy: _ttFbUser?.email || 'Utente locale' };
       localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(ttData));
       aiFlagSet('tt', currentGroup.value?.id||''); // flag 3 giorni
       if (currentGroup.value?.firebaseUrl && token) {
@@ -9017,7 +9020,8 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       else _aiLog('TrashTalk','❌ Nessuna card generata — raw: '+(raw||'').slice(0,80),false);
 
       if (hasFirebase && token && cards.length) {
-        await _fbWrite(dataPath, { cards, generatedAt: Date.now(), matchId: match.id }, token);
+        const _ttCreatedBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
+        await _fbWrite(dataPath, { cards, generatedAt: Date.now(), matchId: match.id, createdBy: _ttCreatedBy }, token);
         await _fbWrite(lockPath, null, token); // rimuovi lock
         _aiLog('TrashTalk','☁️ Salvato su Firebase');
       }
@@ -9157,7 +9161,8 @@ OUTPUT: Rispondi SOLO con JSON valido:
       localStorage.setItem(`amicifc_hof_${meseKey}`, JSON.stringify(parsed));
       aiFlagSet('hof', currentGroup.value.id); // flag 30 giorni
       if (hasFirebase && token) {
-        await _fbWrite(dataPath, parsed, token);
+        const _hofCreatedBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
+        await _fbWrite(dataPath, { ...parsed, createdBy: _hofCreatedBy }, token);
         await _fbWrite(lockPath, null, token);
         _aiLog('HallOfFame','☁️ Salvato su Firebase');
       } else if (hasFirebase) {
@@ -9374,7 +9379,9 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
         if (currentGroup.value?.firebaseUrl) {
           const token = await getValidToken() || '';
           if (token) {
-            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, updated, token);
+            const _nickCreatedBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
+            const updatedWithMeta = Object.fromEntries(Object.entries(updated).map(([k,v]) => [k, {...v, createdBy: _nickCreatedBy}]));
+            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, updatedWithMeta, token);
             _aiLog('Soprannomi','☁️ Salvato su Firebase');
           }
         }
@@ -9584,7 +9591,8 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       if (currentGroup.value?.firebaseUrl) {
         const token = await getValidToken() || '';
         if (token) {
-          await _fbWrite('aiCards/pronostico/' + _aiCardGroupKey(), aiPronostico.value, token);
+          const _pronoCreatedBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
+          await _fbWrite('aiCards/pronostico/' + _aiCardGroupKey(), { ...aiPronostico.value, createdBy: _pronoCreatedBy }, token);
           // Sync completo per aggiornare payload root
           syncToCloud().catch(e => _aiLog('Pronostico','⚠️ Sync: '+e.message,false));
         }
