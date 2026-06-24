@@ -6312,7 +6312,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.591',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.592',date:'2026-06-23',items:[
+      'Fix TrashTalk: ora genera automaticamente il TT per la partita più recente anche quando era un altro utente (senza API key) ad averla inserita. Il controllo gira ad ogni avvio indipendentemente dal flag 3-giorni.',
+    ]},{version:'v1.591',date:'2026-06-23',items:[
       'Aggiunto campo createdBy (email offuscata) al salvataggio Firebase di tutte le card AI — TrashTalk, HoF, Soprannomi, Pronostico. Compare nella nuova AI Status Dashboard in Inspector.',
     ]},{version:'v1.590',date:'2026-06-23',items:[
       'Fix doppio init AI: loadGroupData e syncFromCloud chiamavano entrambi _scheduleInitAiCards a 3 secondi di distanza, raddoppiando inutilmente le chiamate Gemini. Aggiunto guard 30s: non riesegue se ha già girato di recente.',
@@ -6744,7 +6746,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.591');
+    const appVersion = ref('1.592');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9896,6 +9898,33 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
         } catch(_e) {
           logEvent('warn','ai','[TrashTalk] Firebase non raggiungibile: '+_e.message);
           _aiLog('Init','⚠️ Firebase TrashTalk offline — uso locale',false);
+        }
+      }
+
+      // ── Controllo indipendente: l'ultima partita ha già un Trash Talk su Firebase? ───────────
+      // Copre il caso in cui un altro utente (senza API key) ha inserito una partita: il flag
+      // locale di Alby era ancora valido (entro 3 giorni) quindi il blocco sopra non lo rilevava.
+      // Questo check gira SEMPRE se c'è API key e ci sono partite, indipendentemente dal flag.
+      if (settings.value.apiKey && groupMatches.value.length > 0) {
+        try {
+          const _allM2 = await db.matches.where('groupId').equals(_gid).toArray();
+          const _newestM = _allM2.sort((a,b)=>b.data.localeCompare(a.data))[0];
+          if (_newestM) {
+            const _newestKey = (_newestM.data||'').replace(/-/g,'');
+            const _gKey3 = _aiCardGroupKey();
+            const _tok3 = await getValidToken() || '';
+            const _existingTT = _tok3
+              ? await _fbRead('aiCards/trashTalk/'+_gKey3+'/'+_newestKey, _tok3, 'shallow=true')
+              : null;
+            if (!_existingTT) {
+              // Nessun Trash Talk su Firebase per la partita più recente
+              _aiLog('Init','🔥 Partita '+_newestM.data+' non ha Trash Talk su Firebase — genero...');
+              aiFlagClear('tt', _gid); // invalida il flag locale per permettere la rigenerazione
+              _generateTrashTalk(_newestM).catch(e => _aiLog('Init','❌ TT auto-gen: '+e.message, false));
+            }
+          }
+        } catch(_e2) {
+          // Silenzioso: check best-effort, non blocca il resto dell'init
         }
       }
 
