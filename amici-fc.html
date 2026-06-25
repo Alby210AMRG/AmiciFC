@@ -4509,6 +4509,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div v-if="groupFirstMatch(g.id)">🗓️ Prima partita: <strong>{{ groupFirstMatch(g.id) }}</strong></div>
               <div v-if="archivedSeasonsCountByGroup[g.id]">📦 Stagioni archiviate: <strong style="color:var(--lime)">{{ archivedSeasonsCountByGroup[g.id] }}</strong></div>
             </div>
+            <div class="setting-row" style="margin-bottom:10px;padding:8px 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)" @click.stop>
+              <div>
+                <div class="setting-label" style="font-size:0.78rem">🅰️ Assist nelle Card AI</div>
+                <div class="setting-sub" style="font-size:0.72rem">Se disattivato, gli assist non entrano nei prompt AI e le card Top Assist non vengono generate</div>
+              </div>
+              <label class="toggle" @click.stop>
+                <input type="checkbox" :checked="g.trackAssist !== false" @change.stop="toggleTrackAssist(g)">
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
             <div style="display:flex;align-items:center;gap:8px">
               <button class="btn btn-ghost btn-sm" style="padding:5px 10px" @click.stop="renameGroup(g)" title="Rinomina">✏️</button>
               <button class="btn btn-red btn-sm" style="padding:5px 10px" @click.stop="confirmDeleteGroup(g)" title="Elimina gruppo">🗑️</button>
@@ -6312,7 +6322,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.592',date:'2026-06-23',items:[
+    const changelogEntries = [{version:'v1.593',date:'2026-06-25',items:[
+      'Assist Toggle: nuovo toggle per gruppo in Gestione Gruppi — quando disattivato, gli assist vengono esclusi da tutti i prompt AI (TrashTalk, HoF, Soprannomi, Pronostico) e le card dedicate agli assist non vengono generate nel carousel e nel news ticker.',
+      'Card escluse con toggle OFF: news item top assist, card record personale assist. I dati assist rimangono visibili ovunque (inserimento partita, statistiche, storico).',
+      'Tutorial card Assist: aggiunta card informativa nel carosello iniziale che spiega il tracciamento assist.',
+      'Il campo trackAssist viene salvato su Firebase — tutti i dispositivi del gruppo applicano la stessa impostazione al sync successivo.',
+    ]},{version:'v1.592',date:'2026-06-23',items:[
       'Fix TrashTalk: ora genera automaticamente il TT per la partita più recente anche quando era un altro utente (senza API key) ad averla inserita. Il controllo gira ad ogni avvio indipendentemente dal flag 3-giorni.',
     ]},{version:'v1.591',date:'2026-06-23',items:[
       'Aggiunto campo createdBy (email offuscata) al salvataggio Firebase di tutte le card AI — TrashTalk, HoF, Soprannomi, Pronostico. Compare nella nuova AI Status Dashboard in Inspector.',
@@ -6661,6 +6676,7 @@ createApp({
       { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici.', cta: 'Vai ai Giocatori', view: 'players' },
       { icon: '⚽', titolo: 'Crea le squadre', testo: 'Prima di ogni partita usa il generatore AI per squadre bilanciate, oppure trascinale manualmente.', cta: 'Genera squadre', view: 'generate' },
       { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'generate' },
+      { icon: '🅰️', titolo: 'Gli assist contano!', testo: 'Chi serve il gol decisivo è un eroe silenzioso. Attiva il tracciamento assist nelle impostazioni gruppo per sbloccare classifiche, card AI dedicate e sfottò mirati per chi non passa mai.', cta: null, view: null },
       { icon: '📰', titolo: 'Condividi il Giornale', testo: 'Genera il PNG del giornale con il resoconto della partita e mandalo nel gruppo — ogni partita diventa un articolo.', cta: null, view: null },
       { icon: '📦', titolo: 'Fine stagione — Archivia', testo: 'Quando la stagione finisce, usa Archivia Stagione per conservare tutto lo storico e ripartire con statistiche a zero.', cta: null, view: null },
     ];
@@ -6746,7 +6762,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.592');
+    const appVersion = ref('1.593');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7117,7 +7133,7 @@ createApp({
     const createGroup = async () => {
       const n = newGroupName.value.trim();
       if (!n) return;
-      const id = await db.groups.add({ nome: n, firebaseUrl:'', firebaseApiKey:'', stagione:'Stagione 1', archivioStagioni:[], syncOnStartup:true });
+      const id = await db.groups.add({ nome: n, firebaseUrl:'', firebaseApiKey:'', stagione:'Stagione 1', archivioStagioni:[], syncOnStartup:true, trackAssist:true });
       await loadGroups();
       const g = groups.value.find(x => x.id === id);
       if (g) await selectGroup(g);
@@ -7132,6 +7148,15 @@ createApp({
       await loadGroups();
       if (currentGroup.value?.id === g.id) currentGroup.value = groups.value.find(x => x.id === g.id);
       toast('✅ Gruppo rinominato!');
+    };
+
+    const toggleTrackAssist = async (g) => {
+      const newVal = !(g.trackAssist !== false);
+      await db.groups.update(g.id, { trackAssist: newVal });
+      await loadGroups();
+      if (currentGroup.value?.id === g.id) currentGroup.value = groups.value.find(x => x.id === g.id);
+      if (currentGroup.value?.firebaseUrl) syncToCloud().catch(() => {});
+      toast(newVal ? "✅ Assist attivi nelle card AI" : "🔕 Assist esclusi dalle card AI", "info", 2500);
     };
 
     const deleteGroup = async g => {
@@ -8921,7 +8946,7 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
           ha_vinto: vince_ora,
           ha_pareggiato: pari_ora,
           gol_oggi: s.goal || 0,
-          assist_oggi: s.assist || 0,
+          ...(currentGroup.value?.trackAssist !== false ? { assist_oggi: s.assist || 0 } : {}),
           autogol_oggi: s.autogol || 0,
           voto_oggi: s.voto || 0,
           uomo_partita: s.uomoPartita || false,
@@ -9100,13 +9125,13 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           if (!p) continue;
           if (!statsMap[s.playerId]) statsMap[s.playerId] = {
             nome: p.soprannome||p.nome, ruolo: p.ruolo||'',
-            partite:0, vinte:0, gol:0, assist:0, autogol:0, uom:0, votiSum:0, votiN:0
+            partite:0, vinte:0, gol:0, ...(currentGroup.value?.trackAssist !== false ? {assist:0} : {}), autogol:0, uom:0, votiSum:0, votiN:0
           };
           const st = statsMap[s.playerId] || statsMap[String(s.playerId)];
           const inA = (m.squadraA||[]).map(String).includes(String(s.playerId));
           const vince = isDraw ? false : (inA && teamAWon) || (!inA && !teamAWon);
           st.partite++; if(vince) st.vinte++;
-          st.gol += s.goal||0; st.assist += s.assist||0;
+          st.gol += s.goal||0; if(currentGroup.value?.trackAssist !== false) st.assist += s.assist||0;
           st.autogol += s.autogol||0; st.uom += s.uomoPartita?1:0;
           if((s.voto||0)>0){ st.votiSum+=s.voto; st.votiN++; }
         }
@@ -9310,7 +9335,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
             piede: p.piede || 'Destro',
             partite_giocate: p.partiteTotali||0,
             gol_fatti: p.goalTotali||0,
-            assist: p.assistTotali||0,
+            ...(currentGroup.value?.trackAssist !== false ? { assist: p.assistTotali||0 } : {}),
             voto_medio: (p.mediaVoto||0).toFixed(1),
             volte_uomo_partita: p.uomoPartitaTotali||0,
             punti_medi_a_partita: (p.mediaPunti||0).toFixed(2)
@@ -9573,7 +9598,7 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       const top3 = [...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0)).slice(0,3);
       const topMvp = [...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
       const last3 = [...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
-      const profili = players.slice(0,10).map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,ast:p.assistTotali||0,voto:(p.mediaVoto||0).toFixed(1),uom:p.uomoPartitaTotali||0,pti:(p.mediaPunti||0).toFixed(1)}));
+      const profili = players.slice(0,10).map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,...(currentGroup.value?.trackAssist !== false ? {ast:p.assistTotali||0} : {}),voto:(p.mediaVoto||0).toFixed(1),uom:p.uomoPartitaTotali||0,pti:(p.mediaPunti||0).toFixed(1)}));
       const prompt = `Sei un telecronista calcistico ironico. Basandoti SOLO sui dati reali, fai un pronostico per la prossima partita di calcetto tra amici.
 GIOCATORI: ${JSON.stringify(profili)}
 TOP SCORER: ${top3.map(p=>p.soprannome||p.nome).join(', ')}
@@ -11927,8 +11952,10 @@ Niente altro, nessuna spiegazione.`;
       const topPunti=[...players].sort((a,b)=>(b.puntiTotali||0)-(a.puntiTotali||0))[0];
       if(topPunti?.puntiTotali>0) items.push({uid:topPunti.uid,foto:topPunti.foto,emoji:'🏆',text:`Classifica punti: ${topPunti.soprannome||topPunti.nome} in testa con ${topPunti.puntiTotali} punti totali!`});
 
-      const topA=[...players].sort((a,b)=>(b.assistTotali||0)-(a.assistTotali||0))[0];
-      if(topA?.assistTotali>0) items.push({uid:topA.uid,foto:topA.foto,emoji:'🅰️',text:`${topA.soprannome||topA.nome} guida gli assist con ${topA.assistTotali} passaggi decisivi`});
+      if(group?.trackAssist !== false) {
+        const topA=[...players].sort((a,b)=>(b.assistTotali||0)-(a.assistTotali||0))[0];
+        if(topA?.assistTotali>0) items.push({uid:topA.uid,foto:topA.foto,emoji:'🅰️',text:`${topA.soprannome||topA.nome} guida gli assist con ${topA.assistTotali} passaggi decisivi`});
+      }
 
       const topU=[...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
       if(topU?.uomoPartitaTotali>0) items.push({uid:topU.uid,foto:topU.foto,emoji:'🏅',text:`${topU.soprannome||topU.nome} eletto Uomo Partita ${topU.uomoPartitaTotali} volte!`});
@@ -14563,14 +14590,16 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           }
           if (maxG >= 2) _recCandidates.push({ p, tipo: 'gol', val: maxG, txt: `Record personale: ${maxG} gol in una sola partita! Un autentico cecchino del campetto.` });
         }
-        // Max assist in una partita
-        for (const p of players.filter(p => (p.partiteTotali||0) >= 2)) {
-          let maxA = 0;
-          for (const m of matches) {
-            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
-            if (st && (st.assist||0) > maxA) maxA = st.assist;
+        // Max assist in una partita (solo se trackAssist attivo)
+        if (currentGroup.value?.trackAssist !== false) {
+          for (const p of players.filter(p => (p.partiteTotali||0) >= 2)) {
+            let maxA = 0;
+            for (const m of matches) {
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              if (st && (st.assist||0) > maxA) maxA = st.assist;
+            }
+            if (maxA >= 2) _recCandidates.push({ p, tipo: 'assist', val: maxA, txt: `Record personale: ${maxA} assist in una partita. Il regista del campetto.` });
           }
-          if (maxA >= 2) _recCandidates.push({ p, tipo: 'assist', val: maxA, txt: `Record personale: ${maxA} assist in una partita. Il regista del campetto.` });
         }
         // Miglior voto
         for (const p of players.filter(p => (p.partiteTotali||0) >= 3)) {
@@ -15266,7 +15295,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       detailPlayerReadOnly, detailPlayerFormHistory,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
-      loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup,
+      loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup, toggleTrackAssist,
       groupPlayerCount, groupMatchCount,
       openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, getPlayerNick, handlePhotoUpload,
       startNewMatch, startPlayerSelection, togglePlayerSelection, selectAll,
