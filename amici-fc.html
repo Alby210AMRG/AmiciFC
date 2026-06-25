@@ -6322,7 +6322,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.593',date:'2026-06-25',items:[
+    const changelogEntries = [{version:'v1.594',date:'2026-06-25',items:[
+      'Assist Toggle: ora salva su Firebase anche trackAssistSetAt (timestamp) e trackAssistSetBy (email mascherata) — visibili nellInspector nella sezione Sync & Diagnostica.',
+    ]},{version:'v1.593',date:'2026-06-25',items:[
       'Assist Toggle: nuovo toggle per gruppo in Gestione Gruppi — quando disattivato, gli assist vengono esclusi da tutti i prompt AI (TrashTalk, HoF, Soprannomi, Pronostico) e le card dedicate agli assist non vengono generate nel carousel e nel news ticker.',
       'Card escluse con toggle OFF: news item top assist, card record personale assist. I dati assist rimangono visibili ovunque (inserimento partita, statistiche, storico).',
       'Tutorial card Assist: aggiunta card informativa nel carosello iniziale che spiega il tracciamento assist.',
@@ -6762,7 +6764,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.593');
+    const appVersion = ref('1.594');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7152,7 +7154,8 @@ createApp({
 
     const toggleTrackAssist = async (g) => {
       const newVal = !(g.trackAssist !== false);
-      await db.groups.update(g.id, { trackAssist: newVal });
+      const _setBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
+      await db.groups.update(g.id, { trackAssist: newVal, trackAssistSetAt: Date.now(), trackAssistSetBy: _setBy });
       await loadGroups();
       if (currentGroup.value?.id === g.id) currentGroup.value = groups.value.find(x => x.id === g.id);
       if (currentGroup.value?.firebaseUrl) syncToCloud().catch(() => {});
