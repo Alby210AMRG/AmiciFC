@@ -2201,7 +2201,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- ── HOME HERO CAROSELLO UNIFICATO ── -->
       <div v-if="currentGroup"
-        style="position:relative;border-radius:20px;overflow:hidden;margin-bottom:10px;height:320px;cursor:pointer;user-select:none"
+        :style="'position:relative;border-radius:20px;overflow:hidden;margin-bottom:10px;height:320px;cursor:pointer;user-select:none;transition:box-shadow .5s ease;'+({'trend':'box-shadow:0 0 0 2px #A6FF4D,0 0 28px rgba(166,255,77,.35)','bestVote':'box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.4)','trashTalk':'box-shadow:0 0 0 2px #f87171,0 0 28px rgba(248,113,113,.35)','hallFame':'box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.4)','hallShame':'box-shadow:0 0 0 2px #94a3b8,0 0 20px rgba(148,163,184,.25)','duel':'box-shadow:0 0 0 2px #FF6B35,0 0 24px rgba(255,107,53,.3)','recap':'box-shadow:0 0 0 2px #60a5fa,0 0 24px rgba(96,165,250,.3)','h2hCard':'box-shadow:0 0 0 2px #f87171,0 0 24px rgba(248,113,113,.3)'}[heroUnifiedData?.[heroUnifiedIdx]?.type]||'box-shadow:none')"
         @mousedown="heroMD" @mousemove="heroMM" @mouseup="heroMU"
         @touchstart.passive="heroTS" @touchmove.passive="heroTM" @touchend.passive="heroTE"
         @click="heroClick">
@@ -2216,13 +2216,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
             :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
+            <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
-            <!-- Badge ✨ AI per le card generate dall'intelligenza artificiale -->
-            <div v-if="['trashTalk','hallFame','hallShame','nickCard','pronoMini'].includes(s.type)"
-              style="position:absolute;top:10px;right:10px;z-index:10;background:rgba(0,0,0,0.45);backdrop-filter:blur(4px);border:1px solid rgba(255,255,255,0.18);border-radius:20px;padding:3px 8px;display:flex;align-items:center;gap:4px;pointer-events:none">
-              <span style="font-size:0.6rem;font-weight:800;letter-spacing:0.5px;color:rgba(255,255,255,0.85)">✨ AI</span>
-            </div>
             <!-- ── Welcome card (prima del caricamento dati) ── -->
             <template v-if="s.type==='welcome'">
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0;text-align:center;padding:12px 20px">
@@ -2340,7 +2336,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div class="hc-label" style="text-align:center;margin-bottom:10px">📻 In Diretta dallo Spogliatoio</div>
                 <div v-if="s.foto||s.uid" style="display:flex;justify-content:center;margin-bottom:10px;flex-shrink:0">
                   <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2)">
-                    <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                 </div>
                 <div v-else style="font-size:38px;text-align:center;margin-bottom:10px;flex-shrink:0">
@@ -2374,7 +2370,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                     <div v-for="(sc,si) in (s.scorers||[])" :key="si" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
                       <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(74,222,128,.5);display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.06)">
-                        <img v-if="sc.foto||sc.uid" :src="sc.foto&&sc.foto.startsWith('data:')?sc.foto:getPlayerPhoto(sc.foto,sc.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>⚽</span>
+                        <img v-if="sc.foto||sc.uid" :src="sc.foto&&sc.foto.startsWith('data:')?sc.foto:getPlayerPhoto(sc.foto,sc.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE"><span v-else>⚽</span>
                       </div>
                       <div style="flex:1;font-weight:700;color:#fff;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{sc.nome}}</div>
                       <div style="font-weight:900;color:#4ade80;font-size:14px;white-space:nowrap">⚽ ×{{sc.gol}}</div>
@@ -2387,7 +2383,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
                 <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(52,211,153,.5);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">
-                  <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>⚡</span></div>
+                  <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE"><span v-else>⚡</span></div>
                 <div style="flex:1">
                   <div style="font-size:17px;font-weight:800;color:#fff">{{s.name}}</div>
                   <div style="font-size:13px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.5">{{s.sub}}</div>
@@ -2435,7 +2431,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   style="display:flex;flex-direction:column;align-items:center;gap:6px"
                   :style="s.players.length<=2?'flex:0 0 auto':'flex:0 0 calc(50% - 4px)'">
                   <div :style="'border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 16px rgba(251,191,36,.4);background:rgba(255,255,255,.08);'+(s.players.length===1?'width:88px;height:88px':s.players.length===2?'width:76px;height:76px':'width:64px;height:64px')">
-                    <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div :style="'font-weight:800;color:#fbbf24;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;font-size:'+(s.players.length===1?'14px':s.players.length===2?'13px':'11px')">{{p.nome}}</div>
                 </div>
@@ -2488,7 +2484,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:10px;margin-bottom:12px">
                 <div v-for="(p,pi) in (s.squad||[])" :key="pi" style="display:flex;flex-direction:column;align-items:center;gap:4px">
                   <div style="width:66px;height:66px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(251,191,36,.7);box-shadow:0 0 14px rgba(251,191,36,.3);background:rgba(255,255,255,.08)">
-                    <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.85);max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">{{p.nome}}</div>
                 </div>
@@ -2503,7 +2499,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div v-if="s.podio&&s.podio[1]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
                   <div style="font-size:18px">🥈</div>
                   <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #94a3b8;box-shadow:0 0 14px rgba(148,163,184,.3);background:rgba(255,255,255,.08)">
-                    <img :src="s.podio[1].foto&&s.podio[1].foto.startsWith('data:')?s.podio[1].foto:getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.podio[1].foto&&s.podio[1].foto.startsWith('data:')?s.podio[1].foto:getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.8);max-width:74px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[1].nome}}</div>
                   <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.podio[1].ruolo}}</div>
@@ -2514,7 +2510,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div v-if="s.podio&&s.podio[0]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:12px">
                   <div style="font-size:22px">🥇</div>
                   <div style="width:88px;height:88px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 20px rgba(251,191,36,.45);background:rgba(255,255,255,.08)">
-                    <img :src="s.podio[0].foto&&s.podio[0].foto.startsWith('data:')?s.podio[0].foto:getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.podio[0].foto&&s.podio[0].foto.startsWith('data:')?s.podio[0].foto:getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:13px;font-weight:800;color:#fff;max-width:90px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[0].nome}}</div>
                   <div style="font-size:11px;color:rgba(255,255,255,.45)">{{s.podio[0].ruolo}}</div>
@@ -2525,7 +2521,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div v-if="s.podio&&s.podio[2]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
                   <div style="font-size:18px">🥉</div>
                   <div style="width:62px;height:62px;border-radius:50%;overflow:hidden;border:2.5px solid #cd7c3d;box-shadow:0 0 12px rgba(205,124,61,.3);background:rgba(255,255,255,.08)">
-                    <img :src="s.podio[2].foto&&s.podio[2].foto.startsWith('data:')?s.podio[2].foto:getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.podio[2].foto&&s.podio[2].foto.startsWith('data:')?s.podio[2].foto:getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.75);max-width:64px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[2].nome}}</div>
                   <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.podio[2].ruolo}}</div>
@@ -2546,7 +2542,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <div style="position:relative;z-index:1;display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
                 <div v-if="s.foto||s.uid" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,100,100,.6);box-shadow:0 0 16px rgba(255,77,77,.3);background:rgba(255,255,255,.08)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:17px;font-weight:800;color:#fca5a5;line-height:1.25;margin-bottom:6px">{{s.titolo}}</div>
@@ -2615,7 +2611,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label" :style="'color:'+s.color+';margin-bottom:10px'">{{s.label}} · {{s.sub}}</div>
               <div v-if="s.nome" style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:6px 0 10px">
                 <div v-if="s.foto" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid var(--c,#fff)" :style="'border-color:'+s.color+';box-shadow:0 0 16px '+s.color+'55'">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                 </div>
                 <div v-else style="width:72px;height:72px;min-width:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;border:3px solid" :style="'border-color:'+s.color+';background:'+s.color+'1a'">{{s.icon}}</div>
                 <div style="flex:1;min-width:0">
@@ -2640,7 +2636,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label" style="color:#fbbf24">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:10px">
                 <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 16px rgba(251,191,36,.3)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div class="hc-name" style="color:#fbbf24">{{s.nome}}</div>
@@ -2666,7 +2662,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <!-- Top -->
                 <div style="flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:10px;text-align:center">
                   <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #4ade80;margin:0 auto 6px">
-                    <img :src="s.fotoTop&&s.fotoTop.startsWith('data:')?s.fotoTop:getPlayerPhoto(s.fotoTop,s.uidTop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.fotoTop&&s.fotoTop.startsWith('data:')?s.fotoTop:getPlayerPhoto(s.fotoTop,s.uidTop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div class="hc-sub" style="color:#4ade80;font-weight:700;font-size:13px!important">{{s.nTop}}</div>
                   <div style="font-size:22px;font-weight:900;color:#4ade80;margin:4px 0">{{s.sTop}}</div>
@@ -2680,7 +2676,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <!-- Flop -->
                 <div style="flex:1;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:10px;padding:10px;text-align:center">
                   <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #f87171;margin:0 auto 6px">
-                    <img :src="s.fotoFlop&&s.fotoFlop.startsWith('data:')?s.fotoFlop:getPlayerPhoto(s.fotoFlop,s.uidFlop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.fotoFlop&&s.fotoFlop.startsWith('data:')?s.fotoFlop:getPlayerPhoto(s.fotoFlop,s.uidFlop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div class="hc-sub" style="color:#f87171;font-weight:700;font-size:13px!important">{{s.nFlop}}</div>
                   <div style="font-size:22px;font-weight:900;color:#f87171;margin:4px 0">{{s.sFlop}}</div>
@@ -2733,7 +2729,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <!-- Giocatore A -->
                 <div style="flex:1;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:10px;text-align:center">
                   <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #a78bfa;margin:0 auto 6px">
-                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div class="hc-sub" style="font-size:13px!important;font-weight:700;color:#a78bfa">{{s.nA}}</div>
                   <div style="font-size:26px;font-weight:900;color:#a78bfa;margin:6px 0">{{s.mvA}}</div>
@@ -2745,7 +2741,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <!-- Giocatore B -->
                 <div style="flex:1;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:10px;text-align:center">
                   <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #34d399;margin:0 auto 6px">
-                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div class="hc-sub" style="font-size:13px!important;font-weight:700;color:#34d399">{{s.nB}}</div>
                   <div style="font-size:26px;font-weight:900;color:#34d399;margin:6px 0">{{s.mvB}}</div>
@@ -2763,7 +2759,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <!-- 2° posto -->
                 <div v-if="s.podio[1]" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
                   <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #94a3b8;margin:0 auto">
-                    <img :src="s.podio[1].foto&&s.podio[1].foto.startsWith('data:')?s.podio[1].foto:getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.podio[1].foto&&s.podio[1].foto.startsWith('data:')?s.podio[1].foto:getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:11px;font-weight:700;color:#94a3b8;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px">{{s.podio[1].nome}}</div>
                   <div style="font-size:22px;font-weight:900;color:#94a3b8">{{s.podio[1].val}}</div>
@@ -2774,7 +2770,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div v-if="s.podio[0]" style="flex:1.2;display:flex;flex-direction:column;align-items:center;gap:6px">
                   <div style="font-size:16px">👑</div>
                   <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:3px solid;margin:0 auto" :style="'border-color:'+s.col+';box-shadow:0 0 16px '+s.col+'55'">
-                    <img :src="s.podio[0].foto&&s.podio[0].foto.startsWith('data:')?s.podio[0].foto:getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.podio[0].foto&&s.podio[0].foto.startsWith('data:')?s.podio[0].foto:getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:13px;font-weight:900;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px" :style="'color:'+s.col">{{s.podio[0].nome}}</div>
                   <div style="font-size:30px;font-weight:900" :style="'color:'+s.col+';text-shadow:0 0 16px '+s.col+'88'">{{s.podio[0].val}}</div>
@@ -2784,7 +2780,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <!-- 3° posto -->
                 <div v-if="s.podio[2]" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
                   <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid #cd7c3d;margin:0 auto">
-                    <img :src="s.podio[2].foto&&s.podio[2].foto.startsWith('data:')?s.podio[2].foto:getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img :src="s.podio[2].foto&&s.podio[2].foto.startsWith('data:')?s.podio[2].foto:getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
                   <div style="font-size:10px;font-weight:700;color:#cd7c3d;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">{{s.podio[2].nome}}</div>
                   <div style="font-size:18px;font-weight:900;color:#cd7c3d">{{s.podio[2].val}}</div>
@@ -2796,43 +2792,43 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── H2H CARD ── -->
             <template v-else-if="s.type==='h2hCard'">
-              <div class="hc-label" style="color:#f87171">{{s.label}}</div>
-              <!-- Foto e nomi -->
-              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-bottom:10px">
-                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-                  <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #f87171">
-                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+              <div class="hc-label" style="color:#f87171;margin-bottom:12px">{{s.label}}</div>
+              <!-- Foto e nomi — centrati verticalmente -->
+              <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #f87171;box-shadow:0 0 16px rgba(248,113,113,.35);background:rgba(255,255,255,.08)">
+                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)||SILHOUETTE" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
-                  <div style="font-size:13px;font-weight:800;color:#f87171;text-align:center">{{s.nA}}</div>
-                  <div style="font-size:26px;font-weight:900;color:#f87171">{{s.wA}}</div>
-                  <div style="font-size:9px;color:rgba(248,113,113,.5);text-transform:uppercase">vittorie</div>
+                  <div style="font-size:13px;font-weight:800;color:#f87171;text-align:center;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.nA}}</div>
+                  <div style="font-size:30px;font-weight:900;color:#f87171;line-height:1">{{s.wA}}</div>
+                  <div style="font-size:9px;color:rgba(248,113,113,.5);text-transform:uppercase;letter-spacing:1px">vittorie</div>
                 </div>
-                <div style="flex-shrink:0;text-align:center">
+                <div style="flex-shrink:0;text-align:center;display:flex;flex-direction:column;align-items:center;gap:4px">
                   <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5)">{{s.tot}} sfide</div>
-                  <div style="font-size:16px;font-weight:900;color:rgba(255,255,255,.25);margin:4px 0">VS</div>
+                  <div style="font-size:22px;font-weight:900;color:rgba(255,255,255,.3)">VS</div>
                   <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.pari}} pari</div>
                 </div>
-                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-                  <div style="width:60px;height:60px;border-radius:50%;overflow:hidden;border:2px solid #60a5fa">
-                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #60a5fa;box-shadow:0 0 16px rgba(96,165,250,.35);background:rgba(255,255,255,.08)">
+                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)||SILHOUETTE" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
-                  <div style="font-size:13px;font-weight:800;color:#60a5fa;text-align:center">{{s.nB}}</div>
-                  <div style="font-size:26px;font-weight:900;color:#60a5fa">{{s.wB}}</div>
-                  <div style="font-size:9px;color:rgba(96,165,250,.5);text-transform:uppercase">vittorie</div>
+                  <div style="font-size:13px;font-weight:800;color:#60a5fa;text-align:center;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.nB}}</div>
+                  <div style="font-size:30px;font-weight:900;color:#60a5fa;line-height:1">{{s.wB}}</div>
+                  <div style="font-size:9px;color:rgba(96,165,250,.5);text-transform:uppercase;letter-spacing:1px">vittorie</div>
                 </div>
               </div>
               <!-- Barra percentuale -->
-              <div style="position:relative;z-index:1;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.1);margin-bottom:8px;display:flex">
+              <div style="position:relative;z-index:1;height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,.1);margin-bottom:10px;display:flex">
                 <div :style="'width:'+s.pctA+'%;background:#f87171;transition:width .5s'"></div>
                 <div :style="'width:'+(100-s.pctA-s.pctB)+'%;background:rgba(255,255,255,.2)'"></div>
                 <div :style="'width:'+s.pctB+'%;background:#60a5fa'"></div>
               </div>
               <!-- Ultimi risultati -->
               <div style="position:relative;z-index:1">
-                <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1px;margin-bottom:4px">Ultimi risultati</div>
+                <div style="font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:6px">Ultimi risultati</div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap">
                   <div v-for="(r,i) in s.ultimi3" :key="i"
-                    style="background:rgba(255,255,255,.08);border-radius:6px;padding:4px 10px;font-size:12px;font-weight:700">
+                    style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:5px 12px;font-size:13px;font-weight:700;color:#fff">
                     {{r.gA}} – {{r.gB}}
                   </div>
                 </div>
@@ -2844,7 +2840,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label" style="color:rgba(74,222,128,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
                 <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25);background:rgba(255,255,255,.06)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div class="hc-name" style="color:#4ade80">{{s.nome}}</div>
@@ -3978,7 +3974,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 :style="'border:2.5px solid '+s.col+';box-shadow:0 0 18px '+s.col+'44'">
                 <img v-if="getPlayerPhoto(s.foto,s.uid)" :src="getPlayerPhoto(s.foto,s.uid)"
                   style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-                  @error="$event.target.style.display='none'">
+                  @error="$event.target.src=SILHOUETTE">
                 <span v-else style="font-size:26px">⚽</span>
               </div>
             </div>
@@ -4295,7 +4291,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;margin-bottom:14px;text-align:center">
                 <div style="background:rgba(255,140,0,.1);border-radius:12px;padding:12px;border:1px solid rgba(255,140,0,.25)">
                   <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid #FF8C00;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;background:var(--bg3)">
-                    <img v-if="h2hComputed.pA.foto||h2hComputed.pA.uid" :src="getPlayerPhoto(h2hComputed.pA.foto,h2hComputed.pA.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img v-if="h2hComputed.pA.foto||h2hComputed.pA.uid" :src="getPlayerPhoto(h2hComputed.pA.foto,h2hComputed.pA.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                     <span v-else style="font-size:18px">👤</span>
                   </div>
                   <div style="font-size:28px;font-weight:900;color:#FF8C00">{{h2hComputed.winsA}}</div>
@@ -4308,7 +4304,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
                 <div style="background:rgba(58,123,255,.1);border-radius:12px;padding:12px;border:1px solid rgba(58,123,255,.25)">
                   <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid var(--blue);margin:0 auto 6px;display:flex;align-items:center;justify-content:center;background:var(--bg3)">
-                    <img v-if="h2hComputed.pB.foto||h2hComputed.pB.uid" :src="getPlayerPhoto(h2hComputed.pB.foto,h2hComputed.pB.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                    <img v-if="h2hComputed.pB.foto||h2hComputed.pB.uid" :src="getPlayerPhoto(h2hComputed.pB.foto,h2hComputed.pB.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                     <span v-else style="font-size:18px">👤</span>
                   </div>
                   <div style="font-size:28px;font-weight:900;color:var(--blue)">{{h2hComputed.winsB}}</div>
@@ -6369,7 +6365,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.596',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.597',date:'2026-06-27',items:[
+      'Rimosso badge AI in alto a destra — ora solo watermark AI nello sfondo delle card AI.',
+      'Card H2H: layout centrato verticalmente, foto più grandi (72px), glow colorato, ultimi risultati migliorati.',
+      'Silhouette generica come fallback su tutte le foto mancanti nelle hero card (non più icona nascosta).',
+      'Bordo glow dinamico sul carousel: verde lime per Trending, oro per Voto Alto e HoF, rosso per TrashTalk e H2H, arancio per Duel, azzurro per Recap.',
+    ]},{version:'v1.596',date:'2026-06-27',items:[
       'Titoli card hero uniformati: rimossi tutti i font-size inline, ora tutti usano hc-label (11px, letter-spacing 2.5px) — duel, story, trend, cronaca, recap, dreamteam, ovr3.',
       'Emoji animate complete: mappate tutte le emoji motivazionali — cervello (pulse), porta (shake), bandiera (shake), orologio (bounce), pioggia (bounce), stadio (wobble), sfera (pulse).',
     ]},{version:'v1.595',date:'2026-06-27',items:[
@@ -6819,7 +6820,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.596');
+    const appVersion = ref('1.597');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
