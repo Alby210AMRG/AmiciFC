@@ -6445,7 +6445,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.606',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.607',date:'2026-06-27',items:[
+      'Sync V3 Fix 1 — sw.js: ripristinata esclusione Firebase dalla cache (firebasedatabase.app + firebaseio.com). Risolve mancata sincronizzazione su PWA Chrome PC. Il cambio nome cache invalida automaticamente le vecchie cache con risposte Firebase intrappolate.',
+      'Sync V3 Fix 2 — syncFromCloud: aggiorna trackAssist/trackAssistSetAt/trackAssistSetBy sul gruppo locale al sync. Prima questi campi venivano persi.',
+      'Sync V3 Fix 3 — syncToCloud: TrashTalk scritto nel formato nuovo {YYYYMMDD:{cards,generatedAt,createdBy}} invece dell array piatto legacy. syncFromCloud aggiornato per leggere entrambi i formati (retrocompatibile).',
+    ]},{version:'v1.606',date:'2026-06-27',items:[
       'Card Fantasmi del Gol: appare quando ci sono almeno 2 giocatori con 5+ partite e zero gol, con min. 8 partite stagionali. Lista con foto, nome e presenze su sfondo viola scuro.',
     ]},{version:'v1.605',date:'2026-06-27',items:[
       'Fix: streak vittorie usava p.id invece di p.uid nel confronto con le squadre — ora corretto.',
@@ -6933,7 +6937,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.606');
+    const appVersion = ref('1.607');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11311,10 +11315,37 @@ Niente altro, nessuna spiegazione.`;
         // Merge: le card locali sovrascrivono quelle Firebase (sono più aggiornate)
         const _gKey = _aiCardGroupKey();
 
-        // TrashTalk
+        // TrashTalk — scrivi sempre nel formato nuovo {YYYYMMDD: {cards, generatedAt, createdBy}}
+        // NON scrivere l'array piatto (formato legacy) che romperebbe la struttura su Firebase
         if (aiCardsTrashTalk.value?.length) {
           cloudAiCards.trashTalk = cloudAiCards.trashTalk || {};
-          cloudAiCards.trashTalk[_gKey] = aiCardsTrashTalk.value;
+          // Ricava dateKey dalla data dell'ultima partita del gruppo corrente
+          const _ttMatches = allGroups.find(ag => ag.group?.nome === currentGroup.value?.nome)?.matches || [];
+          const _lastMatch = [..._ttMatches].sort((a,b)=>(b.data||'').localeCompare(a.data||''))[0];
+          const _ttDateKey = (_lastMatch?.data||'').replace(/-/g,'') || String(Date.now()).slice(0,8);
+          const _ttEmail = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'sync';
+          // Preserva eventuali altri dateKey già su Firebase (non sovrascrivere solo quello corrente)
+          const _existingTT = cloudAiCards.trashTalk[_gKey];
+          if (_existingTT && typeof _existingTT === 'object' && !Array.isArray(_existingTT)) {
+            // Già nel formato nuovo — aggiorna solo il dateKey dell'ultima partita
+            cloudAiCards.trashTalk[_gKey] = {
+              ..._existingTT,
+              [_ttDateKey]: {
+                cards: aiCardsTrashTalk.value,
+                generatedAt: (_existingTT[_ttDateKey]?.generatedAt) || Date.now(),
+                createdBy: (_existingTT[_ttDateKey]?.createdBy) || _ttEmail,
+              }
+            };
+          } else {
+            // Formato legacy o assente — crea struttura nuova
+            cloudAiCards.trashTalk[_gKey] = {
+              [_ttDateKey]: {
+                cards: aiCardsTrashTalk.value,
+                generatedAt: Date.now(),
+                createdBy: _ttEmail,
+              }
+            };
+          }
         }
 
         // HoF
@@ -11700,9 +11731,26 @@ Niente altro, nessuna spiegazione.`;
               let existing = groups.value.find(x => x.nome === g.nome);
               let gid;
               if (!existing) {
-                gid = await db.groups.add({ nome: g.nome, firebaseUrl: g.firebaseUrl||'', firebaseApiKey: g.firebaseApiKey||'', stagione: g.stagione||'Stagione 1', archivioStagioni: g.archivioStagioni||[], syncOnStartup: true });
+                gid = await db.groups.add({
+                  nome: g.nome,
+                  firebaseUrl: g.firebaseUrl||'',
+                  firebaseApiKey: g.firebaseApiKey||'',
+                  stagione: g.stagione||'Stagione 1',
+                  archivioStagioni: g.archivioStagioni||[],
+                  syncOnStartup: true,
+                  trackAssist: g.trackAssist !== false,
+                  trackAssistSetAt: g.trackAssistSetAt||null,
+                  trackAssistSetBy: g.trackAssistSetBy||null,
+                });
               } else {
                 gid = existing.id;
+                // Aggiorna i campi del gruppo che possono cambiare su Firebase
+                await db.groups.update(gid, {
+                  stagione: g.stagione || existing.stagione,
+                  trackAssist: g.trackAssist !== false,
+                  ...(g.trackAssistSetAt ? { trackAssistSetAt: g.trackAssistSetAt } : {}),
+                  ...(g.trackAssistSetBy ? { trackAssistSetBy: g.trackAssistSetBy } : {}),
+                });
               }
 
               // ── CANCELLA TUTTO IL LOCALE: Firebase comanda ──
@@ -11800,9 +11848,24 @@ Niente altro, nessuna spiegazione.`;
             const _fbAiCards = data.aiCards || {};
             const _gKey2 = _aiCardGroupKey();
             if (_fbAiCards.trashTalk?.[_gKey2]) {
-              aiCardsTrashTalk.value = _fbAiCards.trashTalk[_gKey2];
-              localStorage.setItem('amicifc_tt_' + currentGroup.value.id, JSON.stringify(aiCardsTrashTalk.value));
-              aiFlagSet('tt', currentGroup.value.id);
+              const _ttGroup = _fbAiCards.trashTalk[_gKey2];
+              let _ttCards = [];
+              if (Array.isArray(_ttGroup)) {
+                // Formato legacy — array piatto
+                _ttCards = _ttGroup;
+              } else if (_ttGroup && typeof _ttGroup === 'object') {
+                // Formato nuovo — {YYYYMMDD: {cards, generatedAt, createdBy}}
+                const _dateKeys = Object.keys(_ttGroup).filter(k => /^\d{8}$/.test(k)).sort();
+                const _latestKey = _dateKeys[_dateKeys.length - 1];
+                if (_latestKey && Array.isArray(_ttGroup[_latestKey]?.cards)) {
+                  _ttCards = _ttGroup[_latestKey].cards;
+                }
+              }
+              if (_ttCards.length) {
+                aiCardsTrashTalk.value = _ttCards;
+                localStorage.setItem('amicifc_tt_' + currentGroup.value.id, JSON.stringify({ cards: _ttCards, generatedAt: Date.now() }));
+                aiFlagSet('tt', currentGroup.value.id);
+              }
             }
             if (_fbAiCards.hallOfFame?.[_gKey2]) {
               aiCardsHallOfFame.value = _fbAiCards.hallOfFame[_gKey2];
