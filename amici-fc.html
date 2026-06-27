@@ -2865,34 +2865,39 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── INFORTUNIO ── -->
             <template v-else-if="s.type==='infortunio'">
-              <!-- Croce rossa sfondo -->
-              <div style="position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;opacity:.04;font-size:200px;line-height:1;pointer-events:none">🏥</div>
-              <div class="hc-label" style="color:#f87171;margin-bottom:10px">{{s.label}}</div>
-              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
+              <!-- Watermark croce rossa -->
+              <div style="position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;pointer-events:none;overflow:hidden">
+                <div style="font-size:260px;line-height:1;opacity:.07;color:#fff;font-weight:900;letter-spacing:-10px;transform:rotate(-15deg)">🏥</div>
+              </div>
+              <!-- Bande rosse decorative -->
+              <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#dc2626);z-index:0"></div>
+              <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#dc2626);z-index:0"></div>
+              <div class="hc-label" style="color:#fca5a5;margin-bottom:12px;letter-spacing:3px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:14px">
                 <div style="position:relative;flex-shrink:0">
-                  <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid #f87171;box-shadow:0 0 24px rgba(248,113,113,.5)">
-                    <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover;filter:grayscale(30%)" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:84px;height:84px;border-radius:50%;overflow:hidden;border:3px solid #fff;box-shadow:0 0 0 3px #dc2626,0 0 24px rgba(220,38,38,.6)">
+                    <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover;filter:grayscale(40%) contrast(1.1)" @error="$event.target.src=SILHOUETTE">
                   </div>
-                  <div style="position:absolute;bottom:-4px;right:-4px;width:26px;height:26px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid var(--bg)">🤕</div>
+                  <div style="position:absolute;bottom:-5px;right:-5px;width:28px;height:28px;border-radius:50%;background:#dc2626;display:flex;align-items:center;justify-content:center;font-size:15px;border:2.5px solid #fff">🏥</div>
                 </div>
                 <div style="flex:1;min-width:0">
-                  <div style="font-size:18px;font-weight:900;color:#fff;margin-bottom:4px">{{s.nome}}</div>
-                  <div style="font-size:12px;color:rgba(248,113,113,.8);font-weight:600">è fuori dai giochi</div>
+                  <div style="font-size:20px;font-weight:900;color:#fff;margin-bottom:3px;text-shadow:0 2px 8px rgba(0,0,0,.4)">{{s.nome}}</div>
+                  <div style="font-size:12px;color:#fca5a5;font-weight:700;letter-spacing:.5px">È FUORI DAI GIOCHI</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:12px 14px;margin-bottom:10px">
-                <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(248,113,113,.6);margin-bottom:4px">Situazione</div>
-                <div style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.5">{{s.testo}}</div>
+              <div style="position:relative;z-index:1;background:rgba(255,255,255,.12);border:1.5px solid rgba(255,255,255,.25);border-radius:12px;padding:12px 14px;margin-bottom:10px;backdrop-filter:blur(4px)">
+                <div style="font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:5px">📋 Situazione</div>
+                <div style="font-size:13px;color:#fff;line-height:1.5;font-weight:500">{{s.testo}}</div>
               </div>
-              <div style="position:relative;z-index:1;text-align:center;font-size:13px;color:rgba(255,255,255,.5)">🙏 Forza {{s.nome}}, torna presto!</div>
+              <div style="position:relative;z-index:1;text-align:center;font-size:13px;color:rgba(255,255,255,.6);font-weight:600">🙏 Forza {{s.nome}}, torna presto!</div>
             </template>
 
           </div>
         </div>
         <!-- dot indicators -->
-        <div style="position:absolute;bottom:9px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5;pointer-events:none">
+        <div style="position:absolute;bottom:9px;left:8px;right:8px;display:flex;gap:3px;z-index:5;pointer-events:none;justify-content:center;overflow:hidden">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'d'+i"
-            style="height:3px;border-radius:2px;transition:all .3s;background:rgba(255,255,255,.25)"
+            style="height:3px;border-radius:2px;transition:all .3s;background:rgba(255,255,255,.25);flex-shrink:0"
             :style="i===heroUnifiedIdx?'width:18px;background:rgba(255,255,255,.9)':'width:6px'">
           </div>
         </div>
@@ -2991,11 +2996,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       <div class="player-grid">
         <div v-for="p in sortedGroupPlayers" :key="p.id" class="player-card" @click="openPlayerDetail(p)"
-          :style="p.infortunio?'border:1.5px solid rgba(248,113,113,.5);background:rgba(248,113,113,.05)':''">
+          :style="p.infortunio?'border:1.5px solid rgba(248,113,113,.5);background:rgba(248,113,113,.05);position:relative':''">
+          <!-- Badge infortunio in alto a destra -->
+          <div v-if="p.infortunio" style="position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:#e53e3e;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--bg);z-index:2;box-shadow:0 0 6px rgba(229,62,62,.5)">🏥</div>
           <div class="player-avatar" :style="'border:2.5px solid '+(p.infortunio?'#f87171':(p.mediaVoto||0)>=7?'#4ade80':(p.mediaVoto||0)>=5?'#FFD93D':'var(--border)')">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
             <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
-            <div v-if="p.infortunio" style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg)">🤕</div>
           </div>
           <div class="player-name">{{ p.nome }} {{ p.cognome }}</div>
           <div v-if="p.soprannome" class="player-nick">"{{ p.soprannome }}"</div>
@@ -5455,9 +5461,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="modal-handle"></div>
       <div style="text-align:center;margin-bottom:20px;position:relative">
         <!-- Badge infortunio in alto a destra -->
-        <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:rgba(248,113,113,.15);border:1.5px solid rgba(248,113,113,.5);border-radius:20px;padding:4px 10px;display:flex;align-items:center;gap:4px">
-          <span style="font-size:14px">🏥</span>
-          <span style="font-size:10px;font-weight:700;color:#f87171;letter-spacing:.5px">INFORTUNATO</span>
+        <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:#e53e3e;border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px rgba(229,62,62,.4)">
+          <span style="font-size:16px">🏥</span>
+          <span style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px">INFORTUNATO</span>
         </div>
         <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;border:4px solid '+(detailPlayer.infortunio?'#f87171':(detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+(detailPlayer.infortunio?'rgba(248,113,113,0.4)':(detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')">
           <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
@@ -6419,7 +6425,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.603',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.604',date:'2026-06-27',items:[
+      'Infortunio: badge 🏥 in alto a destra nella lista giocatori (non piu in basso), sfondo rosso pieno visibile.',
+      'Infortunio: badge nella scheda giocatore ora su sfondo rosso solido con testo bianco.',
+      'Card infortunio carousel: watermark 🏥 grande, bande rosse decorative, colori bianco/rosso vivaci.',
+      'Dot indicators hero: non piu tagliati sui bordi mobile — ora centrati con overflow hidden.',
+      'Fix: card manca da 3 partite usava p.id invece di p.uid — ora confronto corretto con le squadre.',
+    ]},{version:'v1.603',date:'2026-06-27',items:[
       'Fix Inspector: ripristinata struttura template string partite — il bottone Modifica era fuori dal blocco AUTH_TOKEN causando errore JS al caricamento.',
       'Home: rimossa barra di avanzamento in alto nel carousel, rimangono solo i dot indicator in basso.',
     ]},{version:'v1.602',date:'2026-06-27',items:[
@@ -6897,7 +6909,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.603');
+    const appVersion = ref('1.604');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12259,7 +12271,7 @@ Niente altro, nessuna spiegazione.`;
         const _ml=[10,25,50,75,100];const _nm=_ml.find(n=>n>matches.length&&n-matches.length<=5);
         if(_nm) items.push({emoji:'🏆',text:`Solo ${_nm-matches.length} partite alla numero ${_nm}! Un traguardo storico per il gruppo.`});
         if(matches.length>=4){const _fm=[...matches].sort((a,b)=>a.data.localeCompare(b.data))[0];if(_fm?.data){const _ms=Math.floor((Date.now()-new Date(_fm.data))/2592000000);if(_ms>0)items.push({emoji:'🎂',text:`${_ms} ${_ms===1?'mese':'mesi'} insieme! Da ${_fm.data.split('-').reverse().join('/')} ad oggi: ${matches.length} partite.`});}}
-        if(players.length>5){const last3ids=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3).map(m=>m.id);const absent=players.filter(p=>!last3ids.some(mid=>{const m=matches.find(x=>x.id===mid);return(m?.squadraA||[]).map(String).includes(String(p.id))||(m?.squadraB||[]).map(String).includes(String(p.id));}));if(absent.length>0){const pick=absent[Math.floor(Date.now()/3600000)%absent.length];items.push({uid:pick.uid,foto:pick.foto,emoji:'🎪',text:`${pick.soprannome||pick.nome} manca da almeno 3 partite. Tutto bene? Il gruppo ha bisogno di te!`});}}
+        if(players.length>5){const last3ids=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3).map(m=>m.id);const absent=players.filter(p=>!last3ids.some(mid=>{const m=matches.find(x=>x.id===mid);return(m?.squadraA||[]).map(String).includes(String(p.uid))||(m?.squadraB||[]).map(String).includes(String(p.uid));}));if(absent.length>0){const pick=absent[Math.floor(Date.now()/3600000)%absent.length];items.push({uid:pick.uid,foto:pick.foto,emoji:'🎪',text:`${pick.soprannome||pick.nome} manca da almeno 3 partite. Tutto bene? Il gruppo ha bisogno di te!`});}}
       }
 
       // ── 40 FRASI SIMPATICHE (interleave ogni 4 items) ──
