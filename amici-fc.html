@@ -2219,12 +2219,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @mousedown="heroMD" @mousemove="heroMM" @mouseup="heroMU"
         @touchstart.passive="heroTS" @touchmove.passive="heroTM" @touchend.passive="heroTE"
         @click="heroClick">
-        <div style="position:absolute;top:9px;left:12px;right:12px;display:flex;gap:3px;z-index:10;pointer-events:none">
-          <div v-for="(s,i) in (heroUnifiedData||[])" :key="'p'+i"
-            :style="'flex:1;height:2.5px;border-radius:2px;overflow:hidden;background:'+(s.type==='welcome'?'transparent':'rgba(255,255,255,.2)')">
-            <div :id="'hpf'+i" :style="'height:100%;border-radius:2px;background:#fff;width:0%;'+(s.type==='welcome'?'display:none':'')"></div>
-          </div>
-        </div>
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
@@ -6425,7 +6419,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.602',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.603',date:'2026-06-27',items:[
+      'Fix Inspector: ripristinata struttura template string partite — il bottone Modifica era fuori dal blocco AUTH_TOKEN causando errore JS al caricamento.',
+      'Home: rimossa barra di avanzamento in alto nel carousel, rimangono solo i dot indicator in basso.',
+    ]},{version:'v1.602',date:'2026-06-27',items:[
       'Fix critico: ripristinata struttura home — quick menu Stats/Giocatori/Storico e ultime partite nuovamente visibili.',
       'Statistiche: leader non mostrato per tab con valori tutti a zero (Assist, Autogol).',
       'Giocatori: badge 🏥 INFORTUNATO in alto a destra nella scheda dettaglio con bordo rosso e testo infortunio visibile senza aprire modifica.',
@@ -6900,7 +6897,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.602');
+    const appVersion = ref('1.603');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
