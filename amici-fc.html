@@ -769,7 +769,20 @@ textarea.input-field { resize: vertical; min-height: 80px; }
    HOME HERO
    ═══════════════════════════════════════ */
 /* ── HERO CARD — SISTEMA TIPOGRAFICO UNIFICATO ── */
-.hc-label   { font-size:10px!important;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.6;margin-bottom:8px;position:relative;z-index:1 }
+.hc-label   { font-size:11px!important;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto;position:relative;z-index:1 }
+/* ── EMOJI ANIMAZIONI ── */
+@keyframes emoji-spin    { from { display:inline-block;transform:rotate(0deg); } to { display:inline-block;transform:rotate(360deg); } }
+@keyframes emoji-pulse   { 0%,100% { transform:scale(1); } 50% { transform:scale(1.35); } }
+@keyframes emoji-shake   { 0%,100% { transform:rotate(0deg); } 20% { transform:rotate(-12deg); } 40% { transform:rotate(12deg); } 60% { transform:rotate(-8deg); } 80% { transform:rotate(8deg); } }
+@keyframes emoji-bounce  { 0%,100% { transform:translateY(0); } 40% { transform:translateY(-10px); } 70% { transform:translateY(-4px); } }
+@keyframes emoji-wobble  { 0%,100% { transform:rotate(0deg) scale(1); } 25% { transform:rotate(-8deg) scale(1.1); } 75% { transform:rotate(8deg) scale(1.1); } }
+.emoji-spin   { display:inline-block;animation:emoji-spin   2s linear infinite; }
+.emoji-pulse  { display:inline-block;animation:emoji-pulse  1.6s ease-in-out infinite; }
+.emoji-shake  { display:inline-block;animation:emoji-shake  2.2s ease-in-out infinite; }
+.emoji-bounce { display:inline-block;animation:emoji-bounce 1.8s ease-in-out infinite; }
+.emoji-wobble { display:inline-block;animation:emoji-wobble 2s ease-in-out infinite; }
+/* ── AI WATERMARK SFONDO ── */
+.hc-ai-bg { position:absolute;right:-10px;bottom:-20px;font-size:130px;font-weight:900;opacity:.06;line-height:1;color:#fff;pointer-events:none;letter-spacing:-4px;user-select:none;z-index:0 }
 .hc-name    { font-size:20px!important;font-weight:900;line-height:1.2;position:relative;z-index:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap }
 .hc-sub     { font-size:12px!important;font-weight:500;opacity:.55;margin-top:2px;position:relative;z-index:1 }
 .hc-title   { font-size:17px!important;font-weight:800;line-height:1.3;margin-bottom:6px;position:relative;z-index:1 }
@@ -2201,7 +2214,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
@@ -2265,7 +2278,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='duel'">
-              <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:10px">{{s.label}}</div>
+              <div class="hc-label" style="margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:stretch;gap:0;flex:1">
                 <!-- Giocatore A -->
                 <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;padding:0 8px">
@@ -2295,7 +2308,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='story'">
-              <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:6px">{{s.label}}</div>
+              <div class="hc-label" style="margin-bottom:6px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:0;margin-bottom:8px">
                 <!-- Giocatore A -->
                 <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
@@ -2324,13 +2337,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
             <template v-else-if="s.type==='news'">
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:16px 18px;z-index:1">
-                <div class="hc-label" style="color:rgba(255,255,255,.55);text-align:center;margin-bottom:10px">📻 In Diretta dallo Spogliatoio</div>
+                <div class="hc-label" style="text-align:center;margin-bottom:10px">📻 In Diretta dallo Spogliatoio</div>
                 <div v-if="s.foto||s.uid" style="display:flex;justify-content:center;margin-bottom:10px;flex-shrink:0">
                   <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2)">
                     <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
                   </div>
                 </div>
-                <div v-else style="font-size:36px;text-align:center;margin-bottom:10px;flex-shrink:0">{{s.badge}}</div>
+                <div v-else style="font-size:38px;text-align:center;margin-bottom:10px;flex-shrink:0">
+                  <span :class="{
+                    'emoji-spin'  : s.badge==='⚽'||s.badge==='🌀'||s.badge==='🔄',
+                    'emoji-pulse' : s.badge==='⭐'||s.badge==='💫'||s.badge==='✨'||s.badge==='🌟'||s.badge==='🧠'||s.badge==='💪'||s.badge==='🔮',
+                    'emoji-shake' : s.badge==='📺'||s.badge==='📱'||s.badge==='🎙️'||s.badge==='📻'||s.badge==='🚩'||s.badge==='🥅'||s.badge==='😅',
+                    'emoji-bounce': s.badge==='🏆'||s.badge==='🎯'||s.badge==='🥇'||s.badge==='🎉'||s.badge==='⏱️'||s.badge==='🌧️',
+                    'emoji-wobble': s.badge==='🦁'||s.badge==='👑'||s.badge==='🔥'||s.badge==='🏟️'||s.badge==='😤'
+                  }">{{s.badge}}</span>
+                </div>
                 <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
                   :ref="el => el && _heroAutoScroll(el, s, 'news')">
                   <div class="hc-scroll-inner">
@@ -2363,7 +2384,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='trend'">
-              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div class="hc-label">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
                 <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(52,211,153,.5);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">
                   <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'"><span v-else>⚡</span></div>
@@ -2404,8 +2425,29 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
 
+            <!-- ── VOTO PIU ALTO ULTIMA PARTITA ── -->
+            <template v-else-if="s.type==='bestVote'">
+              <div class="hc-label" style="margin-bottom:10px">⭐ Voto più Alto — Ultima Partita</div>
+              <!-- Foto: 1 centrata, 2 affiancate, 3-4 griglia 2x2 -->
+              <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:10px;margin-bottom:12px"
+                :style="s.players.length===1?'justify-content:center':s.players.length===2?'justify-content:center;gap:16px':'flex-wrap:wrap;gap:8px'">
+                <div v-for="(p,pi) in s.players" :key="pi"
+                  style="display:flex;flex-direction:column;align-items:center;gap:6px"
+                  :style="s.players.length<=2?'flex:0 0 auto':'flex:0 0 calc(50% - 4px)'">
+                  <div :style="'border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 16px rgba(251,191,36,.4);background:rgba(255,255,255,.08);'+(s.players.length===1?'width:88px;height:88px':s.players.length===2?'width:76px;height:76px':'width:64px;height:64px')">
+                    <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
+                  </div>
+                  <div :style="'font-weight:800;color:#fbbf24;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:90px;font-size:'+(s.players.length===1?'14px':s.players.length===2?'13px':'11px')">{{p.nome}}</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;text-align:center;background:rgba(251,191,36,.12);border:1px solid rgba(251,191,36,.3);border-radius:12px;padding:10px 16px">
+                <div style="font-size:38px;font-weight:900;color:#fbbf24;line-height:1;text-shadow:0 0 20px rgba(251,191,36,.5)">{{s.voto}}</div>
+                <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(251,191,36,.6);margin-top:3px">{{s.players.length>1?'A parimerito':'Voto partita'}}</div>
+              </div>
+            </template>
+
             <template v-else-if="s.type==='cronaca'">
-              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div class="hc-label">{{s.label}}</div>
               <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column">
                 <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:4px">{{s.kicker}}</div>
                 <div class="hc-title" style="color:#fff;margin-bottom:8px">{{s.headline}}</div>
@@ -2419,7 +2461,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-meta">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='recap'">
-              <div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto">{{s.label}}</div>
+              <div class="hc-label">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-bottom:10px">
                 <div style="background:rgba(255,255,255,.1);border-radius:10px;padding:6px 12px;text-align:center;flex-shrink:0">
                   <div style="font-size:26px;font-weight:900;color:#FF6B35;line-height:1">{{s.gA}}</div>
@@ -2441,7 +2483,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-meta">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='dreamteam'">
-              <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:6px">{{s.label}}</div>
+              <div class="hc-label" style="margin-bottom:6px">{{s.label}}</div>
               <div style="position:relative;z-index:1;font-size:18px;font-weight:900;color:#fbbf24;margin-bottom:10px;text-shadow:0 0 16px rgba(251,191,36,.5)">🏆 {{s.phase}}</div>
               <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:10px;margin-bottom:12px">
                 <div v-for="(p,pi) in (s.squad||[])" :key="pi" style="display:flex;flex-direction:column;align-items:center;gap:4px">
@@ -2455,7 +2497,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.4);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);text-align:center">Premi per l'Overall completo</div>
             </template>
             <template v-else-if="s.type==='ovr3'">
-              <div style="position:relative;z-index:1;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.55);margin-bottom:8px">{{s.label}}</div>
+              <div class="hc-label" style="margin-bottom:8px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;gap:8px;flex:1">
                 <!-- 2° posto (sinistra, leggermente più basso) -->
                 <div v-if="s.podio&&s.podio[1]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
@@ -2496,9 +2538,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- TRASH TALK -->
             <template v-else-if="s.type==='trashTalk'">
+              <div class="hc-ai-bg">AI</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:6px;margin-bottom:8px">
                 <span style="font-size:22px">{{s.emoji}}</span>
-                <span style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,180,180,.7)">{{s.label}}</span>
+                <span class="hc-label" style="margin-bottom:0">{{s.label}}</span>
                 <span v-if="s.cardTot>1" style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.35)">{{s.cardIdx+1}}/{{s.cardTot}}</span>
               </div>
               <div style="position:relative;z-index:1;display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
@@ -2520,7 +2563,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- HALL OF FAME -->
             <template v-else-if="s.type==='hallFame'">
-              <div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(251,191,36,.8);margin-bottom:10px">{{s.label}}</div>
+              <div class="hc-ai-bg">AI</div>
+              <div class="hc-label" style="color:rgba(251,191,36,.9);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
                 <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(251,191,36,.8);box-shadow:0 0 20px rgba(251,191,36,.4);background:rgba(255,255,255,.08)">
                   <img :src="s.foto && s.foto.startsWith('data:') ? s.foto : getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
@@ -2543,7 +2587,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- HALL OF SHAME -->
             <template v-else-if="s.type==='hallShame'">
-              <div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(148,163,184,.7);margin-bottom:10px">{{s.label}}</div>
+              <div class="hc-ai-bg">AI</div>
+              <div class="hc-label" style="color:rgba(148,163,184,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
                 <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(100,116,139,.6);box-shadow:0 0 16px rgba(0,0,0,.4);background:rgba(255,255,255,.06);filter:grayscale(40%)">
                   <img :src="s.foto && s.foto.startsWith('data:') ? s.foto : getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
@@ -2566,7 +2611,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <!-- SOPRANNOME / IDENTIKIT AI -->
             <!-- ── PRONOSTICO PROSSIMA PARTITA ── -->
             <template v-else-if="s.type==='pronoMini'">
-              <div class="hc-label" :style="'color:'+s.color">{{s.label}} · {{s.sub}}</div>
+              <div class="hc-ai-bg">AI</div>
+              <div class="hc-label" :style="'color:'+s.color+';margin-bottom:10px'">{{s.label}} · {{s.sub}}</div>
               <div v-if="s.nome" style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:6px 0 10px">
                 <div v-if="s.foto" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid var(--c,#fff)" :style="'border-color:'+s.color+';box-shadow:0 0 16px '+s.color+'55'">
                   <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
@@ -2794,7 +2840,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
 
             <template v-else-if="s.type==='nickCard'">
-              <div class="hc-label" style="color:rgba(74,222,128,.7)">{{s.label}}</div>
+              <div class="hc-ai-bg">AI</div>
+              <div class="hc-label" style="color:rgba(74,222,128,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
                 <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25);background:rgba(255,255,255,.06)">
                   <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.style.display='none'">
@@ -6322,7 +6369,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.594',date:'2026-06-25',items:[
+    const changelogEntries = [{version:'v1.596',date:'2026-06-27',items:[
+      'Titoli card hero uniformati: rimossi tutti i font-size inline, ora tutti usano hc-label (11px, letter-spacing 2.5px) — duel, story, trend, cronaca, recap, dreamteam, ovr3.',
+      'Emoji animate complete: mappate tutte le emoji motivazionali — cervello (pulse), porta (shake), bandiera (shake), orologio (bounce), pioggia (bounce), stadio (wobble), sfera (pulse).',
+    ]},{version:'v1.595',date:'2026-06-27',items:[
+      'Restyling card hero: titoli uniformati allo stile Trending Ora (font-size 11px, letter-spacing 2.5px, uppercase) su tutte le card.',
+      'Card AI (TrashTalk, HoF, HoS, Pronostico, Soprannomi): rimosso badge AI in alto a destra, aggiunta scritta AI come watermark in background semi-trasparente.',
+      'Emoji animate nelle card motivazionali: pallone che ruota, stella che pulsa, TV che traballa, trofeo che rimbalza, leone che oscilla.',
+      'Card Voto più Alto Ultima Partita: nuovo layout multi-giocatore con foto dinamiche (1 centrata, 2 affiancate, 3-4 griglia), gestione parimerito fino a 4 giocatori, voto in evidenza nel box inferiore.',
+    ]},{version:'v1.594',date:'2026-06-25',items:[
       'Assist Toggle: ora salva su Firebase anche trackAssistSetAt (timestamp) e trackAssistSetBy (email mascherata) — visibili nellInspector nella sezione Sync & Diagnostica.',
     ]},{version:'v1.593',date:'2026-06-25',items:[
       'Assist Toggle: nuovo toggle per gruppo in Gestione Gruppi — quando disattivato, gli assist vengono esclusi da tutti i prompt AI (TrashTalk, HoF, Soprannomi, Pronostico) e le card dedicate agli assist non vengono generate nel carousel e nel news ticker.',
@@ -6764,7 +6819,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.594');
+    const appVersion = ref('1.596');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11985,7 +12040,14 @@ Niente altro, nessuna spiegazione.`;
           items.push({emoji:'⚽',text:`Marcatori ultima partita: ${names}`,type3:'goals',scorers,matchDate:last.data});
         }
         const ratedLast=(last.statisticheGiocatori||[]).filter(s=>(s.voto||0)>0).sort((a,b)=>(b.voto||0)-(a.voto||0));
-        if(ratedLast.length){const best=ratedLast[0];const p=players.find(x=>x.uid===best.playerId||String(x.uid)===String(best.playerId)||String(x.id)===String(best.playerId));if(p)items.push({uid:p.uid,foto:p.foto,emoji:'⭐',text:`Migliore in campo: ${p.soprannome||p.nome} voto ${best.voto}`});}
+        if(ratedLast.length){
+          const topVoto = ratedLast[0].voto;
+          const topPlayers = ratedLast.filter(s=>s.voto===topVoto).slice(0,4).map(s=>{
+            const p=players.find(x=>x.uid===s.playerId||String(x.uid)===String(s.playerId)||String(x.id)===String(s.playerId));
+            return p ? {uid:p.uid,foto:p.foto,nome:p.soprannome||p.nome} : null;
+          }).filter(Boolean);
+          if(topPlayers.length) items.push({type3:'bestVote',voto:topVoto,players:topPlayers});
+        }
         if(last.commentoAI?.length>20){items.push({emoji:'💬',text:`Il telecronista dell'ultima partita: "${last.commentoAI.trim()}"`,matchId:last.id,dest:'matchClick'});}
         if(last.titoloGiornale) items.push({emoji:'📰',text:`Titolo ultima partita: "${last.titoloGiornale}"`});
         const totalG=matches.reduce((s,m)=>(m.risultato?.goalA||0)+(m.risultato?.goalB||0)+s,0);
@@ -14447,6 +14509,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           } else if(n.type3==='goals'&&n.scorers?.length){
             slides.push({type:'newsGoals',dur:Math.max(6000,Math.min(9000,n.scorers.length*1500)),
               scorers:n.scorers,matchDate:n.matchDate,bg:_bg});
+          } else if(n.type3==='bestVote'&&n.players?.length){
+            slides.push({type:'bestVote',dur:5000,players:n.players,voto:n.voto,
+              bg:'linear-gradient(145deg,#1a1000,#78350f 60%,#d97706)'});
           } else {
             slides.push({type:'news',dur:_dur,badge:n.emoji||'💬',quote:n.text||'',cit:'',bg:_bg,foto:n.foto,uid:n.uid});
           }
