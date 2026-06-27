@@ -768,7 +768,18 @@ textarea.input-field { resize: vertical; min-height: 80px; }
 /* ═══════════════════════════════════════
    HOME HERO
    ═══════════════════════════════════════ */
-/* ── HERO CARD — SISTEMA TIPOGRAFICO UNIFICATO ── */
+/* ── STATS LEADER CARD ── */
+.stats-leader { border-radius:16px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden;cursor:pointer;display:flex;align-items:center;gap:14px }
+.stats-leader-avatar { width:80px;height:80px;border-radius:50%;overflow:hidden;flex-shrink:0;position:relative;z-index:1 }
+.stats-leader-info { position:relative;z-index:1;flex:1;min-width:0 }
+.stats-leader-val { font-size:52px;font-weight:900;line-height:1;letter-spacing:-2px }
+.stats-leader-name { font-size:15px;font-weight:700;color:#fff;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis }
+.stats-leader-sub { font-size:11px;color:rgba(255,255,255,.45);margin-top:2px }
+.stats-leader-ghost { position:absolute;right:-10px;top:50%;transform:translateY(-50%);font-size:110px;font-weight:900;opacity:.06;line-height:1;letter-spacing:-4px;pointer-events:none }
+@keyframes leader-glow { 0%,100%{opacity:1} 50%{opacity:.6} }
+/* ── STATS TABS FADE GRADIENT ── */
+.stats-tabs-wrap { position:relative }
+.stats-tabs-wrap::after { content:'';position:absolute;right:0;top:0;bottom:0;width:32px;background:linear-gradient(to left,var(--bg),transparent);pointer-events:none;z-index:2 }
 .hc-label   { font-size:11px!important;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto;position:relative;z-index:1 }
 /* ── EMOJI ANIMAZIONI ── */
 @keyframes ovr-glow-gold { 0%,100%{box-shadow:0 0 0 2px #fbbf24,0 0 20px rgba(251,191,36,.4)} 50%{box-shadow:0 0 0 3px #fbbf24,0 0 40px rgba(251,191,36,.7)} }
@@ -2217,7 +2228,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
@@ -2858,10 +2869,38 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
 
+            <!-- ── INFORTUNIO ── -->
+            <template v-else-if="s.type==='infortunio'">
+              <!-- Croce rossa sfondo -->
+              <div style="position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;opacity:.04;font-size:200px;line-height:1;pointer-events:none">🏥</div>
+              <div class="hc-label" style="color:#f87171;margin-bottom:10px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
+                <div style="position:relative;flex-shrink:0">
+                  <div style="width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid #f87171;box-shadow:0 0 24px rgba(248,113,113,.5)">
+                    <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover;filter:grayscale(30%)" @error="$event.target.src=SILHOUETTE">
+                  </div>
+                  <div style="position:absolute;bottom:-4px;right:-4px;width:26px;height:26px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid var(--bg)">🤕</div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:18px;font-weight:900;color:#fff;margin-bottom:4px">{{s.nome}}</div>
+                  <div style="font-size:12px;color:rgba(248,113,113,.8);font-weight:600">è fuori dai giochi</div>
+                </div>
+              </div>
+              <div style="position:relative;z-index:1;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:12px;padding:12px 14px;margin-bottom:10px">
+                <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(248,113,113,.6);margin-bottom:4px">Situazione</div>
+                <div style="font-size:13px;color:rgba(255,255,255,.9);line-height:1.5">{{s.testo}}</div>
+              </div>
+              <div style="position:relative;z-index:1;text-align:center;font-size:13px;color:rgba(255,255,255,.5)">🙏 Forza {{s.nome}}, torna presto!</div>
+            </template>
+
           </div>
         </div>
+        <!-- dot indicators -->
         <div style="position:absolute;bottom:9px;left:50%;transform:translateX(-50%);display:flex;gap:4px;z-index:5;pointer-events:none">
-          
+          <div v-for="(s,i) in (heroUnifiedData||[])" :key="'d'+i"
+            style="height:3px;border-radius:2px;transition:all .3s;background:rgba(255,255,255,.25)"
+            :style="i===heroUnifiedIdx?'width:18px;background:rgba(255,255,255,.9)':'width:6px'">
+          </div>
         </div>
       </div>
 
@@ -2957,10 +2996,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </button>
         </div>
       <div class="player-grid">
-        <div v-for="p in sortedGroupPlayers" :key="p.id" class="player-card" @click="openPlayerDetail(p)">
-          <div class="player-avatar" :style="'border:2.5px solid '+((p.mediaVoto||0)>=7?'#4ade80':(p.mediaVoto||0)>=5?'#FFD93D':'var(--border)')">
+        <div v-for="p in sortedGroupPlayers" :key="p.id" class="player-card" @click="openPlayerDetail(p)"
+          :style="p.infortunio?'border:1.5px solid rgba(248,113,113,.5);background:rgba(248,113,113,.05)':''">
+          <div class="player-avatar" :style="'border:2.5px solid '+(p.infortunio?'#f87171':(p.mediaVoto||0)>=7?'#4ade80':(p.mediaVoto||0)>=5?'#FFD93D':'var(--border)')">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
             <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
+            <div v-if="p.infortunio" style="position:absolute;bottom:-2px;right:-2px;width:20px;height:20px;border-radius:50%;background:#f87171;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg)">🤕</div>
           </div>
           <div class="player-name">{{ p.nome }} {{ p.cognome }}</div>
           <div v-if="p.soprannome" class="player-nick">"{{ p.soprannome }}"</div>
@@ -3958,48 +3999,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <template v-else>
-        <!-- ★ HERO CAROUSEL (autonomous, click = open stat) ★ -->
-        <div style="position:relative;border-radius:16px;overflow:hidden;margin-bottom:12px;height:172px;cursor:pointer;active:transform:scale(0.98)"
-             @click="statsHeroData&&statsHeroData.length?statsTab=statsHeroData[statsHeroIdx].tab:null">
-          <div v-for="(s,i) in (statsHeroData||[])" :key="i"
-            style="position:absolute;inset:0;display:flex;align-items:center;padding:18px;gap:14px;transition:opacity .5s"
-            :style="i===statsHeroIdx?'opacity:1;pointer-events:auto':'opacity:0;pointer-events:none'">
-            <!-- bg gradient per colore -->
-            <div style="position:absolute;inset:0;opacity:.85"
-              :style="i===0?'background:linear-gradient(135deg,#1a3a0f,#071a04)':i===1?'background:linear-gradient(135deg,#3a1a0f,#1a0404)':i===2?'background:linear-gradient(135deg,#0f1f3a,#040c1a)':'background:linear-gradient(135deg,#2a2a0f,#101004)'">
-            </div>
-            <!-- big ghost number -->
-            <div style="position:absolute;right:14px;top:50%;transform:translateY(-50%);font-size:88px;font-weight:900;opacity:.05;pointer-events:none;letter-spacing:-3px">{{s.val}}</div>
-            <!-- avatar -->
-            <div style="position:relative;z-index:1;flex-shrink:0">
-              <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:28px;background:rgba(255,255,255,.08)"
-                :style="'border:2.5px solid '+s.col+';box-shadow:0 0 18px '+s.col+'44'">
-                <img v-if="getPlayerPhoto(s.foto,s.uid)" :src="getPlayerPhoto(s.foto,s.uid)"
-                  style="width:100%;height:100%;object-fit:cover;border-radius:50%"
-                  @error="$event.target.src=SILHOUETTE">
-                <span v-else style="font-size:26px">⚽</span>
-              </div>
-            </div>
-            <!-- info -->
-            <div style="position:relative;z-index:1;flex:1">
-              <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:2px;opacity:.7" :style="'color:'+s.col">{{s.label}}</div>
-              <div style="font-size:48px;font-weight:900;line-height:1;letter-spacing:-2px" :style="'color:'+s.col">{{s.val}}</div>
-              <div style="font-size:14px;font-weight:600;margin-top:4px;color:rgba(247,247,247,.9)">{{s.name}}</div>
-              <div style="font-size:11px;color:rgba(247,247,247,.4);margin-top:1px">{{s.sub}}</div>
-            </div>
-          </div>
-          <!-- dots -->
-          <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);display:flex;gap:5px;z-index:2">
-            <div v-for="(_,i) in (statsHeroData||[])" :key="i"
-              style="height:6px;border-radius:3px;transition:all .3s;background:rgba(255,255,255,.2)"
-              :style="i===statsHeroIdx?'width:18px;background:var(--lime)':'width:6px'">
-            </div>
-          </div>
-          <!-- tap hint -->
-          <div style="position:absolute;right:12px;bottom:10px;background:rgba(255,255,255,.08);border-radius:6px;padding:2px 7px;font-size:10px;color:rgba(247,247,247,.4);z-index:2">Apri classifica →</div>
-        </div>
-
-        <!-- ★ HORIZONTAL SCROLL TABS (independent from hero) ★ -->
+        <!-- ★ HORIZONTAL SCROLL TABS ★ -->
+        <div class="stats-tabs-wrap">
         <div class="stats-tabs-scroll" style="margin:0 -4px 10px;padding:0 4px">
           <div style="display:flex;gap:7px;padding:2px 0;width:max-content">
             <button v-for="tab in [
@@ -4027,6 +4028,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </span>
             </button>
           </div>
+        </div>
         </div>
 
         <!-- ★ FILTRO STAGIONE (Rilascio 6) ★ -->
@@ -4099,6 +4101,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </template>
 
         <!-- OVERALL -->
+        <!-- ── LEADER IN EVIDENZA ── -->
+        <div v-if="statsLeader" class="stats-leader" :style="'background:'+statsLeader.bg"
+          @click="openPlayerDetail(statsLeader.p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+          <!-- ghost val -->
+          <div class="stats-leader-ghost" :style="'color:'+statsLeader.col">{{statsLeader.val}}</div>
+          <!-- avatar con glow animato -->
+          <div class="stats-leader-avatar"
+            :style="'border:3px solid '+statsLeader.col+';box-shadow:0 0 0 3px '+statsLeader.col+'33,0 0 28px '+statsLeader.col+'66;animation:leader-glow 2s ease-in-out infinite'">
+            <img :src="getPlayerPhoto(statsLeader.foto, statsLeader.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+          </div>
+          <!-- info -->
+          <div class="stats-leader-info">
+            <div style="font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:2px" :style="'color:'+statsLeader.col">🥇 Leader</div>
+            <div class="stats-leader-val" :style="'color:'+statsLeader.col">{{statsLeader.val}}</div>
+            <div class="stats-leader-name">{{statsLeader.nome}}</div>
+            <div class="stats-leader-sub">{{statsLeader.sub}}</div>
+          </div>
+        </div>
+
         <template v-if="statsTab==='overall'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
@@ -5415,6 +5436,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <div class="input-group">
+        <label class="input-label" style="color:#f87171">🤕 Infortunio</label>
+        <input class="input-field" v-model="playerForm.infortunio"
+          placeholder="Es: Distorsione alla caviglia, rientro previsto in 2 settimane"
+          style="border-color:rgba(248,113,113,.4)">
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
+          Se valorizzato, il giocatore mostrerà una card di auguri. Lascia vuoto quando rientra.
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;margin-top:8px">
         <button class="btn btn-ghost" style="flex:1" @click="showPlayerForm=false">Annulla</button>
         <button class="btn btn-primary" style="flex:2" @click="savePlayer" :disabled="!playerForm.nome.trim()">
@@ -5428,17 +5459,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   <div v-if="showPlayerDetail && detailPlayer" class="modal-overlay" @click.self="showPlayerDetail=false">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div style="text-align:center;margin-bottom:20px">
-        <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;border:4px solid '+((detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+((detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')">
+      <div style="text-align:center;margin-bottom:20px;position:relative">
+        <!-- Badge infortunio in alto a destra -->
+        <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:rgba(248,113,113,.15);border:1.5px solid rgba(248,113,113,.5);border-radius:20px;padding:4px 10px;display:flex;align-items:center;gap:4px">
+          <span style="font-size:14px">🏥</span>
+          <span style="font-size:10px;font-weight:700;color:#f87171;letter-spacing:.5px">INFORTUNATO</span>
+        </div>
+        <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;border:4px solid '+(detailPlayer.infortunio?'#f87171':(detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+(detailPlayer.infortunio?'rgba(248,113,113,0.4)':(detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')">
           <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
         <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
         <div class="player-nick" style="font-size:1rem">"{{ detailPlayer.soprannome || 'Nessun soprannome' }}"</div>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px">
           <span class="badge badge-gray">{{ detailPlayer.ruolo }}</span>
-          <span v-if="detailPlayer.piede" class="badge badge-blue">
-            🦶 {{ detailPlayer.piede }}
-          </span>
+          <span v-if="detailPlayer.piede" class="badge badge-blue">🦶 {{ detailPlayer.piede }}</span>
+        </div>
+        <!-- Testo infortunio sotto i badge -->
+        <div v-if="detailPlayer.infortunio" style="margin-top:10px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#f87171;line-height:1.5">
+          🤕 {{ detailPlayer.infortunio }}
         </div>
       </div>
 
@@ -6387,7 +6425,18 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.599',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.602',date:'2026-06-27',items:[
+      'Fix critico: ripristinata struttura home — quick menu Stats/Giocatori/Storico e ultime partite nuovamente visibili.',
+      'Statistiche: leader non mostrato per tab con valori tutti a zero (Assist, Autogol).',
+      'Giocatori: badge 🏥 INFORTUNATO in alto a destra nella scheda dettaglio con bordo rosso e testo infortunio visibile senza aprire modifica.',
+    ]},{version:'v1.601',date:'2026-06-27',items:[
+      'Statistiche: rimosso carousel hero, aggiunto leader in evidenza con foto, valore grande e glow nel colore del tab.',
+      'Statistiche: fade gradient sui bordi dei tab orizzontali.',
+      'Giocatori: campo Infortunio — badge 🤕 nella lista, bordo rosso, card hero stile croce rossa nel carousel.',
+      'Inspector: commento AI visibile nelle partite, campo infortunio nei giocatori.',
+    ]},{version:'v1.600',date:'2026-06-27',items:[
+      'Fix label carousel: CLASSIFICA PUNTI mostra punti totali, MEDIA PUNTI/P mostra mediaPunti.',
+    ]},{version:'v1.599',date:'2026-06-27',items:[
       'Fix critico: tag </template> mancante nel template mediavoto causava blocco silenzioso del mount Vue.',
     ]},{version:'v1.598',date:'2026-06-27',items:[
       'Overall Rating: glow pulsante oro sul bordo carousel, cerchi animati oro/argento/bronzo attorno ai 3 giocatori.',
@@ -6746,7 +6795,7 @@ createApp({
     };
 
     const editingPlayer = ref(null);
-    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[], fraseCelebre:'' });
+    const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[], fraseCelebre:'', infortunio:'' });
     const detailPlayer  = ref(null);
     const detailPlayerReadOnly = ref(false); // true se aperto da una classifica su stagione archiviata/Carriera — nasconde Modifica/Elimina
     const detailPlayerMatches  = ref(null);  // fonte partite per il grafico forma — null = usa il default live di playerFormHistory
@@ -6851,7 +6900,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.600');
+    const appVersion = ref('1.602');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7293,8 +7342,8 @@ createApp({
     const openPlayerForm = p => {
       editingPlayer.value = p;
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'' }
-        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[] };
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'' }
+        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[], infortunio:'' };
       showPlayerForm.value = true;
     };
 
@@ -7313,6 +7362,7 @@ createApp({
           foto:        f.foto || '',
           descrizione: f.descrizione || '',
           fraseCelebre: f.fraseCelebre?.trim() || '',
+          infortunio:   f.infortunio?.trim() || '',
           rivali:      (f.rivali||[]).filter(Boolean),
           affinita:    (f.affinita||[]).filter(Boolean),
           updatedAt:   Date.now(),
@@ -7323,7 +7373,7 @@ createApp({
             await db.players.put({ ...editingPlayer.value,
               nome: f.nome.trim(), cognome: f.cognome?.trim()||'',
               soprannome: f.soprannome?.trim()||'', ruolo: f.ruolo||'Jolly',
-              piede: f.piede||'Destro', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'',
+              piede: f.piede||'Destro', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', infortunio: f.infortunio?.trim()||'',
               rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean),
             });
           }
@@ -11099,6 +11149,27 @@ Niente altro, nessuna spiegazione.`;
         .sort((a,b) => b._score - a._score);
     });
 
+    // ── Stats Leader: primo in classifica del tab corrente con colore del tab ──
+    const statsLeader = computed(() => {
+      const TAB_CFG = {
+        overall:    { col:'#A6FF4D', bg:'linear-gradient(135deg,#0d2200,#1a4400 60%,#2d7a00)', getter:()=>statsTopOverall.value[0],    val:p=>(p._score||0).toFixed(1), sub:p=>`${p.partiteTotali||0} partite · ${p.goalTotali||0} gol` },
+        goal:       { col:'#f59e0b', bg:'linear-gradient(135deg,#1a0800,#7c3500 60%,#d97706)', getter:()=>statsTopScorers.value[0],     val:p=>p.goalTotali||0, sub:p=>`${p.partiteTotali||0} partite giocate` },
+        mediagol:   { col:'#A6FF4D', bg:'linear-gradient(135deg,#0d2200,#1a4400 60%,#2d7a00)', getter:()=>statsSourcePlayers.value.filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))[0], val:p=>((p.goalTotali||0)/(p.partiteTotali||1)).toFixed(2), sub:p=>`${p.goalTotali} gol in ${p.partiteTotali} partite` },
+        classifica: { col:'#60a5fa', bg:'linear-gradient(135deg,#0a1628,#1e3a5f 60%,#3b82f6)', getter:()=>statsTopPoints.value[0],      val:p=>p.puntiTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
+        mediapunti: { col:'#a78bfa', bg:'linear-gradient(135deg,#1a0a2e,#4c1d95 60%,#7c3aed)', getter:()=>statsTopAvgPoints.value[0],   val:p=>(p.mediaPunti||0).toFixed(2), sub:p=>`${p.partiteTotali} partite · ${p.puntiTotali} pt` },
+        voti:       { col:'#FFD93D', bg:'linear-gradient(135deg,#1a1400,#4a3800 60%,#d97706)', getter:()=>statsTopRated.value[0],        val:p=>(p.mediaVoto||0).toFixed(1), sub:p=>`${p.votiTotali} partite votate` },
+        mediavoto:  { col:'#FFD93D', bg:'linear-gradient(135deg,#1a1400,#4a3800 60%,#d97706)', getter:()=>[...statsTopRated.value].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))[0], val:p=>(p.mediaVoto||0).toFixed(1), sub:p=>`${p.votiTotali} partite votate` },
+        altri:      { col:'#f87171', bg:'linear-gradient(135deg,#1a0000,#7c0000 60%,#dc2626)', getter:()=>statsTopUomoPartita.value[0], val:p=>p.uomoPartitaTotali||0, sub:p=>`volte premiato` },
+        assist:     { col:'#67e8f9', bg:'linear-gradient(135deg,#001a1f,#004a5f 60%,#0891b2)', getter:()=>{ const t=statsTopAssists.value[0]; return (t?.assistTotali||0)>0?t:null; }, val:p=>p.assistTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
+        autogol:    { col:'#94a3b8', bg:'linear-gradient(135deg,#0a0a0a,#1a1a1a 60%,#374151)', getter:()=>{ const t=statsTopAutogol.value[0]; return (t?.autogolTotali||0)>0?t:null; }, val:p=>p.autogolTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
+      };
+      const cfg = TAB_CFG[statsTab.value];
+      if (!cfg) return null;
+      const p = cfg.getter();
+      if (!p) return null;
+      return { p, col: cfg.col, bg: cfg.bg, val: cfg.val(p), sub: cfg.sub(p), nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid };
+    });
+
     // ── Refresh expired Firebase ID token automatically ──
     const refreshFirebaseToken = async () => {
       const refreshToken = localStorage.getItem('amicifc_fb_refresh');
@@ -14342,6 +14413,16 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       const _mot1={type:'news',dur:5000,badge:motivazionali[_mvi%motivazionali.length].e,quote:motivazionali[_mvi%motivazionali.length].q,cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)'};
       const _mot2={type:'news',dur:5000,badge:motivazionali[(_mvi+6)%motivazionali.length].e,quote:motivazionali[(_mvi+6)%motivazionali.length].q,cit:'',bg:'linear-gradient(145deg,#0d2818,#14532D 60%,#166534)'};
 
+      // ── Card Infortunio ──
+      const infortunati = players.filter(p => p.infortunio?.trim());
+      for (const p of infortunati) {
+        slides.push({ type:'infortunio', dur:6000,
+          nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid,
+          testo: p.infortunio,
+          bg: 'linear-gradient(145deg,#1a0000,#5c0000 60%,#991b1b)',
+          label: '🤕 INFORTUNIO' });
+      }
+
       const elDuel = players.filter(p => (p.partiteTotali||0) >= 2 && (p.goalTotali||0) >= 1);
       if(elDuel.length >= 2){
         let best=null, minD=999;
@@ -15402,7 +15483,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
-      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall,
+      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
       detailPlayerReadOnly, detailPlayerFormHistory,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
