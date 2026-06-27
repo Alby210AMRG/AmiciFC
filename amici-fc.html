@@ -2222,7 +2222,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
@@ -2863,7 +2863,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
 
-            <!-- ── INFORTUNIO ── -->
+            <!-- ── FANTASMI DEL GOL ── -->
+            <template v-else-if="s.type==='fantasma'">
+              <!-- Watermark fantasma -->
+              <div style="position:absolute;right:-20px;bottom:-20px;font-size:180px;opacity:.05;pointer-events:none;z-index:0;line-height:1">👻</div>
+              <div class="hc-label" style="color:#c4b5fd;margin-bottom:6px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;font-size:12px;color:rgba(196,181,253,.7);margin-bottom:10px;line-height:1.4;font-style:italic">{{s.sub}}</div>
+              <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(196,181,253,.15)"
+                :ref="el => el && _heroAutoScroll(el, s, 'fantasma')">
+                <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:6px">
+                  <div v-for="(p,pi) in s.players" :key="pi"
+                    style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
+                    <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(196,181,253,.4);background:rgba(255,255,255,.06)">
+                      <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover;filter:grayscale(50%)" @error="$event.target.src=SILHOUETTE">
+                    </div>
+                    <div style="flex:1;font-weight:700;color:#e9d5ff;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{p.nome}}</div>
+                    <div style="font-size:11px;color:rgba(196,181,253,.6);white-space:nowrap">{{p.partite}} presenze</div>
+                    <div style="font-size:18px;opacity:.4">👻</div>
+                  </div>
+                </div>
+              </div>
+            </template>
             <template v-else-if="s.type==='infortunio'">
               <!-- Watermark croce rossa -->
               <div style="position:absolute;inset:0;z-index:0;display:flex;align-items:center;justify-content:center;pointer-events:none;overflow:hidden">
@@ -6425,7 +6445,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.604',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.606',date:'2026-06-27',items:[
+      'Card Fantasmi del Gol: appare quando ci sono almeno 2 giocatori con 5+ partite e zero gol, con min. 8 partite stagionali. Lista con foto, nome e presenze su sfondo viola scuro.',
+    ]},{version:'v1.605',date:'2026-06-27',items:[
+      'Fix: streak vittorie usava p.id invece di p.uid nel confronto con le squadre — ora corretto.',
+    ]},{version:'v1.604',date:'2026-06-27',items:[
       'Infortunio: badge 🏥 in alto a destra nella lista giocatori (non piu in basso), sfondo rosso pieno visibile.',
       'Infortunio: badge nella scheda giocatore ora su sfondo rosso solido con testo bianco.',
       'Card infortunio carousel: watermark 🏥 grande, bande rosse decorative, colori bianco/rosso vivaci.',
@@ -6909,7 +6933,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.604');
+    const appVersion = ref('1.606');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12211,7 +12235,7 @@ Niente altro, nessuna spiegazione.`;
           const sorted5=[...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,5);
           for(const p of el3){
             let streak=0;
-            for(const m of sorted5){const inA=(m.squadraA||[]).map(String).includes(String(p.id)),inB=(m.squadraB||[]).map(String).includes(String(p.id));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((inA&&gA>gB)||(inB&&gB>gA))streak++;else break;}
+            for(const m of sorted5){const inA=(m.squadraA||[]).map(String).includes(String(p.uid)),inB=(m.squadraB||[]).map(String).includes(String(p.uid));if(!inA&&!inB)continue;const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;if((inA&&gA>gB)||(inB&&gB>gA))streak++;else break;}
             if(streak>=3){items.push({uid:p.uid,foto:p.foto,emoji:'🔥',text:`${p.soprannome||p.nome} inarrestabile: ${streak} vittorie di fila!`});break;}
           }
         }
@@ -14918,6 +14942,23 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
               bg: 'linear-gradient(145deg,#0a1628,#1e3a5f 60%,#3b82f6)',
               dest: 'stats', statsTab: 'classifica' });
           }
+        }
+      }
+
+      // ── Card Fantasmi del Gol ──
+      if(matches.length >= 8){
+        const fantasmi = players
+          .filter(p => (p.partiteTotali||0) >= 5 && (p.goalTotali||0) === 0)
+          .sort((a,b) => (b.partiteTotali||0) - (a.partiteTotali||0));
+        if(fantasmi.length >= 2){
+          slides.push({
+            type: 'fantasma',
+            dur: Math.max(5000, fantasmi.length * 1200),
+            label: '👻 I FANTASMI DEL GOL',
+            sub: 'Sempre in campo, mai in rete. Il gol li cerca... ma loro si nascondono bene.',
+            players: fantasmi.map(p => ({ nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid, partite: p.partiteTotali||0 })),
+            bg: 'linear-gradient(145deg,#0f0520,#2d1b69 60%,#4c1d95)'
+          });
         }
       }
 
