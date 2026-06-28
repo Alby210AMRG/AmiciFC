@@ -7061,7 +7061,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.616');
+    const appVersion = ref('1.617');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9836,26 +9836,48 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       if (!el || el.dataset.scrollInit === '1') return;
       el.dataset.scrollInit = '1';
 
+      // Wrap in un contenitore relativo se non già fatto, per posizionare il fade overlay
+      let wrapper = el.parentElement;
+      if (!wrapper || !wrapper.classList.contains('hc-scroll-wrap')) {
+        wrapper = document.createElement('div');
+        wrapper.className = 'hc-scroll-wrap';
+        wrapper.style.cssText = 'position:relative;flex:1;display:flex;flex-direction:column;min-height:0';
+        el.parentNode.insertBefore(wrapper, el);
+        wrapper.appendChild(el);
+        el.style.flex = '1';
+      }
+
+      // Aggiungi fade overlay se non già presente
+      let fadeEl = wrapper.querySelector('.hc-fade-overlay');
+      if (!fadeEl) {
+        fadeEl = document.createElement('div');
+        fadeEl.className = 'hc-fade-overlay';
+        fadeEl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,.6));pointer-events:none;border-radius:0 0 8px 8px;z-index:10;display:none;align-items:flex-end;justify-content:center;padding-bottom:5px';
+        fadeEl.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,.5);animation:scroll-bounce .9s ease-in-out infinite;display:inline-block">↓</span>';
+        wrapper.appendChild(fadeEl);
+      }
+
       setTimeout(() => {
         const scrollH = el.scrollHeight;
         const clientH = el.clientHeight;
         const overflow = scrollH - clientH;
-        if (overflow <= 5) return; // tutto visibile, niente da fare
+        if (overflow <= 5) return;
 
-        // Mostra indicatore scroll
-        el.classList.add('has-more');
+        // Mostra overlay
+        fadeEl.style.display = 'flex';
+
         el.addEventListener('scroll', () => {
-          if (el.scrollTop >= overflow - 4) el.classList.remove('has-more');
-          else el.classList.add('has-more');
+          if (el.scrollTop >= overflow - 4) fadeEl.style.display = 'none';
+          else fadeEl.style.display = 'flex';
         }, { passive: true });
 
-        // Attendi 3s poi scrolla 1px ogni 50ms (= 20px/sec)
+        // Attendi 3s poi scrolla automaticamente
         const startDelay = setTimeout(() => {
           const interval = setInterval(() => {
             el.scrollTop += 1;
             if (el.scrollTop >= overflow - 2) {
               clearInterval(interval);
-              _heroScrollTimers.delete(key);
+              _heroScrollTimers.delete(key + '_interval');
             }
           }, 50);
           _heroScrollTimers.set(key + '_interval', interval);
@@ -9872,6 +9894,11 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
         el.scrollTop = 0;
         el.dataset.scrollInit = '';
         el.classList.remove('has-more');
+      });
+      document.querySelectorAll('.hc-fade-overlay').forEach(el => { el.style.display = 'none'; });
+      document.querySelectorAll('.hc-scroll-wrap').forEach(wrap => {
+        const box = wrap.querySelector('.hc-scroll-box');
+        if (box) { wrap.parentNode.insertBefore(box, wrap); wrap.remove(); }
       });
     };
 
