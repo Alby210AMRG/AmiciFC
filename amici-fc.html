@@ -832,11 +832,7 @@ textarea.input-field { resize: vertical; min-height: 80px; }
   -ms-overflow-style: none;
 }
 .hc-scroll-box::-webkit-scrollbar { display: none; }
-/* ── SCROLL BOX — indicatore overflow ── */
-.hc-scroll-box { position:relative }
-.hc-scroll-box.has-more::after { content:'';position:absolute;bottom:0;left:0;right:0;height:36px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,.55));pointer-events:none;border-radius:0 0 8px 8px;z-index:2; }
-.hc-scroll-box.has-more::before { content:'↓';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,.5);pointer-events:none;z-index:3;animation:scroll-bounce .9s ease-in-out infinite; }
-@keyframes scroll-bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(3px)} }
+@keyframes scroll-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(4px)} }
 /* Nick card font sizes */
 .nick-fs-10 { font-size: 10px !important; line-height: 1.5 !important; }
 .nick-fs-11 { font-size: 11px !important; line-height: 1.5 !important; }
@@ -2372,7 +2368,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   }">{{s.badge}}</span>
                 </div>
                 <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
-                  :ref="el => el && _heroAutoScroll(el, s, 'news')">
+                  :ref="el => el && _heroAutoScroll(el, s, s.type)">
                   <div class="hc-scroll-inner">
                     <div class="hc-body" style="color:#fff;font-weight:700;text-align:center">{{s.quote}}</div>
                     <div v-if="s.cit" class="hc-body-em" style="color:rgba(255,255,255,.6);text-align:center;margin-top:6px">{{s.cit}}</div>
@@ -2389,7 +2385,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
                 <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.5);text-align:center;margin-bottom:8px">Marcatori {{s.matchDate?formatDate(s.matchDate):'ultima partita'}}</div>
                 <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
-                  :ref="el => el && _heroAutoScroll(el, s, 'goals')">
+                  :ref="el => el && _heroAutoScroll(el, s, s.type)">
                   <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                     <div v-for="(sc,si) in (s.scorers||[])" :key="si" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
                       <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(74,222,128,.5);display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.06)">
@@ -2471,7 +2467,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:4px">{{s.kicker}}</div>
                 <div class="hc-title" style="color:#fff;margin-bottom:8px">{{s.headline}}</div>
                 <div class="hc-scroll-box" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"
-                  :ref="el => el && _heroAutoScroll(el, s, 'cro')">
+                  :ref="el => el && _heroAutoScroll(el, s, s.type)">
                   <div class="hc-scroll-inner">
                     <div class="hc-body" style="color:rgba(255,255,255,.8)">{{s.body}}</div>
                   </div>
@@ -2494,7 +2490,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="flex:1;font-size:13px;color:rgba(255,255,255,.75);line-height:1.55">{{s.intro}}</div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"
-                :ref="el => el && _heroAutoScroll(el, s, 'rec')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.body}}</div>
                 </div>
@@ -2573,7 +2569,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.2)"
-                :ref="el => el && _heroAutoScroll(el, s, 'tt')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.testo}}</div>
                   <div v-if="aiCardsTrashTalkFirma" style="text-align:right;font-size:10px;color:rgba(255,180,180,.45);margin-top:6px;font-style:italic">— {{aiCardsTrashTalkFirma}}</div>
@@ -2597,7 +2593,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25)"
-                :ref="el => el && _heroAutoScroll(el, s, 'hof')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.card.commento}}</div>
                   <div v-if="s.card.stat_chiave" class="hc-body-em" style="color:rgba(251,191,36,.75);margin-top:8px">📊 {{s.card.stat_chiave}}</div>
@@ -2621,7 +2617,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.2)"
-                :ref="el => el && _heroAutoScroll(el, s, 'hos')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.85)">{{s.card.commento}}</div>
                 </div>
@@ -2646,7 +2642,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:48px">{{s.icon}}</div>
               </div>
               <div class="hc-scroll-box" :style="'background:'+s.color+'1a;border:1px solid '+s.color+'4d'"
-                :ref="el => el && _heroAutoScroll(el, s, 'prono_'+s.sub)">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                   <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.motivo||s.testo}}</div>
                   <div v-if="s.titolo" class="hc-body-em" style="color:rgba(255,255,255,.55);font-style:italic">"{{s.titolo}}"</div>
@@ -2672,7 +2668,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25)"
-                :ref="el => el && _heroAutoScroll(el, s, 'rec_'+s.uid)">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.txt}}</div>
                 </div>
@@ -2738,7 +2734,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2)"
-                :ref="el => el && _heroAutoScroll(el, s, 'ann')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.8)">{{s.txt}}</div>
                 </div>
@@ -2871,7 +2867,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25)"
-                :ref="el => el && _heroAutoScroll(el, s, 'nick')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.confronto}}</div>
                   <div v-if="s.motivazione" class="hc-body-em" style="color:rgba(74,222,128,.85);margin-top:8px">{{s.motivazione}}</div>
@@ -2886,7 +2882,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label" style="color:#c4b5fd;margin-bottom:6px">{{s.label}}</div>
               <div style="position:relative;z-index:1;font-size:12px;color:rgba(196,181,253,.7);margin-bottom:10px;line-height:1.4;font-style:italic">{{s.sub}}</div>
               <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(196,181,253,.15)"
-                :ref="el => el && _heroAutoScroll(el, s, 'fantasma')">
+                :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:6px">
                   <div v-for="(p,pi) in s.players" :key="pi"
                     style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
@@ -2937,6 +2933,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             :style="i===heroUnifiedIdx?'width:18px;background:rgba(255,255,255,.9)':'width:6px'">
           </div>
         </div>
+        <!-- Indicatore scroll: visibile solo se la card corrente ha testo che supera il box -->
+        <transition name="fade-scroll">
+          <div v-if="heroScrollHasMore[heroUnifiedData?.[heroUnifiedIdx]?.type]"
+            style="position:absolute;bottom:22px;left:0;right:0;display:flex;flex-direction:column;align-items:center;pointer-events:none;z-index:6">
+            <div style="background:linear-gradient(to bottom,transparent,rgba(0,0,0,.55));width:100%;height:32px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px">
+              <span style="font-size:12px;color:rgba(255,255,255,.6);animation:scroll-bounce .9s ease-in-out infinite;display:inline-block">↓</span>
+            </div>
+          </div>
+        </transition>
       </div>
 
       <div v-if="!currentGroup" class="hero-card" @click="currentView='onboarding';onboardingStep=null">
@@ -7061,7 +7066,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.617');
+    const appVersion = ref('1.619');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9831,47 +9836,29 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
     // Box stimato: ~280px largo, ~160px alto, ~10px padding
     // ── HERO AUTO SCROLL via scrollTop ──
     const _heroScrollTimers = new Map();
+    const heroScrollHasMore = ref({}); // key → true se la card ha testo scrollabile
 
     const _heroAutoScroll = (el, s, key) => {
       if (!el || el.dataset.scrollInit === '1') return;
       el.dataset.scrollInit = '1';
 
-      // Wrap in un contenitore relativo se non già fatto, per posizionare il fade overlay
-      let wrapper = el.parentElement;
-      if (!wrapper || !wrapper.classList.contains('hc-scroll-wrap')) {
-        wrapper = document.createElement('div');
-        wrapper.className = 'hc-scroll-wrap';
-        wrapper.style.cssText = 'position:relative;flex:1;display:flex;flex-direction:column;min-height:0';
-        el.parentNode.insertBefore(wrapper, el);
-        wrapper.appendChild(el);
-        el.style.flex = '1';
-      }
-
-      // Aggiungi fade overlay se non già presente
-      let fadeEl = wrapper.querySelector('.hc-fade-overlay');
-      if (!fadeEl) {
-        fadeEl = document.createElement('div');
-        fadeEl.className = 'hc-fade-overlay';
-        fadeEl.style.cssText = 'position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,.6));pointer-events:none;border-radius:0 0 8px 8px;z-index:10;display:none;align-items:flex-end;justify-content:center;padding-bottom:5px';
-        fadeEl.innerHTML = '<span style="font-size:11px;color:rgba(255,255,255,.5);animation:scroll-bounce .9s ease-in-out infinite;display:inline-block">↓</span>';
-        wrapper.appendChild(fadeEl);
-      }
-
       setTimeout(() => {
-        const scrollH = el.scrollHeight;
-        const clientH = el.clientHeight;
-        const overflow = scrollH - clientH;
-        if (overflow <= 5) return;
+        const overflow = el.scrollHeight - el.clientHeight;
+        if (overflow <= 5) {
+          heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: false };
+          return;
+        }
 
-        // Mostra overlay
-        fadeEl.style.display = 'flex';
+        // Segnala a Vue che questa card ha overflow
+        heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: true };
 
+        // Aggiorna quando l'utente scrolla manualmente
         el.addEventListener('scroll', () => {
-          if (el.scrollTop >= overflow - 4) fadeEl.style.display = 'none';
-          else fadeEl.style.display = 'flex';
+          const atBottom = el.scrollTop >= overflow - 4;
+          heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: !atBottom };
         }, { passive: true });
 
-        // Attendi 3s poi scrolla automaticamente
+        // Auto-scroll dopo 3s
         const startDelay = setTimeout(() => {
           const interval = setInterval(() => {
             el.scrollTop += 1;
@@ -9884,22 +9871,18 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
         }, 3000);
 
         _heroScrollTimers.set(key, startDelay);
-      }, 300);
+      }, 400);
     };
 
     const _clearHeroScrollTimers = () => {
       _heroScrollTimers.forEach(t => { clearTimeout(t); clearInterval(t); });
       _heroScrollTimers.clear();
+      heroScrollHasMore.value = {};
       document.querySelectorAll('.hc-scroll-box').forEach(el => {
         el.scrollTop = 0;
         el.dataset.scrollInit = '';
-        el.classList.remove('has-more');
       });
-      document.querySelectorAll('.hc-fade-overlay').forEach(el => { el.style.display = 'none'; });
-      document.querySelectorAll('.hc-scroll-wrap').forEach(wrap => {
-        const box = wrap.querySelector('.hc-scroll-box');
-        if (box) { wrap.parentNode.insertBefore(box, wrap); wrap.remove(); }
-      });
+      document.querySelectorAll('.hc-fade-hint').forEach(el => el.remove());
     };
 
     const _nickFontSize = (s) => {
@@ -15842,7 +15825,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
-      shareStatsPNG, formatMeseHoF, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, logFilter, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
+      shareStatsPNG, formatMeseHoF, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, heroScrollHasMore, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, logFilter, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
       showChangelog, changelogEntries,
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
