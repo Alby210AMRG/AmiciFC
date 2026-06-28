@@ -768,7 +768,17 @@ textarea.input-field { resize: vertical; min-height: 80px; }
 /* ═══════════════════════════════════════
    HOME HERO
    ═══════════════════════════════════════ */
-/* ── STATS LEADER CARD ── */
+/* ── PLAYER DETAIL TABS ── */
+.pd-tabs { display:flex;gap:4px;margin-bottom:14px;background:var(--bg3);border-radius:10px;padding:3px }
+.pd-tab  { flex:1;padding:7px 0;text-align:center;border-radius:8px;font-size:0.78rem;font-weight:700;cursor:pointer;color:var(--text2);transition:all .2s }
+.pd-tab.active { background:var(--bg);color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3) }
+/* ── PLAYER HISTORY ROW ── */
+.ph-row { display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--border);cursor:pointer }
+.ph-row:last-child { border-bottom:none }
+.ph-result { font-size:10px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:6px;flex-shrink:0 }
+.ph-result.win  { background:rgba(74,222,128,.15);color:#4ade80 }
+.ph-result.draw { background:rgba(255,217,61,.15);color:#FFD93D }
+.ph-result.loss { background:rgba(248,113,113,.15);color:#f87171 }
 .stats-leader { border-radius:16px;padding:16px;margin-bottom:10px;position:relative;overflow:hidden;cursor:pointer;display:flex;align-items:center;gap:14px }
 .stats-leader-avatar { width:80px;height:80px;border-radius:50%;overflow:hidden;flex-shrink:0;position:relative;z-index:1 }
 .stats-leader-info { position:relative;z-index:1;flex:1;min-width:0 }
@@ -4123,7 +4133,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- OVERALL -->
         <!-- ── LEADER IN EVIDENZA ── -->
         <div v-if="statsLeader" class="stats-leader" :style="'background:'+statsLeader.bg"
-          @click="openPlayerDetail(statsLeader.p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+          @click="openPlayerDetail(statsLeader.p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
           <!-- ghost val -->
           <div class="stats-leader-ghost" :style="'color:'+statsLeader.col">{{statsLeader.val}}</div>
           <!-- avatar con glow animato -->
@@ -4161,7 +4171,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
             <div v-if="!statsTopOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
-            <div v-for="(p,i) in statsTopOverall" :key="p.id" class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopOverall" :key="p.id" class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -4192,7 +4202,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('classifica')">📤 Condividi</button>
             </div>
             <div v-if="!statsTopPoints.length" class="empty-state" style="padding:16px"><p>Nessuna partita ancora.</p></div>
-            <div v-for="(p,i) in statsTopPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
@@ -4204,7 +4214,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <template v-if="statsTab==='goal'">
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⚽ Classifica Marcatori</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('goal')">📤 Condividi</button></div>
-            <div v-for="(p,i) in statsTopScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopScorers.filter(x=>x.goalTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.partiteTotali||0}} partite</div></div>
@@ -4236,7 +4246,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🏅 Uomo Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('altri')">📤 Condividi</button></div>
             <div v-if="!statsTopUomoPartita.length" class="empty-state" style="padding:16px"><p>Nessun dato.</p></div>
-            <div v-for="(p,i) in statsTopUomoPartita" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopUomoPartita" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">volte premiato</div></div>
@@ -4251,7 +4261,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">📈 Media Punti a Partita</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('mediapunti')">📤 Condividi</button></div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Punti medi per partita (min. 10 partite). 3=V · 1=P · 0=S</div>
             <div v-if="!statsTopAvgPoints.length" class="empty-state" style="padding:16px"><p>Gioca almeno 10 partite.</p></div>
-            <div v-for="(p,i) in statsTopAvgPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopAvgPoints" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -4267,7 +4277,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">🅰️ Classifica Assist</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('assist')">📤 Condividi</button></div>
             <div v-if="!statsTopAssists.filter(x=>x.assistTotali>0).length" class="empty-state" style="padding:16px"><p>Nessun assist registrato.</p></div>
-            <div v-for="(p,i) in statsTopAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopAssists.filter(x=>x.assistTotali>0)" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
@@ -4296,7 +4306,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div class="card">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⭐ Media Voto</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button></div>
             <div v-if="!statsTopRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
-            <div v-for="(p,i) in statsTopRated" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in statsTopRated" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.votiTotali}} partite votate</div></div>
@@ -4315,7 +4325,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Media voto nelle partite in cui si è stati votati</div>
             <div v-if="!statsTopRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
-            <div v-for="(p,i) in [...statsTopRated].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches)">
+            <div v-for="(p,i) in [...statsTopRated].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.votiTotali}} partite votate</div></div>
@@ -5500,6 +5510,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <!-- Tab switcher -->
+      <div class="pd-tabs">
+        <div class="pd-tab" :class="{active:detailPlayerTab==='stats'}" @click="detailPlayerTab='stats'">📊 Statistiche</div>
+        <div class="pd-tab" :class="{active:detailPlayerTab==='storico'}" @click="detailPlayerTab='storico'">📅 Storico</div>
+      </div>
+
+      <!-- ── TAB STATISTICHE ── -->
+      <template v-if="detailPlayerTab==='stats'">
+
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:16px">
         <!-- Riga 1 -->
         <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
@@ -5593,6 +5612,63 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      </template> <!-- fine tab stats -->
+
+      <!-- ── TAB STORICO ── -->
+      <template v-if="detailPlayerTab==='storico'">
+        <!-- Filtro stagione -->
+        <div v-if="currentGroupArchivedSeasons.length" style="margin-bottom:10px">
+          <select class="select-field" v-model="detailPlayerSeasonFilter">
+            <option value="attuale">📅 Stagione attuale{{currentGroup?.stagione ? ' — '+currentGroup.stagione : ''}}</option>
+            <option value="carriera">🏆 Carriera (tutte le stagioni)</option>
+            <option v-for="s in currentGroupArchivedSeasons" :key="s.archivioId" :value="s.archivioId">📦 {{s.nome}}</option>
+          </select>
+        </div>
+
+        <div v-if="!detailPlayerHistoryMatches.length" style="text-align:center;padding:24px;color:var(--text2);font-size:0.85rem">
+          Nessuna partita trovata per questa stagione.
+        </div>
+
+        <div v-else style="margin-bottom:16px">
+          <div v-for="m in detailPlayerHistoryMatches" :key="m.id||m.matchUUID" class="ph-row"
+            @click.stop="openHistoryMatch(m)">
+            <!-- Data -->
+            <div style="font-size:11px;color:var(--text2);min-width:48px;flex-shrink:0">{{formatDate(m.data).slice(0,6)}}</div>
+            <!-- Risultato V/P/N -->
+            <div :class="'ph-result '+(()=>{const uid=detailPlayer.uid||String(detailPlayer.id);const inA=(m.squadraA||[]).map(String).includes(uid);const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;const draw=gA===gB;const win=(inA&&gA>gB)||(!inA&&gB>gA);return draw?'draw':win?'win':'loss'})()">
+              {{(()=>{const uid=detailPlayer.uid||String(detailPlayer.id);const inA=(m.squadraA||[]).map(String).includes(uid);const gA=m.risultato?.goalA||0,gB=m.risultato?.goalB||0;const draw=gA===gB;const win=(inA&&gA>gB)||(!inA&&gB>gA);return draw?'N':win?'V':'P'})()}}
+            </div>
+            <!-- Score -->
+            <div style="font-size:12px;font-weight:700;color:#fff;flex-shrink:0">
+              {{m.risultato?.goalA||0}}–{{m.risultato?.goalB||0}}
+            </div>
+            <!-- Stats personali -->
+            <div style="flex:1;display:flex;gap:8px;align-items:center;justify-content:flex-end">
+              <div v-if="(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))" style="display:flex;gap:6px;align-items:center">
+                <!-- Voto -->
+                <span v-if="(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.voto"
+                  :style="'font-size:12px;font-weight:800;min-width:28px;text-align:right;'+((m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.voto>=7?'color:#4ade80':(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.voto>=5?'color:#FFD93D':'color:#f87171')">
+                  ⭐{{(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.voto?.toFixed(1)}}
+                </span>
+                <!-- Gol -->
+                <span v-if="(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.goal>0"
+                  style="font-size:11px;color:#fbbf24;font-weight:700">
+                  ⚽{{(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.goal}}
+                </span>
+                <!-- Assist -->
+                <span v-if="(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.assist>0"
+                  style="font-size:11px;color:#67e8f9;font-weight:700">
+                  🅰️{{(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.assist}}
+                </span>
+                <!-- MVP -->
+                <span v-if="(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===(detailPlayer.uid||String(detailPlayer.id)))?.uomoPartita"
+                  style="font-size:12px">👑</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </template> <!-- fine tab storico -->
+
       <div v-if="!detailPlayerReadOnly" style="display:flex;gap:10px">
         <button class="btn btn-blue" style="flex:1" @click="openPlayerForm(detailPlayer);showPlayerDetail=false">✏️ Modifica</button>
         <button class="btn btn-red" style="flex:1" @click="deletePlayer(detailPlayer);showPlayerDetail=false">🗑️ Elimina</button>
@@ -5604,9 +5680,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   </div>
 
   <!-- Match Detail Modal -->
-  <div v-if="showMatchDetail && detailMatch" class="modal-overlay" @click.self="showMatchDetail=false">
+  <div v-if="showMatchDetail && detailMatch" class="modal-overlay" @click.self="showMatchDetail=false;detailMatchFromPlayer=null">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
+      <!-- Bottone torna al giocatore (solo se aperto dallo storico) -->
+      <div v-if="detailMatchFromPlayer" style="margin-bottom:10px">
+        <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:6px 12px" @click="backToPlayer()">
+          ← {{detailMatchFromPlayer.player?.soprannome||detailMatchFromPlayer.player?.nome}}
+        </button>
+      </div>
       <div class="modal-title">⚽ Dettaglio Partita</div>
       <div class="match-date" style="text-align:center;margin-bottom:10px">{{ formatDate(detailMatch.data) }}</div>
       <div class="match-score">
@@ -6445,7 +6527,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.607',date:'2026-06-27',items:[
+    const changelogEntries = [{version:'v1.609',date:'2026-06-28',items:[
+      'Scheda giocatore: aggiunto tab Storico con lista cronologica inversa delle partite. Per ogni partita: data, V/P/N colorato, risultato, voto, gol, assist, badge MVP. Click per aprire il dettaglio partita.',
+      'Scheda giocatore: filtro stagione nel tab Storico (Stagione attuale / Carriera / stagioni archiviate). Se aperta dalle Statistiche con un filtro attivo, lo eredita automaticamente.',
+    ]},{version:'v1.608',date:'2026-06-28',items:[
+      'Sync V3: polling aggiornamento ridotto da 10 a 3 minuti — tutti gli utenti vedono le novita entro 3 minuti senza riaprire l app.',
+      'Sync V3: fetch merge in syncToCloud ora include il token auth — consistente con tutte le altre chiamate Firebase.',
+    ]},{version:'v1.607',date:'2026-06-27',items:[
       'Sync V3 Fix 1 — sw.js: ripristinata esclusione Firebase dalla cache (firebasedatabase.app + firebaseio.com). Risolve mancata sincronizzazione su PWA Chrome PC. Il cambio nome cache invalida automaticamente le vecchie cache con risposte Firebase intrappolate.',
       'Sync V3 Fix 2 — syncFromCloud: aggiorna trackAssist/trackAssistSetAt/trackAssistSetBy sul gruppo locale al sync. Prima questi campi venivano persi.',
       'Sync V3 Fix 3 — syncToCloud: TrashTalk scritto nel formato nuovo {YYYYMMDD:{cards,generatedAt,createdBy}} invece dell array piatto legacy. syncFromCloud aggiornato per leggere entrambi i formati (retrocompatibile).',
@@ -6669,6 +6757,7 @@ createApp({
     const showPlayerForm    = ref(false);
     const showPlayerDetail  = ref(false);
     const showMatchDetail   = ref(false);
+    const detailMatchFromPlayer = ref(null); // giocatore da cui è stato aperto il dettaglio partita (dallo storico)
     const showPNGPreview    = ref(false);
     const showMoreMenu      = ref(false);
     const showInstallGuide  = ref(false);
@@ -6834,11 +6923,34 @@ createApp({
     const editingPlayer = ref(null);
     const playerForm    = ref({ nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', rivali:[], affinita:[], fraseCelebre:'', infortunio:'' });
     const detailPlayer  = ref(null);
-    const detailPlayerReadOnly = ref(false); // true se aperto da una classifica su stagione archiviata/Carriera — nasconde Modifica/Elimina
-    const detailPlayerMatches  = ref(null);  // fonte partite per il grafico forma — null = usa il default live di playerFormHistory
+    const detailPlayerReadOnly = ref(false);
+    const detailPlayerMatches  = ref(null);
+    const detailPlayerTab      = ref('stats'); // 'stats' | 'storico'
+    const detailPlayerSeasonFilter = ref('attuale'); // 'attuale' | 'carriera' | archivioId
     const detailPlayerFormHistory = computed(() =>
       detailPlayer.value?.id ? playerFormHistory(detailPlayer.value.id, detailPlayerMatches.value || groupMatches.value) : []
     );
+
+    // Partite del giocatore filtrate per stagione — usate nel tab Storico
+    const detailPlayerHistoryMatches = computed(() => {
+      const p = detailPlayer.value;
+      if (!p) return [];
+      const uid = p.uid || String(p.id);
+      let allMatches = [];
+      const filter = detailPlayerSeasonFilter.value;
+      if (filter === 'attuale') {
+        allMatches = groupMatches.value;
+      } else if (filter === 'carriera') {
+        const archivedMatches = currentGroupArchivedSeasons.value.flatMap(s => s.matches || []);
+        allMatches = [...groupMatches.value, ...archivedMatches];
+      } else {
+        const season = currentGroupArchivedSeasons.value.find(s => s.archivioId === filter);
+        allMatches = season?.matches || [];
+      }
+      return [...allMatches]
+        .filter(m => (m.squadraA||[]).map(String).includes(uid) || (m.squadraB||[]).map(String).includes(uid))
+        .sort((a,b) => (b.data||'').localeCompare(a.data||''));
+    });
     const detailMatch   = ref(null);
     const detailMatchReadonly = ref(false); // true quando aperto da stagione archiviata — nasconde Modifica/Elimina/Lock
     const detailMatchPlayers = ref([]);     // giocatori della stagione archiviata per risolvere i nomi nel modale readonly
@@ -6937,7 +7049,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.607');
+    const appVersion = ref('1.614');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7473,7 +7585,37 @@ createApp({
       toast('🗑️ Giocatore eliminato', 'error');
     };
 
-    const openPlayerDetail = (p, readOnly = false, matches = null) => { detailPlayer.value = p; detailPlayerReadOnly.value = readOnly; detailPlayerMatches.value = matches; showPlayerDetail.value = true; };
+    const openHistoryMatch = (m) => {
+      const isArch = detailPlayerSeasonFilter.value !== 'attuale';
+      if (isArch && detailPlayerSeasonFilter.value !== 'carriera') {
+        const s = currentGroupArchivedSeasons.value.find(x => x.archivioId === detailPlayerSeasonFilter.value);
+        if (s) {
+          historySeasonFilter.value = detailPlayerSeasonFilter.value;
+          detailMatchPlayers.value = s.giocatori || [];
+        }
+      }
+      detailMatchFromPlayer.value = { player: detailPlayer.value, seasonFilter: detailPlayerSeasonFilter.value };
+      showPlayerDetail.value = false;
+      viewMatch(m, { readonly: isArch });
+    };
+
+    const backToPlayer = () => {
+      const from = detailMatchFromPlayer.value;
+      if (!from) return;
+      detailMatchFromPlayer.value = null;
+      showMatchDetail.value = false;
+      openPlayerDetail(from.player, detailPlayerReadOnly.value, detailPlayerMatches.value, from.seasonFilter);
+      detailPlayerTab.value = 'storico';
+    };
+
+    const openPlayerDetail = (p, readOnly = false, matches = null, seasonFilter = 'attuale') => {
+      detailPlayer.value = p;
+      detailPlayerReadOnly.value = readOnly;
+      detailPlayerMatches.value = matches;
+      detailPlayerTab.value = 'stats';
+      detailPlayerSeasonFilter.value = seasonFilter;
+      showPlayerDetail.value = true;
+    };
 
     // Helper: trova il nick AI del giocatore cercando per tutte le chiavi possibili
     // Formatta YYYY-MM → "Miglior Giocatore · Maggio 2026"
@@ -11428,7 +11570,7 @@ Niente altro, nessuna spiegazione.`;
         let _photosMigrated = false;
         let _cloudPlayerPhotos = {};
         try {
-          const fbRootResp = await fetch(`${base}.json?shallow=false`, { cache: 'no-store' });
+          const fbRootResp = await fetch(`${base}.json?shallow=false${token ? '&auth='+token : ''}`, { cache: 'no-store' });
           if (fbRootResp.ok) {
             const fbRoot = await fbRootResp.json();
             _photosMigrated = !!fbRoot?.playerPhotosMigrated;
@@ -15597,7 +15739,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
       statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
-      detailPlayerReadOnly, detailPlayerFormHistory,
+      detailPlayerReadOnly, detailPlayerFormHistory, detailPlayerTab, detailPlayerSeasonFilter, detailPlayerHistoryMatches, openHistoryMatch, backToPlayer, detailMatchFromPlayer,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup, toggleTrackAssist,
