@@ -832,6 +832,11 @@ textarea.input-field { resize: vertical; min-height: 80px; }
   -ms-overflow-style: none;
 }
 .hc-scroll-box::-webkit-scrollbar { display: none; }
+/* ── SCROLL BOX — indicatore overflow ── */
+.hc-scroll-box { position:relative }
+.hc-scroll-box.has-more::after { content:'';position:absolute;bottom:0;left:0;right:0;height:36px;background:linear-gradient(to bottom,transparent,rgba(0,0,0,.55));pointer-events:none;border-radius:0 0 8px 8px;z-index:2; }
+.hc-scroll-box.has-more::before { content:'↓';position:absolute;bottom:5px;left:50%;transform:translateX(-50%);font-size:11px;color:rgba(255,255,255,.5);pointer-events:none;z-index:3;animation:scroll-bounce .9s ease-in-out infinite; }
+@keyframes scroll-bounce { 0%,100%{transform:translateX(-50%) translateY(0)} 50%{transform:translateX(-50%) translateY(3px)} }
 /* Nick card font sizes */
 .nick-fs-10 { font-size: 10px !important; line-height: 1.5 !important; }
 .nick-fs-11 { font-size: 11px !important; line-height: 1.5 !important; }
@@ -2571,6 +2576,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 :ref="el => el && _heroAutoScroll(el, s, 'tt')">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.testo}}</div>
+                  <div v-if="aiCardsTrashTalkFirma" style="text-align:right;font-size:10px;color:rgba(255,180,180,.45);margin-top:6px;font-style:italic">— {{aiCardsTrashTalkFirma}}</div>
                 </div>
               </div>
             </template>
@@ -6527,7 +6533,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.609',date:'2026-06-28',items:[
+    const changelogEntries = [{version:'v1.616',date:'2026-06-28',items:[
+      'Firme calcio nel Commento AI partita: firma in fondo al testo generato (es. "— Luciano Spallucci").',
+      'Firme calcio nel TrashTalk: firma visibile in fondo al box testo su tutte e 3 le card, salvata su Firebase e localStorage.',
+    ]},{version:'v1.615',date:'2026-06-28',items:[
+      'Card hero con testo lungo: indicatore scroll visivo — fade in basso con freccia animata che scompare quando si raggiunge il fondo.',
+      'Pronostico: pool di 15 firme calcistiche divertenti (nomi storpiati) — rotazione giornaliera.',
+    ]},{version:'v1.609',date:'2026-06-28',items:[
       'Scheda giocatore: aggiunto tab Storico con lista cronologica inversa delle partite. Per ogni partita: data, V/P/N colorato, risultato, voto, gol, assist, badge MVP. Click per aprire il dettaglio partita.',
       'Scheda giocatore: filtro stagione nel tab Storico (Stagione attuale / Carriera / stagioni archiviate). Se aperta dalle Statistiche con un filtro attivo, lo eredita automaticamente.',
     ]},{version:'v1.608',date:'2026-06-28',items:[
@@ -7049,7 +7061,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.614');
+    const appVersion = ref('1.616');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9154,6 +9166,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     // ══════════════════════════════════════════════════════════════
     // ══════════════════════════════════════════════════════════════
     const aiCardsTrashTalk    = ref([]);  // pool 3 card
+    const aiCardsTrashTalkFirma = ref(''); // firma del telecronista
     const aiCardsDebugLog     = ref([]);  // log debug AI cards
     const zonaPericoloExpanded  = ref(false);  // legacy (non usato)
     const zonaPericoloUnlocked  = ref(false);  // true dopo aver premuto OK
@@ -9204,6 +9217,7 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
       const parsed = _parseAIJson(raw);
       if (!parsed?.cards?.length) { _aiLog('TrashTalk','❌ JSON non valido — raw: '+raw.slice(0,100)); return; }
       aiCardsTrashTalk.value = parsed.cards;
+      aiCardsTrashTalkFirma.value = parsed.firma || '';
       const _ttFbUser = JSON.parse(localStorage.getItem('amicifc_fb_user')||'null');
       const ttData = { cards: parsed.cards, generatedAt: Date.now(), createdBy: _ttFbUser?.email || 'Utente locale' };
       localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(ttData));
@@ -9280,6 +9294,9 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
         };
       }).filter(Boolean);
 
+      const _ttFirmePool = ['Luciano Spallucci','Carlo Ancelottiiii','Josè Mourinhow','Pep Guardialà','Fabio Capellone','Arrigo Sacconi','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
+      const _ttFirma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
+
       const prompt = `Sei un commentatore sportivo italiano goliardico, ironico e provocatorio stile "Bar Sport" anni '90.
 Analizza questa partita di calcetto tra amici e genera ESATTAMENTE 3 card "Trash Talk" in formato JSON.
 
@@ -9302,6 +9319,7 @@ ISTRUZIONI:
 - ha_pareggiato=true significa che ha pareggaito (non ha vinto MA NON ha perso — non chiamarlo "perdente")
 - Riferimenti a calciatori famosi, proverbi storpiati, esclamazioni italiane ("Mamma mia!", "Roba da matti!")
 - Massimo 40 parole per card
+- Usa esattamente questa firma: "${_ttFirma}"
 
 OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 {
@@ -9309,7 +9327,8 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     { "id": "tt_1", "emoji": "🔥", "titolo": "...", "testo": "...", "target_nome": "..." },
     { "id": "tt_2", "emoji": "😂", "titolo": "...", "testo": "...", "target_nome": "..." },
     { "id": "tt_3", "emoji": "💀", "titolo": "...", "testo": "...", "target_nome": "..." }
-  ]
+  ],
+  "firma": "${_ttFirma}"
 }`;
 
       const hasFirebase = !!currentGroup.value?.firebaseUrl;
@@ -9327,6 +9346,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           if (existing?.cards?.length) {
             _aiLog('TrashTalk','☁️ Card già presenti su Firebase (nuovo path), carico');
             aiCardsTrashTalk.value = existing.cards;
+            aiCardsTrashTalkFirma.value = existing.firma || '';
             localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(existing));
             return;
           }
@@ -9335,6 +9355,7 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             if (existingOld?.cards?.length) {
               _aiLog('TrashTalk','☁️ Card già presenti su Firebase (vecchio path), carico');
               aiCardsTrashTalk.value = existingOld.cards;
+              aiCardsTrashTalkFirma.value = existingOld.firma || '';
               localStorage.setItem('amicifc_tt_'+(currentGroup.value?.id||''), JSON.stringify(existingOld));
               if (token) await _fbWrite(dataPath, existingOld, token);
               return;
@@ -9362,21 +9383,23 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const raw = await _callAI(prompt, 900);
       const parsed = _parseAIJson(raw);
       const cards = parsed?.cards || [];
+      const ttFirma = parsed?.firma || _ttFirma;
       if (cards.length) _aiLog('TrashTalk',`✅ ${cards.length} card generate`);
       else _aiLog('TrashTalk','❌ Nessuna card generata — raw: '+(raw||'').slice(0,80),false);
 
       if (hasFirebase && token && cards.length) {
         const _ttCreatedBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
-        await _fbWrite(dataPath, { cards, generatedAt: Date.now(), matchId: match.id, createdBy: _ttCreatedBy }, token);
-        await _fbWrite(lockPath, null, token); // rimuovi lock
+        await _fbWrite(dataPath, { cards, firma: ttFirma, generatedAt: Date.now(), matchId: match.id, createdBy: _ttCreatedBy }, token);
+        await _fbWrite(lockPath, null, token);
         _aiLog('TrashTalk','☁️ Salvato su Firebase');
       }
       if (cards.length) {
         const _lsKey = 'amicifc_tt_' + (currentGroup.value?.id||'');
-        localStorage.setItem(_lsKey, JSON.stringify({ cards, generatedAt: Date.now() }));
-        aiFlagSet('tt', currentGroup.value?.id||''); // flag 3 giorni
+        localStorage.setItem(_lsKey, JSON.stringify({ cards, firma: ttFirma, generatedAt: Date.now() }));
+        aiFlagSet('tt', currentGroup.value?.id||'');
       }
       aiCardsTrashTalk.value = cards;
+      aiCardsTrashTalkFirma.value = ttFirma;
     };
 
     // ══════════════════════════════════════════════════════════════
@@ -9813,12 +9836,18 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       if (!el || el.dataset.scrollInit === '1') return;
       el.dataset.scrollInit = '1';
 
-      // Attendi 300ms che Vue abbia finito il render
       setTimeout(() => {
         const scrollH = el.scrollHeight;
         const clientH = el.clientHeight;
         const overflow = scrollH - clientH;
         if (overflow <= 5) return; // tutto visibile, niente da fare
+
+        // Mostra indicatore scroll
+        el.classList.add('has-more');
+        el.addEventListener('scroll', () => {
+          if (el.scrollTop >= overflow - 4) el.classList.remove('has-more');
+          else el.classList.add('has-more');
+        }, { passive: true });
 
         // Attendi 3s poi scrolla 1px ogni 50ms (= 20px/sec)
         const startDelay = setTimeout(() => {
@@ -9839,10 +9868,10 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
     const _clearHeroScrollTimers = () => {
       _heroScrollTimers.forEach(t => { clearTimeout(t); clearInterval(t); });
       _heroScrollTimers.clear();
-      // Reset scrollTop di tutti i box
       document.querySelectorAll('.hc-scroll-box').forEach(el => {
         el.scrollTop = 0;
         el.dataset.scrollInit = '';
+        el.classList.remove('has-more');
       });
     };
 
@@ -9918,13 +9947,21 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       const topMvp = [...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
       const last3 = [...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
       const profili = players.slice(0,10).map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,...(currentGroup.value?.trackAssist !== false ? {ast:p.assistTotali||0} : {}),voto:(p.mediaVoto||0).toFixed(1),uom:p.uomoPartitaTotali||0,pti:(p.mediaPunti||0).toFixed(1)}));
+      const _firmePool = [
+        'Luciano Spallucci','Carlo Ancelottiiii','Josè Mourinhow','Pep Guardialà',
+        'Fabio Capellone','Arrigo Sacconi','Giovanni Trapattoni il Vecchio',
+        'Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico',
+        'Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone',
+        'Massimiliano Allegrigio','Sinisa Mihajlovicchio'
+      ];
+      const _firma = _firmePool[Math.floor(Date.now() / 86400000) % _firmePool.length];
       const prompt = `Sei un telecronista calcistico ironico. Basandoti SOLO sui dati reali, fai un pronostico per la prossima partita di calcetto tra amici.
 GIOCATORI: ${JSON.stringify(profili)}
 TOP SCORER: ${top3.map(p=>p.soprannome||p.nome).join(', ')}
 MVP PIÙ FREQUENTE: ${topMvp?.soprannome||topMvp?.nome||'?'}
 ULTIMI RISULTATI: ${last3.map(m=>`${m.risultato?.goalA||0}-${m.risultato?.goalB||0}`).join(', ')}
-REGOLE: basati sui dati reali, tono ironico mai offensivo.
-JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto":{"nome":"...","motivo":"..."},"disastroAnnunciato":{"nome":"...","motivo":"..."},"previsione_assurda":"...","firma":"..."}`;
+REGOLE: basati sui dati reali, tono ironico mai offensivo. Usa esattamente questa firma: "${_firma}".
+JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto":{"nome":"...","motivo":"..."},"disastroAnnunciato":{"nome":"...","motivo":"..."},"previsione_assurda":"...","firma":"${_firma}"}`;
       const raw = await _callAI(prompt, 1500); // Pronostico: JSON con 5 campi, può servire fino a 2048 tok su gruppi grandi
       if (!raw) { _aiLog('Pronostico','❌ Nessuna risposta',false); return; }
       const parsed = _parseAIJson(raw);
@@ -10144,6 +10181,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
           const _cached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
           if (_cached?.cards?.length) {
             aiCardsTrashTalk.value = _cached.cards;
+            aiCardsTrashTalkFirma.value = _cached.firma || '';
           } else {
             // Flag valido ma localStorage vuoto (es. restore da backup, cambio browser, pulizia cache).
             // Se torniamo qui con 0 card l'utente vedrà "nessuna card" anche se Firebase ne ha.
@@ -10192,6 +10230,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _lsCached = JSON.parse(localStorage.getItem(_lsKeyTT)||'null');
       if (_lsCached?.cards?.length) {
         aiCardsTrashTalk.value = _lsCached.cards;
+        aiCardsTrashTalkFirma.value = _lsCached.firma || '';
         _aiLog('Init','💾 Trash Talk da localStorage ('+_lsCached.cards.length+' card)');
       }
       if (currentGroup.value?.firebaseUrl) {
@@ -10213,6 +10252,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
                 const _lsTs = _lsCached?.generatedAt || 0;
                 if (_fbTs > _lsTs || !_lsCached?.cards?.length) {
                   aiCardsTrashTalk.value = _tt.cards;
+                  aiCardsTrashTalkFirma.value = _tt.firma || '';
                   localStorage.setItem(_lsKeyTT, JSON.stringify(_tt));
                   _aiLog('Init','☁️ Trash Talk aggiornato da Firebase (più recente)');
                 } else {
@@ -14585,7 +14625,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           comment = dd.choices?.[0]?.message?.content || '';
         }
         if (comment) {
-          match.commentoAI = comment.trim();
+          const _firmePool = ['Luciano Spallucci','Carlo Ancelottiiii','Josè Mourinhow','Pep Guardialà','Fabio Capellone','Arrigo Sacconi','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
+          const _firma = _firmePool[Math.floor(Date.now() / 86400000) % _firmePool.length];
+          match.commentoAI = comment.trim() + '\n— ' + _firma;
           try {
             await db.matches.update(match.id, { commentoAI: match.commentoAI, updatedAt: Date.now() });
             logEvent('info', 'ai', 'Commento rigenerato e salvato per partita ' + (match.data||''));
@@ -15783,7 +15825,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
-      aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
+      aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
       aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
