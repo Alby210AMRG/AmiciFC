@@ -7066,7 +7066,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.619');
+    const appVersion = ref('1.620');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8144,7 +8144,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const computeFormationPrediction = (f) => {
       const getAvg = (pids) => {
         if (!pids?.length) return 6;
-        const ps = pids.map(pid => groupPlayers.value.find(p=>p.id===pid)).filter(Boolean);
+        const ps = pids.map(pid => groupPlayers.value.find(p => String(p.uid) === String(pid) || String(p.id) === String(pid))).filter(Boolean);
         if (!ps.length) return 6;
         const scores = ps.map(p => {
           const mp = p.mediaPunti||0;
@@ -9836,53 +9836,43 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
     // Box stimato: ~280px largo, ~160px alto, ~10px padding
     // ── HERO AUTO SCROLL via scrollTop ──
     const _heroScrollTimers = new Map();
-    const heroScrollHasMore = ref({}); // key → true se la card ha testo scrollabile
+    const heroScrollHasMore = ref({});
 
     const _heroAutoScroll = (el, s, key) => {
-      if (!el || el.dataset.scrollInit === '1') return;
-      el.dataset.scrollInit = '1';
+      if (!el) return;
+      // Usa la Map per evitare doppie init sulla stessa key
+      if (_heroScrollTimers.has('init_' + key)) return;
+      _heroScrollTimers.set('init_' + key, true);
 
-      setTimeout(() => {
-        const overflow = el.scrollHeight - el.clientHeight;
-        if (overflow <= 5) {
-          heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: false };
-          return;
-        }
+      nextTick(() => {
+        setTimeout(() => {
+          if (!el || !el.isConnected) return;
+          const overflow = el.scrollHeight - el.clientHeight;
+          heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: overflow > 5 };
+          if (overflow <= 5) return;
 
-        // Segnala a Vue che questa card ha overflow
-        heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: true };
+          el.addEventListener('scroll', () => {
+            heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: el.scrollTop < overflow - 4 };
+          }, { passive: true });
 
-        // Aggiorna quando l'utente scrolla manualmente
-        el.addEventListener('scroll', () => {
-          const atBottom = el.scrollTop >= overflow - 4;
-          heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: !atBottom };
-        }, { passive: true });
-
-        // Auto-scroll dopo 3s
-        const startDelay = setTimeout(() => {
-          const interval = setInterval(() => {
-            el.scrollTop += 1;
-            if (el.scrollTop >= overflow - 2) {
-              clearInterval(interval);
-              _heroScrollTimers.delete(key + '_interval');
-            }
-          }, 50);
-          _heroScrollTimers.set(key + '_interval', interval);
-        }, 3000);
-
-        _heroScrollTimers.set(key, startDelay);
-      }, 400);
+          // Auto-scroll dopo 3s
+          const t = setTimeout(() => {
+            const iv = setInterval(() => {
+              if (!el.isConnected) { clearInterval(iv); return; }
+              el.scrollTop += 1;
+              if (el.scrollTop >= overflow - 2) { clearInterval(iv); }
+            }, 50);
+          }, 3000);
+          _heroScrollTimers.set(key, t);
+        }, 200);
+      });
     };
 
     const _clearHeroScrollTimers = () => {
-      _heroScrollTimers.forEach(t => { clearTimeout(t); clearInterval(t); });
+      _heroScrollTimers.forEach((v, k) => { if (typeof v !== 'boolean') { clearTimeout(v); clearInterval(v); } });
       _heroScrollTimers.clear();
       heroScrollHasMore.value = {};
-      document.querySelectorAll('.hc-scroll-box').forEach(el => {
-        el.scrollTop = 0;
-        el.dataset.scrollInit = '';
-      });
-      document.querySelectorAll('.hc-fade-hint').forEach(el => el.remove());
+      document.querySelectorAll('.hc-scroll-box').forEach(el => { el.scrollTop = 0; });
     };
 
     const _nickFontSize = (s) => {
