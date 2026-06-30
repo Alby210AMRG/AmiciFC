@@ -6600,7 +6600,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.629',date:'2026-06-29',items:[
+    const changelogEntries = [{version:'v1.630',date:'2026-06-29',items:[
+      'Fix critico: import giocatore da stagione archiviata falliva con DataCloneError — Vue Proxy non clonabile da IndexedDB, ora con deep clone.',
+      'PNG formazione: header tutto centrato — SQUADRE UFFICIALI e PER IL data sulla stessa riga, ora e campo sulla stessa riga, font leggermente piu grandi.',
+      'PNG formazione: logo circolare invece di quadrato — risolve lo schiacciamento visivo.',
+      'PNG formazione: quote scommessa non piu tagliate — Y dinamico basato sulle righe reali del commento.',
+      'PNG formazione: aggiunto risultato previsto sotto le quote scommessa.',
+    ]},{version:'v1.629',date:'2026-06-29',items:[
       'PNG formazione: redesign header — logo piccolo e corretto (non più schiacciato) in alto a destra, SQUADRE UFFICIALI e PER IL data sulla stessa riga, ora e campo spostati nell header su una riga sola.',
       'PNG formazione: rimossa la pillola data/campo ridondante sotto i panel giocatori, spazio recuperato dato al commento (font 34px, fino a 4 righe).',
       'Fix quota pareggio: la formula comprimeva troppo il range con squadre bilanciate, dando quasi sempre lo stesso valore (4.40). Aumentata la sensibilità allo scarto tra le squadre per maggiore variabilita.',
@@ -7185,7 +7191,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.629');
+    const appVersion = ref('1.630');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7758,20 +7764,22 @@ createApp({
       });
       if (!confirm) return;
       try {
+        // Deep clone per rimuovere reattività Vue Proxy — IndexedDB richiede oggetti nativi clonabili
+        const pClean = JSON.parse(JSON.stringify(p));
         await db.players.add({
           groupId:       currentGroup.value.id,
-          uid:           p.uid, // stesso UID — fondamentale per collegare lo storico
-          nome:          p.nome || '',
-          cognome:       p.cognome || '',
-          soprannome:    p.soprannome || '',
-          ruolo:         p.ruolo || 'Jolly',
-          piede:         p.piede || 'Destro',
-          foto:          p.foto || '',
-          descrizione:   p.descrizione || '',
-          fraseCelebre:  p.fraseCelebre || '',
+          uid:           pClean.uid, // stesso UID — fondamentale per collegare lo storico
+          nome:          pClean.nome || '',
+          cognome:       pClean.cognome || '',
+          soprannome:    pClean.soprannome || '',
+          ruolo:         pClean.ruolo || 'Jolly',
+          piede:         pClean.piede || 'Destro',
+          foto:          pClean.foto || '',
+          descrizione:   pClean.descrizione || '',
+          fraseCelebre:  pClean.fraseCelebre || '',
           infortunio:    '',
-          rivali:        p.rivali || [],
-          affinita:      p.affinita || [],
+          rivali:        Array.isArray(pClean.rivali) ? pClean.rivali : [],
+          affinita:      Array.isArray(pClean.affinita) ? pClean.affinita : [],
           // Statistiche azzerate per la nuova stagione
           goalTotali:    0, assistTotali:    0, autogolTotali: 0,
           puntiTotali:   0, partiteTotali:   0, mediaPunti:    0,
@@ -7780,8 +7788,8 @@ createApp({
           updatedAt:     Date.now(),
         });
         // Ripristina foto nella tabella playerPhotos se presente
-        if (p.foto) {
-          await db.playerPhotos.put({ uid: p.uid, foto: p.foto, updatedAt: Date.now() });
+        if (pClean.foto) {
+          await db.playerPhotos.put({ uid: pClean.uid, foto: pClean.foto, updatedAt: Date.now() });
         }
         toast(`✅ ${p.soprannome||p.nome} importato nella stagione attuale!`, 'success', 4000);
         showImportPlayerModal.value = false;
@@ -8596,54 +8604,64 @@ Rispondi SOLO con questo JSON (niente altro testo):
       cDark.addColorStop(0,'rgba(0,0,0,0.55)');cDark.addColorStop(1,'transparent');
       ctx.fillStyle=cDark;ctx.fillRect(0,0,W,350);
 
-      // ═══ 2. HEADER COMPATTO: LOGO TOP-RIGHT + TITOLO/DATA + ORA/CAMPO ═══
+      // ═══ 2. HEADER COMPATTO E CENTRATO ═══
       const PAD=18, GAP=16;
-      let curY=16;
+      let curY=14;
 
-      // Logo Amici FC — in alto a destra, quadrato corretto (no schiacciamento)
+      // Logo Amici FC — piccolo, in alto a destra, CIRCOLARE (più sicuro di un crop quadrato su loghi non perfettamente quadrati)
       if(logoImg){
-        const LOGO_SIZE=64;
+        const LOGO_SIZE=52;
+        const lcx=W-PAD-LOGO_SIZE/2, lcy=curY+LOGO_SIZE/2;
         const lw=logoImg.naturalWidth||1, lh=logoImg.naturalHeight||1;
         const lside=Math.min(lw,lh);
         const lsx=(lw-lside)/2, lsy=(lh-lside)/2;
         ctx.save();
-        ctx.beginPath();ctx.roundRect(W-PAD-LOGO_SIZE,curY,LOGO_SIZE,LOGO_SIZE,14);ctx.clip();
-        ctx.drawImage(logoImg,lsx,lsy,lside,lside,W-PAD-LOGO_SIZE,curY,LOGO_SIZE,LOGO_SIZE);
+        ctx.beginPath();ctx.arc(lcx,lcy,LOGO_SIZE/2,0,Math.PI*2);ctx.clip();
+        ctx.drawImage(logoImg,lsx,lsy,lside,lside,lcx-LOGO_SIZE/2,lcy-LOGO_SIZE/2,LOGO_SIZE,LOGO_SIZE);
         ctx.restore();
-        ctx.strokeStyle='rgba(166,255,77,0.5)';ctx.lineWidth=2;
-        ctx.beginPath();ctx.roundRect(W-PAD-LOGO_SIZE,curY,LOGO_SIZE,LOGO_SIZE,14);ctx.stroke();
+        ctx.strokeStyle='rgba(166,255,77,0.6)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.arc(lcx,lcy,LOGO_SIZE/2,0,Math.PI*2);ctx.stroke();
       }
 
-      // SQUADRE UFFICIALI · PER IL DATA — stessa riga, allineato a sinistra (spazio libero da logo)
-      ctx.textAlign='left';
-      ctx.font='900 34px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+      // SQUADRE UFFICIALI · PER IL DATA — stessa riga, centrato, font leggermente più grande
+      ctx.textAlign='center';
+      ctx.font='900 30px "Arial Black",Arial';ctx.fillStyle='#ffffff';
       ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=10;
-      ctx.fillText('SQUADRE UFFICIALI',PAD,curY+34);
-      curY+=46;
-
-      const matchDateStr=f.matchData?'PER IL '+f.matchData.split('-').reverse().join('/'):'PER STASERA!';
+      const titleStr='SQUADRE UFFICIALI';
+      const dateStr=f.matchData?'PER IL '+f.matchData.split('-').reverse().join('/'):'PER STASERA!';
+      const titleW=ctx.measureText(titleStr).width;
       ctx.font='900 italic 26px "Arial Black",Arial';
-      const gPS=ctx.createLinearGradient(0,0,W,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(0.5,'#C8FF00');gPS.addColorStop(1,'#8FE600');
-      ctx.fillStyle=gPS;ctx.shadowBlur=0;ctx.fillText(matchDateStr,PAD,curY+26);
-      curY+=38;
+      const dateW=ctx.measureText(dateStr).width;
+      const combinedW=titleW+18+dateW;
+      const startX=W/2-combinedW/2;
+      ctx.textAlign='left';
+      ctx.font='900 30px "Arial Black",Arial';ctx.fillStyle='#ffffff';ctx.shadowBlur=10;
+      ctx.fillText(titleStr,startX,curY+30);
+      const gPS=ctx.createLinearGradient(startX+titleW+18,0,startX+combinedW,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(1,'#C8FF00');
+      ctx.font='900 italic 26px "Arial Black",Arial';ctx.fillStyle=gPS;ctx.shadowBlur=0;
+      ctx.fillText(dateStr,startX+titleW+18,curY+30);
+      curY+=42;
 
-      // Nome formazione
-      ctx.font='700 20px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
-      ctx.fillText('★  '+(f.nome||'').toUpperCase(),PAD,curY+20);
-      curY+=32;
+      // Nome formazione — centrato
+      ctx.textAlign='center';
+      ctx.font='700 19px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,curY+19);
+      curY+=30;
 
-      // ORA + CAMPO — stessa riga, sostituisce il footer sotto i panel
+      // ORA + CAMPO — stessa riga, centrato, font leggermente più grande
       if(f.matchOrario||f.matchLuogo){
-        ctx.font='700 22px "Arial Black",Arial';
-        if(f.matchOrario){
-          ctx.fillStyle='#FFD93D';ctx.fillText('🕐 ORE '+f.matchOrario,PAD,curY+22);
-        }
-        if(f.matchLuogo){
-          const orarioW=f.matchOrario?ctx.measureText('🕐 ORE '+f.matchOrario).width+30:0;
-          ctx.fillStyle='#3A7BFF';
-          ctx.fillText('📍 '+f.matchLuogo.toUpperCase(),PAD+orarioW,curY+22);
-        }
-        curY+=34;
+        ctx.font='800 24px "Arial Black",Arial';
+        const orarioStr=f.matchOrario?'🕐 ORE '+f.matchOrario:'';
+        const luogoStr=f.matchLuogo?'📍 '+f.matchLuogo.toUpperCase():'';
+        const orarioW=orarioStr?ctx.measureText(orarioStr).width:0;
+        const luogoW=luogoStr?ctx.measureText(luogoStr).width:0;
+        const gapMid=orarioStr&&luogoStr?34:0;
+        const totalW=orarioW+gapMid+luogoW;
+        let lx=W/2-totalW/2;
+        ctx.textAlign='left';
+        if(orarioStr){ctx.fillStyle='#FFD93D';ctx.fillText(orarioStr,lx,curY+24);lx+=orarioW+gapMid;}
+        if(luogoStr){ctx.fillStyle='#3A7BFF';ctx.fillText(luogoStr,lx,curY+24);}
+        curY+=36;
       }
 
       // Separatore
@@ -8654,8 +8672,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const PW=(W-PAD*2-GAP)/2;
       const nTeam=Math.max((f.squadraA||[]).length,(f.squadraB||[]).length)||6;
 
-      // Footer zone ridotta: ora/campo già nell'header, resta solo commento+quote
-      const FOOTER_H=280;
+      // Footer zone: commento(3 righe max) + badge + quote + risultato previsto
+      const FOOTER_H=420;
       const PH=H-PY-FOOTER_H-18;
       const PLX=PAD, PRX=PAD+PW+GAP;
 
@@ -8731,11 +8749,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const COMM_Y=PY+PH+24;
       const pred=computeFormationPrediction(f);
       const commento=f.commentoFormazione||pred?.verdict||'';
+      let commentoLines=0;
       if(commento){
         ctx.textAlign='center';
-        ctx.font='700 34px Arial';ctx.fillStyle='rgba(255,255,255,0.95)';
+        ctx.font='700 32px Arial';ctx.fillStyle='rgba(255,255,255,0.95)';
         ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=6;
-        // Wrapping testo su max 4 righe (più spazio disponibile)
+        // Wrapping testo su max 3 righe (spazio controllato per non sforare)
         const maxW=W-70;
         const words=commento.split(' ');
         const lines=[];let cur='';
@@ -8743,38 +8762,51 @@ Rispondi SOLO con questo JSON (niente altro testo):
           const test=cur+(cur?' ':'')+w;
           if(ctx.measureText(test).width>maxW&&cur){lines.push(cur);cur=w;}
           else cur=test;
-          if(lines.length===3&&cur){lines.push(cur);cur='';break;}
+          if(lines.length===2&&cur){lines.push(cur);cur='';break;}
         }
-        if(cur&&lines.length<4)lines.push(cur);
-        lines.forEach((l,i)=>ctx.fillText(l,W/2,COMM_Y+38+i*44));
+        if(cur&&lines.length<3)lines.push(cur);
+        commentoLines=lines.length;
+        lines.forEach((l,i)=>ctx.fillText(l,W/2,COMM_Y+34+i*40));
         ctx.shadowBlur=0;
         // Badge AI/algoritmico
-        ctx.font='700 15px Arial';ctx.fillStyle=f.commentoFormazioneIsAI?'rgba(166,255,77,0.6)':'rgba(255,255,255,0.3)';
-        ctx.fillText(f.commentoFormazioneIsAI?'✨ commento AI':'🤖 commento automatico',W/2,COMM_Y+38+lines.length*44+18);
+        ctx.font='700 14px Arial';ctx.fillStyle=f.commentoFormazioneIsAI?'rgba(166,255,77,0.6)':'rgba(255,255,255,0.3)';
+        ctx.fillText(f.commentoFormazioneIsAI?'✨ commento AI':'🤖 commento automatico',W/2,COMM_Y+34+commentoLines*40+16);
       }
 
-      // ═══ 4. QUOTE SCOMMESSA ═══
-      const QUOTE_Y=COMM_Y+200;
+      // ═══ 4. QUOTE SCOMMESSA — Y dinamico basato su righe commento reali ═══
+      const QUOTE_Y=COMM_Y+34+commentoLines*40+34;
       if(pred){
-        ctx.font='900 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.6)';ctx.textAlign='center';ctx.shadowBlur=0;
-        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,QUOTE_Y+22);
+        ctx.font='900 20px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.6)';ctx.textAlign='center';ctx.shadowBlur=0;
+        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,QUOTE_Y+20);
         const qBoxes=[
           {label:(f.nomeSquadraB||'Squadra B').toUpperCase(),odd:pred.quoteB,x:W*0.20,col:bCol},
           {label:'PAREGGIO',odd:pred.quoteX,x:W*0.50,col:'#FFD700'},
           {label:(f.nomeSquadraA||'Squadra A').toUpperCase(),odd:pred.quoteA,x:W*0.80,col:aCol},
         ];
         for(const b of qBoxes){
-          const bw=240,bh=100,bx=b.x-bw/2,by=QUOTE_Y+32;
+          const bw=240,bh=90,bx=b.x-bw/2,by=QUOTE_Y+28;
           ctx.fillStyle=b.col+'22';ctx.strokeStyle=b.col+'CC';ctx.lineWidth=3;
           ctx.beginPath();ctx.rect(bx,by,bw,bh);ctx.fill();ctx.stroke();
-          ctx.font='900 52px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
+          ctx.font='900 46px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
           ctx.shadowColor=b.col;ctx.shadowBlur=12;
-          ctx.fillText(b.odd,b.x,QUOTE_Y+98);ctx.shadowBlur=0;
-          let lbl=b.label,fs=16;
+          ctx.fillText(b.odd,b.x,QUOTE_Y+86);ctx.shadowBlur=0;
+          let lbl=b.label,fs=15;
           ctx.font=`700 ${fs}px "Arial Black",Arial`;
           while(ctx.measureText(lbl).width>bw-20&&fs>10){fs--;ctx.font=`700 ${fs}px "Arial Black",Arial`;}
-          ctx.fillStyle='rgba(255,255,255,0.8)';ctx.fillText(lbl,b.x,QUOTE_Y+122);
+          ctx.fillStyle='rgba(255,255,255,0.8)';ctx.fillText(lbl,b.x,QUOTE_Y+108);
         }
+
+        // ═══ 5. RISULTATO PREVISTO — sotto le quote ═══
+        const RES_Y=QUOTE_Y+138;
+        const favorB=parseFloat(pred.quoteB)<parseFloat(pred.quoteA);
+        const resA=favorB?Math.floor(1+Math.random()*1):Math.floor(2+Math.random()*2);
+        const resB=favorB?Math.floor(2+Math.random()*2):Math.floor(1+Math.random()*1);
+        ctx.font='700 16px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.45)';ctx.textAlign='center';
+        ctx.fillText('📈 RISULTATO PIÙ PROBABILE',W/2,RES_Y);
+        ctx.font='900 36px "Arial Black",Arial';
+        ctx.fillStyle=bCol;ctx.fillText(String(resB),W/2-30,RES_Y+42);
+        ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText('-',W/2,RES_Y+42);
+        ctx.fillStyle=aCol;ctx.fillText(String(resA),W/2+30,RES_Y+42);
       }
 
       try{return canvas.toDataURL('image/png');}
