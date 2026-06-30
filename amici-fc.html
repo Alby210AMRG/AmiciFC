@@ -6600,7 +6600,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.630',date:'2026-06-29',items:[
+    const changelogEntries = [{version:'v1.631',date:'2026-06-29',items:[
+      'PNG formazione: logo ingrandito, occupa tutta laltezza dellheader, ben visibile.',
+      'PNG formazione: testo QUOTE SCOMMESSA e RISULTATO PIU PROBABILE ingranditi per maggiore leggibilita.',
+    ]},{version:'v1.630',date:'2026-06-29',items:[
       'Fix critico: import giocatore da stagione archiviata falliva con DataCloneError — Vue Proxy non clonabile da IndexedDB, ora con deep clone.',
       'PNG formazione: header tutto centrato — SQUADRE UFFICIALI e PER IL data sulla stessa riga, ora e campo sulla stessa riga, font leggermente piu grandi.',
       'PNG formazione: logo circolare invece di quadrato — risolve lo schiacciamento visivo.',
@@ -7191,7 +7194,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.630');
+    const appVersion = ref('1.631');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8608,10 +8611,11 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const PAD=18, GAP=16;
       let curY=14;
 
-      // Logo Amici FC — piccolo, in alto a destra, CIRCOLARE (più sicuro di un crop quadrato su loghi non perfettamente quadrati)
+      // Logo Amici FC — grande, occupa tutta l'altezza dell'header, CIRCOLARE
+      const HEADER_TOTAL_H=136; // altezza approssimativa da curY a fine header (titolo+nome+ora/campo)
       if(logoImg){
-        const LOGO_SIZE=52;
-        const lcx=W-PAD-LOGO_SIZE/2, lcy=curY+LOGO_SIZE/2;
+        const LOGO_SIZE=HEADER_TOTAL_H-20;
+        const lcx=W-PAD-LOGO_SIZE/2, lcy=curY+HEADER_TOTAL_H/2-10;
         const lw=logoImg.naturalWidth||1, lh=logoImg.naturalHeight||1;
         const lside=Math.min(lw,lh);
         const lsx=(lw-lside)/2, lsy=(lh-lside)/2;
@@ -8619,7 +8623,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.beginPath();ctx.arc(lcx,lcy,LOGO_SIZE/2,0,Math.PI*2);ctx.clip();
         ctx.drawImage(logoImg,lsx,lsy,lside,lside,lcx-LOGO_SIZE/2,lcy-LOGO_SIZE/2,LOGO_SIZE,LOGO_SIZE);
         ctx.restore();
-        ctx.strokeStyle='rgba(166,255,77,0.6)';ctx.lineWidth=2;
+        ctx.strokeStyle='rgba(166,255,77,0.7)';ctx.lineWidth=3;
         ctx.beginPath();ctx.arc(lcx,lcy,LOGO_SIZE/2,0,Math.PI*2);ctx.stroke();
       }
 
@@ -8673,7 +8677,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const nTeam=Math.max((f.squadraA||[]).length,(f.squadraB||[]).length)||6;
 
       // Footer zone: commento(3 righe max) + badge + quote + risultato previsto
-      const FOOTER_H=420;
+      const FOOTER_H=440;
       const PH=H-PY-FOOTER_H-18;
       const PLX=PAD, PRX=PAD+PW+GAP;
 
@@ -8776,37 +8780,37 @@ Rispondi SOLO con questo JSON (niente altro testo):
       // ═══ 4. QUOTE SCOMMESSA — Y dinamico basato su righe commento reali ═══
       const QUOTE_Y=COMM_Y+34+commentoLines*40+34;
       if(pred){
-        ctx.font='900 20px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.6)';ctx.textAlign='center';ctx.shadowBlur=0;
-        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,QUOTE_Y+20);
+        ctx.font='900 26px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';ctx.textAlign='center';ctx.shadowBlur=0;
+        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,QUOTE_Y+24);
         const qBoxes=[
           {label:(f.nomeSquadraB||'Squadra B').toUpperCase(),odd:pred.quoteB,x:W*0.20,col:bCol},
           {label:'PAREGGIO',odd:pred.quoteX,x:W*0.50,col:'#FFD700'},
           {label:(f.nomeSquadraA||'Squadra A').toUpperCase(),odd:pred.quoteA,x:W*0.80,col:aCol},
         ];
         for(const b of qBoxes){
-          const bw=240,bh=90,bx=b.x-bw/2,by=QUOTE_Y+28;
+          const bw=240,bh=90,bx=b.x-bw/2,by=QUOTE_Y+32;
           ctx.fillStyle=b.col+'22';ctx.strokeStyle=b.col+'CC';ctx.lineWidth=3;
           ctx.beginPath();ctx.rect(bx,by,bw,bh);ctx.fill();ctx.stroke();
           ctx.font='900 46px "Arial Black",Arial';ctx.fillStyle=b.col;ctx.textAlign='center';
           ctx.shadowColor=b.col;ctx.shadowBlur=12;
-          ctx.fillText(b.odd,b.x,QUOTE_Y+86);ctx.shadowBlur=0;
+          ctx.fillText(b.odd,b.x,QUOTE_Y+90);ctx.shadowBlur=0;
           let lbl=b.label,fs=15;
           ctx.font=`700 ${fs}px "Arial Black",Arial`;
           while(ctx.measureText(lbl).width>bw-20&&fs>10){fs--;ctx.font=`700 ${fs}px "Arial Black",Arial`;}
-          ctx.fillStyle='rgba(255,255,255,0.8)';ctx.fillText(lbl,b.x,QUOTE_Y+108);
+          ctx.fillStyle='rgba(255,255,255,0.8)';ctx.fillText(lbl,b.x,QUOTE_Y+112);
         }
 
         // ═══ 5. RISULTATO PREVISTO — sotto le quote ═══
-        const RES_Y=QUOTE_Y+138;
+        const RES_Y=QUOTE_Y+150;
         const favorB=parseFloat(pred.quoteB)<parseFloat(pred.quoteA);
         const resA=favorB?Math.floor(1+Math.random()*1):Math.floor(2+Math.random()*2);
         const resB=favorB?Math.floor(2+Math.random()*2):Math.floor(1+Math.random()*1);
-        ctx.font='700 16px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.45)';ctx.textAlign='center';
+        ctx.font='800 20px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.55)';ctx.textAlign='center';
         ctx.fillText('📈 RISULTATO PIÙ PROBABILE',W/2,RES_Y);
-        ctx.font='900 36px "Arial Black",Arial';
-        ctx.fillStyle=bCol;ctx.fillText(String(resB),W/2-30,RES_Y+42);
-        ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText('-',W/2,RES_Y+42);
-        ctx.fillStyle=aCol;ctx.fillText(String(resA),W/2+30,RES_Y+42);
+        ctx.font='900 44px "Arial Black",Arial';
+        ctx.fillStyle=bCol;ctx.fillText(String(resB),W/2-34,RES_Y+50);
+        ctx.fillStyle='rgba(255,255,255,0.5)';ctx.fillText('-',W/2,RES_Y+50);
+        ctx.fillStyle=aCol;ctx.fillText(String(resA),W/2+34,RES_Y+50);
       }
 
       try{return canvas.toDataURL('image/png');}
