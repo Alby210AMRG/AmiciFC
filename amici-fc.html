@@ -6600,7 +6600,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.628',date:'2026-06-29',items:[
+    const changelogEntries = [{version:'v1.629',date:'2026-06-29',items:[
+      'PNG formazione: redesign header — logo piccolo e corretto (non più schiacciato) in alto a destra, SQUADRE UFFICIALI e PER IL data sulla stessa riga, ora e campo spostati nell header su una riga sola.',
+      'PNG formazione: rimossa la pillola data/campo ridondante sotto i panel giocatori, spazio recuperato dato al commento (font 34px, fino a 4 righe).',
+      'Fix quota pareggio: la formula comprimeva troppo il range con squadre bilanciate, dando quasi sempre lo stesso valore (4.40). Aumentata la sensibilità allo scarto tra le squadre per maggiore variabilita.',
+    ]},{version:'v1.628',date:'2026-06-29',items:[
       'Fix critico: commento PNG formazione controllava currentGroup.geminiApiKey invece di settings.apiKey — il commento era sempre algoritmico, mai AI, anche con API key configurata.',
       'Aggiunto indicatore "✨ commento AI" o "🤖 commento automatico" nel PNG e nel testo WhatsApp per sapere sempre quale dei due ha generato il testo.',
     ]},{version:'v1.627',date:'2026-06-29',items:[
@@ -7181,7 +7185,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.628');
+    const appVersion = ref('1.629');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8330,7 +8334,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
       const probA = scoreA/total;
       const probB = scoreB/total;
-      const probX = 0.25; // draw probability buffer
+      // Probabilità di pareggio dinamica: più le squadre sono equilibrate, più alta la chance di pareggio.
+      // diffNorm: scarto relativo tra le squadre, amplificato per dare più variabilità con squadre già bilanciate
+      // (l'algoritmo di generazione tende a creare squadre simili, quindi serve più sensibilità nel range basso)
+      const diffNorm = Math.abs(probA - probB) * 3; // amplifica lo scarto
+      const balanceRatio = Math.max(0, 1 - Math.min(1, diffNorm));
+      const probX = 0.16 + balanceRatio * 0.14; // range 0.16 - 0.30
       const adjA = probA*(1-probX);
       const adjB = probB*(1-probX);
 
@@ -8587,58 +8596,66 @@ Rispondi SOLO con questo JSON (niente altro testo):
       cDark.addColorStop(0,'rgba(0,0,0,0.55)');cDark.addColorStop(1,'transparent');
       ctx.fillStyle=cDark;ctx.fillRect(0,0,W,350);
 
-      // ═══ 2. HEADER: LOGO + TITOLO + DATA ═══
+      // ═══ 2. HEADER COMPATTO: LOGO TOP-RIGHT + TITOLO/DATA + ORA/CAMPO ═══
       const PAD=18, GAP=16;
-      let curY=0;
+      let curY=16;
 
-      // Logo Amici FC
+      // Logo Amici FC — in alto a destra, quadrato corretto (no schiacciamento)
       if(logoImg){
-        const LOGO_SIZE=90;
+        const LOGO_SIZE=64;
+        const lw=logoImg.naturalWidth||1, lh=logoImg.naturalHeight||1;
+        const lside=Math.min(lw,lh);
+        const lsx=(lw-lside)/2, lsy=(lh-lside)/2;
         ctx.save();
-        ctx.beginPath();ctx.arc(W/2,55,LOGO_SIZE/2,0,Math.PI*2);ctx.clip();
-        ctx.drawImage(logoImg,W/2-LOGO_SIZE/2,10,LOGO_SIZE,LOGO_SIZE);
+        ctx.beginPath();ctx.roundRect(W-PAD-LOGO_SIZE,curY,LOGO_SIZE,LOGO_SIZE,14);ctx.clip();
+        ctx.drawImage(logoImg,lsx,lsy,lside,lside,W-PAD-LOGO_SIZE,curY,LOGO_SIZE,LOGO_SIZE);
         ctx.restore();
+        ctx.strokeStyle='rgba(166,255,77,0.5)';ctx.lineWidth=2;
+        ctx.beginPath();ctx.roundRect(W-PAD-LOGO_SIZE,curY,LOGO_SIZE,LOGO_SIZE,14);ctx.stroke();
       }
-      // Nome app
-      ctx.textAlign='center';
-      ctx.font='900 36px "Arial Black",Arial';ctx.fillStyle='#ffffff';
+
+      // SQUADRE UFFICIALI · PER IL DATA — stessa riga, allineato a sinistra (spazio libero da logo)
+      ctx.textAlign='left';
+      ctx.font='900 34px "Arial Black",Arial';ctx.fillStyle='#ffffff';
       ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=10;
-      ctx.fillText('AMICI FC',W/2,118);
-      // Slogan
-      ctx.font='400 italic 20px Arial';ctx.fillStyle='rgba(166,255,77,0.8)';
-      ctx.shadowBlur=0;
-      ctx.fillText('Dove i campioni nascono… e litigano!',W/2,142);
-      curY=150;
+      ctx.fillText('SQUADRE UFFICIALI',PAD,curY+34);
+      curY+=46;
+
+      const matchDateStr=f.matchData?'PER IL '+f.matchData.split('-').reverse().join('/'):'PER STASERA!';
+      ctx.font='900 italic 26px "Arial Black",Arial';
+      const gPS=ctx.createLinearGradient(0,0,W,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(0.5,'#C8FF00');gPS.addColorStop(1,'#8FE600');
+      ctx.fillStyle=gPS;ctx.shadowBlur=0;ctx.fillText(matchDateStr,PAD,curY+26);
+      curY+=38;
+
+      // Nome formazione
+      ctx.font='700 20px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
+      ctx.fillText('★  '+(f.nome||'').toUpperCase(),PAD,curY+20);
+      curY+=32;
+
+      // ORA + CAMPO — stessa riga, sostituisce il footer sotto i panel
+      if(f.matchOrario||f.matchLuogo){
+        ctx.font='700 22px "Arial Black",Arial';
+        if(f.matchOrario){
+          ctx.fillStyle='#FFD93D';ctx.fillText('🕐 ORE '+f.matchOrario,PAD,curY+22);
+        }
+        if(f.matchLuogo){
+          const orarioW=f.matchOrario?ctx.measureText('🕐 ORE '+f.matchOrario).width+30:0;
+          ctx.fillStyle='#3A7BFF';
+          ctx.fillText('📍 '+f.matchLuogo.toUpperCase(),PAD+orarioW,curY+22);
+        }
+        curY+=34;
+      }
 
       // Separatore
       ctx.fillStyle='rgba(255,255,255,0.12)';ctx.fillRect(PAD*4,curY,W-PAD*8,1);
       curY+=14;
 
-      // SQUADRE UFFICIALI — 50px
-      ctx.font='900 50px "Arial Black",Arial';ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=14;
-      ctx.fillText('SQUADRE UFFICIALI',W/2,curY+50);
-      curY+=60;
-
-      // PER IL DATA — 40px
-      const matchDateStr=f.matchData?'PER IL '+f.matchData.split('-').reverse().join('/'):'PER STASERA!';
-      ctx.font='900 italic 40px "Arial Black",Arial';
-      const gPS=ctx.createLinearGradient(0,0,W,0);gPS.addColorStop(0,'#8FE600');gPS.addColorStop(0.5,'#C8FF00');gPS.addColorStop(1,'#8FE600');
-      ctx.fillStyle=gPS;ctx.fillText(matchDateStr,W/2,curY+40);
-      curY+=50;
-
-      // Nome formazione — 26px
-      ctx.font='700 26px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.85)';
-      ctx.shadowBlur=0;
-      ctx.fillText('★  '+(f.nome||'').toUpperCase()+'  ★',W/2,curY+26);
-      curY+=36;
-
-      const PY=curY; // ≈ 275px
+      const PY=curY;
       const PW=(W-PAD*2-GAP)/2;
       const nTeam=Math.max((f.squadraA||[]).length,(f.squadraB||[]).length)||6;
 
-      // Footer zone: 90 (pill) + 172 (commento) + 120 (quote) = 382px
-      const FOOTER_H=382;
+      // Footer zone ridotta: ora/campo già nell'header, resta solo commento+quote
+      const FOOTER_H=280;
       const PH=H-PY-FOOTER_H-18;
       const PLX=PAD, PRX=PAD+PW+GAP;
 
@@ -8710,56 +8727,34 @@ Rispondi SOLO con questo JSON (niente altro testo):
       await drawPlayerGrid(f.squadraB||[],PLX,PY,PW,bCol);
       await drawPlayerGrid(f.squadraA||[],PRX,PY,PW,aCol);
 
-      // ═══ 3. FOOTER: DATA/LUOGO ═══
-      const FOOT_Y=PY+PH+18;
-      const iPillH=90;
-      ctx.save();ctx.shadowColor='rgba(0,200,80,0.3)';ctx.shadowBlur=16;
-      ctx.fillStyle='rgba(5,20,5,0.92)';rrect(PAD,FOOT_Y,W-PAD*2,iPillH,18);ctx.fill();ctx.restore();
-      ctx.strokeStyle='rgba(80,180,0,0.6)';ctx.lineWidth=2;rrect(PAD,FOOT_Y,W-PAD*2,iPillH,18);ctx.stroke();
-      ctx.font='38px Arial';ctx.textAlign='center';ctx.fillText('📅',60,FOOT_Y+54);
-      ctx.fillStyle='rgba(255,255,255,0.15)';ctx.fillRect(W/2-1,FOOT_Y+14,2,iPillH-28);
-      ctx.font='38px Arial';ctx.fillText('📍',W/2+70,FOOT_Y+54);
-      if(f.matchData||f.matchOrario){
-        ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='left';
-        ctx.fillText(f.matchData?formatDate(f.matchData).toUpperCase():'STASERA',88,FOOT_Y+34);
-        ctx.font='900 30px "Arial Black",Arial';ctx.fillStyle=bCol;
-        ctx.fillText(f.matchOrario?'ORE '+f.matchOrario:'',88,FOOT_Y+66);
-      }
-      if(f.matchLuogo){
-        ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';ctx.textAlign='left';
-        ctx.fillText('CAMPO',W/2+106,FOOT_Y+34);
-        ctx.font='900 28px "Arial Black",Arial';ctx.fillStyle=aCol;
-        ctx.fillText(f.matchLuogo.toUpperCase(),W/2+106,FOOT_Y+66);
-      }
-
-      // ═══ 4. COMMENTO NARRATIVO ═══
-      const COMM_Y=FOOT_Y+iPillH+16;
+      // ═══ 3. COMMENTO NARRATIVO (più grande, più spazio grazie a header compatto) ═══
+      const COMM_Y=PY+PH+24;
       const pred=computeFormationPrediction(f);
       const commento=f.commentoFormazione||pred?.verdict||'';
       if(commento){
         ctx.textAlign='center';
-        ctx.font='700 28px Arial';ctx.fillStyle='rgba(255,255,255,0.9)';
+        ctx.font='700 34px Arial';ctx.fillStyle='rgba(255,255,255,0.95)';
         ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=6;
-        // Wrapping testo su max 3 righe
-        const maxW=W-80;
+        // Wrapping testo su max 4 righe (più spazio disponibile)
+        const maxW=W-70;
         const words=commento.split(' ');
         const lines=[];let cur='';
         for(const w of words){
           const test=cur+(cur?' ':'')+w;
           if(ctx.measureText(test).width>maxW&&cur){lines.push(cur);cur=w;}
           else cur=test;
-          if(lines.length===2&&cur){lines.push(cur);cur='';break;}
+          if(lines.length===3&&cur){lines.push(cur);cur='';break;}
         }
-        if(cur&&lines.length<3)lines.push(cur);
-        lines.forEach((l,i)=>ctx.fillText(l,W/2,COMM_Y+32+i*36));
+        if(cur&&lines.length<4)lines.push(cur);
+        lines.forEach((l,i)=>ctx.fillText(l,W/2,COMM_Y+38+i*44));
         ctx.shadowBlur=0;
         // Badge AI/algoritmico
-        ctx.font='700 14px Arial';ctx.fillStyle=f.commentoFormazioneIsAI?'rgba(166,255,77,0.6)':'rgba(255,255,255,0.3)';
-        ctx.fillText(f.commentoFormazioneIsAI?'✨ commento AI':'🤖 commento automatico',W/2,COMM_Y+32+lines.length*36+16);
+        ctx.font='700 15px Arial';ctx.fillStyle=f.commentoFormazioneIsAI?'rgba(166,255,77,0.6)':'rgba(255,255,255,0.3)';
+        ctx.fillText(f.commentoFormazioneIsAI?'✨ commento AI':'🤖 commento automatico',W/2,COMM_Y+38+lines.length*44+18);
       }
 
-      // ═══ 5. QUOTE SCOMMESSA ═══
-      const QUOTE_Y=COMM_Y+130;
+      // ═══ 4. QUOTE SCOMMESSA ═══
+      const QUOTE_Y=COMM_Y+200;
       if(pred){
         ctx.font='900 22px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.6)';ctx.textAlign='center';ctx.shadowBlur=0;
         ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,QUOTE_Y+22);
