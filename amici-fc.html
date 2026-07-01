@@ -6607,7 +6607,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.648',date:'2026-06-29',items:[
+    const changelogEntries = [{version:'v1.649',date:'2026-07-01',items:[
+      'Fix CRITICO Hall of Fame: il controllo automatico mensile usava un flag a tempo fisso di 30 giorni, scollegato dal calendario, che poteva restare valido a cavallo del cambio mese e bloccare la generazione del mese nuovo (causa reale del mancato check del 1 luglio).',
+      'Hall of Fame: rimosso anche il limite dei soli primi 10 giorni del mese per la generazione retroattiva — ora, finche il mese precedente risulta mancante, la card viene generata a qualsiasi giorno del mese dal primo dispositivo con AI configurata e login Firebase che apre lapp, con un tentativo al giorno.',
+      'Hall of Fame: il controllo generale a monte (che poteva saltare del tutto il check per risparmiare chiamate Firebase) ora verifica lo specifico mese che serve invece del flag a tempo.',
+    ]},{version:'v1.648',date:'2026-06-29',items:[
       'Fix logo VERIFICATO: causa reale trovata — il riflettore luminoso di sfondo (centrato vicino al logo) ne lavava visivamente i bordi, dando lillusione di un taglio. Aggiunto sfondo scuro pieno dietro il logo per isolarlo completamente dal riflettore.',
       'PNG formazione: rimossi i tetti massimi fissi su box quote (96px) e tabellone risultato (70px) che impedivano al testo di crescere anche con piu spazio disponibile.',
       'PNG formazione: FOOTER_H aumentato a 520px, distribuzione spazio ricalibrata (32%/48%/20%) per font molto piu grandi su quote e risultato.',
@@ -7263,7 +7267,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.648');
+    const appVersion = ref('1.649');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10065,6 +10069,19 @@ OUTPUT: Rispondi SOLO con JSON valido:
       if (cfg) localStorage.removeItem(cfg.key(gid));
     };
 
+    // Hall of Fame è calendario-specifico (una card per mese) — un flag a tempo fisso (30gg)
+    // può restare "valido" a cavallo del cambio mese e bloccare la generazione del mese nuovo.
+    // Questo helper controlla sempre lo specifico mese che serve (mese precedente rispetto a oggi),
+    // in memoria o in localStorage, invece di affidarsi al countdown del flag generico.
+    const _hofMesePrecCoperto = () => {
+      const oggi = new Date();
+      const _mk = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      const mesePrec = _mk(new Date(oggi.getFullYear(), oggi.getMonth()-1, 1));
+      if (aiCardsHallOfFame.value?.mese === mesePrec) return true;
+      const _ls = JSON.parse(localStorage.getItem('amicifc_hof_'+mesePrec)||'null');
+      return !!_ls?.fame;
+    };
+
     const _loadAiNicknames = async () => {
       const _gid = currentGroup.value?.id;
       const _lsKey = 'amicifc_nicks_' + _gid;
@@ -10245,14 +10262,12 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       return entries[idx];
     });
 
-    // ── Avvia Hall of Fame se è il primo del mese ──
+    // ── Avvia Hall of Fame se il mese precedente non ha ancora la sua card ──
+    // NB: niente più gate basato su flag a tempo fisso (30gg) — quel flag, scollegato dal
+    // calendario, poteva restare "valido" a cavallo del cambio mese e bloccare la generazione
+    // del mese nuovo. Ora si controlla sempre e solo se il MESE SPECIFICO che serve è coperto.
     const _checkHallOfFame = async () => {
       if (!currentGroup.value) return;
-      // Flag valido → salta tutto il check HoF
-      if (aiFlagValid('hof', currentGroup.value.id)) {
-        _aiLog('HallOfFame','⏭️ HoF: flag valido — skip');
-        return;
-      }
       const oggi = new Date();
       const giorno = oggi.getDate();
       const meseCorrente = oggi.toISOString().slice(0,7);
@@ -10267,26 +10282,34 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       const hofOk = _inMemory === mesePrec || _inMemory === meseCorrente
                  || _lsHofP?.fame || _lsHofC?.fame;
 
-      // Throttle: non riprovare se già tentato oggi e fallito
+      if (hofOk) {
+        _aiLog('HallOfFame','⏭️ HoF: '+mesePrec+' già presente — skip');
+        return;
+      }
+
+      // Throttle: non riprovare più di una volta al giorno
       const _lastAttemptKey = 'amicifc_hof_attempt_'+mesePrec;
       const _lastAttempt = localStorage.getItem(_lastAttemptKey);
       const _todayStr = oggi.toISOString().slice(0,10);
-      if (_lastAttempt === _todayStr && !hofOk) {
+      if (_lastAttempt === _todayStr) {
         _aiLog('HallOfFame','⏭️ HoF: già tentata oggi ('+_todayStr+'), riprova domani');
         return;
       }
 
-      if (giorno === 1) {
-        _aiLog('HallOfFame','📅 È il 1° del mese — generazione Hall of Fame...');
-        localStorage.setItem(_lastAttemptKey, _todayStr);
-        await _generateHallOfFame();
-      } else if (giorno <= 10 && !hofOk && settings.value.apiKey) {
-        _aiLog('HallOfFame','📅 Giorno '+giorno+' — HoF di '+mesePrec+' mancante, generazione retroattiva...');
-        localStorage.setItem(_lastAttemptKey, _todayStr);
-        await _generateHallOfFame();
-      } else {
-        _aiLog('HallOfFame','⏭️ Non è il 1° del mese (oggi è il '+giorno+'). Usa il bottone per forzare.');
+      // Serve una API key configurata su QUESTO dispositivo per generare (non tutti i dispositivi
+      // con login Firebase hanno l'AI configurata) — se manca, si riprova al prossimo accesso
+      // di un dispositivo che ce l'ha, senza consumare il tentativo giornaliero né loggare errore.
+      if (!settings.value.apiKey) {
+        _aiLog('HallOfFame','⏭️ HoF: '+mesePrec+' mancante ma nessuna API key su questo dispositivo');
+        return;
       }
+
+      // Nessun limite di giorno del mese: basta che il mese precedente sia mancante.
+      // Così anche se l'utente con AI+login Firebase apre l'app il 15 o il 20, la card
+      // viene comunque generata (finché siamo ancora nello stesso mese corrente).
+      _aiLog('HallOfFame','📅 HoF di '+mesePrec+' mancante (oggi è il '+giorno+') — generazione...');
+      localStorage.setItem(_lastAttemptKey, _todayStr);
+      await _generateHallOfFame();
     };
 
     // ── Carica AI cards all'avvio del gruppo ──
@@ -10633,7 +10656,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
       if (_lsPronoCheck?.titolo && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
-      if (aiFlagValid('tt', _gid) && aiFlagValid('hof', _gid) && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
+      if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto() && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
         const _lsKeyTT = 'amicifc_tt_' + _gid;
         if (!aiCardsTrashTalk.value.length) {
