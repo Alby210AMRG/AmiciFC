@@ -4067,7 +4067,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {id:'mediagol',icon:'📈',col:'rgba(166,255,77,.12)'},
               {id:'classifica',icon:'📊',col:'rgba(58,123,255,.15)'},
               {id:'mediapunti',icon:'📈',col:'rgba(150,100,255,.15)'},
-              {id:'voti',icon:'⭐',col:'rgba(255,217,61,.15)'},
               {id:'mediavoto',icon:'⭐',col:'rgba(255,217,61,.10)'},
               {id:'altri',icon:'🏅',col:'rgba(255,100,100,.15)'},
               {id:'h2h',icon:'⚔️',col:'rgba(255,100,200,.15)'},
@@ -4084,7 +4083,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px" :style="'background:'+tab.col">{{tab.icon}}</div>
               <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap"
                 :style="statsTab===tab.id?'color:var(--lime)':'color:var(--text2)'">
-                {{tab.id==='overall'?'Overall':tab.id==='goal'?'Gol':tab.id==='mediagol'?'Media ⚽':tab.id==='classifica'?'Punti':tab.id==='voti'?'Voto':tab.id==='altri'?'UoM':tab.id==='h2h'?'H2H':tab.id==='mediapunti'?'Media Pt':tab.id==='mediavoto'?'Media ⭐':tab.id==='assist'?'Assist':tab.id==='topteam'?'Top Team':tab.id==='hofre'?'Re Mese':tab.id==='hofbidone'?'Bidone Mese':'Autogol'}}
+                {{tab.id==='overall'?'Overall':tab.id==='goal'?'Gol':tab.id==='mediagol'?'Media ⚽':tab.id==='classifica'?'Punti':tab.id==='altri'?'UoM':tab.id==='h2h'?'H2H':tab.id==='mediapunti'?'Media Pt':tab.id==='mediavoto'?'Media ⭐':tab.id==='assist'?'Assist':tab.id==='topteam'?'Top Team':tab.id==='hofre'?'Re Mese':tab.id==='hofbidone'?'Bidone Mese':'Autogol'}}
               </span>
             </button>
           </div>
@@ -4384,20 +4383,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </template>
 
-        <template v-if="statsTab==='voti'">
-          <div class="card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><div class="card-title" style="margin-bottom:0">⭐ Media Voto</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button></div>
-            <div v-if="!statsTopRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
-            <div v-for="(p,i) in statsTopRated" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
-              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
-              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
-              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.votiTotali}} partite votate</div></div>
-              <div class="stats-val" style="color:var(--yellow)">{{(p.mediaVoto||0).toFixed(1)}}</div>
-            </div>
-          </div>
-
-        </template>
-
         <!-- ── MEDIA VOTO ── -->
         <template v-if="statsTab==='mediavoto'">
           <div class="card">
@@ -4405,9 +4390,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="card-title" style="margin-bottom:0">⭐ Media Voto</div>
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button>
             </div>
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Media voto nelle partite in cui si è stati votati</div>
-            <div v-if="!statsTopRated.length" class="empty-state" style="padding:16px"><p>Nessun voto ancora.</p></div>
-            <div v-for="(p,i) in [...statsTopRated].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Media voto nelle partite in cui si è stati votati · solo giocatori con almeno 5 partite votate</div>
+            <div v-if="!statsTopRatedClassifica.length" class="empty-state" style="padding:16px"><p>Nessun giocatore ha ancora raggiunto 5 partite votate.</p></div>
+            <div v-for="(p,i) in statsTopRatedClassifica" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.votiTotali}} partite votate</div></div>
@@ -6666,7 +6651,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.650',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.651',date:'2026-07-02',items:[
+      'Statistiche: la classifica Media Voto ora considera solo i giocatori con almeno 5 partite votate, per un dato piu significativo.',
+      'Rimossa la tab Voto in Statistiche, duplicata della tab Media Voto (stesso contenuto).',
+    ]},{version:'v1.650',date:'2026-07-02',items:[
       'NUOVA FEATURE: Storico Hall of Fame in Statistiche — 2 nuove tab "Re del Mese" (Miglior Giocatore) e "Bidone del Mese" (Peggior Giocatore), elenco cronologico di tutti i mesi con riga espandibile per il commento completo AI.',
       'Storico HoF filtrabile per stagione riusando il filtro gia esistente in Statistiche (Attuale/Carriera/Archivio).',
       'Caricamento on-demand: lo storico HoF si carica da Firebase solo quando si apre una delle 2 nuove tab (o il profilo di un giocatore), non ad ogni avvio app. Cache leggera in localStorage per funzionare offline dopo il primo caricamento.',
@@ -7333,7 +7321,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.650');
+    const appVersion = ref('1.651');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11967,6 +11955,12 @@ Niente altro, nessuna spiegazione.`;
       [...statsSourcePlayers.value].filter(p => p.votiTotali > 0)
         .sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
     );
+    // Classifica "Media Voto" mostrata in Statistiche: solo giocatori con almeno 5 partite votate.
+    // Computed indipendente (Regola d'Oro 11) — statsTopRated resta invariato per hero card/export/altri usi.
+    const statsTopRatedClassifica = computed(() =>
+      [...statsSourcePlayers.value].filter(p => (p.votiTotali||0) >= 5)
+        .sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
+    );
     const statsTopUomoPartita = computed(() =>
       [...statsSourcePlayers.value].filter(p => p.uomoPartitaTotali > 0)
         .sort((a,b) => (b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0)).slice(0,10)
@@ -16406,7 +16400,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
-      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
+      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
       detailPlayerReadOnly, detailPlayerFormHistory, detailPlayerTab, detailPlayerSeasonFilter, detailPlayerHistoryMatches, openHistoryMatch, backToPlayer, detailMatchFromPlayer,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
