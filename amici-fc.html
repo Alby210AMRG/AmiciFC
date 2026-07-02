@@ -4073,7 +4073,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {id:'h2h',icon:'⚔️',col:'rgba(255,100,200,.15)'},
               {id:'assist',icon:'🅰️',col:'rgba(100,200,255,.15)'},
               {id:'topteam',icon:'🏟️',col:'rgba(100,255,200,.15)'},
-              {id:'autogol',icon:'❌',col:'rgba(200,200,200,.08)'}
+              {id:'autogol',icon:'❌',col:'rgba(200,200,200,.08)'},
+              {id:'hofre',icon:'👑',col:'rgba(251,191,36,.15)'},
+              {id:'hofbidone',icon:'🪣',col:'rgba(150,150,150,.15)'}
             ]"
               :key="tab.id" @click="statsTab=tab.id"
               style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 11px;border-radius:13px;border:1.5px solid;cursor:pointer;transition:all .2s;min-width:58px"
@@ -4082,7 +4084,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px" :style="'background:'+tab.col">{{tab.icon}}</div>
               <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap"
                 :style="statsTab===tab.id?'color:var(--lime)':'color:var(--text2)'">
-                {{tab.id==='overall'?'Overall':tab.id==='goal'?'Gol':tab.id==='mediagol'?'Media ⚽':tab.id==='classifica'?'Punti':tab.id==='voti'?'Voto':tab.id==='altri'?'UoM':tab.id==='h2h'?'H2H':tab.id==='mediapunti'?'Media Pt':tab.id==='mediavoto'?'Media ⭐':tab.id==='assist'?'Assist':tab.id==='topteam'?'Top Team':'Autogol'}}
+                {{tab.id==='overall'?'Overall':tab.id==='goal'?'Gol':tab.id==='mediagol'?'Media ⚽':tab.id==='classifica'?'Punti':tab.id==='voti'?'Voto':tab.id==='altri'?'UoM':tab.id==='h2h'?'H2H':tab.id==='mediapunti'?'Media Pt':tab.id==='mediavoto'?'Media ⭐':tab.id==='assist'?'Assist':tab.id==='topteam'?'Top Team':tab.id==='hofre'?'Re Mese':tab.id==='hofbidone'?'Bidone Mese':'Autogol'}}
               </span>
             </button>
           </div>
@@ -4100,6 +4102,58 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             {{ statsSeasonFilter==='carriera' ? '🏆 Carriera' : '📦 Archivio' }}
           </span>
         </div>
+
+        <!-- 👑 RE DEL MESE (Hall of Fame storico) -->
+        <template v-if="statsTab==='hofre'">
+          <div class="card">
+            <div class="card-title">👑 Re del Mese</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Il Miglior Giocatore eletto dall'AI ogni mese</div>
+            <div v-if="hofStoricoLoading" class="empty-state" style="padding:16px"><p>Caricamento storico...</p></div>
+            <div v-else-if="!hofStoricoFiltrato.length" class="empty-state" style="padding:16px"><p>Nessun dato disponibile per questo periodo.</p></div>
+            <template v-else v-for="e in hofStoricoFiltrato" :key="'hofre-'+e.mese">
+              <div class="stats-row" style="cursor:pointer;flex-wrap:wrap" @click="hofExpandedMese = (hofExpandedMese===('re-'+e.mese) ? null : ('re-'+e.mese))">
+                <div class="stats-avatar">
+                  <img v-if="hofPlayerFor(e.hof.fame?.uid) && getPlayerPhoto(hofPlayerFor(e.hof.fame.uid).foto, e.hof.fame.uid)" :src="getPlayerPhoto(hofPlayerFor(e.hof.fame.uid).foto, e.hof.fame.uid)" @error="onPhotoError($event, e.hof.fame.uid)">
+                  <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
+                </div>
+                <div class="stats-info">
+                  <div class="stats-name">{{e.hof.fame?.nome||'?'}}</div>
+                  <div class="stats-sub">{{e.mese}} · {{e.hof.fame?.stat_chiave||''}}</div>
+                </div>
+                <div class="stats-val" style="font-size:0.9rem;color:var(--text2)">{{hofExpandedMese===('re-'+e.mese)?'▴':'▾'}}</div>
+                <div v-if="hofExpandedMese===('re-'+e.mese)" style="width:100%;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text2);font-style:italic">
+                  {{e.hof.fame?.commento||'Nessun commento disponibile.'}}
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- 🪣 BIDONE DEL MESE (Hall of Shame storico) -->
+        <template v-if="statsTab==='hofbidone'">
+          <div class="card">
+            <div class="card-title">🪣 Bidone del Mese</div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Il Peggior Giocatore eletto dall'AI ogni mese (con affetto)</div>
+            <div v-if="hofStoricoLoading" class="empty-state" style="padding:16px"><p>Caricamento storico...</p></div>
+            <div v-else-if="!hofStoricoFiltrato.length" class="empty-state" style="padding:16px"><p>Nessun dato disponibile per questo periodo.</p></div>
+            <template v-else v-for="e in hofStoricoFiltrato" :key="'hofbidone-'+e.mese">
+              <div class="stats-row" style="cursor:pointer;flex-wrap:wrap" @click="hofExpandedMese = (hofExpandedMese===('bi-'+e.mese) ? null : ('bi-'+e.mese))">
+                <div class="stats-avatar">
+                  <img v-if="hofPlayerFor(e.hof.shame?.uid) && getPlayerPhoto(hofPlayerFor(e.hof.shame.uid).foto, e.hof.shame.uid)" :src="getPlayerPhoto(hofPlayerFor(e.hof.shame.uid).foto, e.hof.shame.uid)" @error="onPhotoError($event, e.hof.shame.uid)">
+                  <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
+                </div>
+                <div class="stats-info">
+                  <div class="stats-name">{{e.hof.shame?.nome||'?'}}</div>
+                  <div class="stats-sub">{{e.mese}} · {{e.hof.shame?.stat_chiave||''}}</div>
+                </div>
+                <div class="stats-val" style="font-size:0.9rem;color:var(--text2)">{{hofExpandedMese===('bi-'+e.mese)?'▴':'▾'}}</div>
+                <div v-if="hofExpandedMese===('bi-'+e.mese)" style="width:100%;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:0.78rem;color:var(--text2);font-style:italic">
+                  {{e.hof.shame?.commento||'Nessun commento disponibile.'}}
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
 
         <!-- 🏆 TOP TEAM -->
         <template v-if="statsTab==='topteam'">
@@ -5575,6 +5629,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <span class="badge badge-gray">{{ detailPlayer.ruolo }}</span>
           <span v-if="detailPlayer.piede" class="badge badge-blue">🦶 {{ detailPlayer.piede }}</span>
         </div>
+        <!-- Contatori Hall of Fame/Shame — mostrati solo se il giocatore ha almeno un titolo -->
+        <div v-if="hofCountsFor(detailPlayer.uid).fame>0 || hofCountsFor(detailPlayer.uid).shame>0" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px">
+          <span v-if="hofCountsFor(detailPlayer.uid).fame>0" class="badge" style="background:rgba(251,191,36,.15);color:#fbbf24">👑 Migliore del Mese: {{ hofCountsFor(detailPlayer.uid).fame }} volt{{ hofCountsFor(detailPlayer.uid).fame===1?'a':'e' }}</span>
+          <span v-if="hofCountsFor(detailPlayer.uid).shame>0" class="badge" style="background:rgba(150,150,150,.18);color:var(--text2)">🪣 Peggiore del Mese: {{ hofCountsFor(detailPlayer.uid).shame }} volt{{ hofCountsFor(detailPlayer.uid).shame===1?'a':'e' }}</span>
+        </div>
         <!-- Testo infortunio sotto i badge -->
         <div v-if="detailPlayer.infortunio" style="margin-top:10px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#f87171;line-height:1.5">
           🤕 {{ detailPlayer.infortunio }}
@@ -6607,7 +6666,14 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.649',date:'2026-07-01',items:[
+    const changelogEntries = [{version:'v1.650',date:'2026-07-02',items:[
+      'NUOVA FEATURE: Storico Hall of Fame in Statistiche — 2 nuove tab "Re del Mese" (Miglior Giocatore) e "Bidone del Mese" (Peggior Giocatore), elenco cronologico di tutti i mesi con riga espandibile per il commento completo AI.',
+      'Storico HoF filtrabile per stagione riusando il filtro gia esistente in Statistiche (Attuale/Carriera/Archivio).',
+      'Caricamento on-demand: lo storico HoF si carica da Firebase solo quando si apre una delle 2 nuove tab (o il profilo di un giocatore), non ad ogni avvio app. Cache leggera in localStorage per funzionare offline dopo il primo caricamento.',
+      'Profilo giocatore: 2 nuovi badge "Migliore del Mese: N volte" e "Peggiore del Mese: N volte" (mostrati solo se N>0), conteggio a vita su tutto lo storico.',
+      'Le card Hall of Fame ora salvano anche uid del giocatore (Fame/Shame), stagione e gruppo — necessario per rendere i record collegabili al profilo giocatore e filtrabili per stagione. Abbinamento uid per nome, solo se univoco.',
+      'Inspector: migrazione estesa per aggiungere retroattivamente uid/stagione/gruppo alle card HoF di Maggio e Giugno 2026 gia esistenti (generate prima che questi campi facessero parte del formato standard).',
+    ]},{version:'v1.649',date:'2026-07-01',items:[
       'Fix CRITICO Hall of Fame: il controllo automatico mensile usava un flag a tempo fisso di 30 giorni, scollegato dal calendario, che poteva restare valido a cavallo del cambio mese e bloccare la generazione del mese nuovo (causa reale del mancato check del 1 luglio).',
       'Hall of Fame: rimosso anche il limite dei soli primi 10 giorni del mese per la generazione retroattiva — ora, finche il mese precedente risulta mancante, la card viene generata a qualsiasi giorno del mese dal primo dispositivo con AI configurata e login Firebase che apre lapp, con un tentativo al giorno.',
       'Hall of Fame: il controllo generale a monte (che poteva saltare del tutto il check per risparmiare chiamate Firebase) ora verifica lo specifico mese che serve invece del flag a tempo.',
@@ -7267,7 +7333,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.649');
+    const appVersion = ref('1.650');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7887,6 +7953,7 @@ createApp({
       detailPlayerTab.value = 'stats';
       detailPlayerSeasonFilter.value = seasonFilter;
       showPlayerDetail.value = true;
+      if (!hofStoricoLoaded.value) _loadHofStorico(); // non bloccante, per il contatore Re/Bidone del Mese
     };
 
     // Helper: trova il nick AI del giocatore cercando per tutte le chiavi possibili
@@ -9995,6 +10062,20 @@ OUTPUT: Rispondi SOLO con JSON valido:
         return;
       }
 
+      // Arricchisce fame/shame con l'uid del giocatore (abbinando il nome restituito dall'AI alla
+      // chiave di statsMap, che è già il playerId/uid) — solo se l'abbinamento è univoco, mai indovinato.
+      // Aggiunge anche stagione e gruppo per rendere i record ricercabili/ordinabili nello storico.
+      const _findUidByNome = (nome) => {
+        if (!nome) return null;
+        const target = nome.toLowerCase().trim();
+        const matches = Object.entries(statsMap).filter(([,v]) => (v.nome||'').toLowerCase().trim()===target);
+        return matches.length===1 ? matches[0][0] : null;
+      };
+      if (parsed.fame)  parsed.fame.uid  = _findUidByNome(parsed.fame.nome);
+      if (parsed.shame) parsed.shame.uid = _findUidByNome(parsed.shame.nome);
+      parsed.stagione = currentGroup.value?.stagione || null;
+      parsed.gruppo   = currentGroup.value?.nome || null;
+
       localStorage.setItem(`amicifc_hof_${meseKey}`, JSON.stringify(parsed));
       aiFlagSet('hof', currentGroup.value.id); // flag 30 giorni
       if (hasFirebase && token) {
@@ -10622,6 +10703,42 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       }
     };
 
+    // ── Storico Hall of Fame — tutti i mesi, caricato SOLO quando si apre la relativa tab in
+    // Statistiche (non ad ogni avvio app). I dati sono piccoli (poche righe di testo per mese),
+    // non serve un meccanismo pesante come quello delle stagioni archiviate — basta una cache
+    // leggera in localStorage per funzionare offline dopo il primo caricamento. ──
+    const hofStorico        = ref([]);   // [{mese, hof, isLegacy}], più recente prima
+    const hofStoricoLoading = ref(false);
+    const hofStoricoLoaded  = ref(false);
+    const _loadHofStorico = async (force=false) => {
+      if (!currentGroup.value) return;
+      if (hofStoricoLoaded.value && !force) return;
+      const _gid = currentGroup.value.id;
+      const _lsKey = 'amicifc_hof_storico_' + _gid;
+      const _cached = JSON.parse(localStorage.getItem(_lsKey) || 'null');
+      if (_cached?.entries?.length) hofStorico.value = _cached.entries;
+      if (!currentGroup.value.firebaseUrl) { hofStoricoLoaded.value = true; return; }
+      hofStoricoLoading.value = true;
+      try {
+        const token = await getValidToken() || '';
+        const _gKey = _aiCardGroupKey();
+        const root = await _fbRead('aiCards/hallOfFame/'+_gKey, token);
+        const entries = [];
+        if (root && typeof root === 'object') {
+          Object.entries(root).forEach(([m,h]) => { if (h && typeof h==='object' && h.fame) entries.push({mese: h.mese||m, hof:h, isLegacy:false}); });
+          if (root.fame) entries.push({mese: root.mese||_gKey, hof:root, isLegacy:true});
+        }
+        entries.sort((a,b)=>String(b.mese).localeCompare(String(a.mese)));
+        hofStorico.value = entries;
+        localStorage.setItem(_lsKey, JSON.stringify({entries, fetchedAt:Date.now()}));
+        _aiLog('HallOfFame','📜 Storico caricato: '+entries.length+' mesi');
+      } catch(e) {
+        _aiLog('HallOfFame','⚠️ Errore caricamento storico: '+e.message,false);
+      } finally {
+        hofStoricoLoading.value = false;
+        hofStoricoLoaded.value = true;
+      }
+    };
     let _initAiCardsTimer = null;
     let _initAiCardsLastRun = 0; // timestamp dell'ultima esecuzione reale
     const _scheduleInitAiCards = () => {
@@ -11741,6 +11858,33 @@ Niente altro, nessuna spiegazione.`;
       if (filterValue === 'attuale' || filterValue === 'carriera') return null;
       return currentGroupArchivedSeasons.value.find(s => s.archivioId === filterValue) || null;
     };
+
+    // ── Storico Hall of Fame — stato UI (espansione riga) e filtro per stagione,
+    // riusando statsSeasonFilter e _selectedArchiveFor già esistenti ──
+    const hofExpandedMese = ref(null);
+    const hofPlayerFor = (uid) => uid ? groupPlayers.value.find(p => p.uid === uid) : null;
+    const hofCountsFor = (uid) => {
+      if (!uid) return { fame: 0, shame: 0 };
+      let fame = 0, shame = 0;
+      hofStorico.value.forEach(e => {
+        if (e.hof.fame?.uid === uid) fame++;
+        if (e.hof.shame?.uid === uid) shame++;
+      });
+      return { fame, shame };
+    };
+    const hofStoricoFiltrato = computed(() => {
+      if (statsSeasonFilter.value === 'carriera') return hofStorico.value;
+      const targetStagione = statsSeasonFilter.value === 'attuale'
+        ? (currentGroup.value?.stagione || null)
+        : (_selectedArchiveFor(statsSeasonFilter.value)?.stagione || null);
+      if (!targetStagione) return hofStorico.value;
+      // Le entry senza campo stagione (non ancora migrate) restano visibili in ogni filtro,
+      // per non nasconderle silenziosamente.
+      return hofStorico.value.filter(e => !e.hof.stagione || e.hof.stagione === targetStagione);
+    });
+    watch(statsTab, (v) => {
+      if ((v === 'hofre' || v === 'hofbidone') && !hofStoricoLoaded.value) _loadHofStorico();
+    });
 
     // Tutte le partite di ogni stagione archiviata + quella attuale, in un unico elenco — serve sia
     // per il ricalcolo Carriera sia per viste che hanno bisogno del dettaglio singola partita (es. h2h)
@@ -16308,6 +16452,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
+      hofStorico, hofStoricoLoading, hofStoricoLoaded, hofStoricoFiltrato, hofExpandedMese, hofPlayerFor, hofCountsFor,
       aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
