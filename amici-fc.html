@@ -6651,7 +6651,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.651',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.652',date:'2026-07-02',items:[
+      'Fix: il banner Leader in cima alla classifica Media Voto mostrava ancora il giocatore con media piu alta anche sotto le 5 partite votate (usava un computed diverso da quello gia filtrato nella lista sotto). Ora coerente con la lista.',
+    ]},{version:'v1.651',date:'2026-07-02',items:[
       'Statistiche: la classifica Media Voto ora considera solo i giocatori con almeno 5 partite votate, per un dato piu significativo.',
       'Rimossa la tab Voto in Statistiche, duplicata della tab Media Voto (stesso contenuto).',
     ]},{version:'v1.650',date:'2026-07-02',items:[
@@ -7321,7 +7323,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.651');
+    const appVersion = ref('1.652');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11996,8 +11998,7 @@ Niente altro, nessuna spiegazione.`;
         mediagol:   { col:'#A6FF4D', bg:'linear-gradient(135deg,#0d2200,#1a4400 60%,#2d7a00)', getter:()=>statsSourcePlayers.value.filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))[0], val:p=>((p.goalTotali||0)/(p.partiteTotali||1)).toFixed(2), sub:p=>`${p.goalTotali} gol in ${p.partiteTotali} partite` },
         classifica: { col:'#60a5fa', bg:'linear-gradient(135deg,#0a1628,#1e3a5f 60%,#3b82f6)', getter:()=>statsTopPoints.value[0],      val:p=>p.puntiTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
         mediapunti: { col:'#a78bfa', bg:'linear-gradient(135deg,#1a0a2e,#4c1d95 60%,#7c3aed)', getter:()=>statsTopAvgPoints.value[0],   val:p=>(p.mediaPunti||0).toFixed(2), sub:p=>`${p.partiteTotali} partite · ${p.puntiTotali} pt` },
-        voti:       { col:'#FFD93D', bg:'linear-gradient(135deg,#1a1400,#4a3800 60%,#d97706)', getter:()=>statsTopRated.value[0],        val:p=>(p.mediaVoto||0).toFixed(1), sub:p=>`${p.votiTotali} partite votate` },
-        mediavoto:  { col:'#FFD93D', bg:'linear-gradient(135deg,#1a1400,#4a3800 60%,#d97706)', getter:()=>[...statsTopRated.value].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))[0], val:p=>(p.mediaVoto||0).toFixed(1), sub:p=>`${p.votiTotali} partite votate` },
+        mediavoto:  { col:'#FFD93D', bg:'linear-gradient(135deg,#1a1400,#4a3800 60%,#d97706)', getter:()=>statsTopRatedClassifica.value[0], val:p=>(p.mediaVoto||0).toFixed(1), sub:p=>`${p.votiTotali} partite votate` },
         altri:      { col:'#f87171', bg:'linear-gradient(135deg,#1a0000,#7c0000 60%,#dc2626)', getter:()=>statsTopUomoPartita.value[0], val:p=>p.uomoPartitaTotali||0, sub:p=>`volte premiato` },
         assist:     { col:'#67e8f9', bg:'linear-gradient(135deg,#001a1f,#004a5f 60%,#0891b2)', getter:()=>{ const t=statsTopAssists.value[0]; return (t?.assistTotali||0)>0?t:null; }, val:p=>p.assistTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
         autogol:    { col:'#94a3b8', bg:'linear-gradient(135deg,#0a0a0a,#1a1a1a 60%,#374151)', getter:()=>{ const t=statsTopAutogol.value[0]; return (t?.autogolTotali||0)>0?t:null; }, val:p=>p.autogolTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
