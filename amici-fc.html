@@ -3931,6 +3931,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <button class="btn btn-primary btn-full" style="font-size:1rem;padding:16px;margin-bottom:16px" @click="generateAndShareMatchPNG">
+          📤 Condividi
+        </button>
+
         <div class="card">
           <div class="card-title">🤖 Articolo AI — Stile Giornale</div>
           <!-- Foto partita opzionale -->
@@ -3973,9 +3977,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
             <button v-if="!aiLoading" class="btn btn-ghost btn-sm" @click="generateCommentAI">
               {{ aiComment ? '🔄 Rigenera' : '✍️ Genera Articolo' }}
-            </button>
-            <button class="btn btn-yellow btn-sm" @click="generateAndShareMatchPNG">
-              📰 Anteprima Giornale
             </button>
           </div>
         </div>
@@ -4041,7 +4042,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" @click.stop="viewMatch(m, {readonly: isHistoryArchived})">👁️ Dettaglio</button>
-              <button v-if="!isHistoryArchived" class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📰 Giornale</button>
+              <button v-if="!isHistoryArchived" class="btn btn-ghost btn-sm" @click.stop="regenerateNewspaper(m)">📤 Condividi</button>
             </div>
           </div>
 
@@ -5857,6 +5858,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <span v-if="detailMatch.uomoPartita" class="badge badge-yellow">🏅 {{ detailMatch.uomoPartita }}</span>
         <span v-if="detailMatch.mvp" class="badge badge-lime">⚽ {{ detailMatch.mvp }}</span>
       </div>
+      <button v-if="!detailMatchReadonly" class="btn btn-primary btn-full" style="font-size:1rem;padding:14px;margin-bottom:12px" @click="regenerateNewspaper(detailMatch)">
+        📤 Condividi
+      </button>
       <div v-if="detailMatch.commentoAI" class="ai-comment-box" style="margin:12px 0;font-size:0.8rem">
         {{ detailMatch.commentoAI }}
       </div>
@@ -5933,7 +5937,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- PNG buttons + Modifica + Elimina nel dettaglio -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
-        <button class="btn btn-ghost btn-sm" @click="regenerateNewspaper(detailMatch)">📰 Giornale</button>
         <template v-if="!detailMatchReadonly">
           <button class="btn btn-ghost btn-sm" @click="toggleMatchLock(detailMatch)">
             {{ detailMatch.isLocked ? "🔒" : "🔓" }}
@@ -6693,7 +6696,14 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.662',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.665',date:'2026-07-02',items:[
+      'PNG Partita completamente rivisto: font raddoppiati (erano tarati per un canvas la meta), marcatori e pagelle ora impilati per squadra a piena larghezza invece che in doppia colonna stretta, sfondo stadio coerente con formazione e card giocatore, filigrana pallone aggiunta, altezza dinamica (niente piu spazi vuoti).',
+    ]},{version:'v1.664',date:'2026-07-02',items:[
+      'Dettaglio partita: bottone Condividi ora verde e ben visibile, spostato subito dopo punteggio/Uomo Partita e prima del commento (come nel flusso di creazione).',
+      'Card giocatore: il testo condiviso insieme allimmagine ora include anche lIdentikit AI e i contatori Migliore/Peggiore del Mese, non solo le statistiche base.',
+    ]},{version:'v1.663',date:'2026-07-02',items:[
+      'Giornale partita: rinominato in "Condividi", spostato ben visibile subito dopo Uomo Partita (prima del commento AI). Fix: mancava il testo da condividere insieme al PNG (WhatsApp/Telegram ora ricevono immagine+testo, non solo immagine) — corretto sia nel flusso di creazione partita sia nella condivisione di una partita già salvata dallo storico.',
+    ]},{version:'v1.662',date:'2026-07-02',items:[
       'Card giocatore: i 3 grafici separati (Voto/Gol/Punti) uniti in un unico grafico con legenda colorata, per recuperare spazio. Font del commento AI aumentato per leggibilita migliore. Rinominate le etichette: Media Voto -> Voto, Punti -> Punti Fatti. Pallone in filigrana ancora piu grande.',
     ]},{version:'v1.661',date:'2026-07-02',items:[
       'Card giocatore: filigrana pallone ora ancorata nell angolo, piu grande, con effetto "sticker" meta dentro meta fuori (stile watermark della PNG formazione).',
@@ -7386,7 +7396,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.662');
+    const appVersion = ref('1.665');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9541,8 +9551,32 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
         if (!hofStoricoLoaded.value) await _loadHofStorico();
         const dataUrl = await drawPlayerCardCanvas(p);
         const trackAssist = currentGroup.value?.trackAssist !== false;
-        const assistPart = trackAssist ? ` · 🅰️ ${p.assistTotali||0} assist` : '';
-        const text = `🏆 ${p.soprannome||p.nome} — Stagione corrente con Amici FC\n⚽ ${p.goalTotali||0} gol${assistPart} · ⭐ ${(p.mediaVoto||0).toFixed(1)} media voto · 🎮 ${p.partiteTotali||0} partite`;
+        const nomeVisual = p.soprannome||p.nome;
+
+        let text = `🏆 *${nomeVisual}* — Stagione corrente con ${(currentGroup.value?.nome||'Amici FC')}\n\n`;
+        text += `⚽ *${p.goalTotali||0}* gol`;
+        if (trackAssist) text += ` · 🅰️ *${p.assistTotali||0}* assist`;
+        text += ` · ⭐ *${(p.mediaVoto||0).toFixed(1)}* media voto · 🎮 *${p.partiteTotali||0}* partite`;
+        if (p.uomoPartitaTotali>0) text += ` · 🎖️ *${p.uomoPartitaTotali}* MVP`;
+        text += `\n`;
+
+        const hofC = (typeof hofCountsFor==='function') ? hofCountsFor(p.uid) : {fame:0,shame:0};
+        if ((hofC.fame||0)>0 || (hofC.shame||0)>0) {
+          const parts=[];
+          if (hofC.fame>0) parts.push(`👑 Migliore del Mese: ${hofC.fame}`);
+          if (hofC.shame>0) parts.push(`🪣 Peggiore del Mese: ${hofC.shame}`);
+          text += `\n${parts.join(' · ')}\n`;
+        }
+
+        const nick = (typeof getPlayerNick==='function') ? getPlayerNick(p) : null;
+        if (nick?.motivazione) {
+          text += `\n🧬 _${nick.motivazione}_`;
+          if (nick.confronto) text += `\n📊 ${nick.confronto}`;
+          text += `\n`;
+        }
+
+        text += `\n🏆 _Generato con Amici FC_`;
+
         const filename = `amicifc_${(p.soprannome||p.nome||'giocatore').replace(/\s+/g,'_')}.png`;
         await sharePNG(dataUrl, filename, text);
       } catch(e) {
@@ -11534,6 +11568,7 @@ Niente altro, nessuna spiegazione.`;
     const downloadPNG = (dataUrl, name) => {
       previewPNGUrl.value  = dataUrl;
       previewPNGName.value = `amicifc-${name}.png`;
+      previewPNGText.value = ''; // evita testo residuo di una condivisione precedente non pertinente
       showPNGPreview.value = true;
     };
 
@@ -13736,13 +13771,58 @@ Niente altro, nessuna spiegazione.`;
       if (m.pngRisultato) {
         previewPNGUrl.value = m.pngRisultato;
         previewPNGName.value = `amicifc-partita-${m.data}.png`;
+        previewPNGText.value = buildMatchResultText(m);
         showPNGPreview.value = true;
       } else {
         toast('📰 Nessun PNG salvato per questa partita', 'info', 3000);
       }
     };
+    // ── Testo WhatsApp/Telegram per il Giornale partita (risultato+pagelle+commento) ──
+    // Se m è passato, costruisce dai dati di una partita già salvata (storico); altrimenti
+    // legge i ref live della schermata di inserimento partita in corso.
+    const buildMatchResultText = (m=null) => {
+      const tAN = m ? (m.nomeSquadraA||'Squadra A') : (matchInfo.value?.nomeSquadraA || activeFormation.value?.nomeSquadraA || 'Squadra A');
+      const tBN = m ? (m.nomeSquadraB||'Squadra B') : (matchInfo.value?.nomeSquadraB || activeFormation.value?.nomeSquadraB || 'Squadra B');
+      const goalA = m ? (m.risultato?.goalA||0) : (matchGoalA.value||0);
+      const goalB = m ? (m.risultato?.goalB||0) : (matchGoalB.value||0);
+      const matchDate = m ? (m.data||new Date().toISOString().slice(0,10)) : (matchInfo.value?.data||new Date().toISOString().slice(0,10));
+      const pidsA = m ? (m.squadraA||[]) : (teamA.value||[]);
+      const pidsB = m ? (m.squadraB||[]) : (teamB.value||[]);
+      const statsOf = pid => m
+        ? ((m.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(pid)) || {})
+        : (playerStats.value[pid]||{});
+      const commento = m ? (m.commentoAI||'') : (aiComment.value||'');
+      const mvpIdFromSaved = m ? (m.statisticheGiocatori||[]).find(s=>s.uomoPartita)?.playerId : null;
+
+      let txt = `⚽ *RISULTATO — ${(currentGroup.value?.nome||'Amici FC').toUpperCase()}*\n`;
+      txt += `📅 ${formatDate(matchDate)}\n\n`;
+      txt += `🔵 *${tAN}* ${goalA} - ${goalB} *${tBN}* 🟠\n`;
+
+      const scorerLine = pid => {
+        const p=getPlayer(pid), s=statsOf(pid);
+        if(!p || !((s.goal||0)>0)) return null;
+        const gls='⚽'.repeat(Math.min(s.goal||0,6));
+        const ext=(s.assist?` +${s.assist}🅰️`:'')+(s.autogol?' 🔴OG':'');
+        return `${p.soprannome||p.nome} ${gls}${ext}`;
+      };
+      const scorers=[...pidsA,...pidsB].map(scorerLine).filter(Boolean);
+      if(scorers.length) txt += `\n${scorers.join(' · ')}\n`;
+
+      const mvpId = m ? mvpIdFromSaved : (computedUomoPartita.value||computedMVP.value);
+      if(mvpId){
+        const mvpPlayer=getPlayer(mvpId);
+        const mvpVoto=statsOf(mvpId)?.voto;
+        txt += `\n🏅 *Uomo Partita:* ${mvpPlayer?.soprannome||mvpPlayer?.nome||''}${mvpVoto?` (${mvpVoto})`:''}\n`;
+      }
+      if(commento) txt += `\n💬 _${commento}_ ✨\n`;
+      txt += `\n🏆 _Generato con Amici FC_`;
+      return txt;
+    };
+
     const generateAndShareMatchPNG = async () => {
       const W=1080, PAD=44;
+      const H_SAFE=3600; // canvas generoso, si ritaglia alla fine sul contenuto reale (come card giocatore)
+      const EMOJI='"Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji"';
 
       // ── Data ──
       const tAN = matchInfo.value?.nomeSquadraA || activeFormation.value?.nomeSquadraA || 'Squadra A';
@@ -13752,10 +13832,9 @@ Niente altro, nessuna spiegazione.`;
       const pidsA = teamA.value||[], pidsB = teamB.value||[];
       const allPids = [...pidsA,...pidsB];
 
-      const C_BG1='#07101f', C_BG2='#0d1a30', C_BG3='#111d33';
       const C_LIME='#A6FF4D', C_BLUE='#3A7BFF', C_ORANGE='#FF8C00';
       const C_YELLOW='#FFD93D', C_RED='#FF4D4D', C_WHITE='#F7F7F7';
-      const C_MUTED='rgba(247,247,247,0.45)';
+      const C_MUTED='rgba(247,247,247,0.55)';
 
       // ── Photo loader ──
       const _fotoPartita = activeFormation.value?.fotoPartita || '';
@@ -13770,8 +13849,20 @@ Niente altro, nessuna spiegazione.`;
       });
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
+      const wrapText=(ctx2,text,maxW,font)=>{
+        ctx2.font=font;
+        const words=(text||'').split(/\s+/).filter(Boolean);
+        const lines=[]; let line='';
+        for(const w of words){
+          const test=line?line+' '+w:w;
+          if(ctx2.measureText(test).width>maxW && line){ lines.push(line); line=w; }
+          else line=test;
+        }
+        if(line) lines.push(line);
+        return lines;
+      };
 
-      // ── Best player from EACH team (one per side) ──
+      // ── Best player from EACH team (hero header) ──
       const scoreOf = pid => {
         const s = playerStats.value[pid]||{};
         return (s.voto||6)*2 + (s.goal||0)*3 + (s.assist||0) + (s.uomoPartita?5:0);
@@ -13780,16 +13871,16 @@ Niente altro, nessuna spiegazione.`;
       const hero2pid = [...pidsB].sort((a,b)=>scoreOf(b)-scoreOf(a))[0] || null;
       const hero1 = hero1pid ? getPlayer(hero1pid) : null;
       const hero2 = hero2pid ? getPlayer(hero2pid) : null;
-      const [hero1Photo, hero2Photo, matchBgPhoto] = await Promise.all([
+      const [hero1Photo, hero2Photo, logoImg, ballImg] = await Promise.all([
         hero1 ? loadPhoto(hero1.foto, hero1.uid) : Promise.resolve(null),
         hero2 ? loadPhoto(hero2.foto, hero2.uid) : Promise.resolve(null),
-        _fotoPartita ? li(_fotoPartita) : Promise.resolve(null),
+        li(LOGO_EMBEDDED),
+        li(BALL_EMBEDDED),
       ]);
 
       const mvpId = computedUomoPartita.value||computedMVP.value;
       const mvpPlayer = mvpId ? getPlayer(mvpId) : null;
       const mvpPhoto = mvpPlayer ? await loadPhoto(mvpPlayer.foto, mvpPlayer.uid) : null;
-      const mvpName = mvpPlayer ? (mvpPlayer.soprannome||mvpPlayer.nome) : '';
       const mvpVoto = mvpId ? (playerStats.value[mvpId]?.voto||'') : '';
 
       const scorersA = pidsA.filter(p=>(playerStats.value[p]?.goal||0)>0||(playerStats.value[p]?.autogol||0)>0);
@@ -13802,17 +13893,8 @@ Niente altro, nessuna spiegazione.`;
         if(p) pagellePhotos[pid] = await loadPhoto(p.foto, p.uid);
       }));
 
-      // ── Height calculation ──
-      const HEADER_H = 110, HERO_H = 160, SCORE_H = 100;
-      const SCORERS_H = hasScorers ? 70 + Math.max(scorersA.length, scorersB.length)*48 : 0;
-      const ROW_H = 68;
-      const PAGELLE_H = 80 + Math.max(pidsA.length, pidsB.length)*ROW_H;
-      const SIDE_BOX_H = (mvpPlayer || aiComment.value) ? 260 : 0;
-      const FOOTER_H = 90;
-      const H = HEADER_H + (HERO_H + SCORE_H) + SCORERS_H + PAGELLE_H + SIDE_BOX_H + FOOTER_H + 40;
-
       const canvas = document.createElement('canvas');
-      canvas.width = W; canvas.height = H;
+      canvas.width = W; canvas.height = H_SAFE;
       const ctx = canvas.getContext('2d');
 
       // ── Helpers ──
@@ -13824,14 +13906,14 @@ Niente altro, nessuna spiegazione.`;
         ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
         if(glow){ctx.shadowColor=glowColor||fill;ctx.shadowBlur=glow;}
         if(fill){ctx.fillStyle=fill;ctx.fill();}
-        if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=1.5;ctx.stroke();}
+        if(stroke){ctx.strokeStyle=stroke;ctx.lineWidth=2;ctx.stroke();}
         ctx.shadowBlur=0;
       };
       const avatar = (img, cx, cy, r, borderCol, glow=0) => {
         ctx.save();
         ctx.shadowColor=borderCol;ctx.shadowBlur=glow;
-        ctx.beginPath();ctx.arc(cx,cy,r+2,0,Math.PI*2);
-        ctx.strokeStyle=borderCol;ctx.lineWidth=3;ctx.stroke();
+        ctx.beginPath();ctx.arc(cx,cy,r+3,0,Math.PI*2);
+        ctx.strokeStyle=borderCol;ctx.lineWidth=4;ctx.stroke();
         ctx.shadowBlur=0;
         ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.clip();
         if(img){
@@ -13856,264 +13938,194 @@ Niente altro, nessuna spiegazione.`;
         ctx.fillText(text,x,y); ctx.shadowBlur=0;
       };
       const divider = (y, col=C_LIME, alpha=0.15) => {
-        const g = ctx.createLinearGradient(0,y,W,y);
-        g.addColorStop(0,'transparent'); g.addColorStop(0.5,col); g.addColorStop(1,'transparent');
-        ctx.fillStyle=`rgba(0,0,0,0)`;
         ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=col;
         ctx.fillRect(PAD,y,W-PAD*2,1); ctx.restore();
       };
 
-      let Y = 0;
+      // ════ SFONDO STADIO (stesso stile di formazione/card giocatore) ════
+      const bgGrad=ctx.createLinearGradient(0,0,0,H_SAFE*0.7);
+      bgGrad.addColorStop(0,'#020408');bgGrad.addColorStop(0.4,'#050c18');bgGrad.addColorStop(1,'#081420');
+      ctx.fillStyle=bgGrad;ctx.fillRect(0,0,W,H_SAFE);
+      const fl1=ctx.createRadialGradient(40,80,0,40,80,320);
+      fl1.addColorStop(0,'rgba(255,255,220,0.7)');fl1.addColorStop(0.06,'rgba(255,255,200,0.5)');fl1.addColorStop(0.2,'rgba(200,220,255,0.25)');fl1.addColorStop(0.5,'rgba(100,150,255,0.08)');fl1.addColorStop(1,'transparent');
+      ctx.fillStyle=fl1;ctx.fillRect(0,0,W*0.55,H_SAFE*0.35);
+      const fl2=ctx.createRadialGradient(W-40,80,0,W-40,80,320);
+      fl2.addColorStop(0,'rgba(255,255,220,0.7)');fl2.addColorStop(0.06,'rgba(255,255,200,0.5)');fl2.addColorStop(0.2,'rgba(100,150,255,0.25)');fl2.addColorStop(0.5,'rgba(50,100,255,0.08)');fl2.addColorStop(1,'transparent');
+      ctx.fillStyle=fl2;ctx.fillRect(W*0.45,0,W*0.55,H_SAFE*0.35);
 
-      // ════ BACKGROUND ════
-      const bgG = ctx.createLinearGradient(0,0,0,H);
-      bgG.addColorStop(0,C_BG1); bgG.addColorStop(0.5,C_BG2); bgG.addColorStop(1,C_BG1);
-      ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
-      ctx.strokeStyle='rgba(58,123,255,0.04)'; ctx.lineWidth=1;
-      for(let gy=0;gy<H;gy+=48){ctx.beginPath();ctx.moveTo(0,gy);ctx.lineTo(W,gy);ctx.stroke();}
-      for(let gx=0;gx<W;gx+=48){ctx.beginPath();ctx.moveTo(gx,0);ctx.lineTo(gx,H);ctx.stroke();}
+      // ════ FILIGRANA PALLONE (angolo, stile sticker — stessa tecnica della card giocatore) ════
+      if(ballImg){
+        const WM=600;
+        ctx.save();
+        ctx.globalAlpha=0.20;
+        ctx.translate(W-90,90);
+        ctx.rotate(0.18);
+        ctx.drawImage(ballImg,-WM/2,-WM/2,WM,WM);
+        ctx.restore();
+      }
+
+      let Y = 30;
 
       // ════ HEADER ════
-      const hdrG = ctx.createLinearGradient(0,0,W,HEADER_H);
-      hdrG.addColorStop(0,'#0a1628'); hdrG.addColorStop(1,'#091422');
-      ctx.fillStyle=hdrG; ctx.fillRect(0,0,W,HEADER_H);
-      const topBar = ctx.createLinearGradient(0,0,W,0);
-      topBar.addColorStop(0,'transparent'); topBar.addColorStop(0.5,C_LIME); topBar.addColorStop(1,'transparent');
-      ctx.fillStyle=topBar; ctx.fillRect(0,0,W,3);
-      const logoImg = await li(logoDataUrl.value||null);
-      if(logoImg) ctx.drawImage(logoImg,PAD,18,64,64);
-      glowText('⚡ AMICI FC REPORT',W/2,46,'900 italic 34px "Arial Black",Arial',C_LIME,20);
-      glowText('IL GIORNALE UFFICIALE DEL CALCETTO',W/2,74,'700 16px "Arial Black",Arial','rgba(247,247,247,0.5)',0);
+      if(logoImg){
+        const LS=90;
+        ctx.save();
+        ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=14;
+        ctx.beginPath();ctx.arc(W/2,Y+LS/2,LS/2+8,0,Math.PI*2);
+        ctx.fillStyle='rgba(8,10,18,0.85)';ctx.fill();
+        ctx.restore();
+        ctx.drawImage(logoImg,W/2-LS/2,Y,LS,LS);
+        Y+=LS+16;
+      }
+      glowText('⚡ AMICI FC REPORT',W/2,Y+34,`900 italic 44px ${EMOJI},"Arial Black",Arial`,C_LIME,22);
+      Y+=48;
+      glowText('IL GIORNALE UFFICIALE DEL CALCETTO',W/2,Y+20,'700 20px "Arial Black",Arial','rgba(247,247,247,0.55)',0);
+      Y+=32;
       const dateStr = (() => {
         const d=new Date(matchDate);
         return isNaN(d.getTime())?matchDate:d.toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'}).toUpperCase();
       })();
-      ctx.font='700 14px "Arial Black",Arial'; ctx.textAlign='right'; ctx.fillStyle=C_MUTED;
-      ctx.fillText('📅 '+dateStr, W-PAD, 42);
-      ctx.font='700 13px "Arial Black",Arial'; ctx.fillStyle=C_ORANGE;
-      ctx.fillText('ORE 21:00', W-PAD, 60);
-      Y = HEADER_H;
+      glowText('📅 '+dateStr, W/2, Y+22, `700 18px ${EMOJI},"Arial Black",Arial`, C_MUTED, 0);
+      Y+=46;
+      divider(Y); Y+=24;
 
-      // ════ HERO: player photos + team names + score (all merged, like ref image) ════
-      const HERO_Y = Y, AVTAR_R = 72;
-      const HERO_TOTAL = HERO_H + SCORE_H;
-      if (matchBgPhoto) {
-        const _ph=matchBgPhoto, _pr=_ph.width/_ph.height, _cr=W/HERO_TOTAL;
-        let _sx=0,_sy=0,_sw=_ph.width,_sh=_ph.height;
-        if(_pr>_cr){_sw=Math.round(_sh*_cr);_sx=Math.round((_ph.width-_sw)/2);}
-        else{_sh=Math.round(_sw/_cr);_sy=Math.round((_ph.height-_sh)/2);}
-        ctx.save(); ctx.globalAlpha=0.30;
-        ctx.drawImage(matchBgPhoto,_sx,_sy,_sw,_sh,0,HERO_Y,W,HERO_TOTAL);
-        ctx.restore();
-        const _ov=ctx.createLinearGradient(0,HERO_Y,0,HERO_Y+HERO_TOTAL);
-        _ov.addColorStop(0,'rgba(7,16,31,0.60)'); _ov.addColorStop(1,'rgba(7,16,31,0.70)');
-        ctx.fillStyle=_ov; ctx.fillRect(0,HERO_Y,W,HERO_TOTAL);
-      } else {
-        const heroBgG=ctx.createLinearGradient(0,HERO_Y,W,HERO_Y+HERO_TOTAL);
-        heroBgG.addColorStop(0,'#0a1628'); heroBgG.addColorStop(1,'#071020');
-        ctx.fillStyle=heroBgG; ctx.fillRect(0,HERO_Y,W,HERO_TOTAL);
-      }
+      // ════ HERO: foto giocatori + nomi squadre + punteggio, ingrandito ════
+      const AVTAR_R = 100;
+      const HERO_TOTAL = 300;
+      const HERO_Y = Y;
+      rr(PAD/2,HERO_Y,W-PAD,HERO_TOTAL,20,'rgba(255,255,255,0.04)',`${C_LIME}44`,0);
       const heroAG = ctx.createLinearGradient(0,HERO_Y,W*0.45,HERO_Y);
-      heroAG.addColorStop(0,`${C_ORANGE}44`); heroAG.addColorStop(1,'transparent');
-      ctx.fillStyle=heroAG; ctx.fillRect(0,HERO_Y,W*0.45,HERO_TOTAL);
+      heroAG.addColorStop(0,`${C_ORANGE}33`); heroAG.addColorStop(1,'transparent');
+      ctx.fillStyle=heroAG; ctx.fillRect(PAD/2,HERO_Y,W*0.45,HERO_TOTAL);
       const heroBG2 = ctx.createLinearGradient(W*0.55,HERO_Y,W,HERO_Y);
-      heroBG2.addColorStop(0,'transparent'); heroBG2.addColorStop(1,`${C_BLUE}44`);
-      ctx.fillStyle=heroBG2; ctx.fillRect(W*0.55,HERO_Y,W*0.45,HERO_TOTAL);
-      ctx.strokeStyle=`${C_LIME}44`; ctx.lineWidth=1.5;
-      ctx.strokeRect(PAD/2,HERO_Y+4,W-PAD,HERO_TOTAL-8);
-      // ── Left player ──
-      const leftCX=PAD+AVTAR_R+20, heroCY=HERO_Y+HERO_TOTAL/2-10;
-      avatar(hero1Photo, leftCX, heroCY, AVTAR_R, C_ORANGE, 25);
-      if(hero1){
-        glowText((hero1.soprannome||hero1.nome).toUpperCase(), leftCX, HERO_Y+28,
-          '700 18px "Arial Black",Arial', C_ORANGE, 10, 'center');
-      }
-      // ── Right player ──
-      const rightCX=W-PAD-AVTAR_R-20;
-      avatar(hero2Photo, rightCX, heroCY, AVTAR_R, C_BLUE, 25);
-      if(hero2){
-        glowText((hero2.soprannome||hero2.nome).toUpperCase(), rightCX, HERO_Y+28,
-          '700 18px "Arial Black",Arial', C_BLUE, 10, 'center');
-      }
-      // ── Center: team names + VS + score ──
-      const CX=W/2, midW=W-AVTAR_R*4-PAD*2-60;
-      const tnA=tAN.toUpperCase(); let tnAfs=20;
+      heroBG2.addColorStop(0,'transparent'); heroBG2.addColorStop(1,`${C_BLUE}33`);
+      ctx.fillStyle=heroBG2; ctx.fillRect(W*0.55,HERO_Y,W*0.45-PAD/2,HERO_TOTAL);
+
+      const leftCX=PAD+AVTAR_R+30, heroCY=HERO_Y+HERO_TOTAL/2+10;
+      avatar(hero1Photo, leftCX, heroCY, AVTAR_R, C_ORANGE, 30);
+      if(hero1) glowText((hero1.soprannome||hero1.nome).toUpperCase(), leftCX, HERO_Y+42, `900 24px ${EMOJI},"Arial Black",Arial`, C_ORANGE, 12, 'center');
+
+      const rightCX=W-PAD-AVTAR_R-30;
+      avatar(hero2Photo, rightCX, heroCY, AVTAR_R, C_BLUE, 30);
+      if(hero2) glowText((hero2.soprannome||hero2.nome).toUpperCase(), rightCX, HERO_Y+42, `900 24px ${EMOJI},"Arial Black",Arial`, C_BLUE, 12, 'center');
+
+      const CX=W/2, midW=W-AVTAR_R*4-PAD*2-90;
+      const tnA=tAN.toUpperCase(); let tnAfs=26;
       ctx.font=`900 ${tnAfs}px "Arial Black",Arial`;
-      while(ctx.measureText(tnA).width>midW/2-10&&tnAfs>13){tnAfs--;ctx.font=`900 ${tnAfs}px "Arial Black",Arial`;}
-      glowText(tnA, CX-midW/4, HERO_Y+40, `900 ${tnAfs}px "Arial Black",Arial`, C_ORANGE, 12);
-      const tnB=tBN.toUpperCase(); let tnBfs=20;
+      while(ctx.measureText(tnA).width>midW/2-10&&tnAfs>15){tnAfs--;ctx.font=`900 ${tnAfs}px "Arial Black",Arial`;}
+      glowText(tnA, CX-midW/4, HERO_Y+56, `900 ${tnAfs}px "Arial Black",Arial`, C_ORANGE, 14);
+      const tnB=tBN.toUpperCase(); let tnBfs=26;
       ctx.font=`900 ${tnBfs}px "Arial Black",Arial`;
-      while(ctx.measureText(tnB).width>midW/2-10&&tnBfs>13){tnBfs--;ctx.font=`900 ${tnBfs}px "Arial Black",Arial`;}
-      glowText(tnB, CX+midW/4, HERO_Y+40, `900 ${tnBfs}px "Arial Black",Arial`, C_BLUE, 12);
-      glowText('VS', CX, HERO_Y+60, '900 italic 22px "Arial Black",Arial', 'rgba(247,247,247,0.4)', 0);
-      rr(CX-140, HERO_Y+75, 280, 100, 16, 'rgba(10,20,40,0.7)', `${C_LIME}66`, 20, C_LIME);
-      glowText(String(goalA), CX-70, HERO_Y+152, '900 88px "Arial Black",Arial', C_ORANGE, 35);
-      glowText('-', CX, HERO_Y+145, '900 60px "Arial Black",Arial', 'rgba(200,200,200,0.4)', 0);
-      glowText(String(goalB), CX+70, HERO_Y+152, '900 88px "Arial Black",Arial', C_BLUE, 35);
+      while(ctx.measureText(tnB).width>midW/2-10&&tnBfs>15){tnBfs--;ctx.font=`900 ${tnBfs}px "Arial Black",Arial`;}
+      glowText(tnB, CX+midW/4, HERO_Y+56, `900 ${tnBfs}px "Arial Black",Arial`, C_BLUE, 14);
+      glowText('VS', CX, HERO_Y+80, '900 italic 26px "Arial Black",Arial', 'rgba(247,247,247,0.45)', 0);
+      rr(CX-170, HERO_Y+96, 340, 130, 18, 'rgba(10,20,40,0.75)', `${C_LIME}77`, 24, C_LIME);
+      glowText(String(goalA), CX-85, HERO_Y+198, '900 110px "Arial Black",Arial', C_ORANGE, 42);
+      glowText('-', CX, HERO_Y+188, '900 70px "Arial Black",Arial', 'rgba(200,200,200,0.45)', 0);
+      glowText(String(goalB), CX+85, HERO_Y+198, '900 110px "Arial Black",Arial', C_BLUE, 42);
       const winner = goalA>goalB?tAN:goalB>goalA?tBN:null;
       const winnerCol = goalA>goalB?C_ORANGE:goalB>goalA?C_BLUE:C_YELLOW;
-      if(winner) glowText('🏆 '+winner.toUpperCase()+' VINCE!',CX,HERO_Y+HERO_TOTAL-18,'700 15px "Arial Black",Arial',winnerCol,8);
-      else glowText('🤝 PAREGGIO EPICO!',CX,HERO_Y+HERO_TOTAL-18,'700 15px "Arial Black",Arial',C_YELLOW,8);
-      Y += HERO_TOTAL; divider(Y-4);
+      if(winner) glowText(`🏆 ${winner.toUpperCase()} VINCE!`,CX,HERO_Y+HERO_TOTAL-16,`700 20px ${EMOJI},"Arial Black",Arial`,winnerCol,10);
+      else glowText('🤝 PAREGGIO EPICO!',CX,HERO_Y+HERO_TOTAL-16,`700 20px ${EMOJI},"Arial Black",Arial`,C_YELLOW,10);
+      Y += HERO_TOTAL+20; divider(Y); Y+=30;
 
-      // ════ MARCATORI ════
+      // ════ MARCATORI: blocco pieno per squadra, uno sotto l'altro ════
+      const teamBlockScorers = (teamName, ids, color, align) => {
+        const scorers = ids.filter(pid=>(playerStats.value[pid]?.goal||0)>0||(playerStats.value[pid]?.autogol||0)>0);
+        if(!scorers.length) return;
+        rr(PAD, Y, W-PAD*2, 4, 2, color); Y+=16;
+        glowText(teamName.toUpperCase(), align==='left'?PAD:W-PAD, Y+22, `900 22px ${EMOJI},"Arial Black",Arial`, color, 10, align);
+        Y+=42;
+        scorers.forEach(pid=>{
+          const p=getPlayer(pid), s=playerStats.value[pid]||{};
+          const gls='⚽'.repeat(Math.min(s.goal||0,6)),ext=(s.assist?` +${s.assist}🅰️`:'')+(s.autogol?' 🔴OG':'');
+          ctx.textAlign=align;
+          ctx.font=`700 26px ${EMOJI},"Arial Black",Arial`; ctx.fillStyle=C_WHITE;
+          ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), align==='left'?PAD:W-PAD, Y+26);
+          ctx.font=`600 20px ${EMOJI},Arial`; ctx.fillStyle=C_LIME;
+          ctx.fillText(gls+ext, align==='left'?PAD:W-PAD, Y+52);
+          Y += 66;
+        });
+        Y += 10;
+      };
       if(hasScorers){
-        glowText('⚽ MARCATORI', W/2, Y+36, '900 20px "Arial Black",Arial', C_LIME, 10);
-        Y += 50;
-        const mxS = Math.max(scorersA.length, scorersB.length);
-        for(let i=0; i<mxS; i++){
-          const pA=scorersA[i], pB=scorersB[i];
-          if(pA){
-            const p=getPlayer(pA), s=playerStats.value[pA]||{};
-            const gls='⚽'.repeat(Math.min(s.goal||0,6)),ext=(s.assist?` +${s.assist}🅰️`:'')+(s.autogol?' 🔴OG':'');
-            ctx.font='700 20px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
-            ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), PAD, Y+22);
-            ctx.font='600 16px Arial'; ctx.fillStyle=C_LIME; ctx.fillText(gls+ext, PAD, Y+42);
-          }
-          if(pB){
-            const p=getPlayer(pB), s=playerStats.value[pB]||{};
-            const gls='⚽'.repeat(Math.min(s.goal||0,6)),ext=(s.assist?` +${s.assist}🅰️`:'')+(s.autogol?' 🔴OG':'');
-            ctx.font='700 20px "Arial Black",Arial'; ctx.textAlign='right'; ctx.fillStyle=C_WHITE;
-            ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), W-PAD, Y+22);
-            ctx.font='600 16px Arial'; ctx.fillStyle=C_LIME; ctx.textAlign='right'; ctx.fillText(gls+ext, W-PAD, Y+42);
-          }
-          Y += 48;
-        }
-        divider(Y+4); Y += 12;
+        glowText('⚽ MARCATORI', W/2, Y+28, `900 26px ${EMOJI},"Arial Black",Arial`, C_LIME, 12);
+        Y += 54;
+        teamBlockScorers(tAN, pidsA, C_ORANGE, 'left');
+        teamBlockScorers(tBN, pidsB, C_BLUE, 'right');
+        divider(Y+4); Y += 34;
       }
 
-      // ════ PAGELLE ════
-      glowText('📋 PAGELLE', W/2, Y+36, '900 20px "Arial Black",Arial', C_YELLOW, 10);
-      ctx.font='700 15px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_ORANGE;
-      ctx.fillText(tAN.toUpperCase(), PAD+10, Y+58);
-      ctx.fillStyle=C_BLUE; ctx.textAlign='right';
-      ctx.fillText(tBN.toUpperCase(), W-PAD-10, Y+58);
-      Y += 68;
-      const mxP = Math.max(pidsA.length, pidsB.length);
-      const COL_W = (W-PAD*2-24)/2, AV_R=22;
-      for(let i=0; i<mxP; i++){
-        const pA=pidsA[i], pB=pidsB[i];
-        const rowBg = i%2===0 ? 'rgba(255,255,255,0.02)' : 'transparent';
-        if(rowBg!=='transparent'){ctx.fillStyle=rowBg;ctx.fillRect(PAD,Y,W-PAD*2,ROW_H);}
-        if(pA){
-          const p=getPlayer(pA), s=playerStats.value[pA]||{}, v=s.voto||6;
-          const vc=v>=8?C_LIME:v>=7?C_BLUE:v<=5?C_RED:'#888888';
-          avatar(pagellePhotos[pA], PAD+AV_R+6, Y+ROW_H/2, AV_R, vc, 6);
-          ctx.font='700 17px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
-          ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), PAD+AV_R*2+18, Y+ROW_H/2-4);
+      // ════ PAGELLE: blocco pieno per squadra, uno sotto l'altro ════
+      glowText('📋 PAGELLE', W/2, Y+28, `900 26px ${EMOJI},"Arial Black",Arial`, C_YELLOW, 12);
+      Y += 56;
+      const ROW_H=76, AV_R=30;
+      const teamBlockPagelle = (teamName, ids, color) => {
+        rr(PAD, Y, W-PAD*2, 4, 2, color); Y+=18;
+        glowText(teamName.toUpperCase(), PAD, Y+24, `900 24px ${EMOJI},"Arial Black",Arial`, color, 10, 'left');
+        Y+=46;
+        ids.forEach((pid,i)=>{
+          const p=getPlayer(pid), s=playerStats.value[pid]||{}, v=s.voto||6;
+          const vc=v>=8?C_LIME:v>=7?C_BLUE:v<=5?C_RED:'#999999';
+          if(i%2===0){ctx.fillStyle='rgba(255,255,255,0.03)';ctx.fillRect(PAD,Y,W-PAD*2,ROW_H);}
+          avatar(pagellePhotos[pid], PAD+AV_R+10, Y+ROW_H/2, AV_R, vc, 8);
+          ctx.font=`700 26px ${EMOJI},"Arial Black",Arial`; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
+          ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), PAD+AV_R*2+26, Y+ROW_H/2-6);
           const badges=[(s.goal||0)>0?`⚽${s.goal}`:'', (s.assist||0)>0?`🅰️${s.assist}`:'', s.uomoPartita?'⭐':'', (s.autogol||0)>0?'OG':''].filter(Boolean).join(' ');
-          if(badges){ctx.font='600 13px Arial'; ctx.fillStyle=C_MUTED; ctx.fillText(badges, PAD+AV_R*2+18, Y+ROW_H/2+16);}
-          ctx.save(); ctx.globalAlpha=0.2; rr(PAD+COL_W-50, Y+ROW_H/2-18, 44, 36, 8, vc, null, 0); ctx.restore();
-          ctx.save(); rr(PAD+COL_W-50, Y+ROW_H/2-18, 44, 36, 8, null, vc, 0); ctx.restore();
-          glowText(String(v), PAD+COL_W-28, Y+ROW_H/2+10, '900 20px "Arial Black",Arial', vc, 8);
-        }
-        if(pB){
-          const p=getPlayer(pB), s=playerStats.value[pB]||{}, v=s.voto||6;
-          const vc=v>=8?C_LIME:v>=7?C_BLUE:v<=5?C_RED:'#888888';
-          const bx = W-PAD-COL_W;
-          avatar(pagellePhotos[pB], bx+AV_R+6, Y+ROW_H/2, AV_R, vc, 6);
-          ctx.font='700 17px "Arial Black",Arial'; ctx.textAlign='left'; ctx.fillStyle=C_WHITE;
-          ctx.fillText((p?.soprannome||p?.nome||'').toUpperCase(), bx+AV_R*2+18, Y+ROW_H/2-4);
-          const badges=[(s.goal||0)>0?`⚽${s.goal}`:'', (s.assist||0)>0?`🅰️${s.assist}`:'', s.uomoPartita?'⭐':'', (s.autogol||0)>0?'OG':''].filter(Boolean).join(' ');
-          if(badges){ctx.font='600 13px Arial'; ctx.fillStyle=C_MUTED; ctx.fillText(badges, bx+AV_R*2+18, Y+ROW_H/2+16);}
-          ctx.save(); ctx.globalAlpha=0.2; rr(W-PAD-50, Y+ROW_H/2-18, 44, 36, 8, vc, null, 0); ctx.restore();
-          ctx.save(); rr(W-PAD-50, Y+ROW_H/2-18, 44, 36, 8, null, vc, 0); ctx.restore();
-          glowText(String(v), W-PAD-28, Y+ROW_H/2+10, '900 20px "Arial Black",Arial', vc, 8);
-        }
-        Y += ROW_H;
+          if(badges){ctx.font=`600 18px ${EMOJI},Arial`; ctx.fillStyle=C_MUTED; ctx.fillText(badges, PAD+AV_R*2+26, Y+ROW_H/2+22);}
+          const bx=W-PAD-70;
+          ctx.save(); ctx.globalAlpha=0.22; rr(bx, Y+ROW_H/2-24, 62, 48, 10, vc, null, 0); ctx.restore();
+          ctx.save(); rr(bx, Y+ROW_H/2-24, 62, 48, 10, null, vc, 0); ctx.restore();
+          glowText(String(v), bx+31, Y+ROW_H/2+10, '900 26px "Arial Black",Arial', vc, 10);
+          Y += ROW_H;
+        });
+        Y += 14;
+      };
+      teamBlockPagelle(tAN, pidsA, C_ORANGE);
+      teamBlockPagelle(tBN, pidsB, C_BLUE);
+      divider(Y+4); Y += 34;
+
+      // ════ MVP ════
+      if(mvpPlayer){
+        rr(PAD, Y, W-PAD*2, 260, 18, 'rgba(255,217,61,0.06)', `${C_YELLOW}88`, 20, C_YELLOW);
+        glowText('🏆 MVP', W/2, Y+38, `900 22px ${EMOJI},"Arial Black",Arial`, C_YELLOW, 12);
+        avatar(mvpPhoto, W/2, Y+130, 68, C_YELLOW, 24);
+        const nomeMvp = (mvpPlayer.soprannome||mvpPlayer.nome).toUpperCase();
+        glowText(nomeMvp, W/2, Y+220, `900 28px ${EMOJI},"Arial Black",Arial`, C_WHITE, 0);
+        if(mvpVoto) glowText(String(mvpVoto), W-PAD-70, Y+130, '900 56px "Arial Black",Arial', C_LIME, 20);
+        Y += 260+30;
       }
-      divider(Y+4); Y += 16;
 
-      // ════ MVP + COMMENTO side by side ════
-      if(mvpPlayer || aiComment.value){
-        const SIDE_H = 240;
-        const TOTAL_W = W-PAD*2;
-        const GAP = 14;
-        const MVP_W  = Math.round(TOTAL_W * 0.33); // ~33%
-        const COMM_W = TOTAL_W - MVP_W - GAP;       // ~67%
-        const mvpX=PAD, commX=PAD+MVP_W+GAP;
-
-        if(mvpPlayer){
-          rr(mvpX, Y, MVP_W, SIDE_H, 14, '#0d1a2a', C_YELLOW+'88', 15, C_YELLOW);
-          const mvpBar=ctx.createLinearGradient(mvpX,Y,mvpX+MVP_W,Y);
-          mvpBar.addColorStop(0,C_YELLOW+'00'); mvpBar.addColorStop(0.5,C_YELLOW+'66'); mvpBar.addColorStop(1,C_YELLOW+'00');
-          ctx.fillStyle=mvpBar; ctx.fillRect(mvpX+12,Y,MVP_W-24,2);
-          glowText('🏆 MVP', mvpX+MVP_W/2, Y+24, '900 13px "Arial Black",Arial', C_YELLOW, 8, 'center');
-          const avCX = mvpX+MVP_W/2;
-          avatar(mvpPhoto, avCX, Y+90, 44, C_YELLOW, 18);
-          const nomeMvp = (mvpPlayer.soprannome||mvpPlayer.nome).toUpperCase();
-          ctx.font='900 13px "Arial Black",Arial'; ctx.textAlign='center'; ctx.fillStyle=C_WHITE;
-          if(ctx.measureText(nomeMvp).width > MVP_W-20){
-            const parts = nomeMvp.split(' ');
-            ctx.fillText(parts[0]||nomeMvp, avCX, Y+148);
-            if(parts[1]) ctx.fillText(parts.slice(1).join(' '), avCX, Y+164);
-          } else {
-            ctx.fillText(nomeMvp, avCX, Y+154);
-          }
-          if(mvpVoto) glowText(String(mvpVoto), avCX, Y+202,
-            '900 38px "Arial Black",Arial', C_LIME, 16, 'center');
-          ctx.font='600 11px Arial'; ctx.textAlign='center'; ctx.fillStyle=C_YELLOW;
-          ctx.fillText('⭐ CAMPIONE!', avCX, Y+228);
-        }
-
-        if(aiComment.value){
-          rr(commX, Y, COMM_W, SIDE_H, 14, '#091428', C_BLUE+'88', 15, C_BLUE);
-          const commBar=ctx.createLinearGradient(commX,Y,commX+COMM_W,Y);
-          commBar.addColorStop(0,C_BLUE+'00'); commBar.addColorStop(0.5,C_LIME+'55'); commBar.addColorStop(1,C_BLUE+'00');
-          ctx.fillStyle=commBar; ctx.fillRect(commX+14,Y,COMM_W-28,2);
-          glowText('💬 IL COMMENTO', commX+COMM_W/2, Y+24, '900 14px "Arial Black",Arial', C_LIME, 8, 'center');
-          ctx.font='italic 21px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.92)';
-          const cmW=COMM_W-36, cmX=commX+18;
-          const cwords=aiComment.value.split(' ');
-          let cline='', clineY=Y+50, clineH=30;
-          for(const w of cwords){
-            const t=cline+w+' ';
-            if(ctx.measureText(t).width>cmW&&cline){
-              ctx.fillText(cline.trim(),cmX,clineY); clineY+=clineH; cline=w+' ';
-              if(clineY>Y+SIDE_H-22){ctx.fillText('…',cmX,clineY); cline=''; break;}
-            } else cline=t;
-          }
-          if(cline.trim()&&clineY<=Y+SIDE_H-22) ctx.fillText(cline.trim(),cmX,clineY);
-        }
-
-        if(!mvpPlayer && aiComment.value){
-          rr(PAD, Y, TOTAL_W, SIDE_H, 14, '#091428', C_BLUE+'88', 15, C_BLUE);
-          glowText('💬 IL COMMENTO', PAD+TOTAL_W/2, Y+24, '900 14px "Arial Black",Arial', C_LIME, 8, 'center');
-          ctx.font='italic 22px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.92)';
-          const cmW2=TOTAL_W-36, cmX2=PAD+18;
-          const cwords2=aiComment.value.split(' ');
-          let cline2='', clineY2=Y+50, clineH2=31;
-          for(const w of cwords2){
-            const t=cline2+w+' ';
-            if(ctx.measureText(t).width>cmW2&&cline2){
-              ctx.fillText(cline2.trim(),cmX2,clineY2); clineY2+=clineH2; cline2=w+' ';
-              if(clineY2>Y+SIDE_H-22){ctx.fillText('…',cmX2,clineY2); cline2=''; break;}
-            } else cline2=t;
-          }
-          if(cline2.trim()&&clineY2<=Y+SIDE_H-22) ctx.fillText(cline2.trim(),cmX2,clineY2);
-        }
-
-        Y += SIDE_H+20;
-        divider(Y); Y += 16;
+      // ════ COMMENTO: a piena larghezza, testo grande ════
+      if(aiComment.value){
+        const cmMaxW = W-PAD*2-48;
+        const clines = wrapText(ctx, aiComment.value, cmMaxW, 'italic 400 27px Arial');
+        const commH = 70 + clines.length*38 + 20;
+        rr(PAD, Y, W-PAD*2, commH, 18, 'rgba(58,123,255,0.07)', `${C_BLUE}88`, 18, C_BLUE);
+        glowText('💬 IL COMMENTO', W/2, Y+38, `900 22px ${EMOJI},"Arial Black",Arial`, C_LIME, 10);
+        ctx.font='italic 400 27px Arial'; ctx.textAlign='left'; ctx.fillStyle='rgba(247,247,247,0.92)';
+        let cy=Y+76;
+        clines.forEach(l=>{ ctx.fillText(l, PAD+24, cy); cy+=38; });
+        Y += commH+30;
       }
 
       // ════ FOOTER ════
-      const FY = Y;
-      rr(0, FY, W, FOOTER_H, 0, '#07101f', null, 0);
-      const topBarF = ctx.createLinearGradient(0,FY,W,FY);
-      topBarF.addColorStop(0,'transparent'); topBarF.addColorStop(0.5,C_LIME); topBarF.addColorStop(1,'transparent');
-      ctx.fillStyle=topBarF; ctx.fillRect(0,FY,W,2);
-      glowText('⚽ Amici FC · Dove i campioni nascono… e litigano!', W/2, FY+38, '700 italic 17px "Arial Black",Arial', `${C_LIME}99`, 8);
-      ctx.font='700 14px "Arial Black",Arial'; ctx.textAlign='center'; ctx.fillStyle=C_MUTED;
-      ctx.fillText((currentGroup.value?.nome||'').toUpperCase(), W/2, FY+62);
-      Y += FOOTER_H;
+      divider(Y); Y+=30;
+      glowText(`⚽ Amici FC · Dove i campioni nascono… e litigano!`, W/2, Y+10, `700 italic 20px ${EMOJI},"Arial Black",Arial`, `${C_LIME}99`, 8);
+      Y+=32;
+      ctx.font='700 17px "Arial Black",Arial'; ctx.textAlign='center'; ctx.fillStyle=C_MUTED;
+      ctx.fillText((currentGroup.value?.nome||'').toUpperCase(), W/2, Y);
+      Y += 40;
 
+      // ════ RITAGLIO ALL'ALTEZZA REALE DEL CONTENUTO (come card giocatore) ════
+      const finalH = Math.min(H_SAFE, Math.ceil(Y));
       const final = document.createElement('canvas');
-      final.width=W; final.height=Y;
-      final.getContext('2d').drawImage(canvas,0,0);
+      final.width=W; final.height=finalH;
+      final.getContext('2d').drawImage(canvas,0,0,W,finalH,0,0,W,finalH);
       const dataUrl = final.toDataURL('image/png');
       previewPNGUrl.value = dataUrl;
       previewPNGName.value = `amicifc-giornale-${matchDate}.png`;
+      previewPNGText.value = buildMatchResultText();
       showPNGPreview.value = true;
     };
 
