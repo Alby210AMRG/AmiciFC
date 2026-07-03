@@ -5823,9 +5823,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </template> <!-- fine tab storico -->
 
-      <div v-if="!detailPlayerReadOnly" style="display:flex;gap:10px">
-        <button class="btn btn-blue" style="flex:1" @click="openPlayerForm(detailPlayer);showPlayerDetail=false">✏️ Modifica</button>
-        <button class="btn btn-red" style="flex:1" @click="deletePlayer(detailPlayer);showPlayerDetail=false">🗑️ Elimina</button>
+      <div v-if="!detailPlayerReadOnly" style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary" style="width:100%" @click="sharePlayerCardPNG(detailPlayer)">📤 Condividi Card Giocatore</button>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-blue" style="flex:1" @click="openPlayerForm(detailPlayer);showPlayerDetail=false">✏️ Modifica</button>
+          <button class="btn btn-red" style="flex:1" @click="deletePlayer(detailPlayer);showPlayerDetail=false">🗑️ Elimina</button>
+        </div>
       </div>
       <div v-else style="text-align:center;font-size:0.75rem;color:var(--text2);padding:8px;background:var(--bg3);border-radius:8px">
         📦 Dati di una stagione archiviata — sola consultazione
@@ -6690,7 +6693,17 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.657',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.662',date:'2026-07-02',items:[
+      'Card giocatore: i 3 grafici separati (Voto/Gol/Punti) uniti in un unico grafico con legenda colorata, per recuperare spazio. Font del commento AI aumentato per leggibilita migliore. Rinominate le etichette: Media Voto -> Voto, Punti -> Punti Fatti. Pallone in filigrana ancora piu grande.',
+    ]},{version:'v1.661',date:'2026-07-02',items:[
+      'Card giocatore: filigrana pallone ora ancorata nell angolo, piu grande, con effetto "sticker" meta dentro meta fuori (stile watermark della PNG formazione).',
+    ]},{version:'v1.660',date:'2026-07-02',items:[
+      'Card giocatore: aggiunta filigrana pallone in alto a destra. Fix: testo Identikit AI che usciva dal box (mancava il testo a capo automatico sulla parte di confronto). Fix: contatori Migliore/Peggiore del Mese a volte mancanti per un problema di tempistica di caricamento dati. Migliorato contrasto testo nome/ruolo.',
+    ]},{version:'v1.659',date:'2026-07-02',items:[
+      'Card giocatore condivisibile: aggiunti nome/cognome, contatori Migliore/Peggiore del Mese, testo Identikit AI dopo i grafici. Card ora ad altezza dinamica (si adatta al contenuto, niente spazi vuoti). Tentativo di fix visibilita icone (font emoji esplicito) — da verificare sul dispositivo.',
+    ]},{version:'v1.658',date:'2026-07-02',items:[
+      'Nuovo: Card giocatore condivisibile — PNG con foto, ruolo, statistiche stagione corrente e grafici andamento (Media Voto, Gol, Punti). Bottone "Condividi Card Giocatore" nella scheda giocatore, condivisione diretta su WhatsApp/Telegram con testo e immagine.',
+    ]},{version:'v1.657',date:'2026-07-02',items:[
       'Bottone play in Home: rimosso un padding ereditato che schiacciava il pallone verso il centro — ora tocca davvero il bordo del cerchio.',
       'Sync: il flag "upload pendente" viene ora scritto anche prima di tentare il sync (non solo dopo un fallimento), per proteggere meglio i dati se il processo si interrompe subito dopo il salvataggio (es. app in background su iPhone).',
     ]},{version:'v1.656',date:'2026-07-02',items:[
@@ -7373,7 +7386,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.657');
+    const appVersion = ref('1.662');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9226,6 +9239,317 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
       txt += `\n🏆 _Generato con Amici FC_`;
       return txt;
     };
+
+    // ── Card giocatore condivisibile (PNG stile FIFA, stagione corrente) ──
+    const drawPlayerCardCanvas = async (p, skipPhotos=false) => {
+      const W=1080, H=2400; // altezza generosa: si ritaglia alla fine sul contenuto reale
+      const EMOJI='"Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji"'; // font con glifi emoji a colori — Arial da solo non li renderizza
+      const canvas=document.createElement('canvas');
+      canvas.width=W; canvas.height=H;
+      const ctx=canvas.getContext('2d');
+      const rrect=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
+      const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();if(src.startsWith('http'))img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
+      const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
+      const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
+      const wrapText=(text,maxW,font)=>{
+        ctx.font=font;
+        const words=(text||'').split(/\s+/).filter(Boolean);
+        const lines=[]; let line='';
+        for(const w of words){
+          const test=line?line+' '+w:w;
+          if(ctx.measureText(test).width>maxW && line){ lines.push(line); line=w; }
+          else line=test;
+        }
+        if(line) lines.push(line);
+        return lines;
+      };
+
+      const logoImg = await li(LOGO_EMBEDDED);
+      const ballImg = await li(BALL_EMBEDDED);
+      const photoImg = skipPhotos ? null : await loadPhoto(p.foto, p.uid);
+
+      // ═══ SFONDO STADIO (stesso stile di drawFormationCanvas) ═══
+      const bgGrad=ctx.createLinearGradient(0,0,0,H*0.7);
+      bgGrad.addColorStop(0,'#020408');bgGrad.addColorStop(0.4,'#050c18');bgGrad.addColorStop(1,'#081420');
+      ctx.fillStyle=bgGrad;ctx.fillRect(0,0,W,H);
+      const fgGrad=ctx.createLinearGradient(0,H*0.65,0,H);
+      fgGrad.addColorStop(0,'#0a200a');fgGrad.addColorStop(0.4,'#133318');fgGrad.addColorStop(1,'#1a4520');
+      ctx.fillStyle=fgGrad;ctx.fillRect(0,H*0.65,W,H*0.35);
+      const midG=ctx.createLinearGradient(0,H*0.60,0,H*0.75);
+      midG.addColorStop(0,'#081420');midG.addColorStop(1,'#0a200a');
+      ctx.fillStyle=midG;ctx.fillRect(0,H*0.60,W,H*0.15);
+      const fl1=ctx.createRadialGradient(40,80,0,40,80,320);
+      fl1.addColorStop(0,'rgba(255,255,220,0.95)');fl1.addColorStop(0.06,'rgba(255,255,200,0.75)');fl1.addColorStop(0.2,'rgba(200,220,255,0.35)');fl1.addColorStop(0.5,'rgba(100,150,255,0.12)');fl1.addColorStop(1,'transparent');
+      ctx.fillStyle=fl1;ctx.fillRect(0,0,W*0.55,H*0.55);
+      const fl2=ctx.createRadialGradient(W-40,80,0,W-40,80,320);
+      fl2.addColorStop(0,'rgba(255,255,220,0.95)');fl2.addColorStop(0.06,'rgba(255,255,200,0.75)');fl2.addColorStop(0.2,'rgba(100,150,255,0.35)');fl2.addColorStop(0.5,'rgba(50,100,255,0.12)');fl2.addColorStop(1,'transparent');
+      ctx.fillStyle=fl2;ctx.fillRect(W*0.45,0,W*0.55,H*0.55);
+      const cDark=ctx.createRadialGradient(W/2,150,80,W/2,150,400);
+      cDark.addColorStop(0,'rgba(0,0,0,0.55)');cDark.addColorStop(1,'transparent');
+      ctx.fillStyle=cDark;ctx.fillRect(0,0,W,350);
+
+      // ═══ FILIGRANA PALLONE: ancorata all'angolo in alto a destra, grande, metà
+      // dentro metà fuori — stesso stile "sticker" del watermark emoji della PNG formazione
+      // (il bordo del canvas la taglia naturalmente, nessun clip esplicito necessario) ═══
+      if(ballImg){
+        const WM=600;
+        ctx.save();
+        ctx.globalAlpha=0.22;
+        ctx.translate(W-90,90);
+        ctx.rotate(0.18);
+        ctx.drawImage(ballImg,-WM/2,-WM/2,WM,WM);
+        ctx.restore();
+      }
+
+      const PAD=40;
+      // ═══ HEADER: logo + AMICI FC + nome gruppo ═══
+      let curY=30;
+      if(logoImg){
+        const LS=100;
+        ctx.save();
+        ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=14;
+        ctx.beginPath();ctx.arc(W/2,curY+LS/2,LS/2+10,0,Math.PI*2);
+        ctx.fillStyle='rgba(8,10,18,0.85)';ctx.fill();
+        ctx.restore();
+        ctx.drawImage(logoImg,W/2-LS/2,curY,LS,LS);
+        curY+=LS+14;
+      }
+      ctx.textAlign='center';
+      ctx.font='900 italic 30px "Segoe UI",Arial';ctx.fillStyle='rgba(255,255,255,0.75)';
+      ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=8;
+      ctx.fillText('AMICI FC',W/2,curY+28);
+      curY+=40;
+      const grpName=(currentGroup.value?.nome||'').toUpperCase();
+      ctx.font='700 22px Arial';ctx.fillStyle='rgba(166,255,77,0.7)';ctx.shadowBlur=0;
+      ctx.fillText(grpName,W/2,curY+20);
+      curY+=56;
+
+      // ═══ FOTO GIOCATORE con glow colorato in base alla media voto ═══
+      const PH_R=150;
+      const phCX=W/2, phCY=curY+PH_R+10;
+      const voteColor = (p.mediaVoto||0)>=7 ? '#4ade80' : (p.mediaVoto||0)>=5 ? '#FFD93D' : '#FF4D4D';
+      ctx.save();
+      ctx.shadowColor=voteColor; ctx.shadowBlur=40;
+      ctx.beginPath();ctx.arc(phCX,phCY,PH_R+8,0,Math.PI*2);
+      ctx.strokeStyle=voteColor; ctx.lineWidth=8; ctx.stroke();
+      ctx.restore();
+      ctx.save();
+      ctx.beginPath();ctx.arc(phCX,phCY,PH_R,0,Math.PI*2);ctx.closePath();ctx.clip();
+      if(photoImg){
+        const scale=Math.max((PH_R*2)/photoImg.width,(PH_R*2)/photoImg.height);
+        const iw=photoImg.width*scale, ih=photoImg.height*scale;
+        ctx.drawImage(photoImg, phCX-iw/2, phCY-ih/2, iw, ih);
+      } else {
+        ctx.fillStyle='#2a3a4a';ctx.fillRect(phCX-PH_R,phCY-PH_R,PH_R*2,PH_R*2);
+        ctx.fillStyle='#4a5a6a';
+        ctx.beginPath();ctx.arc(phCX,phCY-PH_R*0.15,PH_R*0.45,0,Math.PI*2);ctx.fill();
+        ctx.beginPath();ctx.ellipse(phCX,phCY+PH_R*0.75,PH_R*0.75,PH_R*0.6,0,0,Math.PI*2);ctx.fill();
+      }
+      ctx.restore();
+      curY = phCY+PH_R+26;
+
+      // ═══ NOME + COGNOME (piccolo) poi SOPRANNOME (grande) + RUOLO ═══
+      const fullName=`${p.nome||''} ${p.cognome||''}`.trim();
+      if(fullName){
+        ctx.font='700 26px Arial';ctx.fillStyle='rgba(255,255,255,0.65)';ctx.shadowBlur=0;
+        ctx.fillText(fullName.toUpperCase(),W/2,curY+22);
+        curY+=40;
+      }
+      const displayName=(p.soprannome||p.nome||'').toUpperCase();
+      let nameSize=64;
+      ctx.font=`900 ${nameSize}px "Segoe UI",Arial`;
+      while(ctx.measureText(displayName).width>W-PAD*2 && nameSize>32){nameSize--;ctx.font=`900 ${nameSize}px "Segoe UI",Arial`;}
+      ctx.fillStyle='#ffffff';ctx.shadowColor='rgba(0,0,0,0.9)';ctx.shadowBlur=10;
+      ctx.fillText(displayName,W/2,curY+nameSize*0.8);
+      curY+=nameSize+10;
+      ctx.shadowBlur=0;
+      ctx.font='700 30px Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+      ctx.fillText((p.ruolo?p.ruolo.toUpperCase()+' · ':'')+'STAGIONE CORRENTE', W/2, curY+30);
+      curY+=58;
+
+      // ═══ BADGE MIGLIORE/PEGGIORE DEL MESE (solo se almeno uno > 0) ═══
+      const hofC = (typeof hofCountsFor==='function') ? hofCountsFor(p.uid) : {fame:0,shame:0};
+      if((hofC.fame||0)>0 || (hofC.shame||0)>0){
+        const parts=[];
+        if(hofC.fame>0) parts.push({txt:`👑 Migliore del Mese: ${hofC.fame}`,col:'#fbbf24'});
+        if(hofC.shame>0) parts.push({txt:`🪣 Peggiore del Mese: ${hofC.shame}`,col:'rgba(255,255,255,0.55)'});
+        ctx.font=`26px ${EMOJI},Arial`;
+        const widths=parts.map(pt=>ctx.measureText(pt.txt).width);
+        const gap=30;
+        const totalW=widths.reduce((a,b)=>a+b,0)+gap*(parts.length-1);
+        let bx=W/2-totalW/2;
+        parts.forEach((pt,i)=>{
+          ctx.font=`26px ${EMOJI},Arial`;ctx.fillStyle=pt.col;ctx.textAlign='left';
+          ctx.fillText(pt.txt,bx,curY+22);
+          bx+=widths[i]+gap;
+        });
+        ctx.textAlign='center';
+        curY+=52;
+      }
+      curY+=10;
+
+      // ═══ GRIGLIA STATISTICHE ═══
+      const trackAssist = currentGroup.value?.trackAssist !== false;
+      const stats=[
+        {icon:'⚽',val:p.goalTotali||0,label:'GOL',col:'#C8FF00'},
+        ...(trackAssist?[{icon:'🅰️',val:p.assistTotali||0,label:'ASSIST',col:'#5599FF'}]:[]),
+        {icon:'⭐',val:(p.mediaVoto||0).toFixed(1),label:'MEDIA VOTO',col:'#FFD93D'},
+        {icon:'🎮',val:p.partiteTotali||0,label:'PARTITE',col:'#3A7BFF'},
+        ...(p.uomoPartitaTotali>0?[{icon:'🎖️',val:p.uomoPartitaTotali,label:'MVP',col:'#FF9900'}]:[]),
+      ];
+      const nStats=stats.length;
+      const boxW=(W-PAD*2)/nStats;
+      const boxH=150;
+      for(let i=0;i<nStats;i++){
+        const s=stats[i]; const bx=PAD+i*boxW, by=curY;
+        ctx.fillStyle='rgba(255,255,255,0.05)';
+        rrect(bx+6,by,boxW-12,boxH,14);ctx.fill();
+        ctx.textAlign='center';
+        ctx.font=`40px ${EMOJI},Arial`;ctx.fillStyle='#ffffff';
+        ctx.fillText(s.icon,bx+boxW/2,by+50);
+        ctx.font='900 34px "Segoe UI",Arial';ctx.fillStyle=s.col;
+        ctx.shadowColor=s.col;ctx.shadowBlur=10;
+        ctx.fillText(String(s.val),bx+boxW/2,by+94);
+        ctx.shadowBlur=0;
+        ctx.font='700 15px Arial';ctx.fillStyle='rgba(255,255,255,0.5)';
+        ctx.fillText(s.label,bx+boxW/2,by+120);
+      }
+      curY+=boxH+30;
+
+      // ═══ GRAFICO UNICO COMBINATO: Voto, Gol, Punti Fatti (solo stagione corrente) ═══
+      // Un solo grafico invece di tre, per recuperare spazio verticale da dare al
+      // commento AI. Ogni serie è normalizzata sulla propria scala (voto ~4-10, gol/punti
+      // 0-3) ma disegnata nella stessa area, distinta per colore + legenda.
+      const uidP = p.uid || String(p.id);
+      const seasonMatches=[...groupMatches.value]
+        .filter(m => (m.squadraA||[]).map(String).includes(uidP) || (m.squadraB||[]).map(String).includes(uidP))
+        .sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+      const matchStats = seasonMatches.map(m=>{
+        const s=(m.statisticheGiocatori||[]).find(s=>String(s.playerId)===uidP);
+        return { voto: (s&&s.voto!=null)?s.voto:null, gol: (s&&s.goal)||0, punti: (s&&s.punti!=null)?s.punti:null };
+      });
+
+      const SERIES=[
+        {key:'voto',  label:'VOTO',        icon:'⭐', color:'#FFD93D', max:10},
+        {key:'gol',   label:'GOL',         icon:'⚽', color:'#C8FF00', max:null},
+        {key:'punti', label:'PUNTI FATTI', icon:'🏆', color:'#3A7BFF', max:3},
+      ];
+
+      ctx.textAlign='left';
+      ctx.font=`900 28px ${EMOJI},"Segoe UI",Arial`;ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=6;
+      ctx.fillText('📈 ANDAMENTO STAGIONE', PAD, curY+26);
+      ctx.shadowBlur=0;
+      curY+=42;
+      // Legenda: pallino colorato + etichetta per ogni serie
+      ctx.font=`700 21px ${EMOJI},Arial`;
+      let lx=PAD;
+      SERIES.forEach(s=>{
+        ctx.beginPath();ctx.arc(lx+8,curY+16,8,0,Math.PI*2);ctx.fillStyle=s.color;ctx.fill();
+        ctx.fillStyle=s.color;
+        ctx.fillText(s.icon+' '+s.label, lx+24, curY+24);
+        lx+=24+ctx.measureText(s.icon+' '+s.label).width+34;
+      });
+      curY+=44;
+
+      const chartH=320, chartPadBottom=30;
+      ctx.fillStyle='rgba(255,255,255,0.04)';
+      rrect(PAD,curY,W-PAD*2,chartH,14);ctx.fill();
+      if(!matchStats.length){
+        ctx.textAlign='center';ctx.font='22px Arial';ctx.fillStyle='rgba(255,255,255,0.35)';
+        ctx.fillText('Nessuna partita in questa stagione',W/2,curY+chartH/2);
+        curY+=chartH+40;
+      } else {
+        const plotX0=PAD+30, plotX1=W-PAD-30, plotY0=curY+20, plotY1=curY+chartH-chartPadBottom;
+        const n=matchStats.length;
+        const stepX = n>1 ? (plotX1-plotX0)/(n-1) : 0;
+        SERIES.forEach(s=>{
+          const vals=matchStats.map(m=>m[s.key]).filter(v=>v!==null);
+          const maxV = s.max || Math.max(1,...(vals.length?vals:[1]));
+          const minV = s.key==='voto' ? Math.min(4,...(vals.length?vals:[4])) : 0;
+          const pts=matchStats.map((m,i)=>{
+            const v=m[s.key]; if(v===null) return null;
+            const xx=n>1 ? plotX0+stepX*i : (plotX0+plotX1)/2;
+            const yy=plotY1-((v-minV)/((maxV-minV)||1))*(plotY1-plotY0);
+            return {x:xx,y:yy};
+          });
+          ctx.beginPath();
+          let started=false;
+          pts.forEach(pt=>{ if(!pt)return; if(!started){ctx.moveTo(pt.x,pt.y);started=true;} else ctx.lineTo(pt.x,pt.y); });
+          ctx.strokeStyle=s.color;ctx.lineWidth=4;ctx.lineJoin='round';ctx.stroke();
+          pts.forEach(pt=>{
+            if(!pt)return;
+            ctx.beginPath();ctx.arc(pt.x,pt.y,6,0,Math.PI*2);
+            ctx.fillStyle=s.color;ctx.fill();
+            ctx.strokeStyle='rgba(8,10,18,0.9)';ctx.lineWidth=2;ctx.stroke();
+          });
+        });
+        curY+=chartH+40;
+      }
+
+      // ═══ IDENTIKIT AI (se presente) ═══
+      const nick = (typeof getPlayerNick==='function') ? getPlayerNick(p) : null;
+      if(nick?.motivazione){
+        ctx.textAlign='left';
+        ctx.font=`900 30px ${EMOJI},"Segoe UI",Arial`;ctx.fillStyle='#C8FF00';
+        ctx.shadowColor='#C8FF00';ctx.shadowBlur=8;
+        ctx.fillText('🧬 IDENTIKIT AI',PAD,curY+26);
+        ctx.shadowBlur=0;
+        curY+=52;
+        const textMaxW = W-PAD*2-40;
+        const lines=wrapText(nick.motivazione, textMaxW, 'italic 400 32px Arial');
+        const confrontoLines = nick.confronto ? wrapText('📊 '+nick.confronto, textMaxW, `700 27px ${EMOJI},Arial`) : [];
+        const lineH=44, lineH2=38;
+        const gapBetween = confrontoLines.length ? 18 : 0;
+        const boxH2 = 36 + lines.length*lineH + gapBetween + confrontoLines.length*lineH2 + 26;
+        ctx.fillStyle='rgba(255,255,255,0.05)';
+        rrect(PAD,curY,W-PAD*2,boxH2,14);ctx.fill();
+        let ty=curY+48;
+        ctx.font='italic 400 32px Arial';ctx.fillStyle='rgba(255,255,255,0.92)';
+        lines.forEach(l=>{ ctx.fillText(l,PAD+20,ty); ty+=lineH; });
+        if(confrontoLines.length){
+          ty+=gapBetween;
+          ctx.font=`700 27px ${EMOJI},Arial`;ctx.fillStyle='rgba(255,255,255,0.65)';
+          confrontoLines.forEach(l=>{ ctx.fillText(l,PAD+20,ty); ty+=lineH2; });
+        }
+        curY+=boxH2+30;
+      }
+
+      // ═══ FOOTER ═══
+      curY+=20;
+      ctx.textAlign='center';
+      ctx.font='400 20px Arial';ctx.fillStyle='rgba(255,255,255,0.28)';
+      const nowStr=new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      ctx.fillText(nowStr,W/2,curY+20);
+      curY+=50;
+
+      // ═══ RITAGLIO ALL'ALTEZZA REALE DEL CONTENUTO ═══
+      const finalH = Math.min(H, Math.ceil(curY));
+      const outCanvas=document.createElement('canvas');
+      outCanvas.width=W; outCanvas.height=finalH;
+      outCanvas.getContext('2d').drawImage(canvas,0,0,W,finalH,0,0,W,finalH);
+      return outCanvas.toDataURL('image/png');
+    };
+
+    const sharePlayerCardPNG = async (p) => {
+      toast('🎨 Generando card...','info',3000);
+      try {
+        // hofStorico si carica in modo non bloccante quando si apre la scheda giocatore
+        // (per non rallentare l'apertura) — se la card viene condivisa subito dopo,
+        // il caricamento potrebbe non essere ancora finito: lo attendiamo qui esplicitamente
+        // così i contatori Migliore/Peggiore del Mese sono sempre corretti nella card.
+        if (!hofStoricoLoaded.value) await _loadHofStorico();
+        const dataUrl = await drawPlayerCardCanvas(p);
+        const trackAssist = currentGroup.value?.trackAssist !== false;
+        const assistPart = trackAssist ? ` · 🅰️ ${p.assistTotali||0} assist` : '';
+        const text = `🏆 ${p.soprannome||p.nome} — Stagione corrente con Amici FC\n⚽ ${p.goalTotali||0} gol${assistPart} · ⭐ ${(p.mediaVoto||0).toFixed(1)} media voto · 🎮 ${p.partiteTotali||0} partite`;
+        const filename = `amicifc_${(p.soprannome||p.nome||'giocatore').replace(/\s+/g,'_')}.png`;
+        await sharePNG(dataUrl, filename, text);
+      } catch(e) {
+        toast('❌ Errore generazione card: '+e.message,'error',5000);
+      }
+    };
+
 
     const shareFormationPNG = async f => {
       toast('⏳ Generando poster...','info',3000);
@@ -16481,7 +16805,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       loadFormations, saveFormation, deleteFormation, editFormation,
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
-      playFormation, startClassicMode, startStepByStep, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG,
+      playFormation, startClassicMode, startStepByStep, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
