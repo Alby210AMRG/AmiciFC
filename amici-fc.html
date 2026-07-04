@@ -1305,23 +1305,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 .formation-card:hover { border-color: var(--lime); }
 
 .mini-field {
-  background: linear-gradient(180deg, #1a4a30 0%, #1e5a38 50%, #1a4a30 100%);
-  border-radius: 12px; padding: 10px;
-  border: 1px solid rgba(255,255,255,0.15);
-  display: flex; flex-direction: column; gap: 6px;
+  background: repeating-linear-gradient(90deg, rgba(255,255,255,0.045) 0px, rgba(255,255,255,0.045) 36px, transparent 36px, transparent 72px),
+              radial-gradient(ellipse at 50% -10%, rgba(255,255,220,0.22), transparent 60%),
+              linear-gradient(180deg, #1e6a3f 0%, #2f8552 45%, #1e6a3f 100%);
+  border-radius: 14px; padding: 18px 14px;
+  border: 1.5px solid rgba(166,255,77,0.3);
+  display: flex; flex-direction: column; gap: 10px;
   position: relative;
+  overflow: hidden;
 }
 .mini-field::before {
   content: '';
   position: absolute; left: 50%; top: 0; bottom: 0;
-  width: 1px; background: rgba(255,255,255,0.2);
+  width: 1.5px; background: rgba(255,255,255,0.3);
 }
 .mini-field::after {
   content: '';
   position: absolute; left: 50%; top: 50%;
   transform: translate(-50%,-50%);
-  width: 30px; height: 30px; border-radius: 50%;
-  border: 1px solid rgba(255,255,255,0.2);
+  width: 40px; height: 40px; border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.25);
 }
 [data-theme="light"] .mini-field {
   background: linear-gradient(180deg, #3aaa4a 0%, #2F8F2F 50%, #3aaa4a 100%);
@@ -1336,12 +1339,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   text-align: center; font-size: 0.65rem; font-weight: 900;
   color: rgba(255,255,255,0.5); letter-spacing: 2px;
 }
-.mini-player { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.mini-player { display: flex; flex-direction: column; align-items: center; gap: 3px; }
 .mini-avatar {
-  width: 28px; height: 28px; border-radius: 50%;
+  width: 46px; height: 46px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  border: 1.5px solid rgba(255,255,255,0.5);
+  border: 2px solid rgba(255,255,255,0.6);
   overflow: hidden; background: var(--bg3);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
 .mini-player.blue .mini-avatar { border-color: #3A7BFF; }
 .mini-player.red  .mini-avatar { border-color: #FF4D4D; }
@@ -3280,29 +3284,29 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- Mini field preview -->
         <div class="mini-field">
           <div class="mini-team mini-team-b">
-            <span style="font-size:0.7rem;font-weight:800;color:var(--red)">{{ f.nomeSquadraB || 'Squadra B' }}</span>
-            <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-top:4px">
+            <span style="font-size:0.92rem;font-weight:900;color:#FF8C8C;background:rgba(0,0,0,0.35);padding:4px 12px;border-radius:20px;border:1.5px solid rgba(255,77,77,0.5);letter-spacing:0.3px">{{ f.nomeSquadraB || 'Squadra B' }}</span>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:4px">
               <div v-for="pid in (f.squadraB||[])" :key="pid" class="mini-player red">
-                <div class="mini-avatar">
+                <div class="mini-avatar" :style="{width:miniFieldSize(f).avatar+'px',height:miniFieldSize(f).avatar+'px'}">
                   <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :alt="getPlayer(pid)?.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, getPlayer(pid)?.uid)">
                   <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
                 </div>
-                <div style="font-size:0.55rem;text-align:center;max-width:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                <div :style="{fontSize:miniFieldSize(f).font+'rem',maxWidth:miniFieldSize(f).maxW+'px'}" style="text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
               </div>
             </div>
           </div>
           <div class="mini-field-center">VS</div>
           <div class="mini-team mini-team-a">
-            <div style="display:flex;flex-wrap:wrap;gap:3px;justify-content:center;margin-bottom:4px">
+            <div style="display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-bottom:4px">
               <div v-for="pid in (f.squadraA||[])" :key="pid" class="mini-player blue">
-                <div class="mini-avatar">
+                <div class="mini-avatar" :style="{width:miniFieldSize(f).avatar+'px',height:miniFieldSize(f).avatar+'px'}">
                   <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, getPlayer(pid)?.uid)" :alt="getPlayer(pid)?.nome" style="width:100%;height:100%;object-fit:cover;border-radius:50%" @error="onPhotoError($event, getPlayer(pid)?.uid)">
                   <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
                 </div>
-                <div style="font-size:0.55rem;text-align:center;max-width:32px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                <div :style="{fontSize:miniFieldSize(f).font+'rem',maxWidth:miniFieldSize(f).maxW+'px'}" style="text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
               </div>
             </div>
-            <span style="font-size:0.7rem;font-weight:800;color:var(--blue)">{{ f.nomeSquadraA || 'Squadra A' }}</span>
+            <span style="font-size:0.92rem;font-weight:900;color:#8CB4FF;background:rgba(0,0,0,0.35);padding:4px 12px;border-radius:20px;border:1.5px solid rgba(58,123,255,0.5);letter-spacing:0.3px">{{ f.nomeSquadraA || 'Squadra A' }}</span>
           </div>
         </div>
 
@@ -3325,14 +3329,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
             </div>
           </div>
-          <div style="font-size:0.72rem;color:var(--text2);text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px">
+          <div style="font-size:0.85rem;color:var(--text2);text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;line-height:1.4">
             {{ getCachedPrediction(f)?.verdict }}
           </div>
         </div>
 
         <div style="display:flex;gap:6px;margin-top:10px;align-items:center">
-          <button class="btn btn-blue btn-sm" @click="shareFormationPNG(f)" title="Condividi immagine formazione" style="padding:6px 10px">🖼️</button>
-          <button class="btn btn-ghost btn-sm" @click="openSendFormation(f)" title="Invia formazione a un altro giocatore" style="padding:6px 10px;border-color:rgba(166,255,77,0.4);color:var(--lime)">📲</button>
+          <button class="btn btn-blue btn-sm" @click="shareFormationPNG(f)" title="Condividi immagine formazione" style="padding:9px 14px;display:flex;align-items:center;gap:5px">🖼️ Condividi</button>
+          <button class="btn btn-blue btn-sm" @click="openSendFormation(f)" title="Invia formazione a un altro giocatore" style="padding:9px 14px;display:flex;align-items:center;gap:5px">📲 Invia</button>
           <button class="btn btn-primary btn-sm" style="flex:1" @click="playFormation(f)" :disabled="f.stato==='giocata'">
             {{ f.stato === 'giocata' ? '✅ Già giocata' : '⚽ Gioca questa' }}
           </button>
@@ -6696,7 +6700,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.671',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.674',date:'2026-07-02',items:[
+      'Nomi squadra molto piu leggibili nella schermata Formazioni (badge con bordo colorato invece di semplice testo). Fix: le emoji delle due squadre a volte uscivano uguali (es. entrambe 💪) — ora sono sempre garantite diverse tra loro.',
+    ]},{version:'v1.673',date:'2026-07-02',items:[
+      'Schermata Formazioni: foto/nomi giocatori ancora piu grandi, campo ingrandito con texture a strisce (non piu piatto), testo predizione AI piu leggibile. Bottoni riorganizzati per chiarezza: "Gioca questa" resta lunica azione verde acceso, "Condividi" e "Invia formazione" diventano blu secondari, entrambi ben etichettati.',
+    ]},{version:'v1.672',date:'2026-07-02',items:[
+      'Schermata Formazioni: foto giocatori e nomi molto piu grandi e leggibili (dimensione dinamica: piu grandi con squadre piccole, si riducono automaticamente fino a 11vs11 per non affollare il campo). Campo con colori piu vivaci e un accenno di luce. Bottone "Condividi immagine formazione" ora ben visibile con etichetta, non piu solo unemoji piccola.',
+    ]},{version:'v1.671',date:'2026-07-02',items:[
       'PNG Partita: voto ancora piu grande, icone gol/assist/autogol/rigori ingrandite notevolmente (erano troppo piccole). Aumentata la riserva di spazio nella griglia per evitare sovrapposizioni.',
     ]},{version:'v1.670',date:'2026-07-02',items:[
       'PNG Partita: corretto un errore di calcolo nel fix precedente che riservava una riga di troppo per il nome, facendo sovrapporre il badge voto con la riga di giocatori sottostante. Font del voto ingrandito ulteriormente.',
@@ -7408,7 +7418,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.671');
+    const appVersion = ref('1.674');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8220,6 +8230,21 @@ createApp({
     const getRandomFormationName=()=>{const avail=AI_FORMATION_NAMES.filter(n=>!usedFormationNames.value.includes(n));const pool=avail.length?avail:AI_FORMATION_NAMES;const name=pool[Math.floor(Math.random()*pool.length)];usedFormationNames.value.push(name);return name;};
     const TEAM_NAMES_A=['Gli Invincibili 🏆','I Fenomeni del Giovedi ⚡','La Macchina da Guerra 💪','I Dominatori della Pizza 🍕','Gli Imbattibili del Bar 🍺','I Campioni della Birra 🍺','La Banda del Martedi 🌙','I Maestri del Calcetto ⚽','I Goleador della Serata 🥅','I Terribili del Campo 😤','La Curva Sud 🎤','I Vecchi Leoni 🦁','Gli Idoli del Campo 🌟','I Fulmini del Calcetto ⚡','La Squadra della Pizzeria 🍕'];
     const TEAM_NAMES_B=['I Disperati ma Belli 😅','I Coraggiosi della Birra 🍺','La Resistenza Calcistica 💪','Gli Sfidanti della Notte 🌙','I Guerrieri del Giovedi ⚽','La Banda Bassotti 🐾','I Superstiti del Campo 😂','I Tornanti del Campetto 🔄','Gli Ultimi della Classe 🏅','I Recuperati dalla Panchina 🪑','La Riscossa del Oratorio ⛪','I Dimenticati ma Forti 💎','Gli Eroi Senza Trofeo 🎖️','La Rimonta Impossibile 🔥','I Birraioli in Forma 🍺'];
+    // Sceglie i nomi delle due squadre garantendo SEMPRE emoji diverse tra loro — anche se in
+    // futuro TEAM_NAMES_A/B venissero modificati e reintroducessero per caso una coincidenza
+    // allo stesso indice (bug reale trovato il 2/7: indice 2 aveva 💪 su entrambe le liste).
+    const _teamEmoji = s => (String(s).match(/\p{Extended_Pictographic}\s*$/u)||[])[0]?.trim() || '';
+    const pickTeamNames = (seed) => {
+      const nameA = TEAM_NAMES_A[seed % TEAM_NAMES_A.length];
+      let nameB = TEAM_NAMES_B[seed % TEAM_NAMES_B.length];
+      if (_teamEmoji(nameA) && _teamEmoji(nameA) === _teamEmoji(nameB)) {
+        for (let k=1; k<TEAM_NAMES_B.length; k++) {
+          const alt = TEAM_NAMES_B[(seed+k) % TEAM_NAMES_B.length];
+          if (_teamEmoji(alt) !== _teamEmoji(nameA)) { nameB = alt; break; }
+        }
+      }
+      return { nameA, nameB };
+    };
     
 
     const generateFormationsWithAI = async () => {
@@ -8334,8 +8359,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
           await db.formations.add({
             ...buildFormationBase(),
             nome:         fz.nome || getRandomFormationName(),
-            nomeSquadraA: fz.squadraA?.nome || TEAM_NAMES_A[i%TEAM_NAMES_A.length],
-            nomeSquadraB: fz.squadraB?.nome || TEAM_NAMES_B[i%TEAM_NAMES_B.length],
+            nomeSquadraA: fz.squadraA?.nome || pickTeamNames(i).nameA,
+            nomeSquadraB: fz.squadraB?.nome || pickTeamNames(i).nameB,
             squadraA:     sortByRole(aIds),
             squadraB:     sortByRole(bIds)
           });
@@ -8482,6 +8507,18 @@ Rispondi SOLO con questo JSON (niente altro testo):
       return Math.abs(sA - sB);
     };
 
+        // Dimensione foto/nome nel mini-campo formazione: si adatta al numero di giocatori
+        // per squadra, da 5vs5 a 11vs11, così le foto restano grandi quando possibile e il
+        // campo non diventa comunque troppo alto/affollato con squadre numerose.
+        const miniFieldSize = (f) => {
+      const n = Math.max((f?.squadraA||[]).length, (f?.squadraB||[]).length, 1);
+      if (n<=5)  return { avatar:68, font:0.92, maxW:80 };
+      if (n<=6)  return { avatar:60, font:0.88, maxW:72 };
+      if (n<=7)  return { avatar:52, font:0.82, maxW:64 };
+      if (n<=9)  return { avatar:44, font:0.76, maxW:56 };
+      return           { avatar:38, font:0.7,  maxW:48 }; // 10-11 per squadra
+    };
+
         const regenerateFormations = async () => {
       const active = groupFormations.value.filter(f => f.stato !== 'giocata');
       if (!active.length) return;
@@ -8517,7 +8554,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         if (existingKeys.has(key)) continue; // skip duplicates
         existingKeys.add(key);
         const ni = generated % TEAM_NAMES_A.length;
-        await db.formations.add({...buildFormationBase(),nome:getRandomFormationName(),nomeSquadraA:TEAM_NAMES_A[ni],nomeSquadraB:TEAM_NAMES_B[ni],squadraA:a,squadraB:b});
+        await db.formations.add({...buildFormationBase(),nome:getRandomFormationName(),nomeSquadraA:pickTeamNames(ni).nameA,nomeSquadraB:pickTeamNames(ni).nameB,squadraA:a,squadraB:b});
         generated++;
       }
       await loadFormations();aiLoading.value=false;
@@ -16914,7 +16951,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
       computeFormationPrediction, getCachedPrediction,
       showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime, lastSyncError, lazySyncIfNeeded,
-      regenerateFormations, getFormationBalance,
+      regenerateFormations, getFormationBalance, miniFieldSize,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
       playerFormHistory,
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
