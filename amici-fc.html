@@ -6700,7 +6700,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.674',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.676',date:'2026-07-02',items:[
+      'Fix reale: su un dispositivo nuovo, le foto giocatori non salvate direttamente sul record (ma nel nodo separato playerPhotos) non venivano recuperate al primo sync di onboarding — arrivavano solo dopo fino a 10 minuti, al primo sync periodico normale. Ora funziona correttamente dal primo avvio, nessun traffico Firebase aggiuntivo.',
+    ]},{version:'v1.675',date:'2026-07-02',items:[
+      'Aggiunti log diagnostici (visibili nell Inspector) per indagare il bug "foto mancanti al primo avvio, serve riaprire l app" — nessun fix ancora, solo strumentazione per capire dove si blocca esattamente la prossima volta che ricapita.',
+    ]},{version:'v1.674',date:'2026-07-02',items:[
       'Nomi squadra molto piu leggibili nella schermata Formazioni (badge con bordo colorato invece di semplice testo). Fix: le emoji delle due squadre a volte uscivano uguali (es. entrambe 💪) — ora sono sempre garantite diverse tra loro.',
     ]},{version:'v1.673',date:'2026-07-02',items:[
       'Schermata Formazioni: foto/nomi giocatori ancora piu grandi, campo ingrandito con texture a strisce (non piu piatto), testo predizione AI piu leggibile. Bottoni riorganizzati per chiarezza: "Gioca questa" resta lunica azione verde acceso, "Condividi" e "Invia formazione" diventano blu secondari, entrambi ben etichettati.',
@@ -7418,7 +7422,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.674');
+    const appVersion = ref('1.676');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7761,8 +7765,13 @@ createApp({
 
     // ── Sync v2: idrata p.foto da tabella playerPhotos (uid) per i giocatori che non hanno foto inline ──
     const _hydratePlayerPhotos = async () => {
+      const totalPlayers = groupPlayers.value.length;
       const missing = groupPlayers.value.filter(p => p.uid && !p.foto);
-      if (!missing.length) return;
+      if (!missing.length) {
+        logEvent('info', 'photos', `🖼️ _hydratePlayerPhotos: ${totalPlayers} giocatori totali, 0 senza foto → esco senza ricostruire la cache (cache attuale: ${Object.keys(playerPhotoCacheByUid.value).length} voci)`);
+        return;
+      }
+      logEvent('info', 'photos', `🖼️ _hydratePlayerPhotos: ${totalPlayers} giocatori totali, ${missing.length} senza foto → provo a recuperarle da db.playerPhotos`);
       for (const p of missing) {
         try {
           const rec = await db.playerPhotos.get(p.uid);
@@ -7777,7 +7786,11 @@ createApp({
         const cache = {};
         for (const rec of allPhotos) { if (rec.uid && rec.foto) cache[rec.uid] = rec.foto; }
         playerPhotoCacheByUid.value = cache;
-      } catch(e) {}
+        const stillMissing = groupPlayers.value.filter(p => p.uid && !p.foto && !cache[p.uid]).length;
+        logEvent('info', 'photos', `🖼️ _hydratePlayerPhotos: cache ricostruita con ${Object.keys(cache).length} voci da db.playerPhotos (${allPhotos.length} record totali). Giocatori ancora senza foto dopo hydration+cache: ${stillMissing}`);
+      } catch(e) {
+        logEvent('warn', 'photos', '🖼️ _hydratePlayerPhotos: errore costruendo la cache — ' + (e.message||e));
+      }
     };
 
     const selectGroup = async g => {
@@ -13637,6 +13650,13 @@ Niente altro, nessuna spiegazione.`;
         if (!data || !data.groups) throw new Error('Nessun dato trovato nel cloud');
 
         let syncedGroups=0, syncedPlayers=0, syncedMatches=0;
+        // Fix (6/7): la stessa risposta fetch include già il nodo separato playerPhotos
+        // (Sync v2, {uid: {foto, updatedAt}}) — prima veniva ignorato qui, a differenza di
+        // syncFromCloud() che lo usa correttamente. Su un dispositivo nuovo (primo onboarding),
+        // questo faceva sì che le foto non inline sul record giocatore restassero mancanti
+        // finché non arrivava il primo sync periodico "normale" (fino a 10 minuti dopo).
+        // Nessuna chiamata Firebase aggiuntiva: i dati sono già nella risposta di sopra.
+        const cloudPlayerPhotos = data.playerPhotos || {};
         for (const eg of data.groups) {
           const g = eg.group;
           if (!g?.nome) continue;
@@ -13650,14 +13670,20 @@ Niente altro, nessuna spiegazione.`;
           }
           for (const p of (eg.players||[])) {
             if (!p.id) continue; // skip players without ID
+            let _foto = p.foto || '';
+            if (!_foto && p.uid && cloudPlayerPhotos[p.uid]?.foto) _foto = cloudPlayerPhotos[p.uid].foto;
+            const pWithFoto = _foto ? {...p, foto: _foto} : p;
             const existing = await db.players.get(p.id);
             let _changed = false;
             if (existing) {
               const _sig = JSON.stringify(existing);
-              const _newSig = JSON.stringify({...existing, ...p, groupId: gid});
-              if (_sig !== _newSig) { await db.players.update(p.id, {...p, groupId: gid}); _changed = true; }
+              const _newSig = JSON.stringify({...existing, ...pWithFoto, groupId: gid});
+              if (_sig !== _newSig) { await db.players.update(p.id, {...pWithFoto, groupId: gid}); _changed = true; }
             } else {
-              await db.players.put({...p, groupId: gid}); _changed = true;
+              await db.players.put({...pWithFoto, groupId: gid}); _changed = true;
+            }
+            if (_foto && p.uid) {
+              await db.playerPhotos.put({ uid: p.uid, foto: _foto, updatedAt: cloudPlayerPhotos[p.uid]?.updatedAt || Date.now() });
             }
             if (_changed) syncedPlayers++;
           }
@@ -13688,6 +13714,13 @@ Niente altro, nessuna spiegazione.`;
           toasts.value = toasts.value.filter(t => t.type !== 'info');
           toast(`✅ Sincronizzato! ${syncedGroups} gruppi, ${syncedPlayers} giocatori, ${syncedMatches} partite`, 'success', 5000);
           await loadGroupData();
+          // Log diagnostico (2/7): stesso controllo dello startup sync, ma qui per il primo
+          // sync fatto durante l'onboarding — è probabilmente il caso reale segnalato da Alby
+          // ("installazione nuova, si mettono i dati Firebase").
+          const _pTot2 = groupPlayers.value.length;
+          const _pConFoto2 = groupPlayers.value.filter(p => p.foto).length;
+          const _cacheSize2 = Object.keys(playerPhotoCacheByUid.value).length;
+          logEvent('info', 'photos', `🖼️ Stato foto dopo sync di onboarding: ${_pConFoto2}/${_pTot2} giocatori con campo foto valorizzato, cache uid→foto: ${_cacheSize2} voci`);
           _syncNavigated = true;
           currentView.value = 'home';
         } else {
@@ -13739,9 +13772,11 @@ Niente altro, nessuna spiegazione.`;
         } else if (s.endsWith('.jpg') || s.endsWith('.jpeg')) {
           t.src = s.replace(/\.jpe?g$/, '.png');
         } else {
+          logEvent('info', 'photos', `🖼️ Foto non trovata (nessun fallback disponibile), uso silhouette — uid: ${uid||'?'}, src tentata: ${s.slice(0,80)}`);
           t.src = SILHOUETTE; // give up
         }
       } else {
+        logEvent('info', 'photos', `🖼️ Foto non caricata dopo il secondo tentativo, uso silhouette — uid: ${uid||'?'}`);
         t.src = SILHOUETTE;
         t.style.display = '';
         t.style.opacity = '0.55';
@@ -15482,6 +15517,13 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
             localStorage.setItem('amicifc_last_check', lastCheckTime.value);
             await loadGroupData();
           }
+          // Log diagnostico (2/7): stato foto giocatori subito dopo il sync di avvio — per
+          // capire, la prossima volta che ricapita "foto mancanti al primo avvio", se il
+          // problema è a monte (dati/cache) o più a valle (rendering/rete immagini).
+          const _pTot = groupPlayers.value.length;
+          const _pConFoto = groupPlayers.value.filter(p => p.foto).length;
+          const _cacheSize = Object.keys(playerPhotoCacheByUid.value).length;
+          logEvent('info', 'photos', `🖼️ Stato foto dopo sync di avvio: ${_pConFoto}/${_pTot} giocatori con campo foto valorizzato, cache uid→foto: ${_cacheSize} voci`);
         } catch(e) {
           logEvent('warn', 'sync', '⚠️ Startup sync fallito: ' + (e.message||e));
           console.warn('[startup sync]', e.message);
