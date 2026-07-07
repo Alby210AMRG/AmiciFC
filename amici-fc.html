@@ -6700,7 +6700,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.678',date:'2026-07-07',items:[
+    const changelogEntries = [{version:'v1.679',date:'2026-07-07',items:[
+      'Fix CRITICO TrashTalk, parte 2: il fix di v1.678 spostava il controllo prima del fast-path, ma il guard dei 30 secondi (pensato per evitare doppie chiamate AI costose) lo bloccava comunque nel giro successivo al sync — proprio quello con i dati partita aggiornati. Ora il controllo gira sempre, prima di guard e fast-path, senza intaccare la protezione sul resto delle card AI (Soprannomi/HoF/Pronostico).',
+    ]},{version:'v1.678',date:'2026-07-07',items:[
       'Fix CRITICO TrashTalk: il controllo che genera automaticamente il TT quando manca su Firebase per la partita più recente era diventato irraggiungibile (si trovava dopo un return anticipato) ogni volta che il flag locale era ancora valido — capitava proprio nel caso tipico "partita inserita da un altro utente senza AI configurata". Ora il controllo gira sempre, ad ogni avvio, come previsto.',
     ]},{version:'v1.677',date:'2026-07-02',items:[
       'Alleggeriti i log diagnostici del bug foto (ora risolto in v1.676): rimossi i log per singolo giocatore (i piu rumorosi, uno per ogni foto mancante, non si raggruppano nel buffer condiviso), mantenute solo le righe di riepilogo (una per sync).',
@@ -7426,7 +7428,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.678');
+    const appVersion = ref('1.679');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11558,35 +11560,19 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
     };
     const _initAiCards = async () => {
       if (!currentGroup.value) return;
-      // Guard: non rieseguire se già girata negli ultimi 30 secondi.
-      // Senza questo guard, loadGroupData e syncFromCloud chiamano entrambi _scheduleInitAiCards
-      // a 3 secondi di distanza — il debounce non li filtra e partono due init consecutivi che
-      // raddoppiano le chiamate AI e consumano quota Gemini inutilmente.
-      if (Date.now() - _initAiCardsLastRun < 30000) {
-        _aiLog('Init','⏭️ Init AI già eseguita di recente — skip (guard 30s)');
-        return;
-      }
-      _initAiCardsLastRun = Date.now();
       const _gid = currentGroup.value.id;
-      // Se tutti i flag validi → carica solo da localStorage, skip Firebase
-      // Retroattivamente setta i flag se i dati sono già in localStorage
-      const _lsKeyTTcheck = 'amicifc_tt_' + _gid;
-      const _ttCachedCheck = JSON.parse(localStorage.getItem(_lsKeyTTcheck)||'null');
-      if (_ttCachedCheck?.cards?.length && !aiFlagValid('tt', _gid)) aiFlagSet('tt', _gid);
-      const _lsHofCheck = JSON.parse(localStorage.getItem('amicifc_hof_'+new Date().toISOString().slice(0,7))||
-                          localStorage.getItem('amicifc_hof_'+new Date(Date.now()-30*864e5).toISOString().slice(0,7))||'null');
-      if (_lsHofCheck?.fame && !aiFlagValid('hof', _gid)) aiFlagSet('hof', _gid);
-      const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
-      if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
-      const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
-      if (_lsPronoCheck?.titolo && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
       // ── Controllo indipendente: l'ultima partita ha già un Trash Talk su Firebase? ───────────
       // Copre il caso in cui un altro utente (senza API key) ha inserito una partita: il flag
-      // locale di Alby era ancora valido (entro 3 giorni) quindi andrebbe altrimenti in fast-path
-      // e uscirebbe subito (return sotto) senza mai controllare Firebase per la partita nuova.
-      // Va eseguito qui, PRIMA del fast-path/return, altrimenti resta irraggiungibile (bug fix 7/7/2026).
-      // Gira SEMPRE se c'è API key e ci sono partite, indipendentemente dal flag.
+      // locale di Alby era ancora valido (entro 3 giorni) quindi andrebbe altrimenti in fast-path.
+      // DEVE girare PRIMA anche del guard dei 30s sotto (non solo prima del fast-path — fix 7/7/2026
+      // parte 1): altrimenti il primo giro (spesso troppo presto, con dati partita non ancora
+      // sincronizzati da Firebase) non vede la partita nuova e non fa nulla, mentre il secondo giro
+      // schedulato subito dopo il sync (stavolta con i dati giusti) viene bloccato dal guard 30s
+      // perché il primo giro ha già aggiornato _initAiCardsLastRun pochi secondi prima (fix 7/7/2026
+      // parte 2). Il guard 30s protegge solo il resto dell'init (Soprannomi/HoF/Pronostico, più
+      // costoso) — questo controllo è una singola lettura Firebase, non una chiamata AI, e va sempre
+      // eseguito quando c'è API key e ci sono partite, indipendentemente da guard e flag.
       if (settings.value.apiKey && groupMatches.value.length > 0) {
         try {
           const _allM2 = await db.matches.where('groupId').equals(_gid).toArray();
@@ -11609,6 +11595,30 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
           // Silenzioso: check best-effort, non blocca il resto dell'init
         }
       }
+
+      // Guard: non rieseguire il RESTO dell'init (Soprannomi/HoF/Pronostico, chiamate AI più costose)
+      // se già girato negli ultimi 30 secondi. Il controllo indipendente sopra NON è soggetto a
+      // questo guard: è leggero (una lettura Firebase) e deve poter girare ad ogni chiamata reale.
+      // Senza questo guard, loadGroupData e syncFromCloud chiamano entrambi _scheduleInitAiCards
+      // a 3 secondi di distanza — il debounce non li filtra e partono due init consecutivi che
+      // raddoppiano le chiamate AI e consumano quota Gemini inutilmente.
+      if (Date.now() - _initAiCardsLastRun < 30000) {
+        _aiLog('Init','⏭️ Init AI (resto) già eseguita di recente — skip (guard 30s)');
+        return;
+      }
+      _initAiCardsLastRun = Date.now();
+      // Se tutti i flag validi → carica solo da localStorage, skip Firebase
+      // Retroattivamente setta i flag se i dati sono già in localStorage
+      const _lsKeyTTcheck = 'amicifc_tt_' + _gid;
+      const _ttCachedCheck = JSON.parse(localStorage.getItem(_lsKeyTTcheck)||'null');
+      if (_ttCachedCheck?.cards?.length && !aiFlagValid('tt', _gid)) aiFlagSet('tt', _gid);
+      const _lsHofCheck = JSON.parse(localStorage.getItem('amicifc_hof_'+new Date().toISOString().slice(0,7))||
+                          localStorage.getItem('amicifc_hof_'+new Date(Date.now()-30*864e5).toISOString().slice(0,7))||'null');
+      if (_lsHofCheck?.fame && !aiFlagValid('hof', _gid)) aiFlagSet('hof', _gid);
+      const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
+      if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
+      const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
+      if (_lsPronoCheck?.titolo && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
       if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto() && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
