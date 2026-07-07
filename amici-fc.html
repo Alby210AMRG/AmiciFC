@@ -6700,7 +6700,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.676',date:'2026-07-02',items:[
+    const changelogEntries = [{version:'v1.678',date:'2026-07-07',items:[
+      'Fix CRITICO TrashTalk: il controllo che genera automaticamente il TT quando manca su Firebase per la partita più recente era diventato irraggiungibile (si trovava dopo un return anticipato) ogni volta che il flag locale era ancora valido — capitava proprio nel caso tipico "partita inserita da un altro utente senza AI configurata". Ora il controllo gira sempre, ad ogni avvio, come previsto.',
+    ]},{version:'v1.677',date:'2026-07-02',items:[
+      'Alleggeriti i log diagnostici del bug foto (ora risolto in v1.676): rimossi i log per singolo giocatore (i piu rumorosi, uno per ogni foto mancante, non si raggruppano nel buffer condiviso), mantenute solo le righe di riepilogo (una per sync).',
+    ]},{version:'v1.676',date:'2026-07-02',items:[
       'Fix reale: su un dispositivo nuovo, le foto giocatori non salvate direttamente sul record (ma nel nodo separato playerPhotos) non venivano recuperate al primo sync di onboarding — arrivavano solo dopo fino a 10 minuti, al primo sync periodico normale. Ora funziona correttamente dal primo avvio, nessun traffico Firebase aggiuntivo.',
     ]},{version:'v1.675',date:'2026-07-02',items:[
       'Aggiunti log diagnostici (visibili nell Inspector) per indagare il bug "foto mancanti al primo avvio, serve riaprire l app" — nessun fix ancora, solo strumentazione per capire dove si blocca esattamente la prossima volta che ricapita.',
@@ -7422,7 +7426,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.676');
+    const appVersion = ref('1.678');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7765,13 +7769,8 @@ createApp({
 
     // ── Sync v2: idrata p.foto da tabella playerPhotos (uid) per i giocatori che non hanno foto inline ──
     const _hydratePlayerPhotos = async () => {
-      const totalPlayers = groupPlayers.value.length;
       const missing = groupPlayers.value.filter(p => p.uid && !p.foto);
-      if (!missing.length) {
-        logEvent('info', 'photos', `🖼️ _hydratePlayerPhotos: ${totalPlayers} giocatori totali, 0 senza foto → esco senza ricostruire la cache (cache attuale: ${Object.keys(playerPhotoCacheByUid.value).length} voci)`);
-        return;
-      }
-      logEvent('info', 'photos', `🖼️ _hydratePlayerPhotos: ${totalPlayers} giocatori totali, ${missing.length} senza foto → provo a recuperarle da db.playerPhotos`);
+      if (!missing.length) return;
       for (const p of missing) {
         try {
           const rec = await db.playerPhotos.get(p.uid);
@@ -7786,8 +7785,13 @@ createApp({
         const cache = {};
         for (const rec of allPhotos) { if (rec.uid && rec.foto) cache[rec.uid] = rec.foto; }
         playerPhotoCacheByUid.value = cache;
+        // Log solo se restano davvero giocatori senza foto da nessuna parte (dato utile per capire
+        // se sono giocatori senza foto caricata, non un problema di sync) — una riga sola, non una
+        // per hydration, per non affollare il buffer condiviso dei log (Regola d'Oro: log leggeri).
         const stillMissing = groupPlayers.value.filter(p => p.uid && !p.foto && !cache[p.uid]).length;
-        logEvent('info', 'photos', `🖼️ _hydratePlayerPhotos: cache ricostruita con ${Object.keys(cache).length} voci da db.playerPhotos (${allPhotos.length} record totali). Giocatori ancora senza foto dopo hydration+cache: ${stillMissing}`);
+        if (stillMissing > 0) {
+          logEvent('info', 'photos', `🖼️ ${stillMissing}/${groupPlayers.value.length} giocatori senza foto (né inline né in cache locale/Firebase)`);
+        }
       } catch(e) {
         logEvent('warn', 'photos', '🖼️ _hydratePlayerPhotos: errore costruendo la cache — ' + (e.message||e));
       }
@@ -11577,6 +11581,35 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
       if (_lsPronoCheck?.titolo && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
+      // ── Controllo indipendente: l'ultima partita ha già un Trash Talk su Firebase? ───────────
+      // Copre il caso in cui un altro utente (senza API key) ha inserito una partita: il flag
+      // locale di Alby era ancora valido (entro 3 giorni) quindi andrebbe altrimenti in fast-path
+      // e uscirebbe subito (return sotto) senza mai controllare Firebase per la partita nuova.
+      // Va eseguito qui, PRIMA del fast-path/return, altrimenti resta irraggiungibile (bug fix 7/7/2026).
+      // Gira SEMPRE se c'è API key e ci sono partite, indipendentemente dal flag.
+      if (settings.value.apiKey && groupMatches.value.length > 0) {
+        try {
+          const _allM2 = await db.matches.where('groupId').equals(_gid).toArray();
+          const _newestM = _allM2.sort((a,b)=>b.data.localeCompare(a.data))[0];
+          if (_newestM) {
+            const _newestKey = (_newestM.data||'').replace(/-/g,'');
+            const _gKey3 = _aiCardGroupKey();
+            const _tok3 = await getValidToken() || '';
+            const _existingTT = _tok3
+              ? await _fbRead('aiCards/trashTalk/'+_gKey3+'/'+_newestKey, _tok3, 'shallow=true')
+              : null;
+            if (!_existingTT) {
+              // Nessun Trash Talk su Firebase per la partita più recente
+              _aiLog('Init','🔥 Partita '+_newestM.data+' non ha Trash Talk su Firebase — genero...');
+              aiFlagClear('tt', _gid); // invalida il flag locale per permettere la rigenerazione
+              _generateTrashTalk(_newestM).catch(e => _aiLog('Init','❌ TT auto-gen: '+e.message, false));
+            }
+          }
+        } catch(_e2) {
+          // Silenzioso: check best-effort, non blocca il resto dell'init
+        }
+      }
+
       if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto() && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
         const _lsKeyTT = 'amicifc_tt_' + _gid;
@@ -11685,33 +11718,6 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
         } catch(_e) {
           logEvent('warn','ai','[TrashTalk] Firebase non raggiungibile: '+_e.message);
           _aiLog('Init','⚠️ Firebase TrashTalk offline — uso locale',false);
-        }
-      }
-
-      // ── Controllo indipendente: l'ultima partita ha già un Trash Talk su Firebase? ───────────
-      // Copre il caso in cui un altro utente (senza API key) ha inserito una partita: il flag
-      // locale di Alby era ancora valido (entro 3 giorni) quindi il blocco sopra non lo rilevava.
-      // Questo check gira SEMPRE se c'è API key e ci sono partite, indipendentemente dal flag.
-      if (settings.value.apiKey && groupMatches.value.length > 0) {
-        try {
-          const _allM2 = await db.matches.where('groupId').equals(_gid).toArray();
-          const _newestM = _allM2.sort((a,b)=>b.data.localeCompare(a.data))[0];
-          if (_newestM) {
-            const _newestKey = (_newestM.data||'').replace(/-/g,'');
-            const _gKey3 = _aiCardGroupKey();
-            const _tok3 = await getValidToken() || '';
-            const _existingTT = _tok3
-              ? await _fbRead('aiCards/trashTalk/'+_gKey3+'/'+_newestKey, _tok3, 'shallow=true')
-              : null;
-            if (!_existingTT) {
-              // Nessun Trash Talk su Firebase per la partita più recente
-              _aiLog('Init','🔥 Partita '+_newestM.data+' non ha Trash Talk su Firebase — genero...');
-              aiFlagClear('tt', _gid); // invalida il flag locale per permettere la rigenerazione
-              _generateTrashTalk(_newestM).catch(e => _aiLog('Init','❌ TT auto-gen: '+e.message, false));
-            }
-          }
-        } catch(_e2) {
-          // Silenzioso: check best-effort, non blocca il resto dell'init
         }
       }
 
@@ -13772,11 +13778,9 @@ Niente altro, nessuna spiegazione.`;
         } else if (s.endsWith('.jpg') || s.endsWith('.jpeg')) {
           t.src = s.replace(/\.jpe?g$/, '.png');
         } else {
-          logEvent('info', 'photos', `🖼️ Foto non trovata (nessun fallback disponibile), uso silhouette — uid: ${uid||'?'}, src tentata: ${s.slice(0,80)}`);
           t.src = SILHOUETTE; // give up
         }
       } else {
-        logEvent('info', 'photos', `🖼️ Foto non caricata dopo il secondo tentativo, uso silhouette — uid: ${uid||'?'}`);
         t.src = SILHOUETTE;
         t.style.display = '';
         t.style.opacity = '0.55';
