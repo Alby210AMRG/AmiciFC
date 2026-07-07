@@ -6700,7 +6700,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.679',date:'2026-07-07',items:[
+    const changelogEntries = [{version:'v1.680',date:'2026-07-07',items:[
+      'Diagnostica temporanea per il bug TrashTalk (log aggiuntivi nel controllo automatico, nessun cambio di comportamento): serve a capire perché il controllo non genera la card nonostante sia ormai raggiungibile — da rimuovere una volta isolata la causa.',
+    ]},{version:'v1.679',date:'2026-07-07',items:[
       'Fix CRITICO TrashTalk, parte 2: il fix di v1.678 spostava il controllo prima del fast-path, ma il guard dei 30 secondi (pensato per evitare doppie chiamate AI costose) lo bloccava comunque nel giro successivo al sync — proprio quello con i dati partita aggiornati. Ora il controllo gira sempre, prima di guard e fast-path, senza intaccare la protezione sul resto delle card AI (Soprannomi/HoF/Pronostico).',
     ]},{version:'v1.678',date:'2026-07-07',items:[
       'Fix CRITICO TrashTalk: il controllo che genera automaticamente il TT quando manca su Firebase per la partita più recente era diventato irraggiungibile (si trovava dopo un return anticipato) ogni volta che il flag locale era ancora valido — capitava proprio nel caso tipico "partita inserita da un altro utente senza AI configurata". Ora il controllo gira sempre, ad ogni avvio, come previsto.',
@@ -7428,7 +7430,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.679');
+    const appVersion = ref('1.680');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11573,6 +11575,10 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       // parte 2). Il guard 30s protegge solo il resto dell'init (Soprannomi/HoF/Pronostico, più
       // costoso) — questo controllo è una singola lettura Firebase, non una chiamata AI, e va sempre
       // eseguito quando c'è API key e ci sono partite, indipendentemente da guard e flag.
+      // DIAGNOSTICA TEMPORANEA (7/7/2026, da rimuovere una volta isolata la causa): logga sempre
+      // lo stato del controllo, anche quando non genera nulla, per capire quale ramo silenzioso
+      // viene preso (apiKey/partite mancanti, TT già presente, o eccezione).
+      _aiLog('Init','🔎 [diag TT] apiKey:'+(!!settings.value.apiKey)+' groupMatches:'+groupMatches.value.length);
       if (settings.value.apiKey && groupMatches.value.length > 0) {
         try {
           const _allM2 = await db.matches.where('groupId').equals(_gid).toArray();
@@ -11581,18 +11587,22 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
             const _newestKey = (_newestM.data||'').replace(/-/g,'');
             const _gKey3 = _aiCardGroupKey();
             const _tok3 = await getValidToken() || '';
+            _aiLog('Init','🔎 [diag TT] ultima partita locale:'+_newestM.data+' path:aiCards/trashTalk/'+_gKey3+'/'+_newestKey+' token:'+(!!_tok3));
             const _existingTT = _tok3
               ? await _fbRead('aiCards/trashTalk/'+_gKey3+'/'+_newestKey, _tok3, 'shallow=true')
               : null;
+            _aiLog('Init','🔎 [diag TT] risultato lettura Firebase — esiste già:'+(!!_existingTT));
             if (!_existingTT) {
               // Nessun Trash Talk su Firebase per la partita più recente
               _aiLog('Init','🔥 Partita '+_newestM.data+' non ha Trash Talk su Firebase — genero...');
               aiFlagClear('tt', _gid); // invalida il flag locale per permettere la rigenerazione
               _generateTrashTalk(_newestM).catch(e => _aiLog('Init','❌ TT auto-gen: '+e.message, false));
             }
+          } else {
+            _aiLog('Init','🔎 [diag TT] nessuna partita trovata in locale per questo gruppo');
           }
         } catch(_e2) {
-          // Silenzioso: check best-effort, non blocca il resto dell'init
+          _aiLog('Init','🔎 [diag TT] ECCEZIONE catturata: '+(_e2?.message||_e2));
         }
       }
 
