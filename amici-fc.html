@@ -6700,7 +6700,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.681',date:'2026-07-10',items:[
+    const changelogEntries = [{version:'v1.682',date:'2026-07-10',items:[
+      'Fix definitivo Punti: ora sempre ricalcolati dal risultato/squadre di ogni partita invece di fidarsi del valore già salvato (confermato: quel campo non è mai usato per override manuali) — "Ricalcola Statistiche" ora autocorregge anche i dati già sbagliati in passato, non solo quelli futuri.',
+    ]},{version:'v1.681',date:'2026-07-10',items:[
       'Fix CRITICO Hall of Fame: syncToCloud sovrascriveva l\'intero storico mensile su Firebase con il solo mese in memoria, cancellando i mesi precedenti (causa della sparizione di Maggio). Ora fa il merge come già avveniva per il TrashTalk.',
       'Fix CRITICO TrashTalk: correggere una partita con "Modifica Partita" non invalidava il TrashTalk già generato per quella data, che restava quindi basato sul risultato/formazione vecchi. Ora la correzione invalida anche il TrashTalk cosi viene rigenerato con i dati giusti.',
       'Fix punti: modificare una partita ora ricalcola correttamente i punti (3 vittoria/1 pareggio/0 sconfitta) in base al risultato e alle squadre attuali, invece di tenere il valore calcolato al primo salvataggio.',
@@ -7437,7 +7439,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.681');
+    const appVersion = ref('1.682');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12660,11 +12662,15 @@ Niente altro, nessuna spiegazione.`;
           const pid = s.playerId;
           if (!statsMap[pid]) continue;
           const st = statsMap[pid];
-          let punti = s.punti;
-          if (punti === undefined || punti === null) {
-            const inA = (m.squadraA||[]).includes(pid);
-            punti = isDraw ? 1 : ((inA && teamAWon) || (!inA && !teamAWon)) ? 3 : 0;
-          }
+          // Punti SEMPRE derivati da risultato/squadre, mai dal valore salvato sulla partita —
+          // confermato con Alby (10/7/2026): il campo "Punti" in Modifica Partita non è mai usato
+          // per override manuali (sempre 3/1/0 standard), quindi un valore salvato disallineato è
+          // sempre un difetto (partita corretta senza ricalcolo, bug ora risolto in saveEditMatch)
+          // e va sempre auto-corretto qui, non trattato come intenzionale. Prima si ricalcolava
+          // SOLO se il valore salvato era null/undefined, perpetuando qualsiasi drift storico anche
+          // dopo "Ricalcola Statistiche" (bug fix 10/7/2026).
+          const inA = (m.squadraA||[]).includes(pid);
+          const punti = isDraw ? 1 : ((inA && teamAWon) || (!inA && !teamAWon)) ? 3 : 0;
           st.goalTotali             += s.goal             || 0;
           st.assistTotali           += s.assist           || 0;
           st.autogolTotali          += s.autogol          || 0;
