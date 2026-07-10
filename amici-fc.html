@@ -6700,7 +6700,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.683',date:'2026-07-10',items:[
+    const changelogEntries = [{version:'v1.684',date:'2026-07-10',items:[
+      'Fix CRITICO Hall of Fame: syncToCloud sovrascriveva ogni volta il mese corrente su Firebase con la versione ancora in memoria sul dispositivo, cancellando di nuovo uid/gruppo/stagione appena aggiunti da una migrazione esterna (causa della sparizione ripetuta delle foto di Giugno subito dopo la migrazione). Ora confronta le date e non retrocede mai a una versione più vecchia.',
+    ]},{version:'v1.683',date:'2026-07-10',items:[
       'Fix Hall of Fame: la cache locale (foto/dati del Migliore-Peggiore del mese) non veniva più confrontata con Firebase quando il flag locale era ancora valido — restava bloccata su dati vecchi (es. le foto di Giugno mancanti dopo la migrazione fatta in Inspector) fino a 30 giorni. Ora il confronto con Firebase avviene sempre ad ogni avvio.',
     ]},{version:'v1.682',date:'2026-07-10',items:[
       'Fix definitivo Punti: ora sempre ricalcolati dal risultato/squadre di ogni partita invece di fidarsi del valore già salvato (confermato: quel campo non è mai usato per override manuali) — "Ricalcola Statistiche" ora autocorregge anche i dati già sbagliati in passato, non solo quelli futuri.',
@@ -7441,7 +7443,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.683');
+    const appVersion = ref('1.684');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13070,26 +13072,28 @@ Niente altro, nessuna spiegazione.`;
           cloudAiCards.hallOfFame = cloudAiCards.hallOfFame || {};
           const _hofMeseKey = aiCardsHallOfFame.value.mese;
           const _existingHof = cloudAiCards.hallOfFame[_gKey];
+          let _baseMonths = {};
           if (_existingHof && typeof _existingHof === 'object' && !_existingHof.fame) {
-            // Già nel formato nuovo (nidificato per mese) — aggiorna solo la chiave del mese corrente
-            cloudAiCards.hallOfFame[_gKey] = {
-              ..._existingHof,
-              [_hofMeseKey]: aiCardsHallOfFame.value,
-            };
+            // Già nel formato nuovo (nidificato per mese)
+            _baseMonths = { ..._existingHof };
           } else if (_existingHof && _existingHof.fame && _existingHof.mese && _existingHof.mese !== _hofMeseKey) {
             // Formato legacy (piatto) per UN ALTRO mese — non buttarlo, spostalo sotto la sua chiave
-            // prima di scrivere il mese corrente, altrimenti verrebbe perso (stesso bug di prima)
-            cloudAiCards.hallOfFame[_gKey] = {
-              [_existingHof.mese]: _existingHof,
-              [_hofMeseKey]: aiCardsHallOfFame.value,
-            };
-          } else {
-            // Assente o legacy dello stesso mese corrente — crea/sovrascrive solo questa chiave
-            cloudAiCards.hallOfFame[_gKey] = {
-              ...(_existingHof && typeof _existingHof === 'object' ? _existingHof : {}),
-              [_hofMeseKey]: aiCardsHallOfFame.value,
-            };
+            _baseMonths = { [_existingHof.mese]: _existingHof };
           }
+          // Non retrocedere: se su Firebase c'è già un dato per QUESTO STESSO mese più recente
+          // (es. dopo una migrazione via Inspector che ha aggiunto uid/gruppo/stagione mancanti),
+          // non sovrascriverlo con la versione in memoria locale — che potrebbe essere quella VECCHIA,
+          // non ancora ricaricata dall'app dopo una modifica fatta fuori dal normale flusso.
+          // Bug fix 10/7/2026: senza questo controllo, ogni sync dopo una migrazione esterna
+          // cancellava di nuovo l'uid appena aggiunto (causa della sparizione delle foto di Giugno
+          // subito dopo la migrazione).
+          const _existingForThisMonth = (_existingHof && typeof _existingHof === 'object' && !_existingHof.fame)
+            ? _existingHof[_hofMeseKey]
+            : (_existingHof && _existingHof.fame && _existingHof.mese === _hofMeseKey ? _existingHof : null);
+          const _cloudGenAt = _existingForThisMonth?.generatedAt || 0;
+          const _localGenAt = aiCardsHallOfFame.value?.generatedAt || 0;
+          const _hofWinner = (_existingForThisMonth && _cloudGenAt >= _localGenAt) ? _existingForThisMonth : aiCardsHallOfFame.value;
+          cloudAiCards.hallOfFame[_gKey] = { ..._baseMonths, [_hofMeseKey]: _hofWinner };
         }
 
         // Soprannomi: prima prova in locale, poi dal path dedicato Firebase
