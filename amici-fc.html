@@ -6700,7 +6700,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.682',date:'2026-07-10',items:[
+    const changelogEntries = [{version:'v1.683',date:'2026-07-10',items:[
+      'Fix Hall of Fame: la cache locale (foto/dati del Migliore-Peggiore del mese) non veniva più confrontata con Firebase quando il flag locale era ancora valido — restava bloccata su dati vecchi (es. le foto di Giugno mancanti dopo la migrazione fatta in Inspector) fino a 30 giorni. Ora il confronto con Firebase avviene sempre ad ogni avvio.',
+    ]},{version:'v1.682',date:'2026-07-10',items:[
       'Fix definitivo Punti: ora sempre ricalcolati dal risultato/squadre di ogni partita invece di fidarsi del valore già salvato (confermato: quel campo non è mai usato per override manuali) — "Ricalcola Statistiche" ora autocorregge anche i dati già sbagliati in passato, non solo quelli futuri.',
     ]},{version:'v1.681',date:'2026-07-10',items:[
       'Fix CRITICO Hall of Fame: syncToCloud sovrascriveva l\'intero storico mensile su Firebase con il solo mese in memoria, cancellando i mesi precedenti (causa della sparizione di Maggio). Ora fa il merge come già avveniva per il TrashTalk.',
@@ -7439,7 +7441,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.682');
+    const appVersion = ref('1.683');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11500,11 +11502,12 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
 
       if (!currentGroup.value?.firebaseUrl) return;
       const _gidHof = currentGroup.value.id;
-      // Flag valido → salta lettura Firebase
-      if (aiFlagValid('hof', _gidHof) && _lsBest?.fame) {
-        _aiLog('Init','✅ HoF locale già aggiornata — Firebase skip');
-        return;
-      }
+      // Confronta SEMPRE con Firebase (lettura leggera), anche se il flag locale è valido — non fidarsi
+      // ciecamente del flag per saltare il controllo, altrimenti un aggiornamento dei dati fatto fuori
+      // dal normale flusso dell'app (es. una migrazione via Inspector) resta invisibile fino alla
+      // scadenza naturale del flag (fino a 30 giorni). Bug fix 10/7/2026, stesso principio già
+      // applicato al TrashTalk: il flag protegge dal rigenerare/richiamare l'AI, non dal verificare
+      // se c'è qualcosa di più recente da scaricare.
       try {
         const token = await getValidToken() || '';
         const _gk = _aiCardGroupKey();
