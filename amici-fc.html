@@ -6651,7 +6651,7 @@ createApp({
           const row=[p.soprannome||p.nome];
           let tot=0;
           for(const m of matches){
-            const s=(m.statisticheGiocatori||[]).find(s=>s.playerId===p.id);
+            const s=(m.statisticheGiocatori||[]).find(s=>s.playerId===p.uid||String(s.playerId)===String(p.id));
             const pts=s?.punti??'';
             row.push(pts===''?'':Number(pts));
             if(typeof pts==='number'||typeof pts==='string'&&pts!=='')tot+=Number(pts);
@@ -6709,7 +6709,16 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.686',date:'2026-07-10',items:[
+    const changelogEntries = [{version:'v1.689',date:'2026-07-11',items:[
+      'Fix CRITICO offline: l\'aggiornamento automatico cancellava cache e service worker e POI provava a ricaricare la pagina — se il dispositivo era offline in quel momento, restava senza nulla da servire, completamente non funzionante finché non si tornava online. Ora controlla la connessione prima di procedere (e di nuovo appena prima del ricaricamento) e rimanda l\'aggiornamento se manca la rete.',
+      'Altri fix mismatch ID/UID (stessa causa del voto mancante di Evans): card statistiche "hero" (streak vittorie, forma ultime 3 partite), controllo di sicurezza prima di eliminare un giocatore, esportazione Excel — tutti ora considerano anche l\'id legacy di un giocatore, non solo l\'uid attuale del profilo.',
+      'Inspector: badge "⚠️ id legacy" accanto a ogni giocatore nella vista Partite con id non-uid in quella partita, più un conteggio dedicato nell\'Audit ID di quanti giocatori distinti sono coinvolti — strumento di monitoraggio per individuare in anticipo questa classe di bug.',
+    ]},{version:'v1.688',date:'2026-07-10',items:[
+      'Fix CRITICO: voto (e potenzialmente altre statistiche) mancanti nel PNG condivisibile per giocatori il cui id in una partita specifica è ancora quello numerico legacy invece dell\'uid attuale del profilo — causa esatta del caso Evans, isolata con la diagnostica di v1.687. Ora le statistiche vengono cercate con lo stesso id effettivamente usato in quella partita, non con l\'uid corrente del profilo (che su partite vecchie può differire). Stessa protezione applicata anche al riconoscimento MVP.',
+      'Rimossi i log diagnostici temporanei [diag PNG] introdotti in v1.687, non più necessari.',
+    ]},{version:'v1.687',date:'2026-07-10',items:[
+      'Diagnostica temporanea per il voto ancora mancante nel PNG condivisibile (caso Evans): nessun cambio di comportamento, solo log [diag PNG] aggiuntivi in 3 punti della catena dati (partita salvata → playerStats → dati passati al disegno) per isolare dove si perde esattamente il voto, dato che il fix precedente non è bastato.',
+    ]},{version:'v1.686',date:'2026-07-10',items:[
       'Fix CRITICO: il PNG condivisibile ("Risultato Finale") di una partita corretta dopo il primo salvataggio restava congelato alla versione precedente alla modifica — causa del voto mancante segnalato da Alby (dato corretto nella partita, ma il PNG era vecchio). Ora una correzione partita invalida i PNG salvati (risultato/pagelle/formazione), che vengono rigenerati automaticamente al volo alla prossima condivisione.',
     ]},{version:'v1.685',date:'2026-07-10',items:[
       'Overall nel banner Statistiche mostrato senza decimali (numero intero).',
@@ -7460,7 +7469,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.686');
+    const appVersion = ref('1.689');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7980,10 +7989,15 @@ createApp({
       // Compatibile con l'Archivio Stagioni: dopo un'archiviazione, groupMatches.value
       // parte vuoto, quindi un giocatore presente solo in stagioni passate (già archiviate)
       // torna cancellabile normalmente.
+      // Controlla SIA l'uid attuale SIA l'id legacy (p.id): partite vecchie possono ancora
+      // riferire il giocatore con l'id numerico di prima della migrazione al sistema uid —
+      // controllare solo p.uid farebbe risultare "senza partite" un giocatore che in realtà
+      // ne ha, rendendolo eliminabile per errore (bug fix 11/7/2026, stessa classe di bug
+      // del voto mancante di Evans — vedi Regola d'Oro 3).
       const matchCount = groupMatches.value.filter(m =>
-        (m.squadraA||[]).includes(p.uid) ||
-        (m.squadraB||[]).includes(p.uid) ||
-        (m.statisticheGiocatori||[]).some(s => s.playerId === p.uid)
+        (m.squadraA||[]).some(id => id === p.uid || String(id) === String(p.id)) ||
+        (m.squadraB||[]).some(id => id === p.uid || String(id) === String(p.id)) ||
+        (m.statisticheGiocatori||[]).some(s => s.playerId === p.uid || String(s.playerId) === String(p.id))
       ).length;
       if (matchCount > 0) {
         toast(`⛔ ${p.nome} ha giocato ${matchCount} partit${matchCount===1?'a':'e'} in questa stagione, non può essere eliminato.`, 'error', 6000);
@@ -9468,8 +9482,15 @@ Rispondi SOLO con questo JSON (niente altro testo):
           const colCenterX=panelX+SIDE_MARGIN+colW/2+col2*(colW+COL_GAP);
           const px=isLastOdd?panelX+panelW/2:colCenterX;
           const py=startY+row*rowH+R;
-          const st=(md.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(p.uid||p.id))||{};
-          const isMvp=md.mvpId && String(md.mvpId)===String(p.uid||p.id);
+          // Cerca PRIMA per pid (lo stesso id con cui è stato costruito md.statisticheGiocatori,
+          // sempre corretto per costruzione — vedi generateAndShareMatchPNG), poi in fallback per
+          // p.uid||p.id. Necessario per le partite "vecchie" dove squadraA/B contiene ancora
+          // l'id numerico legacy di un giocatore invece del suo uid attuale: cercare solo per
+          // p.uid (l'uid CORRENTE del profilo) falliva silenziosamente, perché in quella partita
+          // le statistiche sono salvate sotto l'id vecchio, non sotto l'uid nuovo. Bug fix
+          // 11/7/2026, causa del voto mancante di Evans, isolata con log diagnostici in v1.687.
+          const st=(md.statisticheGiocatori||[]).find(s=>String(s.playerId)===String(pid)||String(s.playerId)===String(p.uid||p.id))||{};
+          const isMvp=md.mvpId && (String(md.mvpId)===String(pid)||String(md.mvpId)===String(p.uid||p.id));
           // Alone dorato per l'MVP, bordo colore squadra per tutti gli altri
           if(isMvp){
             ctx.save();ctx.shadowColor='#FFD700';ctx.shadowBlur=Math.max(18,R*0.5);
@@ -15412,6 +15433,19 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     };
 
     const doUpdate = async () => {
+      // GUARDIA OFFLINE (bug fix 11/7/2026): prima di cancellare service worker e cache e
+      // ricaricare la pagina, verifica che ci sia davvero connessione. Senza questo controllo,
+      // se l'aggiornamento scattava mentre il dispositivo era offline (es. il meccanismo
+      // "critical" che aggiorna da solo quando l'app va in background), la cache veniva
+      // cancellata e poi il reload falliva per mancanza di rete — l'app restava senza nulla
+      // da servire, completamente rotta finché non si tornava online. Viola la regola
+      // fondamentale "l'app deve funzionare offline". Ora, se offline, l'aggiornamento viene
+      // rimandato silenziosamente al prossimo momento utile (prossimo controllo con connessione).
+      if (!navigator.onLine) {
+        console.warn('[AmiciFC] doUpdate rimandato: dispositivo offline');
+        updateAvailable.value = true; // riprova al prossimo checkForUpdates utile
+        return;
+      }
       updateAvailable.value = false; // hide banner immediately to avoid loop
       toast('⏳ Aggiornamento in corso...', 'info', 3000);
       try {
@@ -15425,6 +15459,16 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         }
       } catch(e) {
         console.warn('[AmiciFC] doUpdate error:', e);
+      }
+      // Doppio controllo appena prima del reload: la connessione potrebbe essere caduta
+      // nell'intervallo tra l'inizio della funzione e questo punto (cancellazione cache/SW
+      // può richiedere del tempo). Se è caduta ora, non ricaricare comunque — restare sulla
+      // versione corrente (già cancellata di cache, ma ancora funzionante in memoria) è
+      // comunque meglio di un reload che fallisce nel vuoto.
+      if (!navigator.onLine) {
+        console.warn('[AmiciFC] doUpdate: connessione caduta durante la pulizia — reload rimandato');
+        updateAvailable.value = true;
+        return;
       }
       setTimeout(() => window.location.reload(true), 800);
     };
@@ -15791,8 +15835,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
             checkForUpdates(true).catch(console.warn);
           }, 1000);
         } else if (document.visibilityState === 'hidden') {
-          // App critica già notificata mentre era visibile → aggiorna ora che è in background
-          if (updateAvailable.value && updateCritical.value) {
+          // App critica già notificata mentre era visibile → aggiorna ora che è in background,
+          // ma solo se c'è connessione (doUpdate ha comunque il suo controllo interno — questo
+          // è un livello di sicurezza in più, per evitare di provare quando è chiaramente inutile).
+          if (updateAvailable.value && updateCritical.value && navigator.onLine) {
             localStorage.setItem('amicifc_silent_update', JSON.stringify({version: newVersion.value, highlights: updateHighlights.value}));
             doUpdate();
           }
@@ -16331,7 +16377,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         for (const p of players) {
           if (!(p.partiteTotali >= 2)) continue;
           for (const m of matches) {
-            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
             if (st && (st.goal||0) > recordVal) {
               recordVal = st.goal;
               recordP = p;
@@ -16345,7 +16391,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         for (const p of players.filter(p => (p.partiteTotali||0) >= 2)) {
           let maxG = 0;
           for (const m of matches) {
-            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
             if (st && (st.goal||0) > maxG) maxG = st.goal;
           }
           if (maxG >= 2) _recCandidates.push({ p, tipo: 'gol', val: maxG, txt: `Record personale: ${maxG} gol in una sola partita! Un autentico cecchino del campetto.` });
@@ -16355,7 +16401,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           for (const p of players.filter(p => (p.partiteTotali||0) >= 2)) {
             let maxA = 0;
             for (const m of matches) {
-              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
               if (st && (st.assist||0) > maxA) maxA = st.assist;
             }
             if (maxA >= 2) _recCandidates.push({ p, tipo: 'assist', val: maxA, txt: `Record personale: ${maxA} assist in una partita. Il regista del campetto.` });
@@ -16365,7 +16411,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         for (const p of players.filter(p => (p.partiteTotali||0) >= 3)) {
           let maxV = 0;
           for (const m of matches) {
-            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+            const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
             if (st && (st.voto||0) > maxV) maxV = st.voto;
           }
           if (maxV >= 8) _recCandidates.push({ p, tipo: 'voto', val: maxV, txt: `Voto massimo ottenuto: ${maxV}/10. Quella prestazione è rimasta nella leggenda del campetto.` });
@@ -16392,7 +16438,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           const _formaScore = p => {
             let tot = 0, n = 0;
             for (const m of _last3) {
-              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
               if (st && (st.voto||0) > 0) { tot += st.voto; n++; }
             }
             return n > 0 ? tot/n : 0;
@@ -16401,7 +16447,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           if (_sorted.length >= 2) {
             const top = _sorted[0], flop = _sorted[_sorted.length-1];
             const _bars = (p) => _last3.map(m => {
-              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
               return { v: st?.voto || 0, data: m.data };
             });
             slides.push({ type: 'forma', dur: 7000, label: '📈 FORMA RECENTE',
@@ -16443,7 +16489,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           const _mediaUlt3 = p => {
             let tot = 0, n = 0;
             for (const m of _last3b) {
-              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid);
+              const st = (m.statisticheGiocatori||[]).find(s => s.playerId === p.uid || String(s.playerId) === String(p.id));
               if (st && (st.voto||0) > 0) { tot += st.voto; n++; }
             }
             return n > 0 ? (tot/n).toFixed(1) : null;
