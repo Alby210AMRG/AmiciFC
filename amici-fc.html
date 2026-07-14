@@ -2281,6 +2281,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
+            <!-- Filigrana emoji generica per i tipi che ne erano privi (11/7/2026, richiesta di Alby):
+                 stat/trashTalk/hallFame/hallShame/pronoMini/nickCard/infortunio/fantasma/welcome/tutorial
+                 hanno già la propria (o restano volutamente pulite) — questa copre gli altri 17 tipi,
+                 usando l'emoji già presente nel testo della card se c'è, altrimenti il fallback in
+                 heroWatermarkEmoji(). -->
+            <div v-if="!['stat','trashTalk','hallFame','hallShame','pronoMini','nickCard','infortunio','fantasma','welcome','tutorial'].includes(s.type)"
+              style="position:absolute;right:-6px;bottom:-16px;font-size:120px;line-height:1;opacity:.10;pointer-events:none;transform:rotate(-6deg)">{{heroWatermarkEmoji(s)}}</div>
             <!-- ── Welcome card (prima del caricamento dati) ── -->
             <template v-if="s.type==='welcome'">
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:0;text-align:center;padding:12px 20px">
@@ -4235,7 +4242,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div v-if="!buildTopFormation(topFormationSize, statsSourceMatches, statsSourcePlayers).length" class="empty-state" style="padding:16px">
               <p>Non ci sono abbastanza giocatori con partite registrate.</p>
             </div>
-            <div v-for="p in buildTopFormation(topFormationSize, statsSourceMatches, statsSourcePlayers)" :key="'tf-'+p.id" class="stats-row" style="gap:10px">
+            <div v-for="p in buildTopFormation(topFormationSize, statsSourceMatches, statsSourcePlayers)" :key="'tf-'+p.id" class="stats-row" style="gap:10px;cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <!-- Role icon -->
               <div style="font-size:1.2rem;width:28px;text-align:center;flex-shrink:0">{{ roleEmoji(p.ruolo) }}</div>
               <!-- Avatar -->
@@ -4305,7 +4312,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
             <div v-if="!statsTopOverall.length" class="empty-state" style="padding:16px"><p>Gioca almeno 2 partite.</p></div>
-            <div v-for="(p,i) in statsTopOverall" :key="p.id" class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
+            <template v-for="(p,i) in statsTopOverall" :key="p.id">
+            <div class="stats-row" style="align-items:center;cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info">
@@ -4322,7 +4330,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:1.5rem;font-weight:900;line-height:1;" :style="p._score>=85?'color:#fbbf24':p._score>=75?'color:#a3e635':p._score>=65?'color:#4ade80':'color:#94a3b8'">{{p._score}}</div>
                 <div style="font-size:0.6rem;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.35);margin-top:1px">OVR</div>
               </div>
+              <button @click.stop="ovrExpandedId = (ovrExpandedId===p.id ? null : p.id)"
+                style="background:none;border:none;color:var(--text2);padding:4px 2px 4px 8px;cursor:pointer;flex-shrink:0;transition:transform .2s"
+                :style="ovrExpandedId===p.id?'transform:rotate(180deg)':''"
+                :title="'Vedi come si calcola l’Overall di ' + (p.soprannome||p.nome)">▾</button>
             </div>
+            <div v-if="ovrExpandedId===p.id" style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin:-4px 0 10px;font-size:0.76rem;color:var(--text2);line-height:1.9">
+              <div style="font-weight:700;color:var(--text);margin-bottom:4px">Come arriva a {{p._score}} — ruolo {{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).ruolo}}</div>
+              <div v-for="(v,vi) in overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).voci" :key="vi" style="display:flex;justify-content:space-between;gap:8px">
+                <span>{{v.label}}<span v-if="v.sub" style="color:rgba(255,255,255,.35)"> ({{v.sub}})</span></span>
+                <span :style="v.val<0?'color:var(--red)':'color:var(--text)'" style="font-weight:700;white-space:nowrap">{{v.val>=0?'+':''}}{{v.val.toFixed(1)}}</span>
+              </div>
+              <div style="display:flex;justify-content:space-between;gap:8px;margin-top:6px;padding-top:6px;border-top:1px solid var(--border);font-weight:800;color:var(--text)">
+                <span>Totale (arrotondato, min 50 – max 99)</span><span>{{p._score}}</span>
+              </div>
+            </div>
+            </template>
           </div>
           
         </template>
@@ -4366,7 +4389,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Min. 3 partite giocate</div>
             <div v-if="!statsSourcePlayers.filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Gioca almeno 3 partite con gol.</p></div>
-            <div v-for="(p,i) in [...statsSourcePlayers].filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))" :key="'mg-'+p.id" class="stats-row">
+            <div v-for="(p,i) in [...statsSourcePlayers].filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))" :key="'mg-'+p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.goalTotali}} gol in {{p.partiteTotali}} partite</div></div>
@@ -4427,7 +4450,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Meno è meglio. Il meno peggio vince comunque! 😅</div>
             <div v-if="!statsSourcePlayers.filter(p=>(p.autogolTotali||0)>0).length" class="empty-state" style="padding:16px"><p>Nessun autogol. Ottimo! 🎉</p></div>
-            <div v-for="(p,i) in [...statsSourcePlayers].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0))" :key="p.id" class="stats-row">
+            <div v-for="(p,i) in [...statsSourcePlayers].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0))" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
@@ -6709,7 +6732,19 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.689',date:'2026-07-11',items:[
+    const changelogEntries = [{version:'v1.693',date:'2026-07-14',items:[
+      'Formula Overall — Portiere: più peso al voto personale, meno al risultato di squadra (un portiere può essere ottimo anche se la squadra davanti a lui perde).',
+      'Formula Overall — Centrocampista: ora ha una formula propria invece di condividerla con l\'Attaccante. Chi segna (o fa assist, se tracciati) non perde MAI punti rispetto a prima — la formula gol/assist resta identica a quella dell\'Attaccante. In più, un bonus squadra si attiva SOLO per chi non ha modo di dimostrare il contributo con gol/assist ma fa comunque vincere la squadra, e si azzera da solo per chi segna/assiste già a sufficienza.',
+      'Se gli assist sono disattivati per il gruppo (Impostazioni), la formula lo riconosce e compensa di più sul risultato di squadra per i centrocampisti, invece di penalizzarli per un dato che non possono dimostrare.',
+    ]},{version:'v1.692',date:'2026-07-14',items:[
+      'Fix CRITICO: la v1.691 non si avviava per un errore di battitura (doppio backslash in un attributo del template, dentro il tooltip della freccina Overall) che rompeva la compilazione del template Vue. Trovato e corretto verificando il file in un vero browser prima di questa consegna, non solo con i controlli automatici di sintassi.',
+    ]},{version:'v1.691',date:'2026-07-13',items:[
+      'Filigrana: aggiunta a 17 card del carosello Hero in Home che ne erano prive (Duello, Storia, News, News Gol, Trend, Miglior Voto, Cronaca, Recap, Dream Team, OVR3, Record, Forma, Anniversario, Bilancia, Podio3, H2H) — usa l\'emoji già presente nel testo della card, o un fallback per categoria se assente. Benvenuto e Tutorial restano volutamente pulite.',
+      'Overall: ogni riga giocatore ha ora una freccina per espandere la scomposizione del proprio calcolo OVR (voci specifiche del suo ruolo), separata dal click sulla riga che apre il profilo.',
+      'Inspector: OVR calcolato e mostrato nella schermata Giocatori (prima non appariva mai), con la stessa scomposizione espandibile a tocco.',
+    ]},{version:'v1.690',date:'2026-07-13',items:[
+      'Statistiche: rese cliccabili verso il profilo giocatore anche le tab Media Gol/Partita, Classifica Autogol e Top Team — mancava lo stesso collegamento già presente in Overall, Classifica Punti, Marcatori, Uomo Partita, Media Punti, Assist e Media Voto.',
+    ]},{version:'v1.689',date:'2026-07-11',items:[
       'Fix CRITICO offline: l\'aggiornamento automatico cancellava cache e service worker e POI provava a ricaricare la pagina — se il dispositivo era offline in quel momento, restava senza nulla da servire, completamente non funzionante finché non si tornava online. Ora controlla la connessione prima di procedere (e di nuovo appena prima del ricaricamento) e rimanda l\'aggiornamento se manca la rete.',
       'Altri fix mismatch ID/UID (stessa causa del voto mancante di Evans): card statistiche "hero" (streak vittorie, forma ultime 3 partite), controllo di sicurezza prima di eliminare un giocatore, esportazione Excel — tutti ora considerano anche l\'id legacy di un giocatore, non solo l\'uid attuale del profilo.',
       'Inspector: badge "⚠️ id legacy" accanto a ogni giocatore nella vista Partite con id non-uid in quella partita, più un conteggio dedicato nell\'Audit ID di quanti giocatori distinti sono coinvolti — strumento di monitoraggio per individuare in anticipo questa classe di bug.',
@@ -7176,6 +7211,7 @@ createApp({
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
     const showOvrInfo       = ref(false);
+    const ovrExpandedId     = ref(null); // id del giocatore con la scomposizione OVR aperta (13/7/2026)
     const showAISection     = ref(false); // collassato di default
     const tutorialEnabled   = ref(true); // tutorial attivo di default
     const manualeExpanded   = ref(false);
@@ -7469,7 +7505,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.689');
+    const appVersion = ref('1.693');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7570,8 +7606,12 @@ createApp({
       return cs;
     };
 
-    // ── OVR (50-99, stile FIFA ibrido v3) ──
-    const overallScore = (p, pMax, matches = groupMatches.value, players = groupPlayers.value) => {
+    // ── OVR (50-99, stile FIFA ibrido v3) — con scomposizione del calcolo ──
+    // overallScoreBreakdown fa il calcolo vero e proprio e restituisce sia il totale sia i singoli
+    // pezzi (per la riga espandibile in Statistiche e la vista equivalente in Inspector, 13/7/2026).
+    // overallScore (sotto) richiama questa e prende solo .totale — un'unica fonte di verità, cosi il
+    // numero mostrato e la sua scomposizione non possono mai disallinearsi tra loro.
+    const overallScoreBreakdown = (p, pMax, matches = groupMatches.value, players = groupPlayers.value) => {
       const n      = Math.max(p.partiteTotali||1, 1);
       const mp     = p.mediaPunti||0;
       const mv     = p.mediaVoto||0;
@@ -7579,6 +7619,11 @@ createApp({
       const gol    = p.goalTotali||0;
       const ag     = p.autogolTotali||0;
       const uom    = p.uomoPartitaTotali||0;
+      // Assist considerati solo se il gruppo li traccia (Impostazioni → Traccia Assist).
+      // Se disattivati, il contributo gol+assist di Centrocampista/Attaccante vede solo i gol —
+      // per il Centrocampista questo attiva il bonus squadra compensativo sotto (13/7/2026).
+      const trackAssist = currentGroup.value?.trackAssist !== false;
+      const assist = trackAssist ? (p.assistTotali||0) : 0;
 
       const pVoto   = mv > 0 ? mv * 10 : 60;
       const pPunti  = 50 + (mp * 16.33);
@@ -7589,36 +7634,84 @@ createApp({
 
       const _pMax = pMax || Math.max(...players.map(x => x.partiteTotali||0), 1);
 
-      let baseOvr, bonusRuolo;
+      let baseOvr, bonusRuolo, baseLabel, bonusLabel, extraBonus = 0;
+      const extra = []; // bonus/malus specifici di ruolo, mostrati solo se presenti
 
       if (ruolo === 'Portiere') {
         const cs = calcCleanSheets(p.uid||String(p.id), matches);
         const pCS = Math.min(50 + (cs / n * 49), 99);
-        // Portiere: bonus rigori parati, malus rigori sbagliati (da rigorista)
         const bonusRP = Math.min((rp / n) * 30, 15); // max +15 da rigori parati
         const malusRS = Math.min((rs / n) * 10, 5);  // max -5 da rigori sbagliati
-        baseOvr    = (pPunti * 0.55) + (pVoto * 0.30) + (uomBonus * 0.15);
-        bonusRuolo = (pCS * 0.50) + (pVoto * 0.30) + (pPunti * 0.20) + bonusRP - malusRS;
+        // Più peso al voto personale, meno al risultato di squadra (13/7/2026, richiesta di
+        // Alby: un portiere può essere ottimo anche con una squadra che perde davanti a lui —
+        // prima il risultato di squadra pesava troppo, schiacciando prestazioni individuali
+        // eccellenti come un voto medio 8.5 con squadra in difficoltà).
+        baseOvr    = (pPunti * 0.35) + (pVoto * 0.50) + (uomBonus * 0.15);
+        bonusRuolo = (pCS * 0.50) + (pVoto * 0.35) + (pPunti * 0.15) + bonusRP - malusRS;
+        baseLabel  = 'Base (voto + punti/gara + Uomo Partita)';
+        bonusLabel = 'Bonus ruolo Portiere (clean sheet + voto + punti/gara)';
+        if (bonusRP > 0) extra.push({label:'Bonus rigori parati', val: bonusRP});
+        if (malusRS > 0) extra.push({label:'Malus rigori sbagliati (da rigorista)', val: -malusRS});
 
       } else if (ruolo === 'Difensore') {
         const wins  = calcPlayerWins(p.uid||String(p.id), matches);
         const pVit  = Math.min(50 + (wins / n * 49) * smorzamento, 99);
         baseOvr    = (pVoto * 0.65) + (pVit * 0.25) + (uomBonus * 0.10);
         bonusRuolo = (pVit * 0.55) + (pVoto * 0.40) + (Math.min(50+(gol/n*40.83),99)-50)*0.05;
+        baseLabel  = 'Base (voto + % vittorie + Uomo Partita)';
+        bonusLabel = 'Bonus ruolo Difensore (vittorie + voto + gol)';
 
       } else {
-        const pGolS = 50 + (gol / n * 40.83) * smorzamento;
-        baseOvr    = (pVoto * 0.45) + (pGolS * 0.45) + (uomBonus * 0.10);
-        bonusRuolo = pGolS;
+        // Attaccante E Centrocampista condividono la stessa base gol(+assist) — MAI ridotta:
+        // chi segna prende lo stesso punteggio di un attaccante con lo stesso rendimento
+        // (13/7/2026, richiesta esplicita di Alby dopo aver visto un centrocampista da 21 gol
+        // perdere punti rispetto a prima — sbagliato, un centrocampista che segna quanto un
+        // attaccante va trattato allo stesso modo).
+        const pContribS = 50 + ((gol+assist) / n * 40.83) * smorzamento;
+        baseOvr    = (pVoto * 0.45) + (pContribS * 0.45) + (uomBonus * 0.10);
+        bonusRuolo = pContribS;
+        const contribLabel = trackAssist ? 'gol+assist' : 'gol';
+        baseLabel  = 'Base (voto + ' + contribLabel + ' + Uomo Partita)';
+        bonusLabel = 'Bonus ruolo ' + (ruolo || 'Centrocampista/Attaccante') + ' (' + contribLabel + ')';
+
+        if (ruolo === 'Centrocampista') {
+          // Bonus squadra ADDITIVO (mai una riduzione): compensa i centrocampisti che non
+          // segnano/assistono abbastanza da essere valorizzati dalla formula sopra, MA che
+          // fanno vincere la squadra — si azzera da solo per chi già segna/assiste a un ritmo
+          // normale, quindi non tocca mai chi si guadagna i punti con gol+assist (13/7/2026,
+          // esempio concreto: Evans, 0 gol/assist ma 2.17 punti/partita di media, andava da 51
+          // a 65 con questo bonus, mentre un centrocampista da 21 gol restava invariato a 77).
+          const contribRate = (gol + assist) / n;
+          const soglia = 0.15; // gol+assist a partita oltre cui il bonus è già a zero
+          const soppressione = Math.max(0, 1 - (contribRate / soglia));
+          const bonusGrezzo = Math.max(0, (pPunti - 55) * 0.45);
+          extraBonus = Math.min(15, bonusGrezzo) * soppressione;
+          if (extraBonus > 0.5) {
+            extra.push({label:'Bonus squadra (contributo '+contribLabel+' basso, compensazione)', val: extraBonus});
+          }
+        }
       }
 
       const costanza = (n / _pMax) * 5;
       const malusAg  = (ag / n) * 6;
-      // Malus universale rigori sbagliati (rigorista mancato)
       const malusRSGen = (rs / n) * 3;
-      const raw = (baseOvr * 0.70) + (bonusRuolo * 0.30) + costanza - malusAg - malusRSGen;
-      return isNaN(raw) ? 60 : Math.min(99, Math.max(50, Math.round(raw)));
+      const raw = (baseOvr * 0.70) + (bonusRuolo * 0.30) + costanza - malusAg - malusRSGen + extraBonus;
+      const totale = isNaN(raw) ? 60 : Math.min(99, Math.max(50, Math.round(raw)));
+
+      const voci = [
+        {label: baseLabel, sub:'peso 70%', val: baseOvr * 0.70},
+        {label: bonusLabel, sub:'peso 30%', val: bonusRuolo * 0.30},
+        {label: 'Costanza (partite giocate: '+n+'/'+_pMax+')', val: costanza},
+        ...extra,
+      ];
+      if (malusAg > 0) voci.push({label: 'Malus autogol', val: -malusAg});
+      if (malusRSGen > 0) voci.push({label: 'Malus rigori sbagliati', val: -malusRSGen});
+
+      return { totale, voci, ruolo: ruolo || 'Centrocampista/Attaccante', clamped: raw < 50 || raw > 99 };
     };
+
+    const overallScore = (p, pMax, matches = groupMatches.value, players = groupPlayers.value) =>
+      overallScoreBreakdown(p, pMax, matches, players).totale;
 
     const topOverall = computed(() => {
       const minP = Math.max(2, Math.floor((groupMatches.value.length||0) * 0.25));
@@ -14550,6 +14643,24 @@ Niente altro, nessuna spiegazione.`;
       return 'linear-gradient(145deg,#1F6F1F,#2F8F2F 60%,#5FBF5F)';
     };
 
+    // Emoji per la filigrana di sfondo delle card Hero prive di una propria (11/7/2026, richiesta
+    // di Alby). Priorità: 1) emoji già presente nel testo della card (prefisso del label, o campo
+    // badge/emoji dedicato) — cosi la filigrana è sempre coerente col contenuto mostrato; 2) fallback
+    // fisso per tipo, concordato con Alby, per i tipi che non hanno mai un'emoji propria nel testo.
+    const heroWatermarkEmoji = (s) => {
+      if (s.badge) return s.badge;   // news/news2: badge è già un'emoji (n.emoji||'💬')
+      if (s.emoji) return s.emoji;   // trashTalk-style: campo emoji dedicato
+      if (s.label) {
+        const m = s.label.match(/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|\uFE0F)*)\s/u);
+        if (m) return m[1]; // record 🏆, forma 📈, anniversary 🎂, bilancia ⚖️, h2h ⚔️, podio3 ⚽/📊/📈...
+      }
+      const fallback = {
+        duel:'🥊', story:'📖', trend:'🔥', cronaca:'📰', recap:'🎬',
+        dreamteam:'🌟', ovr3:'🏅', bestVote:'⭐', newsGoals:'⚽',
+      };
+      return fallback[s.type] || '⚽';
+    };
+
 const toggleFont = () => {
       settings.value.fontLarge = !settings.value.fontLarge;
       const scale = settings.value.fontLarge ? '1.25' : '1';
@@ -17118,7 +17229,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       detailMatch, detailMatchReadonly, detailMatchPlayers, getPlayerForDetail, playerPhotoCacheByUid, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
-      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg,
+      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName, previewPNGText,
@@ -17150,7 +17261,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
-      showApiKey, showOvrInfo, showAISection, tutorialEnabled, manualeExpanded, testAI,
+      showApiKey, showOvrInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
       precachePlayerPhotos,
