@@ -5974,10 +5974,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <!-- PNG buttons + Modifica + Elimina nel dettaglio -->
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
         <template v-if="!detailMatchReadonly">
-          <button class="btn btn-ghost btn-sm" @click="toggleMatchLock(detailMatch)">
-            {{ detailMatch.isLocked ? "🔒" : "🔓" }}
-          </button>
-          <button class="btn btn-ghost btn-sm" @click="openEditIfUnlocked(detailMatch)">
+          <button class="btn btn-ghost btn-sm" @click="()=>{ showMatchDetail=false; openEditMatch(detailMatch) }">
             ✏️ Modifica
           </button>
           <button class="btn btn-red btn-sm" style="margin-left:auto" @click="()=>{ showMatchDetail=false; askDeleteMatch(detailMatch) }">🗑️ Elimina</button>
@@ -6732,7 +6729,16 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.693',date:'2026-07-14',items:[
+    const changelogEntries = [{version:'v1.696',date:'2026-07-15',items:[
+      'Condivisione Statistiche: ulteriore ottimizzazione spazi — righe più compatte (meno vuoto tra un giocatore e l\'altro), foto/avatar più grandi (raggio 34→42), font nome e punteggio ancora più grandi.',
+    ]},{version:'v1.695',date:'2026-07-15',items:[
+      'Condivisione Statistiche ottimizzata su richiesta di Alby: titolo/sottotitolo/data più grandi, logo spostato in alto a destra, righe giocatori con font più grandi e spaziatura migliore, footer/slogan rimosso per recuperare spazio verticale.',
+      'Fix CRITICO: il logo Amici FC non compariva affatto nella Condivisione Statistiche (bug presente anche nella versione precedente v1.694, mai notato) — la stringa dell\'immagine incorporata era troncata. Corretto usando la stessa costante già verificata e funzionante nel resto dell\'app.',
+    ]},{version:'v1.694',date:'2026-07-15',items:[
+      'Rimossa la funzione lucchetto partita (🔒/🔓 nel dettaglio partita) — bloccava solo il pulsante Modifica, senza alcuna gestione reale di permessi o utenti collegata. Codice ripulito.',
+      'Condivisione Statistiche completamente rivista: le 9 card (Marcatori, Assist, Punti, Media Punti, Media Voto, Uomo Partita, Overall, Top Team, Autogol) ora usano lo stesso stile "stadio" di partite e formazioni — stesso font, stessi colori, stessa filigrana (prima mancava del tutto).',
+      'Overall nel PNG condiviso ora senza decimali ("83 OVR" invece di "83.0 pts"), coerente col resto dell\'app.',
+    ]},{version:'v1.693',date:'2026-07-14',items:[
       'Formula Overall — Portiere: più peso al voto personale, meno al risultato di squadra (un portiere può essere ottimo anche se la squadra davanti a lui perde).',
       'Formula Overall — Centrocampista: ora ha una formula propria invece di condividerla con l\'Attaccante. Chi segna (o fa assist, se tracciati) non perde MAI punti rispetto a prima — la formula gol/assist resta identica a quella dell\'Attaccante. In più, un bonus squadra si attiva SOLO per chi non ha modo di dimostrare il contributo con gol/assist ma fa comunque vincere la squadra, e si azzera da solo per chi segna/assiste già a sufficienza.',
       'Se gli assist sono disattivati per il gruppo (Impostazioni), la formula lo riconosce e compensa di più sul risultato di squadra per i centrocampisti, invece di penalizzarli per un dato che non possono dimostrare.',
@@ -7505,7 +7511,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.693');
+    const appVersion = ref('1.696');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10170,7 +10176,7 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
       try {
         const dataUrl = await drawStatsCanvas(tipo);
         const labels = {goal:'marcatori',assist:'assist',overall:'overall',classifica:'classifica',
-                        mediapunti:'media-punti',voti:'voti',altri:'uomo-partita',topteam:'top-team'};
+                        mediapunti:'media-punti',voti:'voti',altri:'uomo-partita',topteam:'top-team',autogol:'autogol'};
         previewPNGUrl.value = dataUrl;
         previewPNGName.value = `amicifc-stats-${labels[tipo]||tipo}-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.png`;
         showPNGPreview.value = true;
@@ -10178,114 +10184,176 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
     };
 
     const drawStatsCanvas = async (tipo, skipPhotos=false) => {
-      const W=900;
-      const rrect=(ctx,x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
+      // v2 — 15/7/2026, ottimizzazione spazi su richiesta di Alby: titolo/sottotitolo/data più
+      // grandi, logo spostato in alto a destra (libera spazio centrale), font righe più grandi
+      // con spaziatura ottimizzata, footer/slogan rimosso per recuperare spazio verticale.
+      const W=1080;
+      const rrect=(x,y,w,h,r)=>{ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();};
       const li=(src)=>new Promise(res=>{if(!src)return res(null);const img=new Image();if(src.startsWith('http'))img.crossOrigin='anonymous';img.onload=()=>res(img);img.onerror=()=>res(null);img.src=src;setTimeout(()=>res(null),6000);});
       const convDrive=url=>{if(!url)return url;const m=url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);return m?`https://lh3.googleusercontent.com/d/${m[1]}`:url;};
       const loadPhoto=(foto,uid)=>{if(foto){const u=convDrive(foto);if(u.startsWith('data:')||u.startsWith('http')||u.startsWith('.'))return li(u);}if(uid)return li(`./images/players/${uid}.png`);return Promise.resolve(null);};
       const statConfigs = {
-        goal:       {label:'CLASSIFICA MARCATORI', icon:'\u26BD', color:'#C8FF00', data:()=>statsTopScorers.value.filter(x=>x.goalTotali>0).slice(0,10),   val:p=>`${p.goalTotali} gol`},
-        assist:     {label:'CLASSIFICA ASSIST',    icon:'\uD83C\uDD70\uFE0F', color:'#5599FF', data:()=>statsTopAssists.value.filter(x=>x.assistTotali>0).slice(0,10), val:p=>`${p.assistTotali} ass.`},
-        classifica: {label:'CLASSIFICA PUNTI',     icon:'\uD83C\uDFC6', color:'#FFD700', data:()=>statsTopPoints.value.slice(0,10),           val:p=>`${p.puntiTotali} pt`},
-        mediapunti: {label:'MEDIA PUNTI / PARTITA',icon:'\uD83D\uDCC8', color:'#FF9900', data:()=>statsTopAvgPoints.value.slice(0,10),        val:p=>`${(p.mediaPunti||0).toFixed(2)}/g`},
-        voti:       {label:'MEDIA VOTO',           icon:'\u2B50', color:'#FFDD00', data:()=>statsTopRated.value.slice(0,10),              val:p=>`${(p.mediaVoto||0).toFixed(1)}`},
-        altri:      {label:'UOMO PARTITA',         icon:'\uD83C\uDF96\uFE0F', color:'#FF6600', data:()=>statsTopUomoPartita.value.slice(0,10),  val:p=>`${p.uomoPartitaTotali} volte`},
-        overall:    {label:'OVERALL - TOP PLAYER', icon:'\uD83E\uDD47', color:'#C8FF00', data:()=>statsTopOverall.value.slice(0,10),    val:p=>`${p._score?.toFixed(1)||0} pts`},
-        topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'\uD83C\uDFDF\uFE0F', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value, statsSourceMatches.value, statsSourcePlayers.value).slice(0,12), val:p=>p.ruolo||''},
-        autogol:    {label:'HALL OF SHAME - AUTOGOL', icon:'\uD83D\uDE2C', color:'#FF4D4D', data:()=>[...statsSourcePlayers.value].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10), val:p=>`${p.autogolTotali}`},
+        goal:       {label:'CLASSIFICA MARCATORI', icon:'⚽', color:'#C8FF00', data:()=>statsTopScorers.value.filter(x=>x.goalTotali>0).slice(0,10),   val:p=>`${p.goalTotali} gol`},
+        assist:     {label:'CLASSIFICA ASSIST',    icon:'🅰️', color:'#5599FF', data:()=>statsTopAssists.value.filter(x=>x.assistTotali>0).slice(0,10), val:p=>`${p.assistTotali} ass.`},
+        classifica: {label:'CLASSIFICA PUNTI',     icon:'🏆', color:'#FFD700', data:()=>statsTopPoints.value.slice(0,10),           val:p=>`${p.puntiTotali} pt`},
+        mediapunti: {label:'MEDIA PUNTI / PARTITA',icon:'📈', color:'#FF9900', data:()=>statsTopAvgPoints.value.slice(0,10),        val:p=>`${(p.mediaPunti||0).toFixed(2)}/g`},
+        voti:       {label:'MEDIA VOTO',           icon:'⭐', color:'#FFDD00', data:()=>statsTopRated.value.slice(0,10),              val:p=>`${(p.mediaVoto||0).toFixed(1)}`},
+        altri:      {label:'UOMO PARTITA',         icon:'🎖️', color:'#FF6600', data:()=>statsTopUomoPartita.value.slice(0,10),  val:p=>`${p.uomoPartitaTotali} volte`},
+        overall:    {label:'OVERALL - TOP PLAYER', icon:'🥇', color:'#C8FF00', data:()=>statsTopOverall.value.slice(0,10),    val:p=>`${Math.round(p._score||0)} OVR`},
+        topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'🏟️', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value, statsSourceMatches.value, statsSourcePlayers.value).slice(0,12), val:p=>p.ruolo||''},
+        autogol:    {label:'HALL OF SHAME - AUTOGOL', icon:'😬', color:'#FF4D4D', data:()=>[...statsSourcePlayers.value].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10), val:p=>`${p.autogolTotali}`},
       };
       const cfg = statConfigs[tipo] || statConfigs.goal;
       const rows = cfg.data();
       if(!rows.length) throw new Error('Nessun dato disponibile');
-      const PAD=40, ROW_H=70, HEADER_H=210, FOOTER_H=56;
-      const H = HEADER_H + rows.length*ROW_H + 16 + FOOTER_H;
+
+      // Footer rimosso (punto 4): tutto lo spazio recuperato va a header (punto 1-2) e righe (punto 3)
+      const PAD=44, ROW_H=112, HEADER_H=232;
+      const H = HEADER_H + rows.length*ROW_H + 36;
       const canvas=document.createElement('canvas'); canvas.width=W; canvas.height=H;
       const ctx=canvas.getContext('2d');
-      const bgG=ctx.createLinearGradient(0,0,0,H);
-      bgG.addColorStop(0,'#020408');bgG.addColorStop(0.5,'#050c18');bgG.addColorStop(1,'#081420');
-      ctx.fillStyle=bgG; ctx.fillRect(0,0,W,H);
-      ctx.strokeStyle='rgba(200,255,0,0.04)';ctx.lineWidth=1;
-      for(let y=0;y<H;y+=40){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+      // ═══ 1. SFONDO STADIO ═══
+      const bgGrad=ctx.createLinearGradient(0,0,0,H*0.7);
+      bgGrad.addColorStop(0,'#020408');bgGrad.addColorStop(0.4,'#050c18');bgGrad.addColorStop(1,'#081420');
+      ctx.fillStyle=bgGrad; ctx.fillRect(0,0,W,H);
+      const fgGrad=ctx.createLinearGradient(0,H*0.86,0,H);
+      fgGrad.addColorStop(0,'#0a200a');fgGrad.addColorStop(0.4,'#133318');fgGrad.addColorStop(1,'#1a4520');
+      ctx.fillStyle=fgGrad; ctx.fillRect(0,H*0.86,W,H*0.14);
+      const fl1=ctx.createRadialGradient(40,80,0,40,80,340);
+      fl1.addColorStop(0,'rgba(255,255,220,0.9)');fl1.addColorStop(0.06,'rgba(255,255,200,0.7)');fl1.addColorStop(0.2,'rgba(200,220,255,0.3)');fl1.addColorStop(0.5,'rgba(100,150,255,0.1)');fl1.addColorStop(1,'transparent');
+      ctx.fillStyle=fl1; ctx.fillRect(0,0,W*0.5,H*0.35);
+      const cDark=ctx.createRadialGradient(W/2,120,80,W/2,120,380);
+      cDark.addColorStop(0,'rgba(0,0,0,0.4)');cDark.addColorStop(1,'transparent');
+      ctx.fillStyle=cDark; ctx.fillRect(0,0,W,300);
       const acG=ctx.createLinearGradient(0,0,W,0);
       acG.addColorStop(0,'rgba(0,0,0,0)');acG.addColorStop(0.3,cfg.color);acG.addColorStop(0.7,cfg.color);acG.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=acG;ctx.fillRect(0,0,W,4);
-      const logoB64='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADAAAAAwCAYAAABXAvmHAAAACXBIWXMAAAsTAAALEwEAmpwYAAABuElEQVR4nO2Xv0oDQRDGv7u7V5JCEMEnUERBUAQRBEEQBEEQRAQRFMFCUCiIoCCIgiBYiIiIiIiIiIiIiHiHnpvZ3Xu5JCRe8mdhYGCY3Zn9dmZ3FiGEEEIIIYQQQgghhBBCCCGEEEIIIYQQQgj5f/wCeANwBeABwDuAbQDrAN4A7AG4B7APYA/ADoAtAGcAzgGcADgGsA9gD8AegF0AOwC2AJwBOAdwAOAQwCGAQwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAwCGAAwCHAI4BHAI4BHAE4BjAMYBjACcATgCcADgBcArgFMApgFMAZwDOAJwDOAdwAOAAQB+ATwBWACwBWADwBqAJQBLABYBLABYALAAYB7APPkHHbUAAAAASUVORK5CYII=';
-      const logoImg=await li(logoB64).catch(()=>null);
-      let logoY=16;
-      if(logoImg){ctx.drawImage(logoImg,(W-72)/2,logoY,72,72);logoY+=80;}else logoY+=24;
-      ctx.textAlign='center';
-      ctx.font='900 italic 24px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
-      ctx.fillText('AMICI FC',W/2,logoY);
-      ctx.font='900 36px "Arial Black",Arial';
-      ctx.fillStyle=cfg.color;ctx.shadowColor=cfg.color;ctx.shadowBlur=18;
-      ctx.fillText(`${cfg.icon}  ${cfg.label}`,W/2,logoY+44);ctx.shadowBlur=0;
+      ctx.fillStyle=acG; ctx.fillRect(0,0,W,4);
+
+      // ═══ 2. HEADER — logo in alto a destra (punto 2), titolo/sottotitolo/data più grandi (punto 1) ═══
+      const fitFontSize=(text,maxW,baseFontSize,fontTemplate,minSize=12)=>{
+        let size=baseFontSize;
+        ctx.font=fontTemplate(size);
+        while(ctx.measureText(text).width>maxW&&size>minSize){ size--; ctx.font=fontTemplate(size); }
+        return size;
+      };
+      const logoImg=await li(LOGO_EMBEDDED).catch(()=>null);
+
+      let curY=26;
+      // Logo isolato in alto a destra, invece che centrato — libera spazio per titolo più grande
+      if(logoImg){
+        const LOGO_SIZE=76;
+        const lcx=W-PAD-LOGO_SIZE/2, lcy=curY+LOGO_SIZE/2;
+        ctx.save();
+        ctx.shadowColor='rgba(0,0,0,0.5)';ctx.shadowBlur=14;
+        ctx.beginPath();ctx.arc(lcx,lcy,LOGO_SIZE/2+9,0,Math.PI*2);
+        ctx.fillStyle='rgba(8,10,18,0.85)';ctx.fill();
+        ctx.restore();
+        ctx.drawImage(logoImg,lcx-LOGO_SIZE/2,lcy-LOGO_SIZE/2,LOGO_SIZE,LOGO_SIZE);
+      }
+
+      // "AMICI FC" — più grande di prima (era 22px)
+      ctx.textAlign='left';
+      ctx.font='900 30px "Segoe UI",Arial';ctx.fillStyle='rgba(255,255,255,0.7)';
+      ctx.fillText('AMICI FC',PAD,curY+26);
+      curY+=48;
+
+      // Titolo — più grande di prima (era max 42px, minimo 22), ora max 56, minimo 30, con
+      // meno spazio da riservare al logo (che ora è più piccolo e in un angolo, non al centro)
+      const headerMaxW=W-PAD*2;
+      const titleStr=`${cfg.icon}  ${cfg.label}`;
+      const titleSize=fitFontSize(titleStr,headerMaxW,56,s=>`900 ${s}px "Segoe UI",Arial`,30);
+      ctx.textAlign='left';
+      ctx.font=`900 ${titleSize}px "Segoe UI",Arial`;ctx.fillStyle=cfg.color;
+      ctx.shadowColor=cfg.color;ctx.shadowBlur=20;
+      ctx.fillText(titleStr,PAD,curY+titleSize*0.82);
+      ctx.shadowBlur=0;
+      curY+=titleSize+20;
+
+      // Sottotitolo (nome gruppo) ed eventuale stagione/data — anch'essi più grandi di prima
       const grp=(currentGroup.value?.nome||'').toUpperCase();
-      ctx.font='700 18px "Arial Black",Arial';ctx.fillStyle='rgba(255,255,255,0.4)';
-      ctx.fillText(grp,W/2,logoY+70);
-      let _seasonLabelY = logoY+90;
+      ctx.font='800 26px "Segoe UI",Arial';ctx.fillStyle='rgba(255,255,255,0.5)';
+      ctx.fillText(grp,PAD,curY);
+      curY+=32;
       if (statsSeasonFilter.value !== 'attuale') {
         const _seasonLabel = statsSeasonFilter.value === 'carriera'
           ? '🏆 CARRIERA — TUTTE LE STAGIONI'
           : ('📦 ' + (_selectedArchiveFor(statsSeasonFilter.value)?.nome || '').toUpperCase());
-        ctx.font='700 14px Arial';ctx.fillStyle='rgba(166,255,77,0.65)';
-        ctx.fillText(_seasonLabel,W/2,_seasonLabelY);
-        _seasonLabelY += 22;
+        ctx.font='700 20px "Segoe UI",Arial';ctx.fillStyle='rgba(166,255,77,0.65)';
+        ctx.fillText(_seasonLabel,PAD,curY);
+        curY += 28;
       }
       const now=new Date().toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
-      ctx.font='400 14px Arial';ctx.fillStyle='rgba(255,255,255,0.28)';ctx.fillText(now,W/2,_seasonLabelY);
-      ctx.fillStyle=acG;ctx.fillRect(PAD,HEADER_H-6,W-PAD*2,2);
-      const avR=24;
+      ctx.font='500 20px "Segoe UI",Arial';ctx.fillStyle='rgba(255,255,255,0.32)';
+      ctx.fillText(now,PAD,curY);
+
+      const rowsStartY = HEADER_H;
+      ctx.fillStyle=acG;ctx.fillRect(PAD,rowsStartY-14,W-PAD*2,2);
+
+      // ═══ 3. RIGHE — font più grandi, spaziatura ottimizzata (punto 3) ═══
+      const avR=42;
       for(let i=0;i<rows.length;i++){
-        const p=rows[i]; const rowY=HEADER_H+i*ROW_H; const top3 = (tipo!=='topteam') && i<3; // no medals for formation
+        const p=rows[i]; const rowY=rowsStartY+i*ROW_H; const top3 = (tipo!=='topteam') && i<3;
         const rbg=ctx.createLinearGradient(0,rowY,W,rowY);
-        rbg.addColorStop(0,'rgba(0,0,0,0)');rbg.addColorStop(0.5,top3?'rgba(200,255,0,0.07)':'rgba(255,255,255,0.02)');rbg.addColorStop(1,'rgba(0,0,0,0)');
-        ctx.fillStyle=rbg;rrect(ctx,PAD,rowY+4,W-PAD*2,ROW_H-8,10);ctx.fill();
-        if(i>0){ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(PAD+40,rowY,W-PAD*2-40,1);}
-        const rX=PAD+20,rY=rowY+ROW_H/2;
-        ctx.beginPath();ctx.arc(rX,rY,17,0,Math.PI*2);
-        ctx.fillStyle=top3?['#FFD700','#C0C0C0','#CD7F32'][i]:'rgba(255,255,255,0.07)';ctx.fill();
-        ctx.font=`900 ${top3?'16':'14'}px "Arial Black",Arial`;ctx.fillStyle=top3?'#111':'rgba(255,255,255,0.4)';ctx.textAlign='center';
-        ctx.fillText(String(i+1),rX,rY+6);
-        const avX=PAD+60,avY=rowY+ROW_H/2;
-        ctx.beginPath();ctx.arc(avX,avY,avR,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.07)';ctx.fill();
-        ctx.strokeStyle=top3?cfg.color:'rgba(255,255,255,0.12)';ctx.lineWidth=2;ctx.stroke();
+        rbg.addColorStop(0,'rgba(0,0,0,0)');rbg.addColorStop(0.5,top3?'rgba(200,255,0,0.08)':'rgba(255,255,255,0.025)');rbg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=rbg;rrect(PAD,rowY+6,W-PAD*2,ROW_H-12,14);ctx.fill();
+        if(i>0){ctx.fillStyle='rgba(255,255,255,0.05)';ctx.fillRect(PAD+58,rowY,W-PAD*2-58,1);}
+        const rX=PAD+29,rY=rowY+ROW_H/2;
+        ctx.beginPath();ctx.arc(rX,rY,26,0,Math.PI*2);
+        ctx.fillStyle=top3?['#FFD700','#C0C0C0','#CD7F32'][i]:'rgba(255,255,255,0.08)';ctx.fill();
+        ctx.font=`900 ${top3?'25':'22'}px "Segoe UI",Arial`;ctx.fillStyle=top3?'#111':'rgba(255,255,255,0.45)';ctx.textAlign='center';
+        ctx.fillText(String(i+1),rX,rY+8);
+        const avX=PAD+104,avY=rowY+ROW_H/2;
+        ctx.beginPath();ctx.arc(avX,avY,avR,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fill();
+        ctx.strokeStyle=top3?cfg.color:'rgba(255,255,255,0.14)';ctx.lineWidth=3;ctx.stroke();
         ctx.save();ctx.beginPath();ctx.arc(avX,avY,avR-1,0,Math.PI*2);ctx.clip();
         let ph=skipPhotos?null:await loadPhoto(p.foto,p.uid).catch(()=>null);
         if(ph){try{ctx.drawImage(ph,avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);}catch(e){ph=null;}}
         if(!ph){
-          ctx.fillStyle='rgba(255,255,255,0.08)';ctx.fillRect(avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);
+          ctx.fillStyle='rgba(255,255,255,0.09)';ctx.fillRect(avX-avR+1,avY-avR+1,(avR-1)*2,(avR-1)*2);
           ctx.beginPath();ctx.arc(avX,avY-avR*0.22,avR*0.42,0,Math.PI*2);ctx.fillStyle='rgba(255,255,255,0.3)';ctx.fill();
-          ctx.beginPath();ctx.arc(avX,avY+avR*0.7,avR*0.65,Math.PI,0);ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fill();
+          ctx.beginPath();ctx.ellipse(avX,avY+avR*0.7,avR*0.58,avR*0.48,0,Math.PI,0);ctx.fillStyle='rgba(255,255,255,0.25)';ctx.fill();
         }
         ctx.restore();
-        ctx.textAlign='left';ctx.font=`900 ${top3?'22':'18'}px "Arial Black",Arial`;
-        ctx.fillStyle=top3?'#fff':'rgba(255,255,255,0.82)';
-        ctx.shadowColor=top3?cfg.color:'transparent';ctx.shadowBlur=top3?8:0;
+        ctx.textAlign='left';ctx.font=`900 ${top3?'36':'32'}px "Segoe UI",Arial`;
+        ctx.fillStyle=top3?'#fff':'rgba(255,255,255,0.85)';
+        ctx.shadowColor=top3?cfg.color:'transparent';ctx.shadowBlur=top3?10:0;
         let nameStr=(p.soprannome||p.nome||'').toUpperCase();
-        while(ctx.measureText(nameStr).width>W-PAD*2-210&&nameStr.length>3)nameStr=nameStr.slice(0,-1);
+        while(ctx.measureText(nameStr).width>W-PAD*2-380&&nameStr.length>3)nameStr=nameStr.slice(0,-1);
         if(nameStr!==(p.soprannome||p.nome||'').toUpperCase())nameStr+='…';
-        ctx.fillText(nameStr,PAD+96,rowY+ROW_H/2+8);ctx.shadowBlur=0;
+        ctx.fillText(nameStr,PAD+164,rowY+ROW_H/2+12);ctx.shadowBlur=0;
         const valStr=cfg.val(p);
-        ctx.textAlign='right';ctx.font=`900 ${top3?'26':'22'}px "Arial Black",Arial`;
-        ctx.fillStyle=top3?cfg.color:'rgba(200,255,0,0.65)';
-        ctx.shadowColor=cfg.color;ctx.shadowBlur=top3?10:3;
-        ctx.fillText(valStr,W-PAD-6,rowY+ROW_H/2+9);ctx.shadowBlur=0;
+        ctx.textAlign='right';ctx.font=`900 ${top3?'44':'38'}px "Segoe UI",Arial`;
+        ctx.fillStyle=top3?cfg.color:'rgba(200,255,0,0.7)';
+        ctx.shadowColor=cfg.color;ctx.shadowBlur=top3?14:5;
+        ctx.fillText(valStr,W-PAD-10,rowY+ROW_H/2+13);ctx.shadowBlur=0;
       }
-      const fY=H-FOOTER_H;
-      ctx.fillStyle='rgba(255,255,255,0.03)';ctx.fillRect(0,fY,W,FOOTER_H);
-      ctx.fillStyle=acG;ctx.fillRect(0,fY,W,2);
-      ctx.font='700 italic 15px "Arial Black",Arial';ctx.fillStyle='rgba(200,255,0,0.5)';ctx.textAlign='center';
-      ctx.fillText('\u26BD Amici FC \u00B7 Dove i campioni nascono\u2026 e litigano!',W/2,fY+33);
+
+      // ═══ 4. FILIGRANA (footer rimosso, la filigrana resta sull'area righe) ═══
+      const drawWatermark=(px,py,pw,ph,emoji)=>{
+        ctx.save();
+        ctx.beginPath();rrect(px,py,pw,ph,20);ctx.clip();
+        ctx.globalAlpha=0.10;
+        ctx.font='360px Arial';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.translate(px+pw-80,py+ph-100);
+        ctx.rotate(-0.35);
+        ctx.fillText(emoji,0,0);
+        ctx.globalAlpha=1;
+        ctx.restore();
+      };
+      drawWatermark(0,rowsStartY,W,rows.length*ROW_H,cfg.icon);
+
       try {
         return canvas.toDataURL('image/png');
       } catch(e) {
-        if (!skipPhotos) {
+        if (!skipPhotos && String(e.message||'').toLowerCase().includes('tainted')) {
           console.warn('[Stats PNG] Canvas tainted, retrying without photos...');
           return drawStatsCanvas(tipo, true);
         }
         throw e;
       }
     };
+
 
 
     const generateTeamsAI = async () => {
@@ -12549,36 +12617,6 @@ Niente altro, nessuna spiegazione.`;
           return 'x';
         }).join('');
       } catch { return email; }
-    };
-
-    const openEditIfUnlocked = (match) => {
-      if (match?.isLocked) {
-        toast('Partita bloccata. Sblocca prima di modificare.', 'error', 3000);
-        return;
-      }
-      showMatchDetail.value = false;
-      openEditMatch(match);
-    };
-
-    const toggleMatchLock = async (match) => {
-      const nowLocked = !match.isLocked;
-      const _fbUser = JSON.parse(localStorage.getItem('amicifc_fb_user') || 'null');
-      const _email = _fbUser?.email || fbLoginEmail.value || 'Utente locale';
-      const _ts = new Date().toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
-      await db.matches.update(match.id, {
-        isLocked: nowLocked,
-        lastModifiedBy: _email,
-        lastModifiedAt: _ts
-      });
-      if (detailMatch.value?.id === match.id) {
-        detailMatch.value = { ...detailMatch.value, isLocked: nowLocked, lastModifiedBy: _email, lastModifiedAt: _ts };
-      }
-      await loadGroupData();
-      if (currentGroup.value?.firebaseUrl) {
-        const _tok = await getValidToken();
-        if (_tok) syncToCloud().catch(console.warn);
-      }
-      toast(nowLocked ? '🔒 Partita bloccata' : '🔓 Partita sbloccata', 'success', 2500);
     };
 
     const sortedByRole = (pids) => {
@@ -17221,8 +17259,6 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       currentView, groups, archivedSeasonsCountByGroup, currentGroup, groupPlayers, groupMatches, currentGroupArchivedSeasons, settings, appReady, _heroCards, _heroAddPhase, _heroFinalize, _heroLaunch, heroUnifiedData, heroNewsTicker, heroNewsTickerIdx,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showAddPlayerMenu, showImportPlayerModal, importPlayerSearch, archivedPlayersNotInCurrent, filteredArchivedPlayers, openImportPlayerModal, importPlayerFromArchive, showPlayerDetail,
       showMatchDetail,
-      openEditIfUnlocked,
-      toggleMatchLock,
       obfuscateEmail,
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
