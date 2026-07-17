@@ -4223,7 +4223,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <!-- Size selector -->
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-              <button v-for="sz in [5,6,7,8,11]" :key="sz"
+              <button v-for="sz in [5,6,7,8,9,10,11]" :key="sz"
                 class="btn btn-sm" :class="topFormationSize===sz?'btn-primary':'btn-ghost'"
                 @click="topFormationSize=sz" style="min-width:44px">
                 {{ sz }}vs{{ sz }}
@@ -4236,6 +4236,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <span v-if="topFormationSize===6">1 🥅 · 2 🛡️ · 2 🔄 · 1 ⚡</span>
               <span v-if="topFormationSize===7">1 🥅 · 3 🛡️ · 2 🔄 · 1 ⚡</span>
               <span v-if="topFormationSize===8">1 🥅 · 3 🛡️ · 3 🔄 · 1 ⚡</span>
+              <span v-if="topFormationSize===9">1 🥅 · 3 🛡️ · 3 🔄 · 2 ⚡</span>
+              <span v-if="topFormationSize===10">1 🥅 · 3 🛡️ · 4 🔄 · 2 ⚡</span>
               <span v-if="topFormationSize===11">1 🥅 · 4 🛡️ · 4 🔄 · 2 ⚡</span>
             </div>
             <!-- Players -->
@@ -6729,7 +6731,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.696',date:'2026-07-15',items:[
+    const changelogEntries = [{version:'v1.698',date:'2026-07-16',items:[
+      'Fix CRITICO: dopo una correzione partita, il TrashTalk veniva invalidato su Firebase/flag/localStorage ma MAI in memoria (aiCardsTrashTalk) — la home continuava a mostrare le card della partita precedente, a volte per giorni. Segnalato da Alby: TrashTalk del 16/7 identico a quello del 9/7 dopo una correzione. Ora si azzera subito anche il ref in memoria: la home mostra "nessuna card" finché la rigenerazione vera non è pronta, mai più contenuto vecchio spacciato per nuovo.',
+    ]},{version:'v1.697',date:'2026-07-16',items:[
+      'Top Team (Statistiche): aggiunte le taglie 9vs9 e 10vs10 (mancavano, coprivamo solo 5,6,7,8,11) — schema 9: 1 Portiere · 3 Difensori · 3 Centrocampisti · 2 Attaccanti; schema 10: 1 Portiere · 3 Difensori · 4 Centrocampisti · 2 Attaccanti. Primo step del progetto "Riepilogo Stagione".',
+    ]},{version:'v1.696',date:'2026-07-15',items:[
       'Condivisione Statistiche: ulteriore ottimizzazione spazi — righe più compatte (meno vuoto tra un giocatore e l\'altro), foto/avatar più grandi (raggio 34→42), font nome e punteggio ancora più grandi.',
     ]},{version:'v1.695',date:'2026-07-15',items:[
       'Condivisione Statistiche ottimizzata su richiesta di Alby: titolo/sottotitolo/data più grandi, logo spostato in alto a destra, righe giocatori con font più grandi e spaziatura migliore, footer/slogan rimosso per recuperare spazio verticale.',
@@ -7511,7 +7517,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.696');
+    const appVersion = ref('1.698');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -7735,6 +7741,8 @@ createApp({
       6:  { Portiere:1, Difensore:2, Centrocampista:2, Attaccante:1 },
       7:  { Portiere:1, Difensore:3, Centrocampista:2, Attaccante:1 },
       8:  { Portiere:1, Difensore:3, Centrocampista:3, Attaccante:1 },
+      9:  { Portiere:1, Difensore:3, Centrocampista:3, Attaccante:2 },
+      10: { Portiere:1, Difensore:3, Centrocampista:4, Attaccante:2 },
       11: { Portiere:1, Difensore:4, Centrocampista:4, Attaccante:2 }
     };
 
@@ -12457,6 +12465,16 @@ Niente altro, nessuna spiegazione.`;
           }
           aiFlagClear('tt', currentGroup.value?.id || '');
           localStorage.removeItem('amicifc_tt_' + (currentGroup.value?.id || ''));
+          // Fix 16/7/2026: sopra si puliva Firebase/flag/localStorage ma MAI la variabile in
+          // memoria (aiCardsTrashTalk) che la UI legge davvero — risultato: la home continuava
+          // a mostrare le card vecchie (di una partita precedente) finché la rigenerazione vera
+          // non arrivava, a volte mai per via di una finestra di 3 giorni basata solo sull'età
+          // della cache. Segnalato da Alby: TrashTalk del 16/7 identico a quello del 9/7 dopo una
+          // correzione partita. Ora si azzera subito anche qui: la home mostra onestamente
+          // "nessuna card" finché la rigenerazione (automatica in background o manuale) non
+          // porta i dati freschi, mai più contenuto vecchio spacciato per nuovo.
+          aiCardsTrashTalk.value = [];
+          aiCardsTrashTalkFirma.value = '';
         } catch(eTT) {
           logEvent('warn', 'ai', 'Invalidazione TrashTalk dopo modifica partita fallita: ' + eTT.message);
         }
