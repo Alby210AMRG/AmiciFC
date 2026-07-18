@@ -1932,12 +1932,37 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="font-size:0.75rem;color:var(--text2);margin-bottom:8px">Digita <strong style="color:var(--text1)">ARCHIVIA</strong> per confermare</div>
             <input class="input-field" v-model="archiveStepData.confermaTesto" placeholder="ARCHIVIA" style="text-transform:uppercase">
           </div>
-          <div v-if="!archiveStepData.backupScaricato||!archiveStepData.zipScaricato||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato)" style="color:var(--yellow);font-size:0.75rem;margin-bottom:8px">⚠️ Scarica backup di sicurezza, ZIP giornale e genera il Riepilogo Stagione per abilitare la conferma</div>
+
+          <!-- Salta controlli obbligatori: nascosta di default, va aperta apposta -->
+          <div style="border:1px solid rgba(255,77,77,0.25);border-radius:8px;margin-bottom:12px;overflow:hidden">
+            <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:space-between;display:flex;color:var(--text2);font-size:0.75rem"
+              @click="archiveStepData.skipChecksExpanded = !archiveStepData.skipChecksExpanded">
+              <span>⚠️ Salta controlli obbligatori</span>
+              <span>{{ archiveStepData.skipChecksExpanded ? '▲' : '▼' }}</span>
+            </button>
+            <div v-if="archiveStepData.skipChecksExpanded" style="padding:12px;border-top:1px solid rgba(255,77,77,0.2);background:rgba(255,77,77,0.03)">
+              <div style="font-size:0.75rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
+                Backup, ZIP giornale e Riepilogo Stagione sono obbligatori perché sono l'<strong style="color:var(--text1)">unica occasione</strong> per conservare foto e PNG di questa stagione — dopo l'archiviazione vengono cancellati e non sono più recuperabili.
+                Spunta una voce solo se sei sicuro di non averne bisogno (es. hai già un backup fatto altrove, o questa stagione non ha foto/PNG rilevanti da conservare). <strong style="color:var(--red)">Chi salta un controllo si assume la responsabilità di eventuali dati persi.</strong>
+              </div>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" v-model="archiveStepData.skipBackup"> Ho già un backup di sicurezza, non serve riscaricarlo
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" v-model="archiveStepData.skipZip"> Non mi serve lo ZIP giornale per questa stagione
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;cursor:pointer">
+                <input type="checkbox" v-model="archiveStepData.skipRiepilogo"> Non mi serve il Riepilogo Stagione per questa stagione
+              </label>
+            </div>
+          </div>
+
+          <div v-if="(!archiveStepData.backupScaricato&&!archiveStepData.skipBackup)||(!archiveStepData.zipScaricato&&!archiveStepData.skipZip)||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato&&!archiveStepData.skipRiepilogo)" style="color:var(--yellow);font-size:0.75rem;margin-bottom:8px">⚠️ Scarica backup di sicurezza, ZIP giornale e genera il Riepilogo Stagione (o salta i controlli qui sopra) per abilitare la conferma</div>
           <div v-if="archiveStepData.error" style="color:var(--red);font-size:0.78rem;margin-bottom:8px">{{ archiveStepData.error }}</div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost" style="flex:1" :disabled="archiveStepData.loading" @click="archiveWizard.step=3">← Indietro</button>
             <button class="btn btn-sm" style="flex:2;background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red);font-weight:700"
-              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading||!archiveStepData.backupScaricato||!archiveStepData.zipScaricato||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato)"
+              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading||(!archiveStepData.backupScaricato&&!archiveStepData.skipBackup)||(!archiveStepData.zipScaricato&&!archiveStepData.skipZip)||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato&&!archiveStepData.skipRiepilogo)"
               @click="doArchiveStagione">
               {{ archiveStepData.loading ? '⏳ Archiviazione...' : '📦 Conferma Archiviazione' }}
             </button>
@@ -4840,8 +4865,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <h3>Nessun gruppo ancora</h3>
           <p>Crea il tuo primo gruppo per iniziare!</p>
         </div>
+      </div>
 
-        <div style="display:flex;gap:8px;margin-top:16px;border-top:1px solid var(--border);padding-top:16px">
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">➕ Crea nuovo gruppo</div>
+        <div style="display:flex;gap:8px">
           <input class="input-field" v-model="newGroupName" placeholder="Nome nuovo gruppo..." style="flex:1"
             @keyup.enter="createGroup">
           <button class="btn btn-primary" @click="createGroup" :disabled="!newGroupName.trim()">➕ Crea</button>
@@ -6979,7 +7007,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.711',date:'2026-07-18',items:[
+    const changelogEntries = [{version:'v1.713',date:'2026-07-18',items:[
+      'Wizard Archiviazione Stagione — nuova sezione "⚠️ Salta controlli obbligatori" nello Step 4, nascosta di default (va aperta apposta). Contiene 3 checkbox indipendenti (Backup / ZIP giornale / Riepilogo Stagione) che disabilitano solo il controllo corrispondente sul bottone di conferma, con testo esplicativo chiaro sul perché quei controlli esistono e sul rischio di perdita dati saltandoli. Richiesto da Alby 18/7/2026 dopo aver testato il wizard: a volte non serve davvero avere tutti e 3 i passaggi (es. stagione senza foto rilevanti, backup già fatto altrove).',
+    ]},{version:'v1.712',date:'2026-07-18',items:[
+      'Fix CRITICO Riepilogo Stagione: "Genera Riepilogo Stagione" falliva sempre con DataCloneError ("[object Array] could not be cloned") — lo snapshot conteneva dati derivati da groupPlayers/groupMatches (Proxy reattivi Vue) mai deep-clonati prima della scrittura su IndexedDB, stesso problema già risolto altrove nel progetto (vedi archivedSeasons). Ora _persistSeasonSummarySnapshot fa JSON.parse(JSON.stringify(...)) prima di scrivere su Dexie/Firebase. Segnalato da Alby nel primo test reale su TestAmiciFC.',
+      'Gestione Gruppi: la creazione di un nuovo gruppo ("Nome nuovo gruppo... + Crea") ora è in una card separata dalla lista dei gruppi esistenti — prima erano nello stesso box, confusi con l\'elenco/archiviazione. Segnalato da Alby 18/7/2026.',
+    ]},{version:'v1.711',date:'2026-07-18',items:[
       'Riepilogo Stagione — Step 7/9: hook reale nel wizard di Archiviazione + schermata definitiva + sblocco menu "Altro". Nuova tabella Dexie `seasonSummaries` (v7) + nodo Firebase `seasonSummary/{gruppo}` per gruppi cloud. Nel wizard di Archiviazione (Step 4), nuovo box obbligatorio "📖 Riepilogo Stagione" (stesso principio di Backup/ZIP giornale già esistenti): genera e salva lo snapshot completo (numeri, Oscar, Annuario con foto, partite con PNG giornale, Il Gabbione, testo AI) PRIMA che l\'archiviazione elimini le partite — verificato che l\'eliminazione avviene solo dopo la conferma, quindi il momento è quello giusto. Voce "Riepilogo Stagione" nel menu "Altro" bloccata finché non esiste uno snapshot per il gruppo, più una card dedicata in home. Nuova schermata scrollabile con tutte le sezioni A-E + Gabbione + testo AI, bottone "Riprova testo AI" con gating Firebase/AI, bottone "Condividi PDF" per ora disabilitato (arriva allo Step 8). Limite noto: la generazione funziona solo archiviando il gruppo attualmente selezionato (non gruppi diversi da Gestione Gruppi) — segnalato in changelog per revisione futura.',
     ]},{version:'v1.710',date:'2026-07-18',items:[
       'Riepilogo Stagione: aggiunta la firma finale del "telecronista" al testo AI (stesso pool di nomi già usato per TrashTalk/Pronostico, rotazione giornaliera), mostrata dopo la chiusura del diario. Confermato da Alby: toni e Step 6 nel complesso ok.',
@@ -7742,7 +7775,11 @@ createApp({
       zipLoading: false,
       riepilogoGenerato: false, // Riepilogo Stagione generato in questa sessione del wizard
       riepilogoLoading: false,
-      riepilogoNonSupportato: false // true se si sta archiviando un gruppo diverso da quello corrente (limite noto)
+      riepilogoNonSupportato: false, // true se si sta archiviando un gruppo diverso da quello corrente (limite noto)
+      skipChecksExpanded: false, // sezione "Salta controlli obbligatori" — nascosta finché non la apri apposta
+      skipBackup: false,
+      skipZip: false,
+      skipRiepilogo: false
     });
     const matchTeamOpen      = ref({A: true, B: true}); // accordion squadre in newmatch
     const matchNotes         = ref('');
@@ -7802,7 +7839,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.711');
+    const appVersion = ref('1.713');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13675,16 +13712,22 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     };
 
     const _persistSeasonSummarySnapshot = async (snapshot) => {
-      await db.seasonSummaries.put(snapshot);
+      // Fix DataCloneError ("[object Array] could not be cloned"): lo snapshot porta dati derivati
+      // da groupPlayers.value/groupMatches.value (Proxy reattivi Vue) — IndexedDB non sa clonare i
+      // Proxy con la Structured Clone Algorithm. Stesso fix già usato per archivedSeasons (vedi
+      // doArchiveStagione): deep-clone in plain object PRIMA di scrivere su Dexie. Segnalato da
+      // Alby 18/7/2026 nel test reale.
+      const plainSnapshot = JSON.parse(JSON.stringify(snapshot));
+      await db.seasonSummaries.put(plainSnapshot);
       if (currentGroup.value?.firebaseUrl) {
         try {
           const tok = await getValidToken();
-          await _fbWriteToGroup(currentGroup.value, `seasonSummary/${snapshot.groupId}`, snapshot, tok);
+          await _fbWriteToGroup(currentGroup.value, `seasonSummary/${plainSnapshot.groupId}`, plainSnapshot, tok);
         } catch(e) {
           logEvent('warn','app','Riepilogo Stagione: scrittura Firebase non riuscita — '+e.message);
         }
       }
-      seasonSummarySnapshot.value = snapshot;
+      seasonSummarySnapshot.value = plainSnapshot;
     };
 
     // Chiamata dal wizard di archiviazione, PRIMA che i dati vengano ripuliti — è l'unica occasione
@@ -16054,6 +16097,10 @@ const toggleFont = () => {
       // gruppo diverso (da Gestione Gruppi), il Riepilogo non può essere generato qui. Da rivedere
       // in futuro se servirà davvero archiviare gruppi non correnti con Riepilogo incluso.
       archiveStepData.riepilogoNonSupportato = g.id !== currentGroup.value?.id;
+      archiveStepData.skipChecksExpanded = false;
+      archiveStepData.skipBackup = false;
+      archiveStepData.skipZip = false;
+      archiveStepData.skipRiepilogo = false;
       archiveWizard.value = {
         step: 1,
         group: g,
