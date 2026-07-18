@@ -1913,17 +1913,31 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {{ archiveStepData.zipLoading ? '⏳ Genero PNG e ZIP...' : (archiveStepData.zipScaricato ? '✅ ZIP scaricato — riscarica' : '🗞️ Genera e scarica ZIP giornale') }}
             </button>
           </div>
+          <div style="background:rgba(200,255,0,0.07);border:1px solid rgba(200,255,0,0.3);border-radius:10px;padding:12px;margin-bottom:14px">
+            <div style="font-size:0.78rem;color:#C8FF00;font-weight:700;margin-bottom:6px">📖 Riepilogo Stagione obbligatorio</div>
+            <div v-if="archiveStepData.riepilogoNonSupportato" style="font-size:0.75rem;color:var(--yellow)">
+              ⚠️ Non disponibile: si sta archiviando un gruppo diverso da quello attualmente selezionato. Seleziona questo gruppo come corrente e riprova l'archiviazione per includere il Riepilogo.
+            </div>
+            <template v-else>
+              <div style="font-size:0.75rem;color:var(--text2);margin-bottom:10px">Genera lo snapshot con numeri, Oscar, Annuario giocatori, partite e testo AI — mentre i dati sono ancora vivi. È l'unica occasione: dopo l'archiviazione foto/PNG non saranno più disponibili. Può richiedere qualche secondo.</div>
+              <button class="btn btn-sm" style="width:100%;background:rgba(200,255,0,0.15);border:1.5px solid #C8FF00;color:#C8FF00;font-weight:700"
+                :disabled="archiveStepData.loading||archiveStepData.riepilogoLoading"
+                @click="archiveGeneraRiepilogoStagione">
+                {{ archiveStepData.riepilogoLoading ? '⏳ Genero Riepilogo...' : (archiveStepData.riepilogoGenerato ? '✅ Riepilogo generato — rigenera' : '📖 Genera Riepilogo Stagione') }}
+              </button>
+            </template>
+          </div>
           <div style="background:rgba(255,77,77,0.05);border:1px solid rgba(255,77,77,0.2);border-radius:8px;padding:10px;margin-bottom:12px">
             <div style="font-size:0.78rem;color:var(--red);font-weight:700;margin-bottom:6px">⚠️ Azione irreversibile</div>
             <div style="font-size:0.75rem;color:var(--text2);margin-bottom:8px">Digita <strong style="color:var(--text1)">ARCHIVIA</strong> per confermare</div>
             <input class="input-field" v-model="archiveStepData.confermaTesto" placeholder="ARCHIVIA" style="text-transform:uppercase">
           </div>
-          <div v-if="!archiveStepData.backupScaricato||!archiveStepData.zipScaricato" style="color:var(--yellow);font-size:0.75rem;margin-bottom:8px">⚠️ Scarica backup di sicurezza e ZIP giornale per abilitare la conferma</div>
+          <div v-if="!archiveStepData.backupScaricato||!archiveStepData.zipScaricato||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato)" style="color:var(--yellow);font-size:0.75rem;margin-bottom:8px">⚠️ Scarica backup di sicurezza, ZIP giornale e genera il Riepilogo Stagione per abilitare la conferma</div>
           <div v-if="archiveStepData.error" style="color:var(--red);font-size:0.78rem;margin-bottom:8px">{{ archiveStepData.error }}</div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost" style="flex:1" :disabled="archiveStepData.loading" @click="archiveWizard.step=3">← Indietro</button>
             <button class="btn btn-sm" style="flex:2;background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red);font-weight:700"
-              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading||!archiveStepData.backupScaricato||!archiveStepData.zipScaricato"
+              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading||!archiveStepData.backupScaricato||!archiveStepData.zipScaricato||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato)"
               @click="doArchiveStagione">
               {{ archiveStepData.loading ? '⏳ Archiviazione...' : '📦 Conferma Archiviazione' }}
             </button>
@@ -3005,6 +3019,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
         </transition>
+      </div>
+
+      <div v-if="currentGroup && seasonSummarySnapshot" class="hero-card" style="background:linear-gradient(135deg,#1a2e05,#3a5c0a 60%,#C8FF00);cursor:pointer" @click="currentView='seasonSummary'">
+        <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
+        <div style="flex:1;text-align:left;position:relative;z-index:1">
+          <div class="hero-title">Riepilogo Stagione</div>
+          <div class="hero-sub">{{ seasonSummarySnapshot.stagione }} — tocca per leggerlo</div>
+        </div>
       </div>
 
       <div v-if="!currentGroup" class="hero-card" @click="currentView='onboarding';onboardingStep=null">
@@ -4836,6 +4858,115 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
     </template>
 
+    <!-- ════ RIEPILOGO STAGIONE ════ -->
+    <template v-if="currentView === 'seasonSummary' && seasonSummarySnapshot">
+      <div class="card-title">📖 Riepilogo Stagione — {{ seasonSummarySnapshot.stagione }}</div>
+
+      <div v-if="seasonSummarySnapshot.aiTexts?.intro" class="card" style="font-style:italic;line-height:1.6">
+        {{ seasonSummarySnapshot.aiTexts.intro }}
+      </div>
+
+      <!-- Sezione A -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px">🔢 Numeri della stagione</div>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
+          <div><div style="font-size:1.6rem;font-weight:800">{{ seasonSummarySnapshot.sezioneA.partiteGiocate }}</div><div style="font-size:0.7rem;color:var(--text2)">Partite</div></div>
+          <div><div style="font-size:1.6rem;font-weight:800">{{ seasonSummarySnapshot.sezioneA.golTotali }}</div><div style="font-size:0.7rem;color:var(--text2)">Gol totali</div></div>
+          <div><div style="font-size:1.6rem;font-weight:800">{{ seasonSummarySnapshot.sezioneA.mediaGolPartita.toFixed(2) }}</div><div style="font-size:0.7rem;color:var(--text2)">Media gol/partita</div></div>
+          <div><div style="font-size:1.6rem;font-weight:800">{{ seasonSummarySnapshot.sezioneA.presenzeTotali }}</div><div style="font-size:0.7rem;color:var(--text2)">Presenze totali</div></div>
+        </div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoA" style="font-size:0.82rem;color:var(--text2);line-height:1.6">{{ seasonSummarySnapshot.aiTexts.commentoA }}</div>
+      </div>
+
+      <!-- Sezione B — Gli Oscar -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">🏆 Gli Oscar</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div>🏆 <strong>Pallone d'Oro</strong> ({{ seasonSummarySnapshot.sezioneB.palloneDoro.valore?.toFixed(2) || '—' }}): {{ seasonSummarySnapshot.sezioneB.palloneDoro.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
+          <div>👟 <strong>Scarpa d'Oro</strong> ({{ seasonSummarySnapshot.sezioneB.scarpaDoro.valore }} gol): {{ seasonSummarySnapshot.sezioneB.scarpaDoro.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
+          <div>💪 <strong>Fedelissimo</strong> ({{ seasonSummarySnapshot.sezioneB.fedelissimo.valore }} presenze): {{ seasonSummarySnapshot.sezioneB.fedelissimo.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
+          <div v-if="seasonSummarySnapshot.sezioneB.kryptonite.length">☠️ <strong>Kryptonite</strong>: <span v-for="(k,ki) in seasonSummarySnapshot.sezioneB.kryptonite" :key="ki">{{ k.vittima }} vs {{ k.incubo }} ({{ k.persi }}/{{ k.tot }})<span v-if="ki<seasonSummarySnapshot.sezioneB.kryptonite.length-1"> · </span></span></div>
+          <div>👑 <strong>Giocatore Più Premiato</strong>: {{ seasonSummarySnapshot.sezioneB.piuPremiato.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
+          <div>🪣 <strong>Il Bidone d'Oro</strong>: {{ seasonSummarySnapshot.sezioneB.bidoneDellAnno.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
+        </div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoB" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoB }}</div>
+      </div>
+
+      <!-- Sezione C — Classifiche -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:10px">📊 Classifiche</div>
+        <div style="font-size:0.85rem;margin-bottom:6px"><strong>Marcatori:</strong> {{ seasonSummarySnapshot.sezioneC.topScorers.map(p=>(p.soprannome||p.nome)+' ('+p.goalTotali+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.trackAssist && seasonSummarySnapshot.sezioneC.topAssist?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>Assist:</strong> {{ seasonSummarySnapshot.sezioneC.topAssist.map(p=>(p.soprannome||p.nome)+' ('+p.assistTotali+')').join(', ') }}</div>
+        <div style="font-size:0.85rem"><strong>Media Voto:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaVoto.map(p=>(p.soprannome||p.nome)+' ('+p.mediaVoto.toFixed(2)+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
+      </div>
+
+      <!-- Sezione D — Partite -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px">🗞️ Le partite</div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div v-for="(m,mi) in seasonSummarySnapshot.sezioneD" :key="mi" style="border-top:1px solid var(--border);padding-top:12px">
+            <div style="font-size:0.8rem;color:var(--text2);margin-bottom:6px">{{ m.data }} · {{ m.golA }}-{{ m.golB }}</div>
+            <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
+            <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+          </div>
+        </div>
+      </div>
+
+      <!-- Sezione E — Annuario -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px">📇 Annuario giocatori</div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
+        <div style="display:flex;flex-direction:column;gap:16px">
+          <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" style="display:flex;gap:12px;border-top:1px solid var(--border);padding-top:12px">
+            <img :src="p.foto" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
+            <div style="font-size:0.82rem;line-height:1.6">
+              <div style="font-weight:700">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.ruolo }}{{ p.piede ? ' · '+p.piede : '' }}</span></div>
+              <div>{{ p.goalTotali }} gol in {{ p.partiteTotali }} presenze · media voto {{ p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—' }} · {{ p.uomoPartitaTotali }} UoM</div>
+              <div>🥅 Max gol in una partita: {{ p.maxGolPartita }}</div>
+              <div v-if="p.vittima">😈 Vittima preferita: {{ p.vittima.nome }} ({{ p.vittima.vinte }}/{{ p.vittima.tot }})</div>
+              <div v-if="p.incubo">☠️ Incubo personale: {{ p.incubo.nome }} ({{ p.incubo.perse }}/{{ p.incubo.tot }})</div>
+              <div v-if="p.soprannomeAI" style="font-style:italic;color:var(--text2);margin-top:2px">🎭 {{ p.soprannomeAI }}{{ p.confrontoAI ? ' — '+p.confrontoAI : '' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Il Gabbione -->
+      <div class="card">
+        <div class="card-title" style="margin-bottom:6px">🥊 Il Gabbione</div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Sfide "rivincita" suggerite — non partite realmente giocate.</div>
+        <div v-if="seasonSummarySnapshot.gabbione.gabbione2v2" style="font-size:0.85rem;margin-bottom:8px">
+          <strong>2vs2:</strong> {{ seasonSummarySnapshot.gabbione.gabbione2v2.squadraA.join(' + ') }} 🆚 {{ seasonSummarySnapshot.gabbione.gabbione2v2.squadraB.join(' + ') }}
+        </div>
+        <div v-if="seasonSummarySnapshot.gabbione.gabbione3v3" style="font-size:0.85rem">
+          <strong>3vs3:</strong> {{ seasonSummarySnapshot.gabbione.gabbione3v3.squadraA.join(' + ') }} 🆚 {{ seasonSummarySnapshot.gabbione.gabbione3v3.squadraB.join(' + ') }}
+        </div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoGabbione" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoGabbione }}</div>
+      </div>
+
+      <!-- Chiusura -->
+      <div v-if="seasonSummarySnapshot.aiTexts?.chiusura" class="card" style="font-style:italic;line-height:1.6">
+        {{ seasonSummarySnapshot.aiTexts.chiusura }}
+        <div v-if="seasonSummarySnapshot.aiTexts.firma" style="text-align:right;color:var(--text2);margin-top:8px">— {{ seasonSummarySnapshot.aiTexts.firma }}</div>
+      </div>
+
+      <!-- Testo AI mancante/fallito -->
+      <div v-if="seasonSummarySnapshot.aiError" class="card" style="border:1px solid var(--yellow)">
+        <div style="font-size:0.82rem;color:var(--yellow)">⚠️ Testo AI non disponibile: {{ seasonSummarySnapshot.aiError }}</div>
+        <button v-if="canRetrySeasonSummaryAI" class="btn btn-sm" style="margin-top:10px" :disabled="seasonSummaryAIGenerating" @click="retrySeasonSummaryAIText">
+          {{ seasonSummaryAIGenerating ? '⏳...' : '🔄 Riprova testo AI' }}
+        </button>
+        <div v-else style="font-size:0.72rem;color:var(--text2);margin-top:6px">Serve un'AI configurata{{ currentGroup.firebaseUrl ? ' e il login Firebase' : '' }} per riprovare.</div>
+      </div>
+
+      <!-- Condividi PDF (Step 8) -->
+      <div class="card" style="text-align:center">
+        <button class="btn btn-primary" style="width:100%" disabled title="Disponibile in un prossimo aggiornamento">📤 Condividi PDF (in arrivo)</button>
+      </div>
+    </template>
+
     <!-- ════ IMPOSTAZIONI ════ -->
     <template v-if="currentView === 'settings'">
       <div class="card-title">⚙️ Impostazioni</div>
@@ -5544,6 +5675,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
         <span class="more-icon">⚙️</span> Impostazioni
       </button>
+      <button v-if="seasonSummarySnapshot" class="more-menu-item" @click="currentView='seasonSummary';showMoreMenu=false">
+        <span class="more-icon">📖</span> Riepilogo Stagione
+      </button>
+      <div v-else class="more-menu-item" style="opacity:0.4;cursor:default" @click.stop>
+        <span class="more-icon">🔒</span> Riepilogo Stagione <span style="font-size:0.68rem;margin-left:4px">(a fine stagione)</span>
+      </div>
     </div>
   </div>
 
@@ -6654,6 +6791,19 @@ db.version(6).stores({
   archivedSeasons:'archivioId, groupId'
 });
 
+// VERSION 7: tabella seasonSummaries (Riepilogo Stagione) — snapshot congelato, generato
+// all'archiviazione, foto/PNG incorporati e ricompressi. Una riga per gruppo (l'ultimo
+// generato); se in futuro servirà lo storico di più stagioni si potrà ripensare la chiave.
+db.version(7).stores({
+  groups:         '++id, nome',
+  players:        '++id, groupId, uid, nome, cognome',
+  matches:        '++id, groupId, data, matchUUID',
+  formations:     '++id, groupId, stato, dataCreazione',
+  playerPhotos:   'uid, updatedAt',
+  archivedSeasons:'archivioId, groupId',
+  seasonSummaries:'groupId'
+});
+
 // ──────────────────────────────────────
 // HELPER: UUID
 // ──────────────────────────────────────
@@ -6829,7 +6979,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.710',date:'2026-07-18',items:[
+    const changelogEntries = [{version:'v1.711',date:'2026-07-18',items:[
+      'Riepilogo Stagione — Step 7/9: hook reale nel wizard di Archiviazione + schermata definitiva + sblocco menu "Altro". Nuova tabella Dexie `seasonSummaries` (v7) + nodo Firebase `seasonSummary/{gruppo}` per gruppi cloud. Nel wizard di Archiviazione (Step 4), nuovo box obbligatorio "📖 Riepilogo Stagione" (stesso principio di Backup/ZIP giornale già esistenti): genera e salva lo snapshot completo (numeri, Oscar, Annuario con foto, partite con PNG giornale, Il Gabbione, testo AI) PRIMA che l\'archiviazione elimini le partite — verificato che l\'eliminazione avviene solo dopo la conferma, quindi il momento è quello giusto. Voce "Riepilogo Stagione" nel menu "Altro" bloccata finché non esiste uno snapshot per il gruppo, più una card dedicata in home. Nuova schermata scrollabile con tutte le sezioni A-E + Gabbione + testo AI, bottone "Riprova testo AI" con gating Firebase/AI, bottone "Condividi PDF" per ora disabilitato (arriva allo Step 8). Limite noto: la generazione funziona solo archiviando il gruppo attualmente selezionato (non gruppi diversi da Gestione Gruppi) — segnalato in changelog per revisione futura.',
+    ]},{version:'v1.710',date:'2026-07-18',items:[
       'Riepilogo Stagione: aggiunta la firma finale del "telecronista" al testo AI (stesso pool di nomi già usato per TrashTalk/Pronostico, rotazione giornaliera), mostrata dopo la chiusura del diario. Confermato da Alby: toni e Step 6 nel complesso ok.',
       'Diagnostica Pronostico: aggiunto logging alle tre condizioni di uscita silenziosa di _generatePronostico() (AI non configurata, nessun gruppo, dati insufficienti) — prima non lasciavano traccia nel log, rendendo impossibile capire perché una rigenerazione non fosse partita. Segnalato da Alby: il Pronostico su Firebase risultava fermo al 23/06/2026 nonostante il rinnovo automatico ogni 7 giorni. Non ancora risolto (serve altro materiale di log per capire la causa esatta — la soglia minima dati richiesta, 4 giocatori/2 partite, sembra già ampiamente superata sul gruppo reale), ma ora la prossima volta che ricapita si potrà leggere subito il motivo nel log invece di doverlo dedurre.',
     ]},{version:'v1.709',date:'2026-07-18',items:[
@@ -7587,7 +7739,10 @@ createApp({
       error: '',
       backupScaricato: false, // JSON di sicurezza scaricato in questa sessione del wizard
       zipScaricato: false,    // ZIP del giornale scaricato in questa sessione del wizard
-      zipLoading: false
+      zipLoading: false,
+      riepilogoGenerato: false, // Riepilogo Stagione generato in questa sessione del wizard
+      riepilogoLoading: false,
+      riepilogoNonSupportato: false // true se si sta archiviando un gruppo diverso da quello corrente (limite noto)
     });
     const matchTeamOpen      = ref({A: true, B: true}); // accordion squadre in newmatch
     const matchNotes         = ref('');
@@ -7647,7 +7802,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.710');
+    const appVersion = ref('1.711');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8081,6 +8236,7 @@ createApp({
       currentGroup.value = g;
       localStorage.setItem('amicifc_group', g.id);
       await loadGroupData();
+      loadSeasonSummarySnapshot(g.id).catch(()=>{});
       if (!g.firebaseUrl) setTimeout(() => _heroLaunch(), 200);
     };
 
@@ -11982,7 +12138,14 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
       if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
       const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
-      if (_lsPronoCheck?.titolo && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
+      // Fix 18/7/2026: qui prima si riattivava il flag solo perché esisteva un titolo in cache,
+      // senza controllare se quel contenuto fosse ancora recente — un Pronostico vecchio di
+      // settimane riattivava il proprio stesso flag ogni avvio, bloccando per sempre la
+      // rigenerazione in silenzio (nessun log, causa del bug segnalato da Alby: Pronostico fermo
+      // al 23/6 per oltre 3 settimane). Ora si riattiva il flag solo se il contenuto in cache è
+      // realmente ancora dentro i 7 giorni di validità.
+      const _pronoFresh = _lsPronoCheck?.titolo && _lsPronoCheck?.generatedAt && (Date.now() - _lsPronoCheck.generatedAt) < (7*24*60*60*1000);
+      if (_pronoFresh && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
       if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto() && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
@@ -13479,6 +13642,144 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         seasonSummaryAITexts.value = { ...parsed, firma: parsed.firma || _firma, _errore: null };
       } catch(e) {
         seasonSummaryAITexts.value = { _errore: 'Errore imprevisto: ' + e.message };
+      } finally {
+        seasonSummaryAIGenerating.value = false;
+      }
+    };
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Step 7: generazione REALE e persistenza del Riepilogo Stagione (non più solo test).
+    // Snapshot congelato in db.seasonSummaries (una riga per gruppo — vedi Dexie v7) + Firebase
+    // per gruppi cloud. Fase 1 (numeri/Oscar/PNG/Annuario/Gabbione) salvata SEMPRE, anche se la
+    // Fase 2 (testo AI) fallisce — coerente col principio "mai bloccante" seguito in tutto il
+    // progetto.
+    // ═══════════════════════════════════════════════════════════════════
+    const seasonSummarySnapshot = ref(null); // snapshot del gruppo corrente, o null se non ancora generato
+
+    const loadSeasonSummarySnapshot = async (gid) => {
+      if (!gid) { seasonSummarySnapshot.value = null; return; }
+      try {
+        const row = await db.seasonSummaries.get(gid);
+        seasonSummarySnapshot.value = row || null;
+        // Se il gruppo ha Firebase, controlla se lì c'è una versione più recente (es. generata da
+        // un altro dispositivo) e allinea la copia locale — stesso principio già usato per TrashTalk/HoF.
+        if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid) {
+          const tok = await getValidToken().catch(()=>null);
+          const remote = await _fbReadFromGroup(currentGroup.value, `seasonSummary/${gid}`, tok || '');
+          if (remote?.generatedAt && (!row || remote.generatedAt > row.generatedAt)) {
+            await db.seasonSummaries.put(remote);
+            seasonSummarySnapshot.value = remote;
+          }
+        }
+      } catch(e) { /* silenzioso: non deve mai bloccare l'avvio */ }
+    };
+
+    const _persistSeasonSummarySnapshot = async (snapshot) => {
+      await db.seasonSummaries.put(snapshot);
+      if (currentGroup.value?.firebaseUrl) {
+        try {
+          const tok = await getValidToken();
+          await _fbWriteToGroup(currentGroup.value, `seasonSummary/${snapshot.groupId}`, snapshot, tok);
+        } catch(e) {
+          logEvent('warn','app','Riepilogo Stagione: scrittura Firebase non riuscita — '+e.message);
+        }
+      }
+      seasonSummarySnapshot.value = snapshot;
+    };
+
+    // Chiamata dal wizard di archiviazione, PRIMA che i dati vengano ripuliti — è l'unica occasione
+    // per catturare foto/PNG (stesso principio dello ZIP giornale già esistente).
+    const generateSeasonSummarySnapshot = async () => {
+      if (!currentGroup.value) return { ok:false, error:'Nessun gruppo selezionato' };
+      const gid = currentGroup.value.id;
+      try {
+        const d = buildSeasonSummaryTest();
+        const sezioneD = await buildSeasonSummaryTestSectionD();
+        const sezioneE = buildSeasonSummaryTestSectionE();
+        const gabbione = buildSeasonSummaryTestGabbione();
+
+        let snapshot = {
+          groupId: gid,
+          stagione: d.stagione,
+          generatedAt: Date.now(),
+          trackAssist: d.trackAssist,
+          sezioneA: d.sezioneA,
+          sezioneB: d.sezioneB,
+          sezioneC: d.sezioneC,
+          sezioneD,
+          sezioneE,
+          gabbione,
+          aiTexts: null,
+          aiError: null
+        };
+
+        // Fase 1 salvata subito — indipendente dall'AI, non può fallire per motivi esterni
+        await _persistSeasonSummarySnapshot(snapshot);
+        logEvent('info','app',`📖 Riepilogo Stagione: Fase 1 salvata (${sezioneD.length} partite, ${sezioneE.length} giocatori in Annuario)`);
+
+        // Fase 2 — testo AI, mai bloccante: eventuali errori restano solo in aiError
+        if (settings.value.apiKey) {
+          try {
+            const firma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
+            const prompt = _buildSeasonSummaryAIPrompt(d, gabbione, firma);
+            const raw = await _callAI(prompt, 1200);
+            const parsed = raw ? _parseAIJson(raw) : null;
+            const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoGabbione','chiusura'];
+            if (parsed && required.every(k => typeof parsed[k] === 'string' && parsed[k].trim())) {
+              snapshot = { ...snapshot, aiTexts: { ...parsed, firma: parsed.firma || firma }, aiError: null };
+              logEvent('info','app','📖 Riepilogo Stagione: testo AI generato');
+            } else {
+              snapshot = { ...snapshot, aiError: 'Risposta AI assente o in formato non valido' };
+              logEvent('warn','app','📖 Riepilogo Stagione: testo AI non valido — riprovabile da Impostazioni');
+            }
+          } catch(e) {
+            snapshot = { ...snapshot, aiError: 'Errore: ' + e.message };
+            logEvent('warn','app','📖 Riepilogo Stagione: testo AI fallito — '+e.message);
+          }
+        } else {
+          snapshot.aiError = 'Nessuna AI configurata';
+        }
+        await _persistSeasonSummarySnapshot(snapshot);
+
+        return { ok:true };
+      } catch(e) {
+        logEvent('error','app','Riepilogo Stagione: generazione Fase 1 fallita — '+e.message);
+        return { ok:false, error: e.message };
+      }
+    };
+
+    // Gating per il retry del solo testo AI nella schermata definitiva: se il gruppo ha Firebase
+    // serve login + AI configurata; se il gruppo è "solo JSON" (no Firebase) basta l'AI configurata,
+    // nessun login richiesto (non esiste in quel caso). Deciso con Alby il 17/7/2026.
+    const canRetrySeasonSummaryAI = computed(() => {
+      if (!settings.value.apiKey) return false;
+      if (currentGroup.value?.firebaseUrl) return !!firebaseUser.value;
+      return true;
+    });
+
+    // Rigenera SOLO il testo AI dello snapshot già congelato — funziona anche molto tempo dopo
+    // l'archiviazione, perché usa solo i campi già salvati nello snapshot (sezioneA/B/C/gabbione),
+    // mai i dati live della partita (che a quel punto potrebbero non esistere più).
+    const retrySeasonSummaryAIText = async () => {
+      if (!seasonSummarySnapshot.value || !canRetrySeasonSummaryAI.value) return;
+      seasonSummaryAIGenerating.value = true;
+      try {
+        const s = seasonSummarySnapshot.value;
+        const d = { stagione: s.stagione, trackAssist: s.trackAssist, sezioneA: s.sezioneA, sezioneB: s.sezioneB, sezioneC: s.sezioneC };
+        const firma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
+        const prompt = _buildSeasonSummaryAIPrompt(d, s.gabbione, firma);
+        const raw = await _callAI(prompt, 1200);
+        const parsed = raw ? _parseAIJson(raw) : null;
+        const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoGabbione','chiusura'];
+        let snapshot;
+        if (parsed && required.every(k => typeof parsed[k] === 'string' && parsed[k].trim())) {
+          snapshot = { ...s, aiTexts: { ...parsed, firma: parsed.firma || firma }, aiError: null };
+        } else {
+          snapshot = { ...s, aiError: 'Risposta AI assente o in formato non valido — riprova' };
+        }
+        await _persistSeasonSummarySnapshot(snapshot);
+      } catch(e) {
+        await _persistSeasonSummarySnapshot({ ...seasonSummarySnapshot.value, aiError: 'Errore: ' + e.message });
       } finally {
         seasonSummaryAIGenerating.value = false;
       }
@@ -15746,6 +16047,13 @@ const toggleFont = () => {
       archiveStepData.backupScaricato = false;
       archiveStepData.zipScaricato = false;
       archiveStepData.zipLoading = false;
+      archiveStepData.riepilogoGenerato = false;
+      archiveStepData.riepilogoLoading = false;
+      // Limite noto: la generazione del Riepilogo Stagione riusa i computed della UI (Statistiche,
+      // Zona Pericolo) che lavorano sempre sul gruppo ATTUALMENTE selezionato — se si archivia un
+      // gruppo diverso (da Gestione Gruppi), il Riepilogo non può essere generato qui. Da rivedere
+      // in futuro se servirà davvero archiviare gruppi non correnti con Riepilogo incluso.
+      archiveStepData.riepilogoNonSupportato = g.id !== currentGroup.value?.id;
       archiveWizard.value = {
         step: 1,
         group: g,
@@ -15819,6 +16127,26 @@ const toggleFont = () => {
     // ZIP "giornale" — layout identico al giornale generato dall'app (regenerateNewspaper →
     // generateAndShareMatchPNG), non un Canvas custom. Lo genera per ogni partita che non ha
     // già un pngRisultato salvato, poi aggiunge al ZIP anche le fotoPartita dove presenti.
+    // Chiamata dal box dedicato in Step 4 del wizard — genera e salva lo snapshot mentre i dati
+    // sono ancora vivi (stesso principio dello ZIP: ultima occasione prima della pulizia).
+    const archiveGeneraRiepilogoStagione = async () => {
+      if (archiveStepData.riepilogoNonSupportato) return;
+      archiveStepData.riepilogoLoading = true;
+      try {
+        const res = await generateSeasonSummarySnapshot();
+        if (res.ok) {
+          archiveStepData.riepilogoGenerato = true;
+          toast('✅ Riepilogo Stagione generato', 'success', 3000);
+        } else {
+          toast('❌ Riepilogo Stagione: ' + res.error, 'error', 4000);
+        }
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error', 4000);
+      } finally {
+        archiveStepData.riepilogoLoading = false;
+      }
+    };
+
     const archiveDownloadZipGiornale = async () => {
       archiveStepData.zipLoading = true;
       try {
@@ -18045,6 +18373,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
+      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
