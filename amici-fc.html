@@ -1943,7 +1943,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div v-if="archiveStepData.skipChecksExpanded" style="padding:12px;border-top:1px solid rgba(255,77,77,0.2);background:rgba(255,77,77,0.03)">
               <div style="font-size:0.75rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
                 Backup, ZIP giornale e Riepilogo Stagione sono obbligatori perché sono l'<strong style="color:var(--text1)">unica occasione</strong> per conservare foto e PNG di questa stagione — dopo l'archiviazione vengono cancellati e non sono più recuperabili.
-                Spunta una voce solo se sei sicuro di non averne bisogno (es. hai già un backup fatto altrove, o questa stagione non ha foto/PNG rilevanti da conservare). <strong style="color:var(--red)">Chi salta un controllo si assume la responsabilità di eventuali dati persi.</strong>
+                Spunta una voce solo se sei sicuro di non averne bisogno (es. hai già un backup fatto altrove, o questa stagione non ha foto/PNG rilevanti da conservare). <strong style="color:var(--red)">Chi salta un controllo si assume la responsabilità di eventuali dati persi.</strong><br><br>
+                In ogni caso, saltare questi controlli riguarda solo backup/ZIP/Riepilogo extra — la stagione verrà comunque archiviata regolarmente e resterà sempre consultabile in Statistiche e nello Storico Partite.
               </div>
               <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;margin-bottom:8px;cursor:pointer">
                 <input type="checkbox" v-model="archiveStepData.skipBackup"> Ho già un backup di sicurezza, non serve riscaricarlo
@@ -2328,7 +2329,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
@@ -2378,6 +2379,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.25">{{s.titolo}}</div>
                 <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);line-height:1.55">{{s.testo}}</div>
                 <div style="margin-top:auto;padding-top:12px;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.25)">{{i}}/{{heroUnifiedData.length-1}}</div>
+              </div>
+            </template>
+            <template v-else-if="s.type==='newSeason'">
+              <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1;padding:20px 18px 16px">
+                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1">{{s.icon}}</div>
+                <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(166,255,77,0.7);margin-bottom:6px">NUOVA STAGIONE</div>
+                <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.25">{{s.titolo}}</div>
+                <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);line-height:1.55">{{s.testo}}</div>
               </div>
             </template>
             <template v-else-if="s.type==='stat'">
@@ -3046,7 +3055,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </transition>
       </div>
 
-      <div v-if="currentGroup && seasonSummarySnapshot" class="hero-card" style="background:linear-gradient(135deg,#1a2e05,#3a5c0a 60%,#C8FF00);cursor:pointer" @click="currentView='seasonSummary'">
+      <div v-if="currentGroup && seasonSummarySnapshot && !groupMatches.length" class="hero-card" style="background:linear-gradient(135deg,#1a2e05,#3a5c0a 60%,#C8FF00);cursor:pointer" @click="currentView='seasonSummary'">
         <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
           <div class="hero-title">Riepilogo Stagione</div>
@@ -4929,15 +4938,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
       </div>
 
-      <!-- Sezione D — Partite -->
+      <!-- Sezione D — Partite (accordion: collassate di default, si aprono singolarmente) -->
       <div class="card">
         <div class="card-title" style="margin-bottom:6px">🗞️ Le partite</div>
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
-        <div style="display:flex;flex-direction:column;gap:14px">
-          <div v-for="(m,mi) in seasonSummarySnapshot.sezioneD" :key="mi" style="border-top:1px solid var(--border);padding-top:12px">
-            <div style="font-size:0.8rem;color:var(--text2);margin-bottom:6px">{{ m.data }} · {{ m.golA }}-{{ m.golB }}</div>
-            <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
-            <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+        <div style="display:flex;flex-direction:column">
+          <div v-for="(m,mi) in seasonSummarySnapshot.sezioneD" :key="mi" style="border-top:1px solid var(--border)">
+            <button style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
+              @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
+              <span>{{ m.data }} · {{ m.golA }}-{{ m.golB }}</span>
+              <span style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
+            </button>
+            <div v-if="seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
+              <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
+              <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+            </div>
           </div>
         </div>
       </div>
@@ -4948,7 +4963,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
         <div style="display:flex;flex-direction:column;gap:16px">
           <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" style="display:flex;gap:12px;border-top:1px solid var(--border);padding-top:12px">
-            <img :src="p.foto" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
+            <img :src="p.foto" @error="onPhotoError($event, p.uid)" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
             <div style="font-size:0.82rem;line-height:1.6">
               <div style="font-weight:700">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.ruolo }}{{ p.piede ? ' · '+p.piede : '' }}</span></div>
               <div>{{ p.goalTotali }} gol in {{ p.partiteTotali }} presenze · media voto {{ p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—' }} · {{ p.uomoPartitaTotali }} UoM</div>
@@ -5606,7 +5621,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   </div>
                   <div style="display:flex;gap:8px;flex-wrap:wrap">
                     <div v-for="p in seasonSummaryTestSectionE.slice(0,4)" :key="p.uid" style="text-align:center;width:90px">
-                      <img :src="p.foto" style="width:70px;height:70px;object-fit:cover;border-radius:50%;border:1px solid rgba(255,255,255,.15)">
+                      <img :src="p.foto" @error="onPhotoError($event, p.uid)" style="width:70px;height:70px;object-fit:cover;border-radius:50%;border:1px solid rgba(255,255,255,.15)">
                       <div style="font-size:0.68rem;font-weight:700;margin-top:4px">{{ p.nome }}</div>
                       <div style="font-size:0.6rem;color:var(--text2)">{{ p.goalTotali }}⚽ · {{ p.partiteTotali }} pres.</div>
                     </div>
@@ -5700,15 +5715,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <button class="more-menu-item" @click="currentView='groups';showMoreMenu=false">
         <span class="more-icon">⚽</span> Gestione Gruppi
       </button>
-      <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
-        <span class="more-icon">⚙️</span> Impostazioni
-      </button>
       <button v-if="seasonSummarySnapshot" class="more-menu-item" @click="currentView='seasonSummary';showMoreMenu=false">
         <span class="more-icon">📖</span> Riepilogo Stagione
       </button>
       <div v-else class="more-menu-item" style="opacity:0.4;cursor:default" @click.stop>
         <span class="more-icon">🔒</span> Riepilogo Stagione <span style="font-size:0.68rem;margin-left:4px">(a fine stagione)</span>
       </div>
+      <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
+        <span class="more-icon">⚙️</span> Impostazioni
+      </button>
     </div>
   </div>
 
@@ -7007,7 +7022,20 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.713',date:'2026-07-18',items:[
+    const changelogEntries = [{version:'v1.716',date:'2026-07-18',items:[
+      'Sync stagioni archiviate: il sync ordinario da Firebase ora fa una piena riconciliazione (aggiunge quelle mancanti E rimuove quelle locali sparite del tutto da Firebase), non più solo additivo. Stesso principio già usato per l\'import JSON diretto in app ("il backup/ripristino è la verità, ogni dispositivo deve rispecchiarlo esattamente"), deciso con Alby 18/7/2026 dopo aver visto una stagione di test vecchia ("2025/26_OK") restare visibile localmente nonostante non fosse più su Firebase dopo un ripristino da Inspector. Sicuro: la pulizia scatta solo se la lettura shallow di primo livello da Firebase è andata a buon fine — su un fetch fallito o offline non si cancella nulla.',
+      'Home: nuova card "🎉 Si riparte!" nella rotazione hero, mostrata prima delle tutorial slides quando inizia una nuova stagione dopo un\'archiviazione (solo se esiste un Riepilogo Stagione — un gruppo nuovo di zecca vede solo le tutorial). Richiesto da Alby 18/7/2026.',
+    ]},{version:'v1.715',date:'2026-07-18',items:[
+      'Fix bug timezone Hall of Fame: _checkHallOfFame calcolava mese/data con .toISOString() (conversione UTC), mentre _generateHallOfFame usava componenti data locali — in Italia (sempre avanti su UTC) i due calcoli potevano disallinearsi di un mese vicino alla mezzanotte del 1° del mese (visto nel log del test: "HoF di 2026-05 mancante" ma la generazione vera puntava a 2026-06). Aggiunta una coppia di helper condivisi (_localMonthKey/_localDateKey) usati ora ovunque nel modulo HoF, mai più .toISOString() per questi calcoli.',
+    ]},{version:'v1.714',date:'2026-07-18',items:[
+      'Riepilogo Stagione: fix foto Annuario senza silhouette (mancava @error="onPhotoError" sulle immagini, aggiunto sia nella schermata reale sia nell\'anteprima Zona Pericolo).',
+      'Riepilogo Stagione: Sezione Partite ora ad accordion (collassate di default, si aprono singolarmente al tocco) invece di un lungo scroll con tutte le immagini aperte.',
+      'Menu "Altro": riordinato — Riepilogo Stagione ora prima di Impostazioni, che resta sempre l\'ultima voce.',
+      'Home: il banner "Riepilogo Stagione" ora scompare automaticamente non appena viene giocata la prima partita della nuova stagione (prima restava visibile per sempre).',
+      'Wizard Archiviazione: aggiunto testo esplicativo nella sezione "Salta controlli obbligatori" — saltare i controlli riguarda solo backup/ZIP/Riepilogo extra, la stagione viene comunque archiviata regolarmente e resta sempre consultabile in Statistiche/Storico.',
+      'Fix hero card stantie dopo archiviazione: _heroLaunch() imposta correttamente le tutorial slides con 0 partite, ma un watcher generico su _heroRawData (che include anche card non legate alle partite, es. soprannomi) poteva sovrascriverle con contenuto vecchio (es. TrashTalk dell\'ultima partita della stagione appena chiusa) appena una di quelle card cambiava in background. Aggiunta la stessa guardia "0 partite = non toccare" anche a questo watcher e al refresh periodico 45min.',
+      'Diagnosticato (non un bug di codice): su TestAmiciFC il campo "Firebase API Key" del gruppo era impostato con la password di login invece della vera Web API Key — questo fa fallire silenziosamente OGNI rinnovo del token Firebase (refreshFirebaseToken chiama securetoken.googleapis.com con quella chiave), causando gli errori 401 su archivedSeasons/seasonSummary/sync visti nei log del test e la voce mancante su Inspector. Da correggere impostando la vera Web API Key del progetto TestAmiciFC.',
+    ]},{version:'v1.713',date:'2026-07-18',items:[
       'Wizard Archiviazione Stagione — nuova sezione "⚠️ Salta controlli obbligatori" nello Step 4, nascosta di default (va aperta apposta). Contiene 3 checkbox indipendenti (Backup / ZIP giornale / Riepilogo Stagione) che disabilitano solo il controllo corrispondente sul bottone di conferma, con testo esplicativo chiaro sul perché quei controlli esistono e sul rischio di perdita dati saltandoli. Richiesto da Alby 18/7/2026 dopo aver testato il wizard: a volte non serve davvero avere tutti e 3 i passaggi (es. stagione senza foto rilevanti, backup già fatto altrove).',
     ]},{version:'v1.712',date:'2026-07-18',items:[
       'Fix CRITICO Riepilogo Stagione: "Genera Riepilogo Stagione" falliva sempre con DataCloneError ("[object Array] could not be cloned") — lo snapshot conteneva dati derivati da groupPlayers/groupMatches (Proxy reattivi Vue) mai deep-clonati prima della scrittura su IndexedDB, stesso problema già risolto altrove nel progetto (vedi archivedSeasons). Ora _persistSeasonSummarySnapshot fa JSON.parse(JSON.stringify(...)) prima di scrivere su Dexie/Firebase. Segnalato da Alby nel primo test reale su TestAmiciFC.',
@@ -7839,7 +7867,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.713');
+    const appVersion = ref('1.716');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8196,10 +8224,12 @@ createApp({
         const localIds = new Set(localSeasons.map(s => s.archivioId));
 
         let downloaded = 0;
+        const remoteIdsAll = new Set(); // ID visti OVUNQUE su Firebase (sotto qualsiasi fbGroupId) — usato per la pulizia sotto
         for (const fbGroupId of Object.keys(allGroupKeys)) {
           // Leggi i sotto-key (archivioId) per questo fbGroupId
           const seasonKeys = await _fbReadFromGroup(group, `archivedSeasons/${fbGroupId}`, tok, 'shallow=true');
           if (!seasonKeys || typeof seasonKeys !== 'object') continue;
+          for (const id of Object.keys(seasonKeys)) remoteIdsAll.add(id);
 
           const missingIds = Object.keys(seasonKeys).filter(id => !localIds.has(id));
           if (!missingIds.length) continue;
@@ -8224,7 +8254,22 @@ createApp({
           }
         }
 
-        if (downloaded > 0) {
+        // Pulizia: stagioni presenti in locale per questo gruppo ma sparite del tutto da Firebase
+        // (es. dopo un ripristino completo da Inspector, che riscrive lo stato su Firebase da zero).
+        // Deciso con Alby 18/7/2026: un ripristino/backup deve riportare ogni dispositivo esattamente
+        // allo stato presente su Firebase, non limitarsi ad aggiungere quello che manca — stesso
+        // principio già applicato all'import JSON diretto in app (vedi importData). Sicuro perché
+        // condizionato a un fetch shallow di primo livello riuscito (allGroupKeys valido, non null):
+        // su un fetch fallito o offline non si cancella nulla.
+        let removed = 0;
+        for (const s of localSeasons) {
+          if (!remoteIdsAll.has(s.archivioId)) {
+            await db.archivedSeasons.delete(s.archivioId);
+            removed++;
+          }
+        }
+
+        if (downloaded > 0 || removed > 0) {
           if (currentGroup.value?.id === gid) {
             currentGroupArchivedSeasons.value = await db.archivedSeasons.where('groupId').equals(gid).toArray();
             const allArchived = await db.archivedSeasons.toArray();
@@ -8232,7 +8277,8 @@ createApp({
             for (const s of allArchived) counts[s.groupId] = (counts[s.groupId] || 0) + 1;
             archivedSeasonsCountByGroup.value = counts;
           }
-          logEvent('info', 'app', `Scaricate ${downloaded} stagioni archiviate mancanti da Firebase per "${group.nome}"`);
+          if (downloaded > 0) logEvent('info', 'app', `Scaricate ${downloaded} stagioni archiviate mancanti da Firebase per "${group.nome}"`);
+          if (removed > 0) logEvent('info', 'app', `🧹 Rimosse ${removed} stagioni archiviate locali non più presenti su Firebase per "${group.nome}"`);
         }
       } catch(e) {
         // Silenzioso: il pull è best-effort, non blocca nulla se fallisce
@@ -11305,12 +11351,19 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const aiCardsHallOfFame = ref(null); // { fame: {...}, shame: {...}, mese: 'YYYY-MM' }
     const aiPronostico      = ref(null);
 
+    // Formattazione mese/data in ora LOCALE (mai .toISOString(), che converte in UTC e in Italia
+    // — sempre avanti su UTC — può far scivolare al giorno/mese sbagliato vicino alla mezzanotte
+    // del 1° del mese). Fix 18/7/2026: _checkHallOfFame usava toISOString mentre _generateHallOfFame
+    // usava componenti data locali — i due calcoli potevano disallinearsi di un mese tra loro.
+    const _localMonthKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const _localDateKey  = (d) => `${_localMonthKey(d)}-${String(d.getDate()).padStart(2,'0')}`;
+
     const _generateHallOfFame = async (force=false) => {
       if (!settings.value.apiKey) { _aiLog('HallOfFame','⚠️ Nessuna API key',false); return; }
       _aiLog('HallOfFame',(force?'🔄 Forzatura':'▶️ Avvio')+' generazione Hall of Fame...');
       const oggi = new Date();
       const mesePrecedente = new Date(oggi.getFullYear(), oggi.getMonth() - 1, 1);
-      const meseKey = `${mesePrecedente.getFullYear()}-${String(mesePrecedente.getMonth()+1).padStart(2,'0')}`;
+      const meseKey = _localMonthKey(mesePrecedente);
       const dataPath = `aiCards/hallOfFame/${_aiCardGroupKey()}/${meseKey}`;
       const lockPath = `aiCards/locks/hallOfFame_${_aiCardGroupKey()}_${meseKey}`;
 
@@ -11714,8 +11767,8 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       if (!currentGroup.value) return;
       const oggi = new Date();
       const giorno = oggi.getDate();
-      const meseCorrente = oggi.toISOString().slice(0,7);
-      const mesePrec = new Date(oggi.getFullYear(), oggi.getMonth()-1, 1).toISOString().slice(0,7);
+      const meseCorrente = _localMonthKey(oggi);
+      const mesePrec = _localMonthKey(new Date(oggi.getFullYear(), oggi.getMonth()-1, 1));
 
       // Controlla sia memoria che localStorage per non rigenerare se già esiste
       const _lsHofC = JSON.parse(localStorage.getItem('amicifc_hof_'+meseCorrente)||'null');
@@ -11734,7 +11787,7 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       // Throttle: non riprovare più di una volta al giorno
       const _lastAttemptKey = 'amicifc_hof_attempt_'+mesePrec;
       const _lastAttempt = localStorage.getItem(_lastAttemptKey);
-      const _todayStr = oggi.toISOString().slice(0,10);
+      const _todayStr = _localDateKey(oggi);
       if (_lastAttempt === _todayStr) {
         _aiLog('HallOfFame','⏭️ HoF: già tentata oggi ('+_todayStr+'), riprova domani');
         return;
@@ -12169,8 +12222,8 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _lsKeyTTcheck = 'amicifc_tt_' + _gid;
       const _ttCachedCheck = JSON.parse(localStorage.getItem(_lsKeyTTcheck)||'null');
       if (_ttCachedCheck?.cards?.length && !aiFlagValid('tt', _gid)) aiFlagSet('tt', _gid);
-      const _lsHofCheck = JSON.parse(localStorage.getItem('amicifc_hof_'+new Date().toISOString().slice(0,7))||
-                          localStorage.getItem('amicifc_hof_'+new Date(Date.now()-30*864e5).toISOString().slice(0,7))||'null');
+      const _lsHofCheck = JSON.parse(localStorage.getItem('amicifc_hof_'+_localMonthKey(new Date()))||
+                          localStorage.getItem('amicifc_hof_'+_localMonthKey(new Date(Date.now()-30*864e5)))||'null');
       if (_lsHofCheck?.fame && !aiFlagValid('hof', _gid)) aiFlagSet('hof', _gid);
       const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
       if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
@@ -13692,6 +13745,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // progetto.
     // ═══════════════════════════════════════════════════════════════════
     const seasonSummarySnapshot = ref(null); // snapshot del gruppo corrente, o null se non ancora generato
+    const seasonSummaryExpandedMatches = reactive({}); // {indice: bool} — accordion Sezione D, tutte chiuse di default
 
     const loadSeasonSummarySnapshot = async (gid) => {
       if (!gid) { seasonSummarySnapshot.value = null; return; }
@@ -16831,7 +16885,14 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       startNewsTicker();
       // Watch _heroRawData — ricostruisce hero slides dopo sync o nuova partita
       watch(() => _heroRawData.value.length, () => {
-        if (!_heroLaunched) return;
+        // Fix 18/7/2026 (segnalato da Alby): subito dopo un'archiviazione, _heroLaunch() imposta
+        // correttamente le tutorial slides (0 partite), ma _heroRawData include comunque card che
+        // non dipendono dalle partite (soprannomi, citazioni motivazionali...) — se una di queste
+        // cambia (es. i soprannomi ricaricati da localStorage nel re-init AI post-archiviazione),
+        // questo watcher ricostruiva le hero card da _heroRawData ignorando che le partite sono 0,
+        // sovrascrivendo le tutorial slides con card "stantie" (es. TrashTalk dell'ultima partita
+        // della stagione appena chiusa). Ora salta la ricostruzione finché non c'è almeno 1 partita.
+        if (!_heroLaunched || !groupMatches.value.length) return;
         clearTimeout(_heroRebuildTimer);
         _heroRebuildTimer = setTimeout(() => {
           const newData = _heroRawData.value;
@@ -16851,7 +16912,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       // Non tocca la posizione corrente del carosello né il timer di avanzamento slide,
       // ricostruisce solo l'elenco dei dati "dietro le quinte" sulla prossima ricarica.
       setInterval(() => {
-        if (!_heroLaunched) return;
+        if (!_heroLaunched || !groupMatches.value.length) return; // stessa guardia, vedi sopra
         const freshData = _heroRawData.value;
         if (freshData.length) {
           _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(freshData)];
@@ -17943,6 +18004,17 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
 
       // Nessuna partita ancora: mostra le tutorial slides invece delle card statistiche
       if (!groupMatches.value.length && currentGroup.value) {
+        // Card "buona nuova stagione", solo se questo gruppo ha già archiviato una stagione (esiste
+        // uno snapshot) — un gruppo nuovo di zecca senza mai archiviato non la vede, solo le tutorial.
+        // Aggiunta PRIMA delle tutorial slides, deciso con Alby 18/7/2026.
+        const _welcomeSeasonSlide = seasonSummarySnapshot.value ? [{
+          type: 'newSeason',
+          dur: 6000,
+          icon: '🎉',
+          titolo: `Si riparte! Benvenuti nella ${currentGroup.value.stagione}`,
+          testo: `La ${seasonSummarySnapshot.value.stagione} è ora agli archivi (la trovi in "Altro" quando vuoi) — in bocca al lupo per questa nuova stagione!`,
+          bg: 'linear-gradient(145deg,#0d1f0d,#1a4a1a 60%,#166534)',
+        }] : [];
         const _tutorialSlides = tutorialCards.map((t, idx) => ({
           type: 'tutorial',
           dur: 6000,
@@ -17957,7 +18029,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
             'linear-gradient(145deg,#1a0505,#4a1010 60%,#b91c1c)',
           ][idx % 5],
         }));
-        _heroCards.value = [_heroWelcomeCard, ..._tutorialSlides];
+        _heroCards.value = [_heroWelcomeCard, ..._welcomeSeasonSlide, ..._tutorialSlides];
         nextTick(() => { clearTimeout(_heroTimerRef); heroGo(0); });
         return;
       }
@@ -18420,7 +18492,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
-      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText,
+      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
