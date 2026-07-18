@@ -5472,6 +5472,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <p><strong>Sez. E:</strong> {{ seasonSummaryAITexts.commentoE }}</p>
                     <p><strong>Gabbione:</strong> {{ seasonSummaryAITexts.commentoGabbione }}</p>
                     <p><strong>Chiusura:</strong> {{ seasonSummaryAITexts.chiusura }}</p>
+                    <p v-if="seasonSummaryAITexts.firma" style="text-align:right;font-style:italic;color:var(--text2)">— {{ seasonSummaryAITexts.firma }}</p>
                   </div>
                 </div>
               </div>
@@ -6828,7 +6829,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.709',date:'2026-07-18',items:[
+    const changelogEntries = [{version:'v1.710',date:'2026-07-18',items:[
+      'Riepilogo Stagione: aggiunta la firma finale del "telecronista" al testo AI (stesso pool di nomi già usato per TrashTalk/Pronostico, rotazione giornaliera), mostrata dopo la chiusura del diario. Confermato da Alby: toni e Step 6 nel complesso ok.',
+      'Diagnostica Pronostico: aggiunto logging alle tre condizioni di uscita silenziosa di _generatePronostico() (AI non configurata, nessun gruppo, dati insufficienti) — prima non lasciavano traccia nel log, rendendo impossibile capire perché una rigenerazione non fosse partita. Segnalato da Alby: il Pronostico su Firebase risultava fermo al 23/06/2026 nonostante il rinnovo automatico ogni 7 giorni. Non ancora risolto (serve altro materiale di log per capire la causa esatta — la soglia minima dati richiesta, 4 giocatori/2 partite, sembra già ampiamente superata sul gruppo reale), ma ora la prossima volta che ricapita si potrà leggere subito il motivo nel log invece di doverlo dedurre.',
+    ]},{version:'v1.709',date:'2026-07-18',items:[
       'Riepilogo Stagione — Step 6/9: testo AI (intro, commenti per ogni sezione A-E, telecronaca de Il Gabbione, chiusura). Una sola chiamata AI (riusa _callAI/_parseAIJson esistenti, non 8 chiamate separate) con prompt unico che usa solo i nomi reali già calcolati, niente invenzioni. Generazione a due fasi: Fase 1 (numeri/Oscar/foto/PNG, già esistente dagli step precedenti) salvata SEMPRE anche se il testo AI fallisce; Fase 2 (solo testo) mai bloccante, con bottone "Rigenera testo AI" dedicato che riusa i dati già calcolati senza rifare tutto da capo. Zona Pericolo mostra ora anche i testi generati (o l\'errore, se l\'AI non risponde) sotto l\'anteprima Annuario.',
     ]},{version:'v1.708',date:'2026-07-18',items:[
       'Schermata Giocatori: aggiunto tasto "✕ Chiudi" esplicito nel modal dettaglio giocatore — prima si chiudeva solo toccando fuori dal modal o trascinando la maniglia, senza un bottone visibile. Segnalato da Alby 17/7/2026.',
@@ -7643,7 +7647,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.709');
+    const appVersion = ref('1.710');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11666,11 +11670,14 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
     };
 
     const _generatePronostico = async () => {
-      if (!settings.value.apiKey) return;
-      if (!currentGroup.value) return;
+      if (!settings.value.apiKey) { _aiLog('Pronostico','⏭️ Skip: nessuna AI configurata'); return; }
+      if (!currentGroup.value) { _aiLog('Pronostico','⏭️ Skip: nessun gruppo selezionato'); return; }
       const players = groupPlayers.value.filter(p => (p.partiteTotali||0) >= 2);
       const matches = groupMatches.value;
-      if (players.length < 4 || matches.length < 2) return;
+      if (players.length < 4 || matches.length < 2) {
+        _aiLog('Pronostico', `⏭️ Skip: dati insufficienti (${players.length} giocatori idonei, ${matches.length} partite — servono almeno 4 e 2)`, false);
+        return;
+      }
       _aiLog('Pronostico','▶️ Generazione pronostico...');
       const top3 = [...players].sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0)).slice(0,3);
       const topMvp = [...players].sort((a,b)=>(b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))[0];
@@ -13406,7 +13413,7 @@ Niente altro, nessuna spiegazione.`;
     // Nomi passati direttamente (non indici numerici): qui l'AI scrive prosa su dati già
     // certi, non deve scegliere/abbinare nulla — rischio di errore diverso dai casi (es.
     // TrashTalk) dove l'AI deve identificare un giocatore tra più candidati.
-    const _buildSeasonSummaryAIPrompt = (d, gab) => {
+    const _buildSeasonSummaryAIPrompt = (d, gab, firma) => {
       const nomi = (arr) => arr.map(g=>g.nome).join(', ');
       const gabTxt = (g) => g ? `${g.squadraA.join('+')} vs ${g.squadraB.join('+')} (${g.rivincitePresenti} rivincite)` : 'non disponibile';
       return `Sei un giornalista sportivo italiano, ironico e affettuoso (mai cattivo), che scrive il "Diario di fine stagione" per un gruppo di amici che gioca a calcetto ogni giovedì (nome gruppo/stagione: "${d.stagione||'Stagione'}"). Scrivi solo in italiano. Usa ESCLUSIVAMENTE i nomi elencati sotto, non inventarne altri.
@@ -13434,8 +13441,10 @@ Scrivi un breve testo per ciascuna di queste parti (2-3 frasi ciascuna, tranne d
 - commentoGabbione: telecronaca ironica che presenta le sfide del Gabbione, ricordando che è un abbinamento suggerito, non una partita reale
 - chiusura: saluto finale di chiusura stagione (fino a 3 frasi)
 
+Usa esattamente questa firma per il telecronista/giornalista, alla fine del diario: "${firma}".
+
 Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
-{"intro":"...","commentoA":"...","commentoB":"...","commentoC":"...","commentoD":"...","commentoE":"...","commentoGabbione":"...","chiusura":"..."}`;
+{"intro":"...","commentoA":"...","commentoB":"...","commentoC":"...","commentoD":"...","commentoE":"...","commentoGabbione":"...","chiusura":"...","firma":"${firma}"}`;
     };
 
     // Fase 2 del Riepilogo Stagione: genera SOLO il testo AI, riusando i dati già calcolati in
@@ -13453,7 +13462,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       seasonSummaryAIGenerating.value = true;
       try {
         const { d, gab } = seasonSummaryLastData.value;
-        const prompt = _buildSeasonSummaryAIPrompt(d, gab);
+        // Stessa firma "telecronista" già usata per TrashTalk/Pronostico — stesso universo,
+        // rotazione giornaliera deterministica (non richiesta all'AI di inventarla).
+        const _firma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
+        const prompt = _buildSeasonSummaryAIPrompt(d, gab, _firma);
         const raw = await _callAI(prompt, 1200);
         if (!raw) { seasonSummaryAITexts.value = { _errore: 'Nessuna risposta AI (quota esaurita o rete non disponibile). Riprova più tardi.' }; return; }
         const parsed = _parseAIJson(raw);
@@ -13464,7 +13476,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           seasonSummaryAITexts.value = { _errore: 'Risposta AI incompleta o in formato non valido. Riprova.' };
           return;
         }
-        seasonSummaryAITexts.value = { ...parsed, _errore: null };
+        seasonSummaryAITexts.value = { ...parsed, firma: parsed.firma || _firma, _errore: null };
       } catch(e) {
         seasonSummaryAITexts.value = { _errore: 'Errore imprevisto: ' + e.message };
       } finally {
