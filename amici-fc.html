@@ -5416,9 +5416,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <div v-show="zpSection==='riepilogo'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(200,255,0,.15)">
                 <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
-                  Step 4/9: calcola Sezioni A/B/C/D/E (numeri, Oscar, classifiche, partite con PNG giornale,
-                  Annuario giocatori) e le mostra qui sotto — nessun salvataggio, nessun testo AI ancora
-                  (arriva allo Step 6). Solo per verificare che tutto esca giusto prima di procedere.
+                  Step 6/9: calcola tutte le sezioni A-E + Il Gabbione, e genera anche il testo AI
+                  (intro, commenti, chiusura) — Fase 2, mai bloccante: se l'AI fallisce, tutto il
+                  resto resta comunque consultabile e puoi rigenerare solo il testo col bottone
+                  dedicato. Ancora nessun salvataggio reale (arriva allo Step 7).
                 </div>
                 <button class="btn btn-full btn-sm" style="background:rgba(200,255,0,0.12);border:1.5px solid #C8FF00;color:#C8FF00"
                   @click="testGeneraRiepilogoStagione" :disabled="seasonSummaryTestGenerating">
@@ -5450,6 +5451,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                       <div style="font-size:0.68rem;font-weight:700;margin-top:4px">{{ p.nome }}</div>
                       <div style="font-size:0.6rem;color:var(--text2)">{{ p.goalTotali }}⚽ · {{ p.partiteTotali }} pres.</div>
                     </div>
+                  </div>
+                </div>
+                <div v-if="seasonSummaryLastData" style="margin-top:14px;border-top:1px solid rgba(255,255,255,.08);padding-top:10px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+                    <div style="font-size:0.72rem;color:var(--text2)">✍️ Testo AI (Fase 2 — mai bloccante)</div>
+                    <button class="btn btn-ghost btn-sm" style="font-size:0.68rem;padding:4px 10px" @click="generaTestoAIRiepilogoStagione" :disabled="seasonSummaryAIGenerating">
+                      {{ seasonSummaryAIGenerating ? '⏳...' : '🔄 Rigenera testo AI' }}
+                    </button>
+                  </div>
+                  <div v-if="seasonSummaryAITexts && seasonSummaryAITexts._errore" style="font-size:0.72rem;color:var(--yellow);padding:8px;background:rgba(255,217,61,.08);border-radius:8px">
+                    ⚠️ {{ seasonSummaryAITexts._errore }} — tutto il resto sopra resta comunque consultabile.
+                  </div>
+                  <div v-else-if="seasonSummaryAITexts" style="font-size:0.72rem;color:var(--text2);line-height:1.6;padding:10px;background:rgba(0,0,0,.2);border-radius:8px">
+                    <p><strong>Intro:</strong> {{ seasonSummaryAITexts.intro }}</p>
+                    <p><strong>Sez. A:</strong> {{ seasonSummaryAITexts.commentoA }}</p>
+                    <p><strong>Sez. B:</strong> {{ seasonSummaryAITexts.commentoB }}</p>
+                    <p><strong>Sez. C:</strong> {{ seasonSummaryAITexts.commentoC }}</p>
+                    <p><strong>Sez. D:</strong> {{ seasonSummaryAITexts.commentoD }}</p>
+                    <p><strong>Sez. E:</strong> {{ seasonSummaryAITexts.commentoE }}</p>
+                    <p><strong>Gabbione:</strong> {{ seasonSummaryAITexts.commentoGabbione }}</p>
+                    <p><strong>Chiusura:</strong> {{ seasonSummaryAITexts.chiusura }}</p>
                   </div>
                 </div>
               </div>
@@ -6806,7 +6828,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.708',date:'2026-07-18',items:[
+    const changelogEntries = [{version:'v1.709',date:'2026-07-18',items:[
+      'Riepilogo Stagione — Step 6/9: testo AI (intro, commenti per ogni sezione A-E, telecronaca de Il Gabbione, chiusura). Una sola chiamata AI (riusa _callAI/_parseAIJson esistenti, non 8 chiamate separate) con prompt unico che usa solo i nomi reali già calcolati, niente invenzioni. Generazione a due fasi: Fase 1 (numeri/Oscar/foto/PNG, già esistente dagli step precedenti) salvata SEMPRE anche se il testo AI fallisce; Fase 2 (solo testo) mai bloccante, con bottone "Rigenera testo AI" dedicato che riusa i dati già calcolati senza rifare tutto da capo. Zona Pericolo mostra ora anche i testi generati (o l\'errore, se l\'AI non risponde) sotto l\'anteprima Annuario.',
+    ]},{version:'v1.708',date:'2026-07-18',items:[
       'Schermata Giocatori: aggiunto tasto "✕ Chiudi" esplicito nel modal dettaglio giocatore — prima si chiudeva solo toccando fuori dal modal o trascinando la maniglia, senza un bottone visibile. Segnalato da Alby 17/7/2026.',
       'Schermata Giocatori: la foto nel dettaglio giocatore ora è cliccabile — si apre a schermo intero con animazione di zoom/dissolvenza su sfondo scurito, tocco fuori per richiudere (nuovo ref showPhotoLightbox, nuove classi CSS .photo-lightbox-overlay/.photo-lightbox-img). Segnalato da Alby 17/7/2026.',
       'Fix: le hero card in home potevano restare bloccate sulla card di caricamento con segnale di rete debole/instabile (mai con offline pulito). Causa: checkSyncNeeded() faceva due fetch verso Firebase senza alcun timeout — con offline pulito la fetch fallisce quasi subito, ma con poco segnale può restare appesa per decine di secondi prima di fallire, ritardando _heroLaunch() (che aspetta il check di sync). Nuova funzione _fetchWithTimeout() (AbortController, timeout 8s) applicata alle due fetch di checkSyncNeeded — su segnale debole ora si rinuncia al check dopo 8s e si procede comunque con i dati locali invece di restare bloccati.',
@@ -7619,7 +7643,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.708');
+    const appVersion = ref('1.709');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13030,6 +13054,12 @@ Niente altro, nessuna spiegazione.`;
     const seasonSummaryTestGenerating = ref(false);
     const seasonSummaryTestSectionD = ref([]); // [{data,golA,golB,titoloGiornale,commentoAI,pngGiornale,fotoPartita}]
     const seasonSummaryTestSectionE = ref([]); // [{uid,nome,ruolo,piede,foto,partiteTotali,goalTotali,mediaVoto,votiTotali,uomoPartitaTotali,maxGolPartita,vittima,incubo,soprannomeAI,confrontoAI}]
+    // Step 6: testo AI — Fase 2, MAI bloccante. Se fallisce, tutto il resto (numeri/Oscar/Annuario/
+    // foto) resta comunque consultabile: _errore spiega perché manca solo il testo narrativo.
+    const seasonSummaryAITexts = ref(null); // {intro,commentoA..E,commentoGabbione,chiusura,_errore}
+    const seasonSummaryAIGenerating = ref(false);
+    const seasonSummaryLastData = ref(null); // {d, gab} dell'ultima generazione — permette di
+    // rigenerare SOLO il testo AI senza ricalcolare/riricomprimere tutto il resto (Fase 1 vs Fase 2)
     // Partita campione per l'anteprima visiva in Zona Pericolo: l'ultima con un PNG risultato pronto
     const seasonSummaryPreviewMatch = computed(() =>
       [...seasonSummaryTestSectionD.value].reverse().find(m => m.pngGiornale) || null
@@ -13372,6 +13402,76 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // Bottone TEST in Zona Pericolo: genera e mostra SOLO testo, non salva nulla da nessuna parte.
+    // Prompt unico per tutti i testi AI del Riepilogo (1 sola chiamata, non 8 separate).
+    // Nomi passati direttamente (non indici numerici): qui l'AI scrive prosa su dati già
+    // certi, non deve scegliere/abbinare nulla — rischio di errore diverso dai casi (es.
+    // TrashTalk) dove l'AI deve identificare un giocatore tra più candidati.
+    const _buildSeasonSummaryAIPrompt = (d, gab) => {
+      const nomi = (arr) => arr.map(g=>g.nome).join(', ');
+      const gabTxt = (g) => g ? `${g.squadraA.join('+')} vs ${g.squadraB.join('+')} (${g.rivincitePresenti} rivincite)` : 'non disponibile';
+      return `Sei un giornalista sportivo italiano, ironico e affettuoso (mai cattivo), che scrive il "Diario di fine stagione" per un gruppo di amici che gioca a calcetto ogni giovedì (nome gruppo/stagione: "${d.stagione||'Stagione'}"). Scrivi solo in italiano. Usa ESCLUSIVAMENTE i nomi elencati sotto, non inventarne altri.
+
+DATI DELLA STAGIONE:
+Partite giocate: ${d.sezioneA.partiteGiocate}, gol totali: ${d.sezioneA.golTotali} (media ${d.sezioneA.mediaGolPartita.toFixed(2)}/partita)
+Pallone d'Oro (media voto): ${nomi(d.sezioneB.palloneDoro.giocatori)||'nessuno'} (${d.sezioneB.palloneDoro.valore.toFixed(2)})
+Scarpa d'Oro (gol): ${nomi(d.sezioneB.scarpaDoro.giocatori)||'nessuno'} (${d.sezioneB.scarpaDoro.valore})
+Fedelissimo (presenze): ${nomi(d.sezioneB.fedelissimo.giocatori)||'nessuno'} (${d.sezioneB.fedelissimo.valore})
+Kryptonite: ${d.sezioneB.kryptonite.length ? d.sezioneB.kryptonite.map(k=>`${k.vittima} perde spesso contro ${k.incubo}`).join('; ') : 'nessuna rivalità dominante quest\'anno'}
+Giocatore Più Premiato (titoli Re del Mese): ${nomi(d.sezioneB.piuPremiato.giocatori)||'nessuno'}
+Il Bidone d'Oro (titoli Bidone del Mese, tono goliardico): ${nomi(d.sezioneB.bidoneDellAnno.giocatori)||'nessuno'}
+Marcatori (top): ${d.sezioneC.topScorers.slice(0,5).map(p=>p.soprannome||p.nome).join(', ')}
+Media voto (top): ${d.sezioneC.topMediaVoto.slice(0,5).map(p=>p.soprannome||p.nome).join(', ')}
+Il Gabbione 2vs2 (sfida "rivincita" suggerita, non giocata davvero): ${gabTxt(gab.gabbione2v2)}
+Il Gabbione 3vs3 (sfida "rivincita" suggerita, non giocata davvero): ${gabTxt(gab.gabbione3v3)}
+
+Scrivi un breve testo per ciascuna di queste parti (2-3 frasi ciascuna, tranne dove indicato diversamente):
+- intro: apertura del diario di stagione
+- commentoA: commento sui numeri della stagione
+- commentoB: commento sugli Oscar, citane almeno 2
+- commentoC: commento sulle classifiche
+- commentoD: 1 sola frase, introduce la sezione partite
+- commentoE: 1 sola frase, introduce l'Annuario dei giocatori
+- commentoGabbione: telecronaca ironica che presenta le sfide del Gabbione, ricordando che è un abbinamento suggerito, non una partita reale
+- chiusura: saluto finale di chiusura stagione (fino a 3 frasi)
+
+Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
+{"intro":"...","commentoA":"...","commentoB":"...","commentoC":"...","commentoD":"...","commentoE":"...","commentoGabbione":"...","chiusura":"..."}`;
+    };
+
+    // Fase 2 del Riepilogo Stagione: genera SOLO il testo AI, riusando i dati già calcolati in
+    // seasonSummaryLastData (Fase 1). Mai bloccante: in caso di errore/quota/rete, si limita a
+    // segnare _errore — numeri/Oscar/Annuario/foto (già salvati in Fase 1) restano intatti.
+    const generaTestoAIRiepilogoStagione = async () => {
+      if (!seasonSummaryLastData.value) {
+        seasonSummaryAITexts.value = { _errore: 'Genera prima l\'anteprima completa (Fase 1) — serve prima di poter scrivere i testi.' };
+        return;
+      }
+      if (!settings.value.apiKey) {
+        seasonSummaryAITexts.value = { _errore: 'Nessuna AI configurata (Impostazioni → chiave API).' };
+        return;
+      }
+      seasonSummaryAIGenerating.value = true;
+      try {
+        const { d, gab } = seasonSummaryLastData.value;
+        const prompt = _buildSeasonSummaryAIPrompt(d, gab);
+        const raw = await _callAI(prompt, 1200);
+        if (!raw) { seasonSummaryAITexts.value = { _errore: 'Nessuna risposta AI (quota esaurita o rete non disponibile). Riprova più tardi.' }; return; }
+        const parsed = _parseAIJson(raw);
+        const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoGabbione','chiusura'];
+        // Scarta se anche un solo campo manca/non è testo — niente assegnazione parziale che
+        // lascerebbe la schermata con dei "buchi" a metà tra testo vero e placeholder.
+        if (!parsed || !required.every(k => typeof parsed[k] === 'string' && parsed[k].trim())) {
+          seasonSummaryAITexts.value = { _errore: 'Risposta AI incompleta o in formato non valido. Riprova.' };
+          return;
+        }
+        seasonSummaryAITexts.value = { ...parsed, _errore: null };
+      } catch(e) {
+        seasonSummaryAITexts.value = { _errore: 'Errore imprevisto: ' + e.message };
+      } finally {
+        seasonSummaryAIGenerating.value = false;
+      }
+    };
+
     const testGeneraRiepilogoStagione = async () => {
       seasonSummaryTestGenerating.value = true;
       seasonSummaryTestSectionD.value = [];
@@ -13447,7 +13547,7 @@ Niente altro, nessuna spiegazione.`;
           if (p.soprannomeAI) out += `   🎭 ${p.soprannomeAI}${p.confrontoAI ? ' — '+p.confrontoAI : ''}\n`;
         }
 
-        // Il Gabbione: 2vs2/3vs3 "rivincita" — solo logica/testo, il commento AI arriva allo Step 6
+        // Il Gabbione: 2vs2/3vs3 "rivincita" — solo logica/abbinamento qui, il testo AI arriva subito dopo
         const gab = buildSeasonSummaryTestGabbione();
         out += `\nSEZIONE — Il Gabbione (sfide "rivincita" 2vs2 e 3vs3)\n`;
         if (gab.gabbione2v2) {
@@ -13460,9 +13560,14 @@ Niente altro, nessuna spiegazione.`;
         } else {
           out += `3vs3: — (non ci sono ancora abbastanza giocatori idonei)\n`;
         }
-        out += `(commento AI in stile telecronaca arriverà allo Step 6, qui solo l'abbinamento)\n`;
 
+        // Fase 1 completa e salvata: da qui in poi il retry del solo testo AI (Fase 2) può
+        // riusare questi dati senza ricalcolare/riricomprimere nulla.
+        seasonSummaryLastData.value = { d, gab };
+        out += `\n(Genero ora il testo AI — Fase 2, non bloccante: se fallisce tutto il resto sopra resta comunque consultabile)\n`;
         seasonSummaryTestOutput.value = out;
+
+        await generaTestoAIRiepilogoStagione();
       } catch(e) {
         seasonSummaryTestOutput.value = '❌ Errore: ' + e.message;
       } finally {
@@ -17927,6 +18032,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest,
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
+      seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
