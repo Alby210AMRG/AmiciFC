@@ -599,6 +599,19 @@ textarea.input-field { resize: vertical; min-height: 80px; }
 }
 
 @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+.photo-lightbox-overlay {
+  position: fixed; inset: 0; z-index: 300;
+  background: rgba(0,0,0,0.88);
+  display: flex; align-items: center; justify-content: center;
+  animation: fadeIn 0.2s ease;
+  cursor: zoom-out;
+}
+.photo-lightbox-img {
+  max-width: 88vw; max-height: 80vh;
+  border-radius: 16px;
+  animation: photoZoomIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+}
+@keyframes photoZoomIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
 @keyframes scaleIn { from { transform: scale(0.85); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 
@@ -4468,8 +4481,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="card-title" style="margin-bottom:0">⭐ Media Voto</div>
               <button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('voti')">📤 Condividi</button>
             </div>
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Media voto nelle partite in cui si è stati votati · solo giocatori con almeno 5 partite votate</div>
-            <div v-if="!statsTopRatedClassifica.length" class="empty-state" style="padding:16px"><p>Nessun giocatore ha ancora raggiunto 5 partite votate.</p></div>
+            <div style="margin-bottom:10px">
+              <button @click="showMediaVotoInfo=!showMediaVotoInfo" style="background:none;border:1px solid var(--border);color:var(--text2);padding:3px 10px;border-radius:20px;font-size:0.72rem;cursor:pointer;display:flex;align-items:center;gap:5px">
+                ℹ️ Come funziona questa classifica? <span>{{showMediaVotoInfo?'▲':'▼'}}</span>
+              </button>
+              <div v-if="showMediaVotoInfo" style="font-size:0.72rem;color:var(--text2);margin-top:8px;line-height:1.7;padding:10px;background:var(--bg3);border-radius:8px">
+                Conta solo le partite in cui hai ricevuto un voto — quelle giocate senza voto non influiscono sulla media.<br>
+                Per entrare in classifica servono almeno <strong style="color:var(--lime)">{{statsMediaVotoDinamica.soglia || 5}} partite votate</strong>.<br>
+                <span v-if="statsMediaVotoDinamica.soglia && statsMediaVotoDinamica.soglia < 15" style="color:var(--yellow)">⚠️ Soglia abbassata automaticamente: il voto è stato introdotto da poco, ci sono ancora poche partite votate in tutta la stagione. Salirà da sola verso 15 con il passare delle settimane.</span>
+              </div>
+            </div>
+            <div v-if="!statsTopRatedClassifica.length" class="empty-state" style="padding:16px"><p>Non ci sono ancora abbastanza partite votate in stagione per mostrare questa classifica: servono almeno 5 giocatori con almeno 5 partite votate a testa.</p></div>
             <div v-for="(p,i) in statsTopRatedClassifica" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
               <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
@@ -5386,6 +5408,53 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
 
+            <!-- Riepilogo Stagione TEST (collassabile) -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(200,255,0,.25)">
+              <div @click="zpSection='riepilogo'===zpSection?null:'riepilogo'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
+                <span style="font-size:0.82rem;font-weight:700;color:#C8FF00">📖 Riepilogo Stagione (TEST)</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='riepilogo'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='riepilogo'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(200,255,0,.15)">
+                <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                  Step 4/9: calcola Sezioni A/B/C/D/E (numeri, Oscar, classifiche, partite con PNG giornale,
+                  Annuario giocatori) e le mostra qui sotto — nessun salvataggio, nessun testo AI ancora
+                  (arriva allo Step 6). Solo per verificare che tutto esca giusto prima di procedere.
+                </div>
+                <button class="btn btn-full btn-sm" style="background:rgba(200,255,0,0.12);border:1.5px solid #C8FF00;color:#C8FF00"
+                  @click="testGeneraRiepilogoStagione" :disabled="seasonSummaryTestGenerating">
+                  {{ seasonSummaryTestGenerating ? '⏳ Calcolo...' : '🧪 Genera Anteprima (solo testo)' }}
+                </button>
+                <pre v-if="seasonSummaryTestOutput" style="margin-top:10px;padding:10px;background:rgba(0,0,0,.3);border-radius:8px;font-size:0.72rem;line-height:1.5;white-space:pre-wrap;color:var(--text2);max-height:400px;overflow-y:auto">{{ seasonSummaryTestOutput }}</pre>
+                <div v-if="seasonSummaryPreviewMatch" style="margin-top:10px">
+                  <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">
+                    🖼️ Anteprima ricompressione — partita del {{ seasonSummaryPreviewMatch.data }} (540px larghezza, JPEG 70%):
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <div v-if="seasonSummaryPreviewMatch.pngGiornale" style="text-align:center">
+                      <img :src="seasonSummaryPreviewMatch.pngGiornale" style="max-width:160px;border-radius:6px;border:1px solid rgba(255,255,255,.1)">
+                      <div style="font-size:0.62rem;color:var(--text2);margin-top:2px">PNG giornale ({{ Math.round(seasonSummaryPreviewMatch.pngGiornale.split(',')[1].length*3/4/1024) }} KB)</div>
+                    </div>
+                    <div v-if="seasonSummaryPreviewMatch.fotoPartita" style="text-align:center">
+                      <img :src="seasonSummaryPreviewMatch.fotoPartita" style="max-width:160px;border-radius:6px;border:1px solid rgba(255,255,255,.1)">
+                      <div style="font-size:0.62rem;color:var(--text2);margin-top:2px">Foto partita (originale, non ricompressa)</div>
+                    </div>
+                  </div>
+                </div>
+                <div v-if="seasonSummaryTestSectionE.length" style="margin-top:14px">
+                  <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">
+                    📇 Anteprima Annuario — prime {{ Math.min(4, seasonSummaryTestSectionE.length) }} card su {{ seasonSummaryTestSectionE.length }} (foto + dati, verifica visiva):
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <div v-for="p in seasonSummaryTestSectionE.slice(0,4)" :key="p.uid" style="text-align:center;width:90px">
+                      <img :src="p.foto" style="width:70px;height:70px;object-fit:cover;border-radius:50%;border:1px solid rgba(255,255,255,.15)">
+                      <div style="font-size:0.68rem;font-weight:700;margin-top:4px">{{ p.nome }}</div>
+                      <div style="font-size:0.6rem;color:var(--text2)">{{ p.goalTotali }}⚽ · {{ p.partiteTotali }} pres.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Reset (collassabile) -->
             <div style="border-radius:8px;overflow:hidden;border:1px solid rgba(255,77,77,.4)">
               <div @click="zpSection='reset'===zpSection?null:'reset'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,77,77,.05)">
@@ -5675,15 +5744,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
   <!-- Player Detail Modal -->
   <div v-if="showPlayerDetail && detailPlayer" class="modal-overlay" @click.self="showPlayerDetail=false">
-    <div class="modal-sheet">
+    <div class="modal-sheet" style="position:relative">
       <div class="modal-handle"></div>
+      <button class="modal-close" @click="showPlayerDetail=false" style="position:absolute;top:14px;right:16px;z-index:2">✕</button>
       <div style="text-align:center;margin-bottom:20px;position:relative">
         <!-- Badge infortunio in alto a destra -->
         <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:#e53e3e;border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px rgba(229,62,62,.4)">
           <span style="font-size:16px">🏥</span>
           <span style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px">INFORTUNATO</span>
         </div>
-        <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;border:4px solid '+(detailPlayer.infortunio?'#f87171':(detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+(detailPlayer.infortunio?'rgba(248,113,113,0.4)':(detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')">
+        <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;cursor:zoom-in;border:4px solid '+(detailPlayer.infortunio?'#f87171':(detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+(detailPlayer.infortunio?'rgba(248,113,113,0.4)':(detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')" @click="showPhotoLightbox=true">
           <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
         <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
@@ -5873,6 +5943,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         📦 Dati di una stagione archiviata — sola consultazione
       </div>
     </div>
+  </div>
+
+  <!-- Lightbox foto giocatore: tocco sulla foto nel dettaglio giocatore -->
+  <div v-if="showPhotoLightbox && detailPlayer" class="photo-lightbox-overlay" @click="showPhotoLightbox=false">
+    <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" class="photo-lightbox-img">
   </div>
 
   <!-- Match Detail Modal -->
@@ -6731,7 +6806,31 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.698',date:'2026-07-16',items:[
+    const changelogEntries = [{version:'v1.708',date:'2026-07-18',items:[
+      'Schermata Giocatori: aggiunto tasto "✕ Chiudi" esplicito nel modal dettaglio giocatore — prima si chiudeva solo toccando fuori dal modal o trascinando la maniglia, senza un bottone visibile. Segnalato da Alby 17/7/2026.',
+      'Schermata Giocatori: la foto nel dettaglio giocatore ora è cliccabile — si apre a schermo intero con animazione di zoom/dissolvenza su sfondo scurito, tocco fuori per richiudere (nuovo ref showPhotoLightbox, nuove classi CSS .photo-lightbox-overlay/.photo-lightbox-img). Segnalato da Alby 17/7/2026.',
+      'Fix: le hero card in home potevano restare bloccate sulla card di caricamento con segnale di rete debole/instabile (mai con offline pulito). Causa: checkSyncNeeded() faceva due fetch verso Firebase senza alcun timeout — con offline pulito la fetch fallisce quasi subito, ma con poco segnale può restare appesa per decine di secondi prima di fallire, ritardando _heroLaunch() (che aspetta il check di sync). Nuova funzione _fetchWithTimeout() (AbortController, timeout 8s) applicata alle due fetch di checkSyncNeeded — su segnale debole ora si rinuncia al check dopo 8s e si procede comunque con i dati locali invece di restare bloccati.',
+    ]},{version:'v1.707',date:'2026-07-17',items:[
+      'Il Gabbione: aggiunta regola "garantisci una rivincita" — se il nemico personale del migliore per overall non rientra già tra i migliori, viene incluso comunque al posto dell\'ultimo classificato. Segnalato da Alby: un test reale aveva prodotto "0 rivincite in gioco" perché Diego (incubo di quasi tutti i top player) non rientrava lui stesso nella top 4/6 per overall. Verificato con una simulazione Python sui dati reali: il punteggio rivincite sale da 0 a 2 (2vs2) e 3 (3vs3) con la nuova regola.',
+    ]},{version:'v1.706',date:'2026-07-17',items:[
+      'Riepilogo Stagione — Step 5/9: "Il Gabbione" (sfide 2vs2 e 3vs3 in stile "rivincita"). Tra i migliori per overall (stessa formula OVR già usata in Statistiche), prova ogni divisione bilanciata delle due squadre e sceglie quella con più "incubi personali" schierati nella squadra avversaria (nuove funzioni _bestRivalrySplit + buildSeasonSummaryTestGabbione). Solo abbinamento e logica per ora — il commento AI in stile telecronaca arriva allo Step 6.',
+    ]},{version:'v1.705',date:'2026-07-17',items:[
+      'Riepilogo Stagione — Step 4/9: Sezione E (Annuario giocatori). Una card per ogni giocatore con almeno 1 presenza in stagione: foto, ruolo/piede, gol/presenze/media voto/Uomo Partita, massimo gol in una partita, "vittima preferita" e "incubo personale" (avversario con più vittorie/sconfitte dirette, minimo 3 scontri — nuova funzione _buildPersonalRivalries), più soprannome AI e confronto quando presenti (aiCards.soprannomi). Bottone TEST in Zona Pericolo aggiornato con anteprima visiva delle prime 4 card (foto vera + numeri) per verifica.',
+    ]},{version:'v1.704',date:'2026-07-17',items:[
+      'Fix Riepilogo Stagione: Giocatore Più Premiato/Il Bidone d\'Oro mostravano sempre "0 titoli" anche con storico HoF reale presente su Firebase (2 mesi: maggio e giugno). Causa: hofStorico si carica solo visitando le tab "Re Mese"/"Bidone Mese" in Statistiche — se non ancora fatto in sessione, restava vuoto. Ora il test carica lo storico HoF automaticamente prima di calcolare la Sezione B, se non già in memoria.',
+    ]},{version:'v1.703',date:'2026-07-17',items:[
+      'Fix CRITICO Riepilogo Stagione Sezione D: risultava sempre "0 partite con PNG" sui dati reali. Causa: i campi m.pngFormazione/pngRisultato/pngPagelle vengono scritti SOLO alla creazione della partita e azzerati ad ogni correzione (si rigenerano "alla prossima condivisione", mai premuta) — quasi sempre vuoti in pratica. Il PNG "giornale" realmente condiviso oggi in app è generato al volo da regenerateNewspaper(), mai persistito sulla partita. Sezione D ora fa come lo ZIP di fine stagione: usa la cache se c\'è, altrimenti genera al volo con la stessa funzione (_generateGiornalePNGForMatch). Un solo PNG giornale per partita invece di 3 campi quasi sempre vuoti.',
+      'Statistiche → Media Voto: la descrizione ora è collassabile con freccina ▼/▲ ("ℹ️ Come funziona questa classifica?"), stesso stile già usato per "Come si calcola l\'OVR?" — prima era un blocco di testo fisso sempre visibile.',
+    ]},{version:'v1.702',date:'2026-07-17',items:[
+      'Riepilogo Stagione — Step 3/9: Sezione D (partite in ordine cronologico). I PNG "giornale" (formazione/risultato/pagelle, 1080x1920) vengono ricompressi appositamente per lo snapshot — 540px di larghezza, JPEG qualità 70% — invece di essere incorporati a piena risoluzione, per non far esplodere lo spazio Firebase su più stagioni future. La foto partita (già leggera, max 800px/JPEG 80%) resta invariata. Bottone TEST in Zona Pericolo ora mostra anche il peso stimato della Sezione D e un\'anteprima visiva della partita più recente per verificare qualità/dimensioni.',
+      'Statistiche → Media Voto: riscritta la descrizione, prima poco chiara ("solo giocatori con almeno N partite votate" tutto in una riga) — ora spiegata su due frasi separate (cosa conta per la media, cosa serve per entrare in classifica).',
+    ]},{version:'v1.701',date:'2026-07-17',items:[
+      'Media Voto (Statistiche + Pallone d\'Oro): soglia "partite votate" ora DINAMICA invece di fissa — parte da 15 (ideale per una stagione intera) e scala (14,13,12...) finché non trova almeno 5 giocatori qualificati, mai sotto 5. Necessario perché il voto è partito solo a metà stagione: una soglia fissa a 15 avrebbe lasciato le classifiche sempre vuote per mesi. Nessun padding/media diluita: si mostra sempre la media vera dei voti realmente dati. Nuova funzione condivisa `_dynamicMediaVotoEligible()`, usata sia da Statistiche sia dal Riepilogo Stagione.',
+    ]},{version:'v1.700',date:'2026-07-17',items:[
+      'Correzione soglia "partite votate" per la classifica Media Voto: da 5 a 15 (una stagione ha minimo ~15 partite, 5 era una soglia troppo bassa e poco rappresentativa). Corretta sia in Statistiche → Media Voto sia nel Pallone d\'Oro del Riepilogo Stagione (Step 2).',
+    ]},{version:'v1.699',date:'2026-07-17',items:[
+      'Riepilogo Stagione — Step 2/9: calcolo Sezioni A/B/C (numeri stagione, Oscar con gestione pari-merito, classifiche) riusando _aggregateMatchStats esistente. Bottone TEST in Zona Pericolo, output solo testuale a schermo — nessun salvataggio, nessuna foto/PNG, nessun testo AI ancora.',
+    ]},{version:'v1.698',date:'2026-07-16',items:[
       'Fix CRITICO: dopo una correzione partita, il TrashTalk veniva invalidato su Firebase/flag/localStorage ma MAI in memoria (aiCardsTrashTalk) — la home continuava a mostrare le card della partita precedente, a volte per giorni. Segnalato da Alby: TrashTalk del 16/7 identico a quello del 9/7 dopo una correzione. Ora si azzera subito anche il ref in memoria: la home mostra "nessuna card" finché la rigenerazione vera non è pronta, mai più contenuto vecchio spacciato per nuovo.',
     ]},{version:'v1.697',date:'2026-07-16',items:[
       'Top Team (Statistiche): aggiunte le taglie 9vs9 e 10vs10 (mancavano, coprivamo solo 5,6,7,8,11) — schema 9: 1 Portiere · 3 Difensori · 3 Centrocampisti · 2 Attaccanti; schema 10: 1 Portiere · 3 Difensori · 4 Centrocampisti · 2 Attaccanti. Primo step del progetto "Riepilogo Stagione".',
@@ -7185,6 +7284,8 @@ createApp({
     const showImportPlayerModal = ref(false);
     const importPlayerSearch = ref('');
     const showPlayerDetail  = ref(false);
+    const showPhotoLightbox = ref(false);
+    watch(showPlayerDetail, (v) => { if (!v) showPhotoLightbox.value = false; });
     const showMatchDetail   = ref(false);
     const detailMatchFromPlayer = ref(null); // giocatore da cui è stato aperto il dettaglio partita (dallo storico)
     const showPNGPreview    = ref(false);
@@ -7223,6 +7324,7 @@ createApp({
     const lastSyncDate      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const showApiKey        = ref(false);
     const showOvrInfo       = ref(false);
+    const showMediaVotoInfo = ref(false);
     const ovrExpandedId     = ref(null); // id del giocatore con la scomposizione OVR aperta (13/7/2026)
     const showAISection     = ref(false); // collassato di default
     const tutorialEnabled   = ref(true); // tutorial attivo di default
@@ -7517,7 +7619,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.698');
+    const appVersion = ref('1.708');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12672,6 +12774,18 @@ Niente altro, nessuna spiegazione.`;
     };
 
     // Controlla se serve sync da Firebase confrontando syncVersion e lastModified
+    // Fetch con timeout: su connessione debole/instabile (non offline pulito) una fetch senza
+    // timeout può restare appesa per decine di secondi invece di fallire subito come in offline
+    // pulito — causa del bug segnalato da Alby (18/7/2026): con poco segnale le hero card
+    // restavano bloccate sulla card di caricamento, mentre spegnendo del tutto wifi/rete si
+    // sbloccavano subito (fallimento immediato invece che fetch appesa). Usata per ora solo nel
+    // check di sync di avvio (checkSyncNeeded), il punto esatto diagnosticato come causa.
+    const _fetchWithTimeout = (url, options = {}, timeoutMs = 8000) => {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+    };
+
     const checkSyncNeeded = async () => {
       const base = getFirebaseBase();
       if (!base) return false;
@@ -12711,8 +12825,8 @@ Niente altro, nessuna spiegazione.`;
         }
 
         const [respV, respM] = await Promise.all([
-          fetch(`${base}/syncVersion.json${authSuffix}`, { cache: 'no-store' }),
-          fetch(`${base}/lastModified.json${authSuffix}`, { cache: 'no-store' }),
+          _fetchWithTimeout(`${base}/syncVersion.json${authSuffix}`, { cache: 'no-store' }),
+          _fetchWithTimeout(`${base}/lastModified.json${authSuffix}`, { cache: 'no-store' }),
         ]);
         if (!respV.ok || !respM.ok) return false;
         const fbSyncVersion = parseInt(await respV.json() || '1');
@@ -12744,9 +12858,11 @@ Niente altro, nessuna spiegazione.`;
 
         return false;
       } catch(e) {
-        // Offline o rete non disponibile — silenzioso, nessun errore
+        // Offline pulito, timeout (segnale debole/instabile), o rete non disponibile — silenzioso
+        const isTimeout = e.name === 'AbortError';
         const isOffline = e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine;
-        if (!isOffline) logEvent('warn', 'sync', 'checkSyncNeeded fallito: ' + e.message);
+        if (isTimeout) logEvent('info', 'sync', '⏱️ Check Firebase saltato (timeout 8s — segnale debole/instabile)');
+        else if (!isOffline) logEvent('warn', 'sync', 'checkSyncNeeded fallito: ' + e.message);
         else logEvent('info', 'sync', '📵 Check Firebase saltato (offline)');
         return false;
       }
@@ -12846,6 +12962,21 @@ Niente altro, nessuna spiegazione.`;
     // recomputeStats (stagione corrente, scrive su Dexie) sia da careerAggregate (Carriera,
     // calcolato al volo su tutte le stagioni insieme, mai salvato — vedi REGOLE-PROGETTO.md,
     // principio guida #6 Archivio Stagioni, esteso qui anche alla formula oltre che al dato).
+    // Soglia dinamica per la classifica Media Voto (Statistiche + Pallone d'Oro): parte da un
+    // ideale di 15 partite votate a testa e scala (14, 13, 12...) finché non trova almeno 5
+    // giocatori qualificati. Non scende mai sotto 5 partite votate: se anche a soglia 5 non si
+    // raggiungono 5 giocatori, la classifica resta vuota (troppo presto nella stagione per essere
+    // rappresentativa). Decisa con Alby 17/7/2026 dopo aver verificato che il voto è partito solo
+    // a metà stagione (i primi mesi non avevano il voto attivo) — niente più media "diluita" con
+    // un 6 fittizio per i mancanti, si usa sempre e solo la media vera dei voti realmente dati.
+    const _dynamicMediaVotoEligible = (players) => {
+      for (let soglia = 15; soglia >= 5; soglia--) {
+        const qualificati = players.filter(p => (p.votiTotali||0) >= soglia);
+        if (qualificati.length >= 5) return { soglia, giocatori: qualificati };
+      }
+      return { soglia: null, giocatori: [] };
+    };
+
     const _aggregateMatchStats = (matches, uids) => {
       const statsMap = {};
       uids.forEach(uid => {
@@ -12887,6 +13018,456 @@ Niente altro, nessuna spiegazione.`;
         }
       }
       return statsMap;
+    };
+
+    // ═══════════════════════════════════════════════════════════════════
+    // RIEPILOGO STAGIONE — Step 2: solo Sezioni A/B/C (numeri, Oscar, classifiche).
+    // Nessuna foto/PNG/testo AI qui: quelli arrivano negli step successivi.
+    // Lavora SEMPRE sulla stagione corrente (groupPlayers/groupMatches), mai su archiviate
+    // (deciso con Alby 17/7/2026: Riepilogo Stagione = solo stagione in corso, per ora).
+    // ═══════════════════════════════════════════════════════════════════
+    const seasonSummaryTestOutput = ref('');
+    const seasonSummaryTestGenerating = ref(false);
+    const seasonSummaryTestSectionD = ref([]); // [{data,golA,golB,titoloGiornale,commentoAI,pngGiornale,fotoPartita}]
+    const seasonSummaryTestSectionE = ref([]); // [{uid,nome,ruolo,piede,foto,partiteTotali,goalTotali,mediaVoto,votiTotali,uomoPartitaTotali,maxGolPartita,vittima,incubo,soprannomeAI,confrontoAI}]
+    // Partita campione per l'anteprima visiva in Zona Pericolo: l'ultima con un PNG risultato pronto
+    const seasonSummaryPreviewMatch = computed(() =>
+      [...seasonSummaryTestSectionD.value].reverse().find(m => m.pngGiornale) || null
+    );
+
+    // Ritorna [{uid,nome}] di tutti i giocatori a pari-merito al valore massimo di getVal(),
+    // filtrando prima con filterFn. Usato per ogni Oscar dove serve gestire i pari-merito.
+    const _topTiedPlayers = (players, filterFn, getVal) => {
+      const eligible = players.filter(filterFn);
+      if (!eligible.length) return { valore: 0, giocatori: [] };
+      const max = Math.max(...eligible.map(getVal));
+      if (max <= 0) return { valore: 0, giocatori: [] };
+      const giocatori = eligible.filter(p => getVal(p) === max)
+        .map(p => ({ uid: p.uid || String(p.id), nome: p.soprannome || p.nome }));
+      return { valore: max, giocatori };
+    };
+
+    // Kryptonite: per ogni coppia (p, avversario) calcola sconfitte/scontri diretti quando
+    // giocano in squadre opposte. Ritorna la/le rivalità più dominanti della stagione
+    // (tasso di sconfitta più alto, minimo 3 scontri diretti per essere significativo).
+    const _buildKryptonite = (matches, players) => {
+      const lossVs = {}, totVs = {};
+      for (const m of matches) {
+        const ga = m.risultato?.goalA || 0, gb = m.risultato?.goalB || 0;
+        if (ga === gb) continue; // pareggio: nessuna sconfitta da registrare
+        const winnerIsA = ga > gb;
+        const teamA = m.squadraA || [], teamB = m.squadraB || [];
+        for (const pa of teamA) for (const pb of teamB) {
+          totVs[pa] = totVs[pa] || {}; totVs[pa][pb] = (totVs[pa][pb]||0) + 1;
+          totVs[pb] = totVs[pb] || {}; totVs[pb][pa] = (totVs[pb][pa]||0) + 1;
+          if (winnerIsA) { lossVs[pb] = lossVs[pb] || {}; lossVs[pb][pa] = (lossVs[pb][pa]||0) + 1; }
+          else           { lossVs[pa] = lossVs[pa] || {}; lossVs[pa][pb] = (lossVs[pa][pb]||0) + 1; }
+        }
+      }
+      let best = null; // {rate, persi, tot, pid, oppId}
+      for (const pid of Object.keys(totVs)) {
+        for (const oppId of Object.keys(totVs[pid])) {
+          const tot = totVs[pid][oppId];
+          if (tot < 3) continue;
+          const persi = (lossVs[pid] && lossVs[pid][oppId]) || 0;
+          const rate = persi / tot;
+          if (!best || rate > best.rate || (rate === best.rate && persi > best.persi)) {
+            best = { rate, persi, tot, pid, oppId };
+          }
+        }
+      }
+      if (!best || best.rate <= 0) return [];
+      // Pari-merito: tutte le coppie con lo stesso rate/persi/tot del migliore (evita di sceglierne
+      // una arbitraria quando più rivalità sono ugualmente "dominanti")
+      const risultati = [];
+      for (const pid of Object.keys(totVs)) {
+        for (const oppId of Object.keys(totVs[pid])) {
+          const tot = totVs[pid][oppId];
+          if (tot < 3) continue;
+          const persi = (lossVs[pid] && lossVs[pid][oppId]) || 0;
+          if (tot === best.tot && persi === best.persi && persi/tot === best.rate) {
+            const p = getPlayer(pid), opp = getPlayer(oppId);
+            if (p && opp) risultati.push({
+              vittima: p.soprannome || p.nome, incubo: opp.soprannome || opp.nome,
+              persi, tot, rate: best.rate
+            });
+          }
+        }
+      }
+      return risultati;
+    };
+
+    // Ricomprime un dataURL (PNG "giornale" 1080x1920, pesante) a JPEG più piccolo, specificamente
+    // per il Riepilogo Stagione — l'originale resta intatto sulla partita, questa è solo una copia
+    // leggera per lo snapshot. Decisa con Alby 17/7/2026 per non far esplodere lo spazio Firebase
+    // quando lo snapshot avrà tutte le ~25 partite della stagione moltiplicate per anni futuri.
+    const _recompressForSummary = (src, maxWidth = 540, quality = 0.7) => new Promise(res => {
+      if (!src) { res(null); return; }
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxWidth / img.width);
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.round(img.width * scale);
+        canvas.height = Math.round(img.height * scale);
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        res(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.onerror = () => res(null);
+      img.src = src;
+      setTimeout(() => res(null), 8000); // non blocca il test se un'immagine è corrotta/lenta
+    });
+
+    const _dataUrlSizeKB = (dataUrl) => {
+      if (!dataUrl) return 0;
+      const base64 = dataUrl.split(',')[1] || '';
+      return Math.round(base64.length * 3/4 / 1024);
+    };
+
+    // Sezione D: partite in ordine cronologico, con il PNG "giornale" (formazione+risultato+commento
+    // in un unico canvas — lo stesso che genera regenerateNewspaper/condividi) + foto partita.
+    //
+    // Corretto 17/7/2026 dopo il primo test reale: avevo inizialmente provato a leggere 3 campi
+    // separati (m.pngFormazione/pngRisultato/pngPagelle), risultati SEMPRE vuoti sui dati veri di
+    // Alby (0 su 25 partite). Causa: quei 3 campi vengono scritti SOLO alla creazione della partita
+    // (generatePNG('formation'/'result'/'pagelle'), righe ~12318-12320) e poi azzerati a ogni
+    // correzione partita (rigenerazione "alla prossima condivisione" che però nessuno ha mai
+    // premuto) — sono di fatto quasi sempre vuoti nella pratica. Il PNG "giornale" realmente
+    // mostrato/condiviso oggi in app è tutt'altra cosa: generato al volo da regenerateNewspaper()
+    // → generateAndShareMatchPNG(), MAI persistito sulla partita (stessa cosa che fa già lo ZIP
+    // di fine stagione, vedi _generateGiornalePNGForMatch + riga ~15460). Section D ora fa lo
+    // stesso: usa m.pngRisultato se già in cache, altrimenti genera al volo con quella funzione.
+    const buildSeasonSummaryTestSectionD = async () => {
+      const matches = [...groupMatches.value].sort((a,b) => (a.data||'').localeCompare(b.data||''));
+      const risultato = [];
+      for (const m of matches) {
+        let pngGiornale = m.pngRisultato || null;
+        if (!pngGiornale) {
+          try { pngGiornale = await _generateGiornalePNGForMatch(m); } catch { pngGiornale = null; }
+        }
+        const pngGiornaleCompresso = await _recompressForSummary(pngGiornale);
+        risultato.push({
+          data: m.data,
+          golA: m.risultato?.goalA||0, golB: m.risultato?.goalB||0,
+          titoloGiornale: m.titoloGiornale||'', commentoAI: m.commentoAI||'',
+          pngGiornale: pngGiornaleCompresso,
+          fotoPartita: m.fotoPartita || null // già leggera, nessuna ricompressione
+        });
+      }
+      return risultato;
+    };
+
+    // Vittima preferita / incubo personale per OGNI giocatore (non solo il caso estremo di
+    // stagione come Kryptonite in Sezione B) — stessa logica di tracking vinte/perse per
+    // avversario, minimo 3 scontri diretti per essere significativo, min tasso vittoria/sconfitta.
+    const _buildPersonalRivalries = (matches) => {
+      const winsVs = {}, lossVs = {}, totVs = {};
+      for (const m of matches) {
+        const ga = m.risultato?.goalA || 0, gb = m.risultato?.goalB || 0;
+        if (ga === gb) continue;
+        const winnerIsA = ga > gb;
+        const teamA = m.squadraA || [], teamB = m.squadraB || [];
+        for (const pa of teamA) for (const pb of teamB) {
+          totVs[pa] = totVs[pa] || {}; totVs[pa][pb] = (totVs[pa][pb]||0) + 1;
+          totVs[pb] = totVs[pb] || {}; totVs[pb][pa] = (totVs[pb][pa]||0) + 1;
+          if (winnerIsA) {
+            winsVs[pa] = winsVs[pa] || {}; winsVs[pa][pb] = (winsVs[pa][pb]||0) + 1;
+            lossVs[pb] = lossVs[pb] || {}; lossVs[pb][pa] = (lossVs[pb][pa]||0) + 1;
+          } else {
+            winsVs[pb] = winsVs[pb] || {}; winsVs[pb][pa] = (winsVs[pb][pa]||0) + 1;
+            lossVs[pa] = lossVs[pa] || {}; lossVs[pa][pb] = (lossVs[pa][pb]||0) + 1;
+          }
+        }
+      }
+      const result = {};
+      for (const pid of Object.keys(totVs)) {
+        let vittima = null, incubo = null;
+        for (const oppId of Object.keys(totVs[pid])) {
+          const tot = totVs[pid][oppId];
+          if (tot < 3) continue;
+          const vinte = (winsVs[pid] && winsVs[pid][oppId]) || 0;
+          const perse = (lossVs[pid] && lossVs[pid][oppId]) || 0;
+          const winRate = vinte / tot, lossRate = perse / tot;
+          if (!vittima || winRate > vittima.rate || (winRate === vittima.rate && vinte > vittima.vinte)) {
+            vittima = { oppId, vinte, tot, rate: winRate };
+          }
+          if (!incubo || lossRate > incubo.rate || (lossRate === incubo.rate && perse > incubo.perse)) {
+            incubo = { oppId, perse, tot, rate: lossRate };
+          }
+        }
+        result[pid] = {
+          vittima: vittima && vittima.rate > 0 ? { uid: vittima.oppId, nome: getPlayer(vittima.oppId)?.soprannome || getPlayer(vittima.oppId)?.nome || '?', vinte: vittima.vinte, tot: vittima.tot } : null,
+          incubo:  incubo  && incubo.rate  > 0 ? { uid: incubo.oppId,  nome: getPlayer(incubo.oppId)?.soprannome  || getPlayer(incubo.oppId)?.nome  || '?', perse: incubo.perse, tot: incubo.tot }  : null
+        };
+      }
+      return result;
+    };
+
+    // Sezione E: Annuario — una card per giocatore con foto + statistiche personali. Solo chi ha
+    // giocato almeno 1 partita in stagione (chi non ha mai giocato non ha nulla da raccontare).
+    // Nota: getPlayerPhoto può restituire un URL esterno (Google Drive) non un base64 incorporato —
+    // per lo snapshot "vero" (Step 6-7, salvataggio definitivo) andrà gestito il download/incorporamento
+    // di quelle foto esterne, qui per il test si mostra così com'è.
+    const buildSeasonSummaryTestSectionE = () => {
+      const matches = groupMatches.value;
+      const players = groupPlayers.value;
+      const uids = players.map(p => p.uid || String(p.id));
+      const statsMap = _aggregateMatchStats(matches, uids);
+      const rivalries = _buildPersonalRivalries(matches);
+
+      const maxGolPartita = {};
+      for (const m of matches) {
+        for (const s of (m.statisticheGiocatori||[])) {
+          if ((s.goal||0) > (maxGolPartita[s.playerId]||0)) maxGolPartita[s.playerId] = s.goal;
+        }
+      }
+
+      return players
+        .map(p => {
+          const uid = p.uid || String(p.id);
+          const st = statsMap[uid] || {};
+          if (!st.partiteTotali) return null; // non ha giocato quest'anno, niente card
+          const nick = aiNicknames.value[uid];
+          return {
+            uid, nome: p.soprannome || p.nome, ruolo: p.ruolo || '', piede: p.piede || '',
+            foto: getPlayerPhoto(p.foto, uid),
+            partiteTotali: st.partiteTotali, goalTotali: st.goalTotali||0,
+            mediaVoto: st.votiTotali > 0 ? st.votiSum/st.votiTotali : 0, votiTotali: st.votiTotali||0,
+            uomoPartitaTotali: st.uomoPartitaTotali||0,
+            maxGolPartita: maxGolPartita[uid] || 0,
+            vittima: rivalries[uid]?.vittima || null,
+            incubo: rivalries[uid]?.incubo || null,
+            soprannomeAI: nick?.soprannome_ai || null,
+            confrontoAI: nick?.confronto || null
+          };
+        })
+        .filter(Boolean)
+        .sort((a,b) => b.partiteTotali - a.partiteTotali);
+    };
+
+    // "Il Gabbione" — abbinamento 2vs2/3vs3 in stile "rivincita": tra i migliori per overall,
+    // prova ogni divisione bilanciata delle due squadre e sceglie quella che mette il maggior
+    // numero di "incubi personali" nella squadra avversaria (massima carica di rivincita).
+    // Con N piccolo (4 o 6) enumerare tutte le divisioni via bitmask è semplice ed esatto.
+    const _bestRivalrySplit = (playerIds, rivalries) => {
+      const n = playerIds.length, half = n / 2;
+      let best = null;
+      for (let mask = 1; mask < (1 << n) - 1; mask++) {
+        if (!(mask & 1)) continue; // evita di contare due volte una divisione e la sua complementare
+        let bits = 0;
+        for (let i = 0; i < n; i++) if (mask & (1 << i)) bits++;
+        if (bits !== half) continue;
+        const teamA = [], teamB = [];
+        for (let i = 0; i < n; i++) (mask & (1 << i)) ? teamA.push(playerIds[i]) : teamB.push(playerIds[i]);
+        let score = 0;
+        for (const pid of teamA) if (rivalries[pid]?.incubo?.uid && teamB.includes(rivalries[pid].incubo.uid)) score++;
+        for (const pid of teamB) if (rivalries[pid]?.incubo?.uid && teamA.includes(rivalries[pid].incubo.uid)) score++;
+        if (!best || score > best.score) best = { teamA, teamB, score };
+      }
+      return best;
+    };
+
+    const buildSeasonSummaryTestGabbione = () => {
+      const matches = groupMatches.value;
+      const players = groupPlayers.value;
+      const rivalries = _buildPersonalRivalries(matches);
+      const minP = Math.max(2, Math.floor((matches.length||0) * 0.25));
+      const pMax = Math.max(...players.map(p => p.partiteTotali||0), 1);
+      const eligible = players
+        .filter(p => (p.partiteTotali||0) >= minP)
+        .map(p => ({ ...p, uid: p.uid || String(p.id), _score: overallScore(p, pMax, matches, players) }))
+        .sort((a,b) => b._score - a._score);
+
+      const nameOf = (uid) => getPlayer(uid)?.soprannome || getPlayer(uid)?.nome || '?';
+      const build = (n) => {
+        if (eligible.length < n) return null;
+        let pool = eligible.slice(0, n).map(p => p.uid);
+
+        // Garantisci una rivincita: se il migliore per overall che ha un incubo personale non ancora
+        // nel pool esiste tra gli eligible, lo includo al posto dell'ultimo classificato (l'overall
+        // più basso del gruppo). Deciso con Alby 17/7/2026: senza questa regola un Gabbione può
+        // uscire con 0 rivincite possibili se il nemico più "temuto" (es. Diego, incubo di quasi
+        // tutti i migliori) non rientra lui stesso tra i migliori per overall.
+        for (const p of eligible.slice(0, n)) {
+          const nemUid = rivalries[p.uid]?.incubo?.uid;
+          if (nemUid && !pool.includes(nemUid) && eligible.some(e => e.uid === nemUid)) {
+            pool = [...pool.slice(0, n - 1), nemUid];
+            break; // priorità al giocatore con overall più alto che ha un incubo fuori dal pool
+          }
+        }
+
+        const split = _bestRivalrySplit(pool, rivalries);
+        if (!split) return null;
+        return {
+          squadraA: split.teamA.map(nameOf),
+          squadraB: split.teamB.map(nameOf),
+          rivincitePresenti: split.score
+        };
+      };
+
+      return { gabbione2v2: build(4), gabbione3v3: build(6) };
+    };
+
+    const buildSeasonSummaryTest = () => {
+      const matches = groupMatches.value;
+      const players = groupPlayers.value;
+      const trackAssist = currentGroup.value?.trackAssist !== false;
+      const uids = players.map(p => p.uid || String(p.id));
+      const statsMap = _aggregateMatchStats(matches, uids);
+      const enriched = players.map(p => {
+        const uid = p.uid || String(p.id);
+        const st = statsMap[uid] || {};
+        return {
+          ...p, uid,
+          goalTotali: st.goalTotali||0, assistTotali: st.assistTotali||0,
+          partiteTotali: st.partiteTotali||0, votiTotali: st.votiTotali||0,
+          mediaVoto: st.votiTotali > 0 ? st.votiSum/st.votiTotali : 0
+        };
+      });
+
+      // ── Sezione A: numeri stagione ──
+      const partiteGiocate = matches.length;
+      const golTotali = matches.reduce((s,m) => s + (m.risultato?.goalA||0) + (m.risultato?.goalB||0), 0);
+      const mediaGolPartita = partiteGiocate > 0 ? golTotali/partiteGiocate : 0;
+      const presenzeTotali = enriched.reduce((s,p) => s + p.partiteTotali, 0);
+
+      // ── Sezione B: Oscar (Pallone d'Oro con soglia dinamica su "partite votate": parte da 15,
+      //    scala fino a trovare almeno 5 giocatori qualificati, mai sotto 5 — vedi _dynamicMediaVotoEligible) ──
+      const _mvEligible = _dynamicMediaVotoEligible(enriched);
+      const palloneDoro   = _topTiedPlayers(_mvEligible.giocatori, () => true, p => p.mediaVoto);
+      const scarpaDoro    = _topTiedPlayers(enriched, p => p.goalTotali > 0, p => p.goalTotali);
+      const fedelissimo   = _topTiedPlayers(enriched, p => p.partiteTotali > 0, p => p.partiteTotali);
+      const kryptonite    = _buildKryptonite(matches, enriched);
+
+      const stagioneCorrente = currentGroup.value?.stagione || null;
+      const hofStagione = hofStorico.value.filter(e => !e.hof.stagione || e.hof.stagione === stagioneCorrente);
+      const fameCount = {}, shameCount = {};
+      for (const e of hofStagione) {
+        if (e.hof?.fame?.uid)  fameCount[e.hof.fame.uid]  = (fameCount[e.hof.fame.uid]||0) + 1;
+        if (e.hof?.shame?.uid) shameCount[e.hof.shame.uid] = (shameCount[e.hof.shame.uid]||0) + 1;
+      }
+      const _tiedFromCount = (countMap) => {
+        const entries = Object.entries(countMap);
+        if (!entries.length) return { valore: 0, giocatori: [] };
+        const max = Math.max(...entries.map(([,c]) => c));
+        const giocatori = entries.filter(([,c]) => c === max)
+          .map(([uid]) => ({ uid, nome: getPlayer(uid)?.soprannome || getPlayer(uid)?.nome || '?' }));
+        return { valore: max, giocatori };
+      };
+      const piuPremiato = _tiedFromCount(fameCount);
+      const bidoneDellAnno = _tiedFromCount(shameCount);
+
+      // ── Sezione C: classifiche complete ──
+      const topScorers = [...enriched].filter(p=>p.goalTotali>0).sort((a,b)=>b.goalTotali-a.goalTotali).slice(0,10);
+      const topAssist = trackAssist ? [...enriched].filter(p=>p.assistTotali>0).sort((a,b)=>b.assistTotali-a.assistTotali).slice(0,10) : null;
+      const topMediaVoto = [..._mvEligible.giocatori].sort((a,b)=>b.mediaVoto-a.mediaVoto).slice(0,10);
+
+      return {
+        stagione: stagioneCorrente,
+        trackAssist,
+        mvSoglia: _mvEligible.soglia, // null = dati insufficienti anche a soglia 5, classifica non mostrata
+        sezioneA: { partiteGiocate, golTotali, mediaGolPartita, presenzeTotali },
+        sezioneB: { palloneDoro, scarpaDoro, fedelissimo, kryptonite, piuPremiato, bidoneDellAnno },
+        sezioneC: { topScorers, topAssist, topMediaVoto }
+      };
+    };
+
+    // Bottone TEST in Zona Pericolo: genera e mostra SOLO testo, non salva nulla da nessuna parte.
+    const testGeneraRiepilogoStagione = async () => {
+      seasonSummaryTestGenerating.value = true;
+      seasonSummaryTestSectionD.value = [];
+      try {
+        // hofStorico si carica solo visitando le tab "Re Mese"/"Bidone Mese" in Statistiche — se non
+        // ancora fatto in questa sessione, Giocatore Più Premiato/Bidone dell'Anno risulterebbero
+        // sempre a 0 anche con dati reali presenti su Firebase (bug trovato con Alby 17/7/2026).
+        if (!hofStoricoLoaded.value) { try { await _loadHofStorico(); } catch(e) {} }
+        const d = buildSeasonSummaryTest();
+        const nomeGiocatori = (arr) => arr.map(g=>g.nome).join(', ');
+        let out = '';
+        out += `📖 RIEPILOGO STAGIONE — ${d.stagione || '(senza nome)'}\n`;
+        out += `${'═'.repeat(50)}\n\n`;
+        out += `SEZIONE A — Numeri della stagione\n`;
+        out += `Partite giocate: ${d.sezioneA.partiteGiocate}\n`;
+        out += `Gol totali: ${d.sezioneA.golTotali} (media ${d.sezioneA.mediaGolPartita.toFixed(2)}/partita)\n`;
+        out += `Presenze totali: ${d.sezioneA.presenzeTotali}\n\n`;
+        out += `SEZIONE B — Gli Oscar\n`;
+        if (d.mvSoglia === null) {
+          out += `🏆 Pallone d'Oro: — (dati insufficienti: servono almeno 5 giocatori con almeno 5 partite votate)\n`;
+        } else {
+          out += `🏆 Pallone d'Oro (media voto, soglia dinamica trovata: min ${d.mvSoglia} partite votate): ${nomeGiocatori(d.sezioneB.palloneDoro.giocatori)||'—'} (${d.sezioneB.palloneDoro.valore.toFixed(2)})\n`;
+        }
+        out += `👟 Scarpa d'Oro: ${nomeGiocatori(d.sezioneB.scarpaDoro.giocatori)||'—'} (${d.sezioneB.scarpaDoro.valore} gol)\n`;
+        out += `💪 Fedelissimo: ${nomeGiocatori(d.sezioneB.fedelissimo.giocatori)||'—'} (${d.sezioneB.fedelissimo.valore} presenze)\n`;
+        if (d.sezioneB.kryptonite.length) {
+          out += `☠️ Kryptonite: ` + d.sezioneB.kryptonite.map(k => `${k.vittima} vs ${k.incubo} (${k.persi}/${k.tot} sconfitte)`).join(' · ') + '\n';
+        } else {
+          out += `☠️ Kryptonite: — (nessuno scontro diretto con almeno 3 partite)\n`;
+        }
+        out += `👑 Giocatore Più Premiato: ${nomeGiocatori(d.sezioneB.piuPremiato.giocatori)||'—'} (${d.sezioneB.piuPremiato.valore} titoli Re del Mese)\n`;
+        out += `🪣 Il Bidone d'Oro: ${nomeGiocatori(d.sezioneB.bidoneDellAnno.giocatori)||'—'} (${d.sezioneB.bidoneDellAnno.valore} titoli Bidone del Mese)\n\n`;
+        out += `SEZIONE C — Classifiche\n`;
+        out += `Marcatori: ` + d.sezioneC.topScorers.map(p=>`${p.soprannome||p.nome} (${p.goalTotali})`).join(', ') + '\n';
+        if (d.trackAssist) out += `Assist: ` + (d.sezioneC.topAssist||[]).map(p=>`${p.soprannome||p.nome} (${p.assistTotali})`).join(', ') + '\n';
+        if (d.mvSoglia === null) {
+          out += `Media Voto: — (dati insufficienti: servono almeno 5 giocatori con almeno 5 partite votate)\n`;
+        } else {
+          out += `Media Voto (min ${d.mvSoglia} partite votate): ` + d.sezioneC.topMediaVoto.map(p=>`${p.soprannome||p.nome} (${p.mediaVoto.toFixed(2)})`).join(', ') + '\n';
+        }
+        out += `\nSEZIONE D — Partite (${groupMatches.value.length} totali) — generazione PNG giornale in corso, può richiedere qualche minuto per tutta la stagione...\n`;
+        seasonSummaryTestOutput.value = out;
+
+        // Sezione D: genera (se mancante) e ricomprime il PNG giornale di ogni partita — asincrono,
+        // può richiedere qualche secondo per partita quando il PNG non è già in cache.
+        const sezioneD = await buildSeasonSummaryTestSectionD();
+        seasonSummaryTestSectionD.value = sezioneD;
+
+        let totKB = 0, conPngCount = 0, conFotoCount = 0;
+        for (const p of sezioneD) {
+          totKB += _dataUrlSizeKB(p.pngGiornale) + _dataUrlSizeKB(p.fotoPartita);
+          if (p.pngGiornale) conPngCount++;
+          if (p.fotoPartita) conFotoCount++;
+        }
+        out = out.replace(`SEZIONE D — Partite (${groupMatches.value.length} totali) — generazione PNG giornale in corso, può richiedere qualche minuto per tutta la stagione...\n`,
+          `SEZIONE D — Partite (${groupMatches.value.length} totali, ${conPngCount} con PNG giornale, ${conFotoCount} con foto partita)\n` +
+          `Peso stimato Sezione D (PNG giornale ricompresso 540px/JPEG 0.7 + foto partita originali): ~${(totKB/1024).toFixed(2)} MB totali (~${Math.round(totKB/sezioneD.length)} KB/partita in media)\n` +
+          `Anteprima immagini di una partita campione qui sotto, per verifica visiva qualità/dimensioni.\n`
+        );
+        seasonSummaryTestOutput.value = out;
+
+        // Sezione E: Annuario — sincrono, nessuna immagine da ricomprimere (le foto giocatore
+        // sono già leggere di loro), quindi non serve messaggio di progresso separato.
+        const sezioneE = buildSeasonSummaryTestSectionE();
+        seasonSummaryTestSectionE.value = sezioneE;
+        out += `\nSEZIONE E — Annuario (${sezioneE.length} giocatori con almeno 1 presenza in stagione)\n`;
+        for (const p of sezioneE) {
+          out += `\n📇 ${p.nome} · ${p.ruolo || 'ruolo n.d.'}${p.piede ? ' · piede '+p.piede : ''}\n`;
+          out += `   ${p.goalTotali} gol in ${p.partiteTotali} presenze · media voto ${p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—'} (${p.votiTotali} voti) · ${p.uomoPartitaTotali} Uomo Partita\n`;
+          out += `   🥅 Massimo gol in una partita: ${p.maxGolPartita}\n`;
+          out += `   😈 Vittima preferita: ${p.vittima ? `${p.vittima.nome} (${p.vittima.vinte}/${p.vittima.tot} vittorie)` : '— (nessun avversario con almeno 3 scontri diretti)'}\n`;
+          out += `   ☠️ Incubo personale: ${p.incubo ? `${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot} sconfitte)` : '— (nessun avversario con almeno 3 scontri diretti)'}\n`;
+          if (p.soprannomeAI) out += `   🎭 ${p.soprannomeAI}${p.confrontoAI ? ' — '+p.confrontoAI : ''}\n`;
+        }
+
+        // Il Gabbione: 2vs2/3vs3 "rivincita" — solo logica/testo, il commento AI arriva allo Step 6
+        const gab = buildSeasonSummaryTestGabbione();
+        out += `\nSEZIONE — Il Gabbione (sfide "rivincita" 2vs2 e 3vs3)\n`;
+        if (gab.gabbione2v2) {
+          out += `2vs2: ${gab.gabbione2v2.squadraA.join(' + ')}  🆚  ${gab.gabbione2v2.squadraB.join(' + ')} (${gab.gabbione2v2.rivincitePresenti} rivincite in gioco)\n`;
+        } else {
+          out += `2vs2: — (non ci sono ancora abbastanza giocatori idonei)\n`;
+        }
+        if (gab.gabbione3v3) {
+          out += `3vs3: ${gab.gabbione3v3.squadraA.join(' + ')}  🆚  ${gab.gabbione3v3.squadraB.join(' + ')} (${gab.gabbione3v3.rivincitePresenti} rivincite in gioco)\n`;
+        } else {
+          out += `3vs3: — (non ci sono ancora abbastanza giocatori idonei)\n`;
+        }
+        out += `(commento AI in stile telecronaca arriverà allo Step 6, qui solo l'abbinamento)\n`;
+
+        seasonSummaryTestOutput.value = out;
+      } catch(e) {
+        seasonSummaryTestOutput.value = '❌ Errore: ' + e.message;
+      } finally {
+        seasonSummaryTestGenerating.value = false;
+      }
     };
 
     const recomputeStats = async () => {
@@ -13043,11 +13624,16 @@ Niente altro, nessuna spiegazione.`;
       [...statsSourcePlayers.value].filter(p => p.votiTotali > 0)
         .sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
     );
-    // Classifica "Media Voto" mostrata in Statistiche: solo giocatori con almeno 5 partite votate.
+    // Classifica "Media Voto" mostrata in Statistiche: soglia DINAMICA su "partite votate" — parte
+    // da 15 (ideale per una stagione intera) e scala (14,13,12...) finché non trova almeno 5
+    // giocatori qualificati, mai sotto 5 partite votate (vedi _dynamicMediaVotoEligible). Decisa con
+    // Alby 17/7/2026 dopo aver verificato che il voto è partito solo a metà stagione: una soglia
+    // fissa a 15 avrebbe lasciato la classifica sempre vuota per mesi. Nessun padding/diluizione:
+    // la media mostrata è sempre quella vera dei voti realmente dati.
     // Computed indipendente (Regola d'Oro 11) — statsTopRated resta invariato per hero card/export/altri usi.
+    const statsMediaVotoDinamica = computed(() => _dynamicMediaVotoEligible(statsSourcePlayers.value));
     const statsTopRatedClassifica = computed(() =>
-      [...statsSourcePlayers.value].filter(p => (p.votiTotali||0) >= 5)
-        .sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
+      [...statsMediaVotoDinamica.value.giocatori].sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
     );
     const statsTopUomoPartita = computed(() =>
       [...statsSourcePlayers.value].filter(p => p.uomoPartitaTotali > 0)
@@ -17275,7 +17861,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
 
     return {
       currentView, groups, archivedSeasonsCountByGroup, currentGroup, groupPlayers, groupMatches, currentGroupArchivedSeasons, settings, appReady, _heroCards, _heroAddPhase, _heroFinalize, _heroLaunch, heroUnifiedData, heroNewsTicker, heroNewsTickerIdx,
-      toasts, logoDataUrl, showGroupSelector, showPlayerForm, showAddPlayerMenu, showImportPlayerModal, importPlayerSearch, archivedPlayersNotInCurrent, filteredArchivedPlayers, openImportPlayerModal, importPlayerFromArchive, showPlayerDetail,
+      toasts, logoDataUrl, showGroupSelector, showPlayerForm, showAddPlayerMenu, showImportPlayerModal, importPlayerSearch, archivedPlayersNotInCurrent, filteredArchivedPlayers, openImportPlayerModal, importPlayerFromArchive, showPlayerDetail, showPhotoLightbox,
       showMatchDetail,
       obfuscateEmail,
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
@@ -17290,7 +17876,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
-      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
+      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsMediaVotoDinamica, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
       detailPlayerReadOnly, detailPlayerFormHistory, detailPlayerTab, detailPlayerSeasonFilter, detailPlayerHistoryMatches, openHistoryMatch, backToPlayer, detailMatchFromPlayer,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
@@ -17315,7 +17901,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
-      showApiKey, showOvrInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
+      showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
       precachePlayerPhotos,
@@ -17338,6 +17924,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
       hofStorico, hofStoricoLoading, hofStoricoLoaded, hofStoricoFiltrato, hofExpandedMese, hofPlayerFor, hofCountsFor,
       aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest,
+      seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
+      seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
