@@ -7022,7 +7022,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.716',date:'2026-07-18',items:[
+    const changelogEntries = [{version:'v1.717',date:'2026-07-18',items:[
+      'Fix CRITICO alla riconciliazione stagioni archiviate (v1.716): quando lo storico Firebase è COMPLETAMENTE VUOTO (0 stagioni — proprio il caso di un ripristino pulito), la fetch di primo livello restituisce null anziché un oggetto vuoto, e il codice usciva subito PRIMA di arrivare alla pulizia dei residui locali. Ora la funzione distingue esplicitamente "fetch riuscita ma vuota" da "fetch fallita" (fetch diretta con controllo r.ok, non più tramite l\'helper generico che appiattiva i due casi a null), quindi la pulizia scatta anche a storico Firebase vuoto. Segnalato da Alby nel terzo giro di test: dopo un ripristino pulito (Inspector confermava 0 stagioni archiviate su Firebase), il dispositivo continuava a mostrare stagioni di test vecchie in Statistiche.',
+      'Stesso identico fix applicato al Riepilogo Stagione locale (loadSeasonSummarySnapshot): se Firebase non ha alcun Riepilogo per il gruppo (es. dopo un ripristino da un backup precedente all\'archiviazione), lo snapshot locale stantio ora viene rimosso invece di restare visibile per sempre. Notato da Alby: dopo il ripristino restava visibile un Riepilogo Stagione che non doveva esserci.',
+    ]},{version:'v1.716',date:'2026-07-18',items:[
       'Sync stagioni archiviate: il sync ordinario da Firebase ora fa una piena riconciliazione (aggiunge quelle mancanti E rimuove quelle locali sparite del tutto da Firebase), non più solo additivo. Stesso principio già usato per l\'import JSON diretto in app ("il backup/ripristino è la verità, ogni dispositivo deve rispecchiarlo esattamente"), deciso con Alby 18/7/2026 dopo aver visto una stagione di test vecchia ("2025/26_OK") restare visibile localmente nonostante non fosse più su Firebase dopo un ripristino da Inspector. Sicuro: la pulizia scatta solo se la lettura shallow di primo livello da Firebase è andata a buon fine — su un fetch fallito o offline non si cancella nulla.',
       'Home: nuova card "🎉 Si riparte!" nella rotazione hero, mostrata prima delle tutorial slides quando inizia una nuova stagione dopo un\'archiviazione (solo se esiste un Riepilogo Stagione — un gruppo nuovo di zecca vede solo le tutorial). Richiesto da Alby 18/7/2026.',
     ]},{version:'v1.715',date:'2026-07-18',items:[
@@ -7867,7 +7870,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.716');
+    const appVersion = ref('1.717');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -8215,9 +8218,18 @@ createApp({
       try {
         const tok = await getValidToken();
 
-        // 1. Tutti i key di primo livello (sono gid di vari dispositivi, es. "1", "3", "7")
-        const allGroupKeys = await _fbReadFromGroup(group, 'archivedSeasons', tok, 'shallow=true');
-        if (!allGroupKeys || typeof allGroupKeys !== 'object') return;
+        // 1. Tutti i key di primo livello (sono gid di vari dispositivi, es. "1", "3", "7").
+        // Fetch fatta "a mano" (non _fbReadFromGroup) per poter distinguere "richiesta riuscita ma
+        // nodo vuoto" (Firebase risponde con null quando un path non ha figli — caso reale: uno
+        // storico archivedSeasons completamente vuoto dopo un ripristino pulito) da "richiesta
+        // fallita" (errore di rete/HTTP) — _fbReadFromGroup li appiattiva entrambi a null, facendo
+        // uscire la funzione PRIMA della pulizia sotto anche quando il fetch era riuscito e Firebase
+        // semplicemente non aveva nulla. Bug reale segnalato da Alby 18/7/2026: con 0 stagioni
+        // archiviate su Firebase, la pulizia dei residui locali non scattava mai.
+        const _url = (group.firebaseUrl||'').replace(/\/$/,'');
+        const _resp = await fetch(`${_url}/amicifc/archivedSeasons.json?shallow=true${tok?'&auth='+tok:''}`, { cache: 'no-store' });
+        if (!_resp.ok) return; // fetch davvero fallita — non tocchiamo nulla, stesso principio di sempre
+        const allGroupKeys = await _resp.json(); // null se il nodo è vuoto, altrimenti {fbGroupId: true, ...}
 
         // 2. Stagioni già presenti in locale per questo gruppo
         const localSeasons = await db.archivedSeasons.where('groupId').equals(gid).toArray();
@@ -8225,7 +8237,7 @@ createApp({
 
         let downloaded = 0;
         const remoteIdsAll = new Set(); // ID visti OVUNQUE su Firebase (sotto qualsiasi fbGroupId) — usato per la pulizia sotto
-        for (const fbGroupId of Object.keys(allGroupKeys)) {
+        for (const fbGroupId of Object.keys(allGroupKeys && typeof allGroupKeys === 'object' ? allGroupKeys : {})) {
           // Leggi i sotto-key (archivioId) per questo fbGroupId
           const seasonKeys = await _fbReadFromGroup(group, `archivedSeasons/${fbGroupId}`, tok, 'shallow=true');
           if (!seasonKeys || typeof seasonKeys !== 'object') continue;
@@ -13754,13 +13766,27 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         seasonSummarySnapshot.value = row || null;
         // Se il gruppo ha Firebase, controlla se lì c'è una versione più recente (es. generata da
         // un altro dispositivo) e allinea la copia locale — stesso principio già usato per TrashTalk/HoF.
+        // Fetch fatta "a mano" (non _fbReadFromGroup) per distinguere "richiesta riuscita ma Firebase
+        // non ha nulla" (es. dopo un ripristino esterno da un backup precedente all'archiviazione, che
+        // ha ripulito il nodo seasonSummary) da "richiesta fallita" — stesso bug/fix già applicato alle
+        // stagioni archiviate (v1.717): senza questa distinzione, uno snapshot locale stantio non
+        // veniva mai rimosso quando Firebase risultava genuinamente vuoto. Segnalato da Alby 18/7/2026.
         if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid) {
           const tok = await getValidToken().catch(()=>null);
-          const remote = await _fbReadFromGroup(currentGroup.value, `seasonSummary/${gid}`, tok || '');
-          if (remote?.generatedAt && (!row || remote.generatedAt > row.generatedAt)) {
-            await db.seasonSummaries.put(remote);
-            seasonSummarySnapshot.value = remote;
+          const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
+          const _resp = await fetch(`${_url}/amicifc/seasonSummary/${gid}.json${tok?'?auth='+tok:''}`, { cache: 'no-store' });
+          if (_resp.ok) {
+            const remote = await _resp.json();
+            if (remote?.generatedAt && (!row || remote.generatedAt > row.generatedAt)) {
+              await db.seasonSummaries.put(remote);
+              seasonSummarySnapshot.value = remote;
+            } else if (!remote && row) {
+              // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
+              await db.seasonSummaries.delete(gid);
+              seasonSummarySnapshot.value = null;
+            }
           }
+          // Se _resp non è ok (errore di rete/HTTP), non tocchiamo nulla — stesso principio di sicurezza.
         }
       } catch(e) { /* silenzioso: non deve mai bloccare l'avvio */ }
     };
