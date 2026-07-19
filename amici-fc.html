@@ -7427,7 +7427,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.719',date:'2026-07-19',items:[
+    const changelogEntries = [{version:'v1.720',date:'2026-07-19',items:[
+      'Riepilogo Stagione PDF — secondo giro di correzioni su feedback puntuale di Alby: 1) colori cambiati da verde scuro dominante a lime brillante (colore-marchio dell\'app) sui banner, verde scuro solo per il testo; 2) FIX bug reale: le foto giocatore mancanti in Oscar/Annuario apparivano come cerchi verde scuro invece della silhouette grigia attesa — causa trovata, getPlayerPhoto può restituire un vecchio percorso locale non incorporabile invece di vuoto, ora si verifica che sia davvero un\'immagine base64 prima di provare a incorporarla; 3) aggiunta una copertina vera su pagina dedicata (gradiente verde scuro→lime, non più solo una fascia in cima alla prima pagina di contenuto); 4) aggiunti i numeri di pagina in fondo a ogni pagina; 5-6) Annuario e Le partite riprogettati a griglia DUE COLONNE con card compatte invece di un blocco per riga — elimina lo spreco di un giocatore/partita per pagina; 7) il totale pagine è sceso da 37 a 17 in un test con 46 giocatori e 50 partite grazie alle colonne doppie e alle card più compatte. Verificato con un secondo test end-to-end completo (dati realistici, incluso il bug foto riprodotto apposta) più ispezione visiva di copertina/Oscar/Annuario/Partite prima di consegnare.',
+    ]},{version:'v1.719',date:'2026-07-19',items:[
       'Riepilogo Stagione: redesign completo del PDF — layout precedente giudicato "orribile" da Alby, riscritto da zero. Aggiunti: palette colori coerente col brand app (verde scuro/lime, ripensata per sfondo bianco), banner colorati per i titoli sezione, riquadri numerici per i Numeri della stagione, foto giocatore ritagliate a cerchio negli Oscar e nell\'Annuario, elenchi puntati/numerati per Kryptonite/Marcatori/Assist/Media Voto invece di righe con virgole, header colorato con nomi squadra + punteggio per ogni partita (prima solo data e punteggio), immagini centrate invece che a sinistra con spazio sprecato, spaziature ridotte, pagina di chiusura su sfondo colorato con firma. Filigrana: niente emoji reali (i font PDF standard non le renderizzano — escono come riquadri vuoti), sostituita con un motivo vettoriale a cerchi concentrici a bassissima opacità. Aggiunto anche il nome delle squadre ai dati di ogni partita (mancava del tutto, sia nel PDF sia nella schermata reale). Verificato con un test end-to-end completo in Node (dati realistici, immagini vere) più ispezione visiva delle pagine renderizzate prima di consegnare.',
     ]},{version:'v1.718',date:'2026-07-19',items:[
       'Riepilogo Stagione — Step 8/9: export PDF vero. Vendorizzata jsPDF 2.5.2 inline (offline, stesso principio già usato per Dexie/html2canvas/Sortable/JSZip). Il bottone "Condividi PDF" ora genera davvero un documento con copertina, Sezioni A/B/C testuali, Il Gabbione, Annuario giocatori (Sezione E) e tutte le partite per esteso (Sezione D) con i PNG giornale e le foto partita incorporati come immagini, testo AI intercalato dove disponibile, chiusura+firma in fondo. Paginazione automatica, immagini scalate mantenendo le proporzioni originali (mai deformate). Verificato con un test Node indipendente sulla libreria vendorizzata prima di consegnare.',
@@ -8279,7 +8281,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.719');
+    const appVersion = ref('1.720');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14347,44 +14349,40 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-        // Palette colori coerente col brand app, ripensata per lo sfondo bianco della stampa
-        // (i colori "neon" dell'app su sfondo scuro non sono leggibili su carta bianca).
+        // Palette: verde scuro solo per testo/accenti, LIME brillante (colore-marchio dell'app,
+        // #A6FF4D) per gli sfondi banner — corretto dopo il primo giro, dove avevo usato un verde
+        // scuro dominante ovunque, giudicato "troppo scuro, non i colori dell'app" da Alby.
         const C = {
-          dark:   [21, 60, 38],
-          lime:   [90, 143, 24],
-          gold:   [172, 124, 12],
-          red:    [176, 44, 44],
-          text:   [35, 35, 35],
-          muted:  [120, 120, 120],
-          line:   [222, 230, 218],
-          band:   [235, 246, 235],
+          darkText: [21, 60, 38],
+          lime:     [166, 255, 77],
+          limeText: [58, 110, 12],
+          gold:     [172, 124, 12],
+          red:      [176, 44, 44],
+          text:     [35, 35, 35],
+          muted:    [120, 120, 120],
+          line:     [222, 230, 218],
+          band:     [241, 250, 236],
         };
 
         const pageW = 210, pageH = 297, marginX = 16, marginTop = 18, marginBottom = 18;
         const maxW = pageW - marginX * 2;
         let y = marginTop;
 
-        // Filigrana: niente emoji (i font standard PDF non le renderizzano in modo affidabile,
-        // escono come riquadri vuoti) — motivo vettoriale a cerchi concentrici a bassissima
-        // opacità, negli stessi colori dell'app. Segnalato a Alby: scelta deliberata per evitare
-        // un risultato peggiore (glifi mancanti) rispetto a un motivo grafico pulito.
         const addPageDecoration = () => {
           doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.05 }));
-          doc.setFillColor(...C.dark); doc.circle(pageW - 8, 10, 28, 'F');
-          doc.setFillColor(...C.lime); doc.circle(6, pageH - 12, 22, 'F');
+          doc.setGState(new doc.GState({ opacity: 0.06 }));
+          doc.setFillColor(...C.limeText); doc.circle(pageW - 8, 10, 26, 'F');
+          doc.setFillColor(...C.darkText); doc.circle(6, pageH - 12, 20, 'F');
           doc.restoreGraphicsState();
         };
         const newPage = () => { doc.addPage(); addPageDecoration(); y = marginTop; };
-        addPageDecoration();
-
         const checkBreak = (needed) => { if (y + needed > pageH - marginBottom) newPage(); };
 
         const addSectionTitle = (text) => {
           checkBreak(14);
-          doc.setFillColor(...C.dark);
+          doc.setFillColor(...C.lime);
           doc.roundedRect(marginX, y, maxW, 9, 1.5, 1.5, 'F');
-          doc.setFont(undefined, 'bold'); doc.setFontSize(12.5); doc.setTextColor(255,255,255);
+          doc.setFont(undefined, 'bold'); doc.setFontSize(12.5); doc.setTextColor(...C.darkText);
           doc.text(text, marginX + 4, y + 6.2);
           y += 13;
           doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.setTextColor(...C.text);
@@ -14403,7 +14401,6 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           doc.setTextColor(...C.text);
         };
 
-        // Elenco puntato/numerato — sostituisce le vecchie righe "tutto attaccato con virgole"
         const addList = (items, opts = {}) => {
           items.forEach((item, i) => {
             const prefix = opts.numbered ? `${i+1}.` : '•';
@@ -14411,7 +14408,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             doc.setFont(undefined, 'normal'); doc.setTextColor(...C.text);
             const lines = doc.splitTextToSize(item, maxW - 7);
             checkBreak(lines.length * 4.2 + 0.8);
-            doc.setTextColor(...(opts.bulletColor || C.lime));
+            doc.setTextColor(...(opts.bulletColor || C.limeText));
             doc.text(prefix, marginX, y);
             doc.setTextColor(...C.text);
             doc.text(lines, marginX + 6, y);
@@ -14420,23 +14417,36 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           y += 1.5;
         };
 
-        const addImageCentered = async (dataUrl, maxImgH) => {
-          if (!dataUrl) return;
-          const dims = await _imgDims(dataUrl);
-          if (!dims) return;
-          let w = maxW, h = w * dims.h / dims.w;
-          if (h > maxImgH) { h = maxImgH; w = h * dims.w / dims.h; }
-          checkBreak(h + 3);
-          const xOff = marginX + (maxW - w) / 2;
-          const fmt = dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
-          try { doc.addImage(dataUrl, fmt, xOff, y, w, h); y += h + 3; } catch(e) { /* immagine non valida, salta */ }
+        // Tronca un testo con "…" se supera la larghezza data, nel font/dimensione correnti —
+        // necessario nelle card a due colonne dove lo spazio orizzontale è limitato
+        const truncate = (text, w, size) => {
+          doc.setFontSize(size);
+          if (!text) return '';
+          if (doc.getTextWidth(text) <= w) return text;
+          let t = text;
+          while (t.length > 1 && doc.getTextWidth(t + '…') > w) t = t.slice(0, -1);
+          return t + '…';
         };
 
-        // Foto giocatore ritagliata a cerchio (ellipse + clip) — se manca, un cerchio grigio al posto
-        // della silhouette (i font PDF standard non hanno l'icona silhouette usata nell'app)
+        const computeImgSize = async (dataUrl, maxImgW, maxImgH) => {
+          if (!dataUrl) return null;
+          const dims = await _imgDims(dataUrl);
+          if (!dims) return null;
+          let w = maxImgW, h = w * dims.h / dims.w;
+          if (h > maxImgH) { h = maxImgH; w = h * dims.w / dims.h; }
+          return { w, h };
+        };
+
+        // Foto giocatore ritagliata a cerchio. FIX rispetto alla v1.719: getPlayerPhoto può
+        // restituire un valore non incorporabile (es. un vecchio percorso locale legacy) quando
+        // manca la foto vera — prima ci provavo comunque e falliva silenziosamente lasciando un
+        // cerchio scuro invece della silhouette grigia prevista. Ora si tenta l'incorporamento
+        // SOLO se il valore è davvero un\'immagine base64 (data:image/...), altrimenti va dritto
+        // al cerchio grigio di riserva.
         const addCircularPhoto = (dataUrl, x, yPos, diameter) => {
-          if (!dataUrl) {
-            doc.setFillColor(225,225,225);
+          const embeddable = typeof dataUrl === 'string' && dataUrl.startsWith('data:image/');
+          if (!embeddable) {
+            doc.setFillColor(226,226,226);
             doc.circle(x + diameter/2, yPos + diameter/2, diameter/2, 'F');
             return;
           }
@@ -14454,18 +14464,29 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const photoByName = {};
         for (const p of s.sezioneE) photoByName[p.nome] = p.foto;
 
-        // ═══ Copertina ═══
-        doc.setFillColor(...C.dark);
-        doc.rect(0, 0, pageW, 56, 'F');
-        doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(25);
-        doc.text('Riepilogo Stagione', marginX, 31);
-        doc.setFont(undefined,'normal'); doc.setFontSize(14.5); doc.setTextColor(212,236,202);
-        doc.text(s.stagione || '', marginX, 43);
-        y = 68;
-        doc.setTextColor(...C.text);
+        // ═══ Copertina — pagina dedicata (prima Alby la voleva, ora è una pagina intera a sé,
+        // non solo una fascia colorata in cima alla prima pagina di contenuto) ═══
+        const gradSteps = 36;
+        for (let i = 0; i < gradSteps; i++) {
+          const t = i / (gradSteps - 1);
+          const r = Math.round(C.darkText[0] + (C.lime[0]-C.darkText[0])*t);
+          const g = Math.round(C.darkText[1] + (C.lime[1]-C.darkText[1])*t);
+          const b = Math.round(C.darkText[2] + (C.lime[2]-C.darkText[2])*t);
+          doc.setFillColor(r, g, b);
+          doc.rect(0, (pageH/gradSteps)*i - 0.5, pageW, pageH/gradSteps + 1, 'F');
+        }
+        doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(32);
+        doc.text('Riepilogo', pageW/2, pageH/2 - 34, { align: 'center' });
+        doc.text('Stagione', pageW/2, pageH/2 - 12, { align: 'center' });
+        doc.setFont(undefined,'normal'); doc.setFontSize(16);
+        doc.text(s.stagione || '', pageW/2, pageH/2 + 8, { align: 'center' });
+        doc.setDrawColor(255,255,255); doc.setLineWidth(0.7);
+        doc.circle(pageW/2, pageH/2 + 45, 13, 'S');
+        newPage();
+
         if (s.aiTexts?.intro) addParagraph(s.aiTexts.intro, { italic: true, size: 10.5, lineH: 5 });
 
-        // ═══ Sezione A — riquadri numerici ═══
+        // ═══ Sezione A ═══
         addSectionTitle('Numeri della stagione');
         const stats = [
           ['Partite', s.sezioneA.partiteGiocate],
@@ -14479,7 +14500,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           const bx = marginX + i * (boxW + 3);
           doc.setFillColor(...C.band);
           doc.roundedRect(bx, y, boxW, 20, 2, 2, 'F');
-          doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(...C.dark);
+          doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(...C.darkText);
           doc.text(String(st[1]), bx + boxW/2, y + 10, { align: 'center' });
           doc.setFont(undefined,'normal'); doc.setFontSize(7); doc.setTextColor(...C.muted);
           doc.text(st[0], bx + boxW/2, y + 16, { align: 'center' });
@@ -14488,13 +14509,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         doc.setTextColor(...C.text);
         if (s.aiTexts?.commentoA) addParagraph(s.aiTexts.commentoA, { italic: true });
 
-        // ═══ Sezione B — Gli Oscar, con foto vincitore ═══
+        // ═══ Sezione B — Gli Oscar ═══
         addSectionTitle("Gli Oscar");
         const oscarList = [
           { label: "Pallone d'Oro", val: `${s.sezioneB.palloneDoro.valore?.toFixed(2) || '—'}`, giocatori: s.sezioneB.palloneDoro.giocatori, color: C.gold },
           { label: "Scarpa d'Oro", val: `${s.sezioneB.scarpaDoro.valore} gol`, giocatori: s.sezioneB.scarpaDoro.giocatori, color: C.gold },
-          { label: 'Fedelissimo', val: `${s.sezioneB.fedelissimo.valore} presenze`, giocatori: s.sezioneB.fedelissimo.giocatori, color: C.lime },
-          { label: 'Giocatore Più Premiato', val: 'titoli Re del Mese', giocatori: s.sezioneB.piuPremiato.giocatori, color: C.lime },
+          { label: 'Fedelissimo', val: `${s.sezioneB.fedelissimo.valore} presenze`, giocatori: s.sezioneB.fedelissimo.giocatori, color: C.limeText },
+          { label: 'Giocatore Più Premiato', val: 'titoli Re del Mese', giocatori: s.sezioneB.piuPremiato.giocatori, color: C.limeText },
           { label: "Il Bidone d'Oro", val: 'titoli Bidone del Mese', giocatori: s.sezioneB.bidoneDellAnno.giocatori, color: C.muted },
         ];
         for (const o of oscarList) {
@@ -14517,11 +14538,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         }
         if (s.aiTexts?.commentoB) addParagraph(s.aiTexts.commentoB, { italic: true });
 
-        // ═══ Sezione C — Classifiche numerate ═══
+        // ═══ Sezione C — Classifiche ═══
         addSectionTitle('Classifiche');
         const addClassificaBlock = (label, items) => {
           if (!items.length) return;
-          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.dark);
+          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.darkText);
           checkBreak(6); doc.text(label, marginX, y); y += 5;
           addList(items, { numbered: true });
         };
@@ -14537,68 +14558,100 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (s.gabbione.gabbione3v3) addParagraph(`3vs3:  ${s.gabbione.gabbione3v3.squadraA.join(' + ')}   vs   ${s.gabbione.gabbione3v3.squadraB.join(' + ')}`, { bold: true });
         if (s.aiTexts?.commentoGabbione) addParagraph(s.aiTexts.commentoGabbione, { italic: true });
 
-        // ═══ Sezione E — Annuario: foto circolare + testo affiancati, separatore leggero ═══
+        // ═══ Sezione E — Annuario: griglia a DUE COLONNE, card compatte ═══
+        // Riprogettata dopo il primo giro: prima un giocatore per pagina con testo esteso —
+        // ora card fisse compatte, testo troncato dove serve, per stare in molte meno pagine.
         newPage();
         addSectionTitle('Annuario giocatori');
         if (s.aiTexts?.commentoE) addParagraph(s.aiTexts.commentoE, { italic: true });
-        for (const p of s.sezioneE) {
-          checkBreak(26);
-          const rowTop = y;
-          addCircularPhoto(p.foto, marginX, rowTop, 20);
-          const textX = marginX + 24, textW = maxW - 24;
-          doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.setTextColor(...C.dark);
-          doc.text(p.nome, textX, rowTop + 4.5);
-          doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...C.muted);
-          doc.text(`${p.ruolo||''}${p.piede?' · '+p.piede:''}`, textX, rowTop + 9);
-          doc.setFontSize(8.7); doc.setTextColor(...C.text);
-          let ly = rowTop + 13.5;
-          doc.text(doc.splitTextToSize(`${p.goalTotali} gol · ${p.partiteTotali} presenze · media voto ${p.votiTotali>0?p.mediaVoto.toFixed(2):'—'} · ${p.uomoPartitaTotali} UoM`, textW), textX, ly); ly += 4.2;
-          if (p.vittima) { doc.text(`Vittima preferita: ${p.vittima.nome} (${p.vittima.vinte}/${p.vittima.tot})`, textX, ly); ly += 4.2; }
-          if (p.incubo)  { doc.setTextColor(...C.red); doc.text(`Incubo personale: ${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot})`, textX, ly); doc.setTextColor(...C.text); ly += 4.2; }
-          y = Math.max(rowTop + 22, ly + 1);
+        const colGap = 6;
+        const colW = (maxW - colGap) / 2;
+        const cardH = 36;
+        const drawPlayerCard = (p, cx, cy) => {
+          if (!p) return;
+          addCircularPhoto(p.foto, cx, cy, 15);
+          const tx = cx + 18, tw = colW - 18;
+          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.darkText);
+          doc.text(truncate(p.nome, tw, 9.5), tx, cy + 4);
+          doc.setFont(undefined,'normal'); doc.setFontSize(6.8); doc.setTextColor(...C.muted);
+          doc.text(truncate(`${p.ruolo||''}${p.piede?' · '+p.piede:''}`, tw, 6.8), tx, cy + 8);
+          doc.setFontSize(7); doc.setTextColor(...C.text);
+          doc.text(truncate(`${p.goalTotali} gol · ${p.partiteTotali} pres. · voto ${p.votiTotali>0?p.mediaVoto.toFixed(2):'—'}`, tw, 7), tx, cy + 12);
+          let ly = cy + 16;
+          if (p.incubo) {
+            doc.setTextColor(...C.red); doc.setFontSize(6.6);
+            doc.text(truncate(`Incubo: ${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot})`, tw, 6.6), tx, ly);
+            doc.setTextColor(...C.text); ly += 3.6;
+          }
           if (p.soprannomeAI) {
-            doc.setFont(undefined,'italic'); doc.setFontSize(8); doc.setTextColor(...C.lime);
-            const sopLines = doc.splitTextToSize(`${p.soprannomeAI}${p.confrontoAI?' — '+p.confrontoAI:''}`, maxW);
-            checkBreak(sopLines.length*3.6+2);
-            doc.text(sopLines, marginX, y);
-            y += sopLines.length*3.6 + 2;
+            doc.setFont(undefined,'italic'); doc.setFontSize(6.6); doc.setTextColor(...C.limeText);
+            const sopLines = doc.splitTextToSize(p.soprannomeAI, colW).slice(0, 2);
+            doc.text(sopLines, cx, ly + 3);
             doc.setTextColor(...C.text);
           }
+        };
+        for (let i = 0; i < s.sezioneE.length; i += 2) {
+          checkBreak(cardH + 3);
+          drawPlayerCard(s.sezioneE[i], marginX, y);
+          drawPlayerCard(s.sezioneE[i+1], marginX + colW + colGap, y);
+          y += cardH;
           doc.setDrawColor(...C.line);
           doc.line(marginX, y, marginX + maxW, y);
-          y += 4;
+          y += 3;
         }
 
-        // ═══ Sezione D — Le partite: header colorato con nomi squadra, immagine centrata ═══
+        // ═══ Sezione D — Le partite: griglia a DUE COLONNE con nomi squadra + PNG giornale ═══
         newPage();
         addSectionTitle('Le partite');
         if (s.aiTexts?.commentoD) addParagraph(s.aiTexts.commentoD, { italic: true });
-        for (const m of s.sezioneD) {
-          checkBreak(16);
-          doc.setFillColor(...C.band);
-          doc.roundedRect(marginX, y, maxW, 9, 1.5, 1.5, 'F');
-          doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...C.muted);
-          doc.text(m.data, marginX + 3, y + 6);
-          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.text);
-          doc.text(`${m.squadraANome}  ${m.golA} - ${m.golB}  ${m.squadraBNome}`, marginX + maxW/2, y + 6, { align: 'center' });
-          y += 12;
-          doc.setTextColor(...C.text);
-          if (m.pngGiornale) await addImageCentered(m.pngGiornale, 110);
-          if (m.fotoPartita) await addImageCentered(m.fotoPartita, 80);
-          y += 2;
+        const maxImgH = 60;
+        for (let i = 0; i < s.sezioneD.length; i += 2) {
+          const left = s.sezioneD[i], right = s.sezioneD[i+1];
+          const leftSize = left ? await computeImgSize(left.pngGiornale, colW, maxImgH) : null;
+          const rightSize = right ? await computeImgSize(right.pngGiornale, colW, maxImgH) : null;
+          const rowImgH = Math.max(leftSize?.h || 0, rightSize?.h || 0, 18);
+          const rowH = 9 + 2 + rowImgH + 4;
+          checkBreak(rowH);
+          const drawMatchCard = (m, size, cx) => {
+            if (!m) return;
+            doc.setFillColor(...C.band);
+            doc.roundedRect(cx, y, colW, 8, 1.2, 1.2, 'F');
+            doc.setFont(undefined,'normal'); doc.setFontSize(6.3); doc.setTextColor(...C.muted);
+            doc.text(m.data, cx + 2, y + 5.2);
+            doc.setFont(undefined,'bold'); doc.setFontSize(7);
+            const label = truncate(`${m.squadraANome}  ${m.golA}-${m.golB}  ${m.squadraBNome}`, colW - 20, 7);
+            doc.setTextColor(...C.text);
+            doc.text(label, cx + colW - 2, y + 5.2, { align: 'right' });
+            if (size && m.pngGiornale) {
+              const ix = cx + (colW - size.w) / 2;
+              const fmt = m.pngGiornale.includes('image/png') ? 'PNG' : 'JPEG';
+              try { doc.addImage(m.pngGiornale, fmt, ix, y + 10, size.w, size.h); } catch(e) { /* salta */ }
+            }
+          };
+          drawMatchCard(left, leftSize, marginX);
+          drawMatchCard(right, rightSize, marginX + colW + colGap);
+          y += rowH;
         }
 
-        // ═══ Chiusura, su sfondo colorato ═══
+        // ═══ Chiusura ═══
         if (s.aiTexts?.chiusura) {
           newPage();
-          doc.setFillColor(...C.dark);
+          doc.setFillColor(...C.darkText);
           doc.rect(0, pageH/2 - 40, pageW, 80, 'F');
           y = pageH/2 - 25;
           addParagraph(s.aiTexts.chiusura, { italic: true, size: 12.5, color: [255,255,255], lineH: 6 });
           if (s.aiTexts.firma) {
-            doc.setFont(undefined,'italic'); doc.setFontSize(10); doc.setTextColor(212,236,202);
+            doc.setFont(undefined,'italic'); doc.setFontSize(10); doc.setTextColor(...C.lime);
             doc.text('— ' + s.aiTexts.firma, pageW - marginX, y + 4, { align: 'right' });
           }
+        }
+
+        // ═══ Numeri di pagina (in fondo a ogni pagina tranne la copertina) ═══
+        const totalPages = doc.internal.getNumberOfPages();
+        for (let p = 2; p <= totalPages; p++) {
+          doc.setPage(p);
+          doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...C.muted);
+          doc.text(`${p - 1} / ${totalPages - 1}`, pageW - marginX, pageH - 8, { align: 'right' });
         }
 
         doc.save(`Riepilogo_Stagione_${(s.stagione||'stagione').replace(/[^a-z0-9]/gi,'_')}.pdf`);
