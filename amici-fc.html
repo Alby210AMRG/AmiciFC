@@ -4946,7 +4946,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div v-for="(m,mi) in seasonSummarySnapshot.sezioneD" :key="mi" style="border-top:1px solid var(--border)">
             <button style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
               @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
-              <span>{{ m.data }} · {{ m.golA }}-{{ m.golB }}</span>
+              <span>{{ m.data }} · {{ m.squadraANome }} {{ m.golA }}-{{ m.golB }} {{ m.squadraBNome }}</span>
               <span style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
             </button>
             <div v-if="seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
@@ -7427,7 +7427,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.718',date:'2026-07-19',items:[
+    const changelogEntries = [{version:'v1.719',date:'2026-07-19',items:[
+      'Riepilogo Stagione: redesign completo del PDF — layout precedente giudicato "orribile" da Alby, riscritto da zero. Aggiunti: palette colori coerente col brand app (verde scuro/lime, ripensata per sfondo bianco), banner colorati per i titoli sezione, riquadri numerici per i Numeri della stagione, foto giocatore ritagliate a cerchio negli Oscar e nell\'Annuario, elenchi puntati/numerati per Kryptonite/Marcatori/Assist/Media Voto invece di righe con virgole, header colorato con nomi squadra + punteggio per ogni partita (prima solo data e punteggio), immagini centrate invece che a sinistra con spazio sprecato, spaziature ridotte, pagina di chiusura su sfondo colorato con firma. Filigrana: niente emoji reali (i font PDF standard non le renderizzano — escono come riquadri vuoti), sostituita con un motivo vettoriale a cerchi concentrici a bassissima opacità. Aggiunto anche il nome delle squadre ai dati di ogni partita (mancava del tutto, sia nel PDF sia nella schermata reale). Verificato con un test end-to-end completo in Node (dati realistici, immagini vere) più ispezione visiva delle pagine renderizzate prima di consegnare.',
+    ]},{version:'v1.718',date:'2026-07-19',items:[
       'Riepilogo Stagione — Step 8/9: export PDF vero. Vendorizzata jsPDF 2.5.2 inline (offline, stesso principio già usato per Dexie/html2canvas/Sortable/JSZip). Il bottone "Condividi PDF" ora genera davvero un documento con copertina, Sezioni A/B/C testuali, Il Gabbione, Annuario giocatori (Sezione E) e tutte le partite per esteso (Sezione D) con i PNG giornale e le foto partita incorporati come immagini, testo AI intercalato dove disponibile, chiusura+firma in fondo. Paginazione automatica, immagini scalate mantenendo le proporzioni originali (mai deformate). Verificato con un test Node indipendente sulla libreria vendorizzata prima di consegnare.',
     ]},{version:'v1.717',date:'2026-07-18',items:[
       'Fix CRITICO alla riconciliazione stagioni archiviate (v1.716): quando lo storico Firebase è COMPLETAMENTE VUOTO (0 stagioni — proprio il caso di un ripristino pulito), la fetch di primo livello restituisce null anziché un oggetto vuoto, e il codice usciva subito PRIMA di arrivare alla pulizia dei residui locali. Ora la funzione distingue esplicitamente "fetch riuscita ma vuota" da "fetch fallita" (fetch diretta con controllo r.ok, non più tramite l\'helper generico che appiattiva i due casi a null), quindi la pulizia scatta anche a storico Firebase vuoto. Segnalato da Alby nel terzo giro di test: dopo un ripristino pulito (Inspector confermava 0 stagioni archiviate su Firebase), il dispositivo continuava a mostrare stagioni di test vecchie in Statistiche.',
@@ -8277,7 +8279,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.718');
+    const appVersion = ref('1.719');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13857,6 +13859,7 @@ Niente altro, nessuna spiegazione.`;
         risultato.push({
           data: m.data,
           golA: m.risultato?.goalA||0, golB: m.risultato?.goalB||0,
+          squadraANome: m.nomeSquadraA || 'Squadra A', squadraBNome: m.nomeSquadraB || 'Squadra B',
           titoloGiornale: m.titoloGiornale||'', commentoAI: m.commentoAI||'',
           pngGiornale: pngGiornaleCompresso,
           fotoPartita: m.fotoPartita || null // già leggera, nessuna ricompressione
@@ -14343,113 +14346,258 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const s = seasonSummarySnapshot.value;
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const pageW = 210, pageH = 297, marginX = 15, marginTop = 20, marginBottom = 20;
+
+        // Palette colori coerente col brand app, ripensata per lo sfondo bianco della stampa
+        // (i colori "neon" dell'app su sfondo scuro non sono leggibili su carta bianca).
+        const C = {
+          dark:   [21, 60, 38],
+          lime:   [90, 143, 24],
+          gold:   [172, 124, 12],
+          red:    [176, 44, 44],
+          text:   [35, 35, 35],
+          muted:  [120, 120, 120],
+          line:   [222, 230, 218],
+          band:   [235, 246, 235],
+        };
+
+        const pageW = 210, pageH = 297, marginX = 16, marginTop = 18, marginBottom = 18;
         const maxW = pageW - marginX * 2;
         let y = marginTop;
 
-        const checkBreak = (needed) => {
-          if (y + needed > pageH - marginBottom) { doc.addPage(); y = marginTop; }
+        // Filigrana: niente emoji (i font standard PDF non le renderizzano in modo affidabile,
+        // escono come riquadri vuoti) — motivo vettoriale a cerchi concentrici a bassissima
+        // opacità, negli stessi colori dell'app. Segnalato a Alby: scelta deliberata per evitare
+        // un risultato peggiore (glifi mancanti) rispetto a un motivo grafico pulito.
+        const addPageDecoration = () => {
+          doc.saveGraphicsState();
+          doc.setGState(new doc.GState({ opacity: 0.05 }));
+          doc.setFillColor(...C.dark); doc.circle(pageW - 8, 10, 28, 'F');
+          doc.setFillColor(...C.lime); doc.circle(6, pageH - 12, 22, 'F');
+          doc.restoreGraphicsState();
         };
-        const addTitle = (text) => {
+        const newPage = () => { doc.addPage(); addPageDecoration(); y = marginTop; };
+        addPageDecoration();
+
+        const checkBreak = (needed) => { if (y + needed > pageH - marginBottom) newPage(); };
+
+        const addSectionTitle = (text) => {
           checkBreak(14);
-          doc.setFont(undefined, 'bold'); doc.setFontSize(15); doc.setTextColor(30,30,30);
-          doc.text(text, marginX, y); y += 8;
-          doc.setFont(undefined, 'normal'); doc.setFontSize(10.5); doc.setTextColor(20,20,20);
+          doc.setFillColor(...C.dark);
+          doc.roundedRect(marginX, y, maxW, 9, 1.5, 1.5, 'F');
+          doc.setFont(undefined, 'bold'); doc.setFontSize(12.5); doc.setTextColor(255,255,255);
+          doc.text(text, marginX + 4, y + 6.2);
+          y += 13;
+          doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.setTextColor(...C.text);
         };
+
         const addParagraph = (text, opts = {}) => {
           if (!text) return;
-          doc.setFontSize(opts.size || 10.5);
-          doc.setFont(undefined, opts.italic ? 'italic' : 'normal');
-          const lines = doc.splitTextToSize(text, maxW);
-          checkBreak(lines.length * 5 + 3);
-          doc.text(lines, marginX, y);
-          y += lines.length * 5 + 3;
+          doc.setFontSize(opts.size || 10);
+          doc.setFont(undefined, opts.italic ? 'italic' : (opts.bold ? 'bold' : 'normal'));
+          doc.setTextColor(...(opts.color || C.text));
+          const lineH = opts.lineH || 4.6;
+          const lines = doc.splitTextToSize(text, maxW - (opts.indent||0));
+          checkBreak(lines.length * lineH + 2);
+          doc.text(lines, marginX + (opts.indent||0), y);
+          y += lines.length * lineH + (opts.gap ?? 2.5);
+          doc.setTextColor(...C.text);
         };
-        const addImageBlock = async (dataUrl, maxImgH) => {
+
+        // Elenco puntato/numerato — sostituisce le vecchie righe "tutto attaccato con virgole"
+        const addList = (items, opts = {}) => {
+          items.forEach((item, i) => {
+            const prefix = opts.numbered ? `${i+1}.` : '•';
+            doc.setFontSize(opts.size || 9.5);
+            doc.setFont(undefined, 'normal'); doc.setTextColor(...C.text);
+            const lines = doc.splitTextToSize(item, maxW - 7);
+            checkBreak(lines.length * 4.2 + 0.8);
+            doc.setTextColor(...(opts.bulletColor || C.lime));
+            doc.text(prefix, marginX, y);
+            doc.setTextColor(...C.text);
+            doc.text(lines, marginX + 6, y);
+            y += lines.length * 4.2 + 0.8;
+          });
+          y += 1.5;
+        };
+
+        const addImageCentered = async (dataUrl, maxImgH) => {
           if (!dataUrl) return;
           const dims = await _imgDims(dataUrl);
           if (!dims) return;
           let w = maxW, h = w * dims.h / dims.w;
           if (h > maxImgH) { h = maxImgH; w = h * dims.w / dims.h; }
-          checkBreak(h + 4);
+          checkBreak(h + 3);
+          const xOff = marginX + (maxW - w) / 2;
           const fmt = dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
-          try { doc.addImage(dataUrl, fmt, marginX, y, w, h); y += h + 4; } catch(e) { /* immagine non valida, salta */ }
+          try { doc.addImage(dataUrl, fmt, xOff, y, w, h); y += h + 3; } catch(e) { /* immagine non valida, salta */ }
         };
+
+        // Foto giocatore ritagliata a cerchio (ellipse + clip) — se manca, un cerchio grigio al posto
+        // della silhouette (i font PDF standard non hanno l'icona silhouette usata nell'app)
+        const addCircularPhoto = (dataUrl, x, yPos, diameter) => {
+          if (!dataUrl) {
+            doc.setFillColor(225,225,225);
+            doc.circle(x + diameter/2, yPos + diameter/2, diameter/2, 'F');
+            return;
+          }
+          try {
+            doc.saveGraphicsState();
+            doc.ellipse(x + diameter/2, yPos + diameter/2, diameter/2, diameter/2, null);
+            doc.clip();
+            const fmt = dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
+            doc.addImage(dataUrl, fmt, x, yPos, diameter, diameter);
+            doc.restoreGraphicsState();
+          } catch(e) { doc.restoreGraphicsState(); }
+        };
+
         const nomi = (arr) => (arr || []).map(g => g.nome).join(', ') || '—';
+        const photoByName = {};
+        for (const p of s.sezioneE) photoByName[p.nome] = p.foto;
 
-        // Copertina
-        doc.setFont(undefined, 'bold'); doc.setFontSize(22); doc.setTextColor(20,20,20);
-        doc.text('Riepilogo Stagione', marginX, y); y += 10;
-        doc.setFontSize(15); doc.setFont(undefined, 'normal');
-        doc.text(s.stagione || '', marginX, y); y += 14;
-        if (s.aiTexts?.intro) addParagraph(s.aiTexts.intro, { italic: true });
+        // ═══ Copertina ═══
+        doc.setFillColor(...C.dark);
+        doc.rect(0, 0, pageW, 56, 'F');
+        doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(25);
+        doc.text('Riepilogo Stagione', marginX, 31);
+        doc.setFont(undefined,'normal'); doc.setFontSize(14.5); doc.setTextColor(212,236,202);
+        doc.text(s.stagione || '', marginX, 43);
+        y = 68;
+        doc.setTextColor(...C.text);
+        if (s.aiTexts?.intro) addParagraph(s.aiTexts.intro, { italic: true, size: 10.5, lineH: 5 });
 
-        // Sezione A
-        addTitle('Numeri della stagione');
-        addParagraph(`Partite giocate: ${s.sezioneA.partiteGiocate}   ·   Gol totali: ${s.sezioneA.golTotali} (media ${s.sezioneA.mediaGolPartita.toFixed(2)}/partita)   ·   Presenze totali: ${s.sezioneA.presenzeTotali}`);
+        // ═══ Sezione A — riquadri numerici ═══
+        addSectionTitle('Numeri della stagione');
+        const stats = [
+          ['Partite', s.sezioneA.partiteGiocate],
+          ['Gol totali', s.sezioneA.golTotali],
+          ['Media gol/partita', s.sezioneA.mediaGolPartita.toFixed(2)],
+          ['Presenze', s.sezioneA.presenzeTotali],
+        ];
+        checkBreak(22);
+        const boxW = (maxW - 9) / 4;
+        stats.forEach((st, i) => {
+          const bx = marginX + i * (boxW + 3);
+          doc.setFillColor(...C.band);
+          doc.roundedRect(bx, y, boxW, 20, 2, 2, 'F');
+          doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(...C.dark);
+          doc.text(String(st[1]), bx + boxW/2, y + 10, { align: 'center' });
+          doc.setFont(undefined,'normal'); doc.setFontSize(7); doc.setTextColor(...C.muted);
+          doc.text(st[0], bx + boxW/2, y + 16, { align: 'center' });
+        });
+        y += 25;
+        doc.setTextColor(...C.text);
         if (s.aiTexts?.commentoA) addParagraph(s.aiTexts.commentoA, { italic: true });
 
-        // Sezione B — Gli Oscar
-        addTitle("Gli Oscar");
-        addParagraph(`Pallone d'Oro (${s.sezioneB.palloneDoro.valore?.toFixed(2) || '—'}): ${nomi(s.sezioneB.palloneDoro.giocatori)}`);
-        addParagraph(`Scarpa d'Oro (${s.sezioneB.scarpaDoro.valore} gol): ${nomi(s.sezioneB.scarpaDoro.giocatori)}`);
-        addParagraph(`Fedelissimo (${s.sezioneB.fedelissimo.valore} presenze): ${nomi(s.sezioneB.fedelissimo.giocatori)}`);
-        if (s.sezioneB.kryptonite.length) addParagraph('Kryptonite: ' + s.sezioneB.kryptonite.map(k => `${k.vittima} vs ${k.incubo} (${k.persi}/${k.tot})`).join(' · '));
-        addParagraph(`Giocatore Più Premiato: ${nomi(s.sezioneB.piuPremiato.giocatori)}`);
-        addParagraph(`Il Bidone d'Oro: ${nomi(s.sezioneB.bidoneDellAnno.giocatori)}`);
+        // ═══ Sezione B — Gli Oscar, con foto vincitore ═══
+        addSectionTitle("Gli Oscar");
+        const oscarList = [
+          { label: "Pallone d'Oro", val: `${s.sezioneB.palloneDoro.valore?.toFixed(2) || '—'}`, giocatori: s.sezioneB.palloneDoro.giocatori, color: C.gold },
+          { label: "Scarpa d'Oro", val: `${s.sezioneB.scarpaDoro.valore} gol`, giocatori: s.sezioneB.scarpaDoro.giocatori, color: C.gold },
+          { label: 'Fedelissimo', val: `${s.sezioneB.fedelissimo.valore} presenze`, giocatori: s.sezioneB.fedelissimo.giocatori, color: C.lime },
+          { label: 'Giocatore Più Premiato', val: 'titoli Re del Mese', giocatori: s.sezioneB.piuPremiato.giocatori, color: C.lime },
+          { label: "Il Bidone d'Oro", val: 'titoli Bidone del Mese', giocatori: s.sezioneB.bidoneDellAnno.giocatori, color: C.muted },
+        ];
+        for (const o of oscarList) {
+          if (!o.giocatori.length) continue;
+          checkBreak(16);
+          const rowTop = y;
+          const winnersToShow = o.giocatori.slice(0, 2);
+          let photoX = marginX;
+          for (const w of winnersToShow) { addCircularPhoto(photoByName[w.nome], photoX, rowTop, 12); photoX += 14; }
+          const textX = photoX + 2;
+          doc.setFont(undefined,'bold'); doc.setFontSize(10); doc.setTextColor(...o.color);
+          doc.text(o.label, textX, rowTop + 5);
+          doc.setFont(undefined,'normal'); doc.setFontSize(9); doc.setTextColor(...C.text);
+          const extra = o.giocatori.length > 2 ? ` (+${o.giocatori.length-2} a pari merito)` : '';
+          doc.text(`${nomi(o.giocatori)}${extra} · ${o.val}`, textX, rowTop + 10);
+          y += 15;
+        }
+        if (s.sezioneB.kryptonite.length) {
+          addList(s.sezioneB.kryptonite.map(k => `Kryptonite: ${k.vittima} soccombe contro ${k.incubo} (${k.persi}/${k.tot} sconfitte)`), { bulletColor: C.red, size: 9 });
+        }
         if (s.aiTexts?.commentoB) addParagraph(s.aiTexts.commentoB, { italic: true });
 
-        // Sezione C — Classifiche
-        addTitle('Classifiche');
-        addParagraph('Marcatori: ' + s.sezioneC.topScorers.map(p => `${p.soprannome||p.nome} (${p.goalTotali})`).join(', '));
-        if (s.trackAssist && s.sezioneC.topAssist?.length) addParagraph('Assist: ' + s.sezioneC.topAssist.map(p => `${p.soprannome||p.nome} (${p.assistTotali})`).join(', '));
-        addParagraph('Media Voto: ' + s.sezioneC.topMediaVoto.map(p => `${p.soprannome||p.nome} (${p.mediaVoto.toFixed(2)})`).join(', '));
+        // ═══ Sezione C — Classifiche numerate ═══
+        addSectionTitle('Classifiche');
+        const addClassificaBlock = (label, items) => {
+          if (!items.length) return;
+          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.dark);
+          checkBreak(6); doc.text(label, marginX, y); y += 5;
+          addList(items, { numbered: true });
+        };
+        addClassificaBlock('Marcatori', s.sezioneC.topScorers.map(p => `${p.soprannome||p.nome} — ${p.goalTotali} gol`));
+        if (s.trackAssist && s.sezioneC.topAssist?.length) addClassificaBlock('Assist', s.sezioneC.topAssist.map(p => `${p.soprannome||p.nome} — ${p.assistTotali} assist`));
+        addClassificaBlock('Media Voto', s.sezioneC.topMediaVoto.map(p => `${p.soprannome||p.nome} — ${p.mediaVoto.toFixed(2)}`));
         if (s.aiTexts?.commentoC) addParagraph(s.aiTexts.commentoC, { italic: true });
 
-        // Il Gabbione
-        addTitle('Il Gabbione');
-        addParagraph('Sfide "rivincita" suggerite — non partite realmente giocate.', { size: 9, italic: true });
-        if (s.gabbione.gabbione2v2) addParagraph(`2vs2: ${s.gabbione.gabbione2v2.squadraA.join(' + ')} vs ${s.gabbione.gabbione2v2.squadraB.join(' + ')}`);
-        if (s.gabbione.gabbione3v3) addParagraph(`3vs3: ${s.gabbione.gabbione3v3.squadraA.join(' + ')} vs ${s.gabbione.gabbione3v3.squadraB.join(' + ')}`);
+        // ═══ Il Gabbione ═══
+        addSectionTitle('Il Gabbione');
+        addParagraph('Sfide "rivincita" suggerite — non partite realmente giocate.', { size: 8.5, italic: true, color: C.muted });
+        if (s.gabbione.gabbione2v2) addParagraph(`2vs2:  ${s.gabbione.gabbione2v2.squadraA.join(' + ')}   vs   ${s.gabbione.gabbione2v2.squadraB.join(' + ')}`, { bold: true });
+        if (s.gabbione.gabbione3v3) addParagraph(`3vs3:  ${s.gabbione.gabbione3v3.squadraA.join(' + ')}   vs   ${s.gabbione.gabbione3v3.squadraB.join(' + ')}`, { bold: true });
         if (s.aiTexts?.commentoGabbione) addParagraph(s.aiTexts.commentoGabbione, { italic: true });
 
-        // Sezione E — Annuario (pagina propria)
-        doc.addPage(); y = marginTop;
-        addTitle('Annuario giocatori');
+        // ═══ Sezione E — Annuario: foto circolare + testo affiancati, separatore leggero ═══
+        newPage();
+        addSectionTitle('Annuario giocatori');
         if (s.aiTexts?.commentoE) addParagraph(s.aiTexts.commentoE, { italic: true });
         for (const p of s.sezioneE) {
-          checkBreak(24);
-          doc.setFont(undefined, 'bold'); doc.setFontSize(11);
-          doc.text(`${p.nome} · ${p.ruolo||''}${p.piede?' · '+p.piede:''}`, marginX, y); y += 5;
-          doc.setFont(undefined, 'normal');
-          addParagraph(`${p.goalTotali} gol in ${p.partiteTotali} presenze · media voto ${p.votiTotali>0?p.mediaVoto.toFixed(2):'—'} · ${p.uomoPartitaTotali} UoM · max gol partita: ${p.maxGolPartita}`, { size: 9.5 });
-          if (p.vittima) addParagraph(`Vittima preferita: ${p.vittima.nome} (${p.vittima.vinte}/${p.vittima.tot})`, { size: 9.5 });
-          if (p.incubo) addParagraph(`Incubo personale: ${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot})`, { size: 9.5 });
-          if (p.soprannomeAI) addParagraph(`${p.soprannomeAI}${p.confrontoAI?' — '+p.confrontoAI:''}`, { size: 9, italic: true });
+          checkBreak(26);
+          const rowTop = y;
+          addCircularPhoto(p.foto, marginX, rowTop, 20);
+          const textX = marginX + 24, textW = maxW - 24;
+          doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.setTextColor(...C.dark);
+          doc.text(p.nome, textX, rowTop + 4.5);
+          doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...C.muted);
+          doc.text(`${p.ruolo||''}${p.piede?' · '+p.piede:''}`, textX, rowTop + 9);
+          doc.setFontSize(8.7); doc.setTextColor(...C.text);
+          let ly = rowTop + 13.5;
+          doc.text(doc.splitTextToSize(`${p.goalTotali} gol · ${p.partiteTotali} presenze · media voto ${p.votiTotali>0?p.mediaVoto.toFixed(2):'—'} · ${p.uomoPartitaTotali} UoM`, textW), textX, ly); ly += 4.2;
+          if (p.vittima) { doc.text(`Vittima preferita: ${p.vittima.nome} (${p.vittima.vinte}/${p.vittima.tot})`, textX, ly); ly += 4.2; }
+          if (p.incubo)  { doc.setTextColor(...C.red); doc.text(`Incubo personale: ${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot})`, textX, ly); doc.setTextColor(...C.text); ly += 4.2; }
+          y = Math.max(rowTop + 22, ly + 1);
+          if (p.soprannomeAI) {
+            doc.setFont(undefined,'italic'); doc.setFontSize(8); doc.setTextColor(...C.lime);
+            const sopLines = doc.splitTextToSize(`${p.soprannomeAI}${p.confrontoAI?' — '+p.confrontoAI:''}`, maxW);
+            checkBreak(sopLines.length*3.6+2);
+            doc.text(sopLines, marginX, y);
+            y += sopLines.length*3.6 + 2;
+            doc.setTextColor(...C.text);
+          }
+          doc.setDrawColor(...C.line);
+          doc.line(marginX, y, marginX + maxW, y);
+          y += 4;
+        }
+
+        // ═══ Sezione D — Le partite: header colorato con nomi squadra, immagine centrata ═══
+        newPage();
+        addSectionTitle('Le partite');
+        if (s.aiTexts?.commentoD) addParagraph(s.aiTexts.commentoD, { italic: true });
+        for (const m of s.sezioneD) {
+          checkBreak(16);
+          doc.setFillColor(...C.band);
+          doc.roundedRect(marginX, y, maxW, 9, 1.5, 1.5, 'F');
+          doc.setFont(undefined,'normal'); doc.setFontSize(8); doc.setTextColor(...C.muted);
+          doc.text(m.data, marginX + 3, y + 6);
+          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.text);
+          doc.text(`${m.squadraANome}  ${m.golA} - ${m.golB}  ${m.squadraBNome}`, marginX + maxW/2, y + 6, { align: 'center' });
+          y += 12;
+          doc.setTextColor(...C.text);
+          if (m.pngGiornale) await addImageCentered(m.pngGiornale, 110);
+          if (m.fotoPartita) await addImageCentered(m.fotoPartita, 80);
           y += 2;
         }
 
-        // Sezione D — Partite per esteso, con PNG giornale/foto (pagina propria)
-        doc.addPage(); y = marginTop;
-        addTitle('Le partite');
-        if (s.aiTexts?.commentoD) addParagraph(s.aiTexts.commentoD, { italic: true });
-        for (const m of s.sezioneD) {
-          checkBreak(12);
-          doc.setFont(undefined, 'bold'); doc.setFontSize(10.5);
-          doc.text(`${m.data} · ${m.golA}-${m.golB}`, marginX, y); y += 6;
-          doc.setFont(undefined, 'normal');
-          if (m.pngGiornale) await addImageBlock(m.pngGiornale, 140);
-          if (m.fotoPartita) await addImageBlock(m.fotoPartita, 100);
-          y += 3;
-        }
-
-        // Chiusura
+        // ═══ Chiusura, su sfondo colorato ═══
         if (s.aiTexts?.chiusura) {
-          doc.addPage(); y = marginTop;
-          addParagraph(s.aiTexts.chiusura, { italic: true, size: 12 });
+          newPage();
+          doc.setFillColor(...C.dark);
+          doc.rect(0, pageH/2 - 40, pageW, 80, 'F');
+          y = pageH/2 - 25;
+          addParagraph(s.aiTexts.chiusura, { italic: true, size: 12.5, color: [255,255,255], lineH: 6 });
           if (s.aiTexts.firma) {
-            y += 4; doc.setFont(undefined, 'italic'); doc.setFontSize(10);
-            doc.text('— ' + s.aiTexts.firma, pageW - marginX, y, { align: 'right' });
+            doc.setFont(undefined,'italic'); doc.setFontSize(10); doc.setTextColor(212,236,202);
+            doc.text('— ' + s.aiTexts.firma, pageW - marginX, y + 4, { align: 'right' });
           }
         }
 
