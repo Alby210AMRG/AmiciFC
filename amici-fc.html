@@ -7431,7 +7431,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.721',date:'2026-07-19',items:[
+    const changelogEntries = [{version:'v1.722',date:'2026-07-19',items:[
+      'Riepilogo Stagione PDF — terzo giro, correzioni serie su feedback diretto di Alby: 1) copertina e chiusura riprogettate — sfondo a strisce "erba tosata" (due tonalità di verde alternate, non più un colore piatto), e soprattutto il titolo NON tocca più la linea/cerchio di centrocampo (prima ci passava sopra rendendolo illeggibile) — logo e titolo ora sempre nella metà campo superiore, motto in quella inferiore; 2) icona pallone rifatta con una vera costruzione a pentagono centrale + cunei (la stessa usata dalle icone "pallone" professionali), non più righe che uscivano da un puntino; 3) Classifiche completamente riprogettate a 3 card affiancate (Marcatori/Assist/Media Voto) con icona colorata, FOTO del primo classificato in evidenza, elenco numerato — su modello fornito da Alby; 4) FIX DEFINITIVO del bug Annuario "un giocatore/due a seconda della pagina": eliminato ogni calcolo dinamico dello spazio rimasto (che continuava a comportarsi in modo incoerente sui dati reali nonostante funzionasse nei test), sostituito con un contatore a righe fisse (6 per pagina, sempre, senza eccezioni); 5) Le partite ORA SONO DAVVERO 4 per pagina (2 righe), non più 6 — verificato numericamente con pdfimages che ogni pagina della sezione partite mostra esattamente 4 immagini, nessuna esclusa. Il totale pagine sale a 21 (da 17) come diretta conseguenza del passaggio a 4 partite/pagina invece di 6 — trade-off esplicitamente richiesto da Alby.',
+    ]},{version:'v1.721',date:'2026-07-19',items:[
       'Riepilogo Stagione PDF — completate le richieste "effetto WOW" rimaste in sospeso: 1) copertina rifatta con campo da calcio verde pieno (colore-marchio, non più un gradiente marcato) e filigrana di un campo stilizzato (bordo, linea di metà campo, cerchio centrale, aree di rigore) disegnata a vettori — niente foto generiche, solo il vero logo dell\'app (riutilizzato lo stesso file dello splash screen) centrato in grande, con lo slogan reale dell\'app in fondo ("Il Calcetto Manager Definitivo — dove i campioni nascono... e litigano!"); 2) icona di un pallone da calcio disegnata a vettori (non emoji, per lo stesso motivo di sempre — non renderizzano) accanto al testo di ogni titolo sezione; 3) pagina di chiusura ora coerente con la copertina: campo verde pieno, filigrana campo, piccolo logo; 4) piè di pagina esteso con "Amici FC · Il Calcetto Manager Definitivo" accanto al numero di pagina su ogni pagina (colore adattato sulla pagina di chiusura per restare leggibile sullo sfondo scuro). Verificato numericamente (non solo visivamente) che logo e filigrana siano davvero incorporati nel PDF finale con `pdfimages -list`.',
     ]},{version:'v1.720',date:'2026-07-19',items:[
       'Riepilogo Stagione PDF — secondo giro di correzioni su feedback puntuale di Alby: 1) colori cambiati da verde scuro dominante a lime brillante (colore-marchio dell\'app) sui banner, verde scuro solo per il testo; 2) FIX bug reale: le foto giocatore mancanti in Oscar/Annuario apparivano come cerchi verde scuro invece della silhouette grigia attesa — causa trovata, getPlayerPhoto può restituire un vecchio percorso locale non incorporabile invece di vuoto, ora si verifica che sia davvero un\'immagine base64 prima di provare a incorporarla; 3) aggiunta una copertina vera su pagina dedicata (gradiente verde scuro→lime, non più solo una fascia in cima alla prima pagina di contenuto); 4) aggiunti i numeri di pagina in fondo a ogni pagina; 5-6) Annuario e Le partite riprogettati a griglia DUE COLONNE con card compatte invece di un blocco per riga — elimina lo spreco di un giocatore/partita per pagina; 7) il totale pagine è sceso da 37 a 17 in un test con 46 giocatori e 50 partite grazie alle colonne doppie e alle card più compatte. Verificato con un secondo test end-to-end completo (dati realistici, incluso il bug foto riprodotto apposta) più ispezione visiva di copertina/Oscar/Annuario/Partite prima di consegnare.',
@@ -8287,7 +8289,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.721');
+    const appVersion = ref('1.722');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14375,6 +14377,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           line:     [222, 230, 218],
           band:     [241, 250, 236],
           pitch:    [23, 92, 42],
+          pitch2:   [19, 82, 37],
         };
 
         const pageW = 210, pageH = 297, marginX = 16, marginTop = 18, marginBottom = 18;
@@ -14391,17 +14394,28 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const newPage = () => { doc.addPage(); addPageDecoration(); y = marginTop; };
         const checkBreak = (needed) => { if (y + needed > pageH - marginBottom) newPage(); };
 
-        // Icona pallone da calcio disegnata a mano (vettoriale) — stesso motivo del logo dell'app,
-        // usata nei titoli sezione per renderli più riconoscibili e "sportivi"
+        // Icona pallone da calcio "flat style" — pentagono nero centrale + 5 cunei che escono dai
+        // suoi lati verso il bordo del cerchio, la stessa costruzione geometrica usata dalle icone
+        // pallone professionali (non più righe che uscivano da un puntino, che sembravano un sole).
         const drawBallIcon = (cx, cy, r, color) => {
-          doc.setDrawColor(...color); doc.setLineWidth(0.35);
+          doc.setDrawColor(...color); doc.setLineWidth(0.3);
           doc.setFillColor(255,255,255);
           doc.circle(cx, cy, r, 'FD');
           doc.setFillColor(...color);
-          doc.circle(cx, cy, r * 0.28, 'F');
+          const pentR = r * 0.38;
+          const pts = [];
           for (let i = 0; i < 5; i++) {
             const ang = -Math.PI/2 + i * 2*Math.PI/5;
-            doc.line(cx + r*0.28*Math.cos(ang), cy + r*0.28*Math.sin(ang), cx + r*0.78*Math.cos(ang), cy + r*0.78*Math.sin(ang));
+            pts.push([cx + pentR*Math.cos(ang), cy + pentR*Math.sin(ang)]);
+          }
+          const segs = [];
+          for (let i = 1; i < 5; i++) segs.push([pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]]);
+          doc.lines(segs, pts[0][0], pts[0][1], [1,1], 'F', true);
+          for (let i = 0; i < 5; i++) {
+            const a1 = pts[i], a2 = pts[(i+1)%5];
+            const midAng = -Math.PI/2 + (i+0.5) * 2*Math.PI/5;
+            const outX = cx + r*0.88*Math.cos(midAng), outY = cy + r*0.88*Math.sin(midAng);
+            doc.lines([[a2[0]-a1[0], a2[1]-a1[1]],[outX-a2[0], outY-a2[1]],[a1[0]-outX, a1[1]-outY]], a1[0], a1[1], [1,1], 'F', true);
           }
         };
 
@@ -14495,38 +14509,50 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const APP_MOTTO1 = 'Il Calcetto Manager Definitivo';
         const APP_MOTTO2 = "dove i campioni nascono... e litigano!";
 
-        // Disegna un campo da calcio stilizzato (bordo, linea di metà campo, cerchio centrale,
-        // due aree di rigore semplificate) — usato come filigrana sulla copertina e sulla chiusura
-        const drawPitchWatermark = (opacity) => {
+        // Sfondo "erba tosata" — strisce orizzontali a due tonalità di verde alternate, come un
+        // vero campo da calcio falciato (non più un verde piatto e anonimo)
+        const drawMowedStripes = () => {
+          const stripes = 14;
+          const stripeH = pageH / stripes;
+          for (let i = 0; i < stripes; i++) {
+            doc.setFillColor(...(i % 2 === 0 ? C.pitch : C.pitch2));
+            doc.rect(0, stripeH * i, pageW, stripeH + 0.6, 'F');
+          }
+        };
+
+        // Disegna le righe di un campo da calcio stilizzato (bordo, linea di metà campo, cerchio
+        // centrale, due aree di rigore) — SOLO le righe, mai testo sopra: il testo va sempre nella
+        // metà campo superiore o in quella inferiore, mai a cavallo del cerchio/linea di centrocampo
+        const drawPitchLines = (opacity) => {
           doc.saveGraphicsState();
           doc.setGState(new doc.GState({ opacity }));
           doc.setDrawColor(255,255,255); doc.setLineWidth(0.8);
           const fm = 18;
           doc.rect(fm, fm, pageW - fm*2, pageH - fm*2, 'S');
           doc.line(fm, pageH/2, pageW - fm, pageH/2);
-          doc.circle(pageW/2, pageH/2, 24, 'S');
+          doc.circle(pageW/2, pageH/2, 22, 'S');
           doc.circle(pageW/2, pageH/2, 1, 'F');
-          doc.rect(pageW/2 - 34, fm, 68, 28, 'S');
-          doc.rect(pageW/2 - 34, pageH - fm - 28, 68, 28, 'S');
+          doc.rect(pageW/2 - 34, fm, 68, 26, 'S');
+          doc.rect(pageW/2 - 34, pageH - fm - 26, 68, 26, 'S');
           doc.restoreGraphicsState();
         };
 
-        // ═══ Copertina — pagina dedicata: campo verde pieno (colore-marchio, non più un
-        // gradiente marcato), filigrana campo da calcio stilizzato, logo vero dell'app, motto ═══
-        doc.setFillColor(...C.pitch);
-        doc.rect(0, 0, pageW, pageH, 'F');
-        drawPitchWatermark(0.16);
+        // ═══ Copertina — pagina dedicata: campo "erba tosata" a righe, logo vero dell'app e
+        // titolo SEMPRE nella metà campo superiore (mai sul cerchio di centrocampo), motto nella
+        // metà campo inferiore — corretto dopo il primo giro, dove il titolo tagliava la linea ═══
+        drawMowedStripes();
+        drawPitchLines(0.5);
         if (APP_LOGO) {
-          const logoSize = 46;
-          try { doc.addImage(APP_LOGO, 'PNG', pageW/2 - logoSize/2, pageH/2 - 78, logoSize, logoSize); } catch(e) {}
+          const logoSize = 34;
+          try { doc.addImage(APP_LOGO, 'PNG', pageW/2 - logoSize/2, 58, logoSize, logoSize); } catch(e) {}
         }
-        doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(26);
-        doc.text('Riepilogo Stagione', pageW/2, pageH/2 + 2, { align: 'center' });
-        doc.setFont(undefined,'normal'); doc.setFontSize(15); doc.setTextColor(...C.lime);
-        doc.text(s.stagione || '', pageW/2, pageH/2 + 16, { align: 'center' });
+        doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(23);
+        doc.text('Riepilogo Stagione', pageW/2, 106, { align: 'center' });
+        doc.setFont(undefined,'normal'); doc.setFontSize(14); doc.setTextColor(...C.lime);
+        doc.text(s.stagione || '', pageW/2, 118, { align: 'center' });
         doc.setFont(undefined,'italic'); doc.setFontSize(9.5); doc.setTextColor(225,238,220);
-        doc.text(APP_MOTTO1, pageW/2, pageH - 28, { align: 'center' });
-        doc.text(APP_MOTTO2, pageW/2, pageH - 22, { align: 'center' });
+        doc.text(APP_MOTTO1, pageW/2, 208, { align: 'center' });
+        doc.text(APP_MOTTO2, pageW/2, 214, { align: 'center' });
         newPage();
 
         if (s.aiTexts?.intro) addParagraph(s.aiTexts.intro, { italic: true, size: 10.5, lineH: 5 });
@@ -14583,17 +14609,58 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         }
         if (s.aiTexts?.commentoB) addParagraph(s.aiTexts.commentoB, { italic: true });
 
-        // ═══ Sezione C — Classifiche ═══
+        // ═══ Sezione C — Classifiche: card a 3 colonne (Marcatori/Assist/Media Voto) con icona
+        // colorata, foto del primo classificato in evidenza, elenco numerato — riprogettata da zero
+        // su modello fornito da Alby (non più liste "nude" a piena larghezza) ═══
         addSectionTitle('Classifiche');
-        const addClassificaBlock = (label, items) => {
-          if (!items.length) return;
-          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.darkText);
-          checkBreak(6); doc.text(label, marginX, y); y += 5;
-          addList(items, { numbered: true });
+        const addClassificheColumns = (columns) => {
+          const activeCols = columns.filter(c => c.items.length);
+          if (!activeCols.length) return;
+          const colGap2 = 6;
+          const colW2c = (maxW - colGap2 * (activeCols.length - 1)) / activeCols.length;
+          checkBreak(78);
+          const topY = y;
+          let maxColH = 0;
+          activeCols.forEach((col, ci) => {
+            const cx = marginX + ci * (colW2c + colGap2);
+            let cy = topY;
+            doc.setFillColor(...C.band);
+            doc.roundedRect(cx, cy, colW2c, 74, 2.5, 2.5, 'F');
+            cy += 6;
+            drawBallIcon(cx + 7, cy, 3.4, col.color);
+            doc.setFont(undefined,'bold'); doc.setFontSize(10.5); doc.setTextColor(...col.color);
+            doc.text(col.label, cx + 13, cy + 1.6);
+            cy += 9;
+            const first = col.items[0];
+            if (first) {
+              addCircularPhoto(first.foto, cx + 4, cy, 15);
+              doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.darkText);
+              doc.text(truncate(first.nome, colW2c - 24, 9.5), cx + 22, cy + 6);
+              doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.setTextColor(...col.color);
+              doc.text(String(first.valore), cx + 22, cy + 12.5);
+              cy += 20;
+            }
+            doc.setDrawColor(...C.line); doc.line(cx + 4, cy, cx + colW2c - 4, cy);
+            cy += 4;
+            col.items.slice(1).forEach((it, idx) => {
+              doc.setFont(undefined,'normal'); doc.setFontSize(8);
+              doc.setTextColor(...col.color);
+              doc.text(`${idx + 2}.`, cx + 4, cy);
+              doc.setTextColor(...C.text);
+              doc.text(truncate(it.nome, colW2c - 24, 8), cx + 11, cy);
+              doc.setFont(undefined,'bold'); doc.setTextColor(...col.color);
+              doc.text(String(it.valore), cx + colW2c - 4, cy, { align: 'right' });
+              cy += 4.4;
+            });
+            maxColH = Math.max(maxColH, cy - topY);
+          });
+          y = topY + Math.max(maxColH, 74) + 4;
         };
-        addClassificaBlock('Marcatori', s.sezioneC.topScorers.map(p => `${p.soprannome||p.nome} — ${p.goalTotali} gol`));
-        if (s.trackAssist && s.sezioneC.topAssist?.length) addClassificaBlock('Assist', s.sezioneC.topAssist.map(p => `${p.soprannome||p.nome} — ${p.assistTotali} assist`));
-        addClassificaBlock('Media Voto', s.sezioneC.topMediaVoto.map(p => `${p.soprannome||p.nome} — ${p.mediaVoto.toFixed(2)}`));
+        addClassificheColumns([
+          { label: 'Marcatori', color: C.pitch, items: s.sezioneC.topScorers.map(p => ({ nome: p.soprannome||p.nome, valore: p.goalTotali, foto: photoByName[p.soprannome||p.nome] })) },
+          ...(s.trackAssist && s.sezioneC.topAssist?.length ? [{ label: 'Assist', color: [30,110,190], items: s.sezioneC.topAssist.map(p => ({ nome: p.soprannome||p.nome, valore: p.assistTotali, foto: photoByName[p.soprannome||p.nome] })) }] : []),
+          { label: 'Media Voto', color: C.gold, items: s.sezioneC.topMediaVoto.map(p => ({ nome: p.soprannome||p.nome, valore: p.mediaVoto.toFixed(2), foto: photoByName[p.soprannome||p.nome] })) },
+        ]);
         if (s.aiTexts?.commentoC) addParagraph(s.aiTexts.commentoC, { italic: true });
 
         // ═══ Il Gabbione ═══
@@ -14635,70 +14702,89 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             doc.setTextColor(...C.text);
           }
         };
+        // Corretto DEFINITIVAMENTE dopo la terza segnalazione dello stesso bug: invece di
+        // affidarsi a checkBreak() (calcolo dinamico di quanto spazio resta, che continuava a
+        // comportarsi in modo incoerente sui dati reali di Alby nonostante funzionasse nei test
+        // sintetici), ora si contano le righe con un contatore fisso — massimo 6 righe (12
+        // giocatori) per pagina, punto, senza eccezioni e senza calcoli che possano sbagliare.
+        const ROWS_PER_PAGE_ANNUARIO = 6;
+        let annuarioRowsOnPage = 0;
         for (let i = 0; i < s.sezioneE.length; i += 2) {
-          checkBreak(cardH + 3);
+          if (annuarioRowsOnPage >= ROWS_PER_PAGE_ANNUARIO) {
+            newPage();
+            annuarioRowsOnPage = 0;
+          }
           drawPlayerCard(s.sezioneE[i], marginX, y);
           drawPlayerCard(s.sezioneE[i+1], marginX + colW + colGap, y);
           y += cardH;
           doc.setDrawColor(...C.line);
           doc.line(marginX, y, marginX + maxW, y);
           y += 3;
+          annuarioRowsOnPage++;
         }
 
-        // ═══ Sezione D — Le partite: griglia a DUE COLONNE con nomi squadra + PNG giornale ═══
+        // ═══ Sezione D — Le partite: griglia a DUE COLONNE, ESATTAMENTE 4 per pagina (2 righe) —
+        // richiesta esplicita di Alby, prima erano 6. Altezza di riga fissa (non più calcolata
+        // dinamicamente dall'immagine più alta della coppia), stesso motivo del fix dell'Annuario:
+        // eliminare qualunque calcolo variabile che possa comportarsi in modo incoerente. ═══
         newPage();
         addSectionTitle('Le partite');
         if (s.aiTexts?.commentoD) addParagraph(s.aiTexts.commentoD, { italic: true });
-        const maxImgH = 60;
+        const maxImgH = 95;
+        const ROWS_PER_PAGE_PARTITE = 2;
+        let partiteRowsOnPage = 0;
+        const drawMatchCard = (m, size, cx, cy) => {
+          if (!m) return;
+          doc.setFillColor(...C.band);
+          doc.roundedRect(cx, cy, colW, 8, 1.2, 1.2, 'F');
+          doc.setFont(undefined,'normal'); doc.setFontSize(6.3); doc.setTextColor(...C.muted);
+          doc.text(m.data, cx + 2, cy + 5.2);
+          doc.setFont(undefined,'bold'); doc.setFontSize(7);
+          const label = truncate(`${m.squadraANome}  ${m.golA}-${m.golB}  ${m.squadraBNome}`, colW - 20, 7);
+          doc.setTextColor(...C.text);
+          doc.text(label, cx + colW - 2, cy + 5.2, { align: 'right' });
+          if (size && m.pngGiornale) {
+            const ix = cx + (colW - size.w) / 2;
+            const fmt = m.pngGiornale.includes('image/png') ? 'PNG' : 'JPEG';
+            try { doc.addImage(m.pngGiornale, fmt, ix, cy + 10, size.w, size.h); } catch(e) { /* salta */ }
+          }
+        };
         for (let i = 0; i < s.sezioneD.length; i += 2) {
+          if (partiteRowsOnPage >= ROWS_PER_PAGE_PARTITE) {
+            newPage();
+            partiteRowsOnPage = 0;
+          }
           const left = s.sezioneD[i], right = s.sezioneD[i+1];
           const leftSize = left ? await computeImgSize(left.pngGiornale, colW, maxImgH) : null;
           const rightSize = right ? await computeImgSize(right.pngGiornale, colW, maxImgH) : null;
-          const rowImgH = Math.max(leftSize?.h || 0, rightSize?.h || 0, 18);
-          const rowH = 9 + 2 + rowImgH + 4;
-          checkBreak(rowH);
-          const drawMatchCard = (m, size, cx) => {
-            if (!m) return;
-            doc.setFillColor(...C.band);
-            doc.roundedRect(cx, y, colW, 8, 1.2, 1.2, 'F');
-            doc.setFont(undefined,'normal'); doc.setFontSize(6.3); doc.setTextColor(...C.muted);
-            doc.text(m.data, cx + 2, y + 5.2);
-            doc.setFont(undefined,'bold'); doc.setFontSize(7);
-            const label = truncate(`${m.squadraANome}  ${m.golA}-${m.golB}  ${m.squadraBNome}`, colW - 20, 7);
-            doc.setTextColor(...C.text);
-            doc.text(label, cx + colW - 2, y + 5.2, { align: 'right' });
-            if (size && m.pngGiornale) {
-              const ix = cx + (colW - size.w) / 2;
-              const fmt = m.pngGiornale.includes('image/png') ? 'PNG' : 'JPEG';
-              try { doc.addImage(m.pngGiornale, fmt, ix, y + 10, size.w, size.h); } catch(e) { /* salta */ }
-            }
-          };
-          drawMatchCard(left, leftSize, marginX);
-          drawMatchCard(right, rightSize, marginX + colW + colGap);
-          y += rowH;
+          drawMatchCard(left, leftSize, marginX, y);
+          drawMatchCard(right, rightSize, marginX + colW + colGap, y);
+          y += 9 + 2 + maxImgH + 4;
+          partiteRowsOnPage++;
         }
 
-        // ═══ Chiusura — pagina intera verde campo, coerente con la copertina ═══
+        // ═══ Chiusura — pagina intera "erba tosata", coerente con la copertina. Logo in alto e
+        // testo SEMPRE nella metà campo superiore, motto in quella inferiore — mai a cavallo del
+        // cerchio di centrocampo (stesso principio della copertina) ═══
         let closingPageNum = null;
         if (s.aiTexts?.chiusura) {
           newPage();
           closingPageNum = doc.internal.getNumberOfPages();
-          doc.setFillColor(...C.pitch);
-          doc.rect(0, 0, pageW, pageH, 'F');
-          drawPitchWatermark(0.16);
+          drawMowedStripes();
+          drawPitchLines(0.5);
           if (APP_LOGO) {
-            const logoSize2 = 26;
-            try { doc.addImage(APP_LOGO, 'PNG', pageW/2 - logoSize2/2, 40, logoSize2, logoSize2); } catch(e) {}
+            const logoSize2 = 22;
+            try { doc.addImage(APP_LOGO, 'PNG', pageW/2 - logoSize2/2, 34, logoSize2, logoSize2); } catch(e) {}
           }
-          y = pageH/2 - 20;
+          y = 74;
           doc.setTextColor(255,255,255);
-          addParagraph(s.aiTexts.chiusura, { italic: true, size: 13, color: [255,255,255], lineH: 6.5 });
+          addParagraph(s.aiTexts.chiusura, { italic: true, size: 12, color: [255,255,255], lineH: 6 });
           if (s.aiTexts.firma) {
-            doc.setFont(undefined,'italic'); doc.setFontSize(10.5); doc.setTextColor(...C.lime);
-            doc.text('— ' + s.aiTexts.firma, pageW - marginX, y + 6, { align: 'right' });
+            doc.setFont(undefined,'italic'); doc.setFontSize(10); doc.setTextColor(...C.lime);
+            doc.text('— ' + s.aiTexts.firma, pageW - marginX, y + 5, { align: 'right' });
           }
           doc.setFont(undefined,'italic'); doc.setFontSize(9); doc.setTextColor(210,228,205);
-          doc.text(APP_MOTTO1, pageW/2, pageH - 26, { align: 'center' });
+          doc.text(APP_MOTTO1, pageW/2, 208, { align: 'center' });
         }
 
         // ═══ Piè di pagina: numero pagina + nome app e slogan (tranne sulla copertina) ═══
