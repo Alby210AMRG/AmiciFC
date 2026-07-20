@@ -4959,17 +4959,36 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoA" style="font-size:0.82rem;color:var(--text2);line-height:1.6">{{ seasonSummarySnapshot.aiTexts.commentoA }}</div>
       </div>
 
-      <!-- Sezione B — Gli Oscar -->
+      <!-- Sezione B — Gli Oscar: foto+nome del vincitore, come le Classifiche (richiesta Alby) -->
       <div class="card">
-        <div class="card-title" style="margin-bottom:10px">🏆 Gli Oscar</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          <div>🏆 <strong>Pallone d'Oro</strong> ({{ seasonSummarySnapshot.sezioneB.palloneDoro.valore?.toFixed(2) || '—' }}): {{ seasonSummarySnapshot.sezioneB.palloneDoro.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
-          <div>👟 <strong>Scarpa d'Oro</strong> ({{ seasonSummarySnapshot.sezioneB.scarpaDoro.valore }} gol): {{ seasonSummarySnapshot.sezioneB.scarpaDoro.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
-          <div>💪 <strong>Fedelissimo</strong> ({{ seasonSummarySnapshot.sezioneB.fedelissimo.valore }} presenze): {{ seasonSummarySnapshot.sezioneB.fedelissimo.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
-          <div v-if="seasonSummarySnapshot.sezioneB.kryptonite.length">☠️ <strong>Kryptonite</strong>: <span v-for="(k,ki) in seasonSummarySnapshot.sezioneB.kryptonite" :key="ki">{{ k.vittima }} vs {{ k.incubo }} ({{ k.persi }}/{{ k.tot }})<span v-if="ki<seasonSummarySnapshot.sezioneB.kryptonite.length-1"> · </span></span></div>
-          <div>👑 <strong>Giocatore Più Premiato</strong>: {{ seasonSummarySnapshot.sezioneB.piuPremiato.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
-          <div>🪣 <strong>Il Bidone d'Oro</strong>: {{ seasonSummarySnapshot.sezioneB.bidoneDellAnno.giocatori.map(g=>g.nome).join(', ') || '—' }}</div>
-        </div>
+        <div class="card-title" style="margin-bottom:6px">🏆 Gli Oscar</div>
+
+        <template v-for="cat in [
+          {key:'palloneDoro', label:'🏆 Pallone d\'Oro', suffix: seasonSummarySnapshot.sezioneB.palloneDoro.valore ? seasonSummarySnapshot.sezioneB.palloneDoro.valore.toFixed(2) : ''},
+          {key:'scarpaDoro', label:'👟 Scarpa d\'Oro', suffix: seasonSummarySnapshot.sezioneB.scarpaDoro.valore + ' gol'},
+          {key:'fedelissimo', label:'💪 Fedelissimo', suffix: seasonSummarySnapshot.sezioneB.fedelissimo.valore + ' presenze'},
+          {key:'piuPremiato', label:'👑 Giocatore Più Premiato', suffix:''},
+          {key:'bidoneDellAnno', label:'🪣 Il Bidone d\'Oro', suffix:''}
+        ]" :key="cat.key">
+          <template v-if="seasonSummarySnapshot.sezioneB[cat.key].giocatori.length">
+            <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
+            <div class="rp-classifica-hero">
+              <div class="rp-hero-avatar">
+                <img :src="getPlayerPhoto(seasonSummarySnapshot.sezioneB[cat.key].giocatori[0].foto, seasonSummarySnapshot.sezioneB[cat.key].giocatori[0].uid)" :alt="seasonSummarySnapshot.sezioneB[cat.key].giocatori[0].nome" @error="onPhotoError($event, seasonSummarySnapshot.sezioneB[cat.key].giocatori[0].uid)">
+              </div>
+              <div style="flex:1">
+                <div style="font-weight:800;font-size:0.95rem">🥇 {{ seasonSummarySnapshot.sezioneB[cat.key].giocatori[0].nome }}</div>
+                <div v-if="cat.suffix" style="font-size:0.78rem;color:var(--text2)">{{ cat.suffix }}</div>
+              </div>
+            </div>
+            <div v-if="seasonSummarySnapshot.sezioneB[cat.key].giocatori.length>1" style="font-size:0.76rem;color:var(--text2);padding:0 4px 10px">
+              🤝 Pari merito con: {{ seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(1).map(g=>g.nome).join(', ') }}
+            </div>
+          </template>
+        </template>
+
+        <div v-if="seasonSummarySnapshot.sezioneB.kryptonite.length" style="font-size:0.85rem;margin-top:6px">☠️ <strong>Kryptonite</strong>: <span v-for="(k,ki) in seasonSummarySnapshot.sezioneB.kryptonite" :key="ki">{{ k.vittima }} vs {{ k.incubo }} ({{ k.persi }}/{{ k.tot }})<span v-if="ki<seasonSummarySnapshot.sezioneB.kryptonite.length-1"> · </span></span></div>
+
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoB" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoB }}</div>
       </div>
 
@@ -4978,10 +4997,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title" style="margin-bottom:6px">📊 Classifiche</div>
 
         <template v-for="cat in [
+          {key:'topOverall', label:'🥇 Overall (OVR)', unit:'', field:'_score'},
           {key:'topScorers', label:'⚽ Marcatori', unit:'gol', field:'goalTotali'},
           {key:'topAssist', label:'🅰️ Assist', unit:'assist', field:'assistTotali', guard: seasonSummarySnapshot.trackAssist},
           {key:'topMediaVoto', label:'⭐ Media Voto', unit:'', field:null, decimals:'mediaVoto'},
-          {key:'topOverall', label:'🥇 Overall (OVR)', unit:'', field:'_score'},
           {key:'topPoints', label:'🏆 Classifica Punti', unit:'pt', field:'puntiTotali'},
           {key:'topMediaGol', label:'📈 Media Gol/partita', unit:'', field:null, computedGol:true},
           {key:'topMediaPunti', label:'📈 Media Punti/partita', unit:'', field:null, decimals:'mediaPunti'},
@@ -4992,8 +5011,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
             <div class="rp-classifica-hero">
               <div class="rp-hero-avatar">
-                <img v-if="getPlayerPhoto(seasonSummarySnapshot.sezioneC[cat.key][0].foto, seasonSummarySnapshot.sezioneC[cat.key][0].uid)" :src="getPlayerPhoto(seasonSummarySnapshot.sezioneC[cat.key][0].foto, seasonSummarySnapshot.sezioneC[cat.key][0].uid)" :alt="seasonSummarySnapshot.sezioneC[cat.key][0].nome">
-                <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;opacity:0.6">
+                <img :src="getPlayerPhoto(seasonSummarySnapshot.sezioneC[cat.key][0].foto, seasonSummarySnapshot.sezioneC[cat.key][0].uid)" :alt="seasonSummarySnapshot.sezioneC[cat.key][0].nome" @error="onPhotoError($event, seasonSummarySnapshot.sezioneC[cat.key][0].uid)">
               </div>
               <div style="flex:1">
                 <div style="font-weight:800;font-size:0.95rem">🥇 {{ seasonSummarySnapshot.sezioneC[cat.key][0].soprannome || seasonSummarySnapshot.sezioneC[cat.key][0].nome }}</div>
@@ -5071,14 +5089,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
         <template v-for="size in [5,6,7,8,9,10,11]" :key="'ft-'+size">
-          <div v-if="seasonSummarySnapshot.formazioniTop[size]" style="margin-bottom:14px">
+          <div v-if="formazioneRows(size)" style="margin-bottom:14px">
             <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px">{{ size }}vs{{ size }}</div>
             <div class="rp-pitch">
               <div class="rp-row" v-for="rowKey in ['Attaccante','Centrocampista','Difensore','Portiere']" :key="rowKey">
-                <div class="rp-player" v-for="pl in seasonSummarySnapshot.formazioniTop[size][rowKey]" :key="pl.uid">
+                <div class="rp-player" v-for="pl in formazioneRows(size)[rowKey]" :key="pl.uid">
                   <div class="rp-avatar">
-                    <img v-if="pl.foto" :src="pl.foto" :alt="pl.nome">
-                    <span v-else>{{ roleEmoji(pl.ruoloReale) }}</span>
+                    <img :src="pl.foto" :alt="pl.nome" @error="onPhotoError($event, pl.uid)">
                   </div>
                   <div class="rp-name">{{ pl.nome }}</div>
                 </div>
@@ -7543,7 +7560,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.726',date:'2026-07-20',items:[
+    const changelogEntries = [{version:'v1.727',date:'2026-07-20',items:[
+      'Riepilogo Stagione — 4 fix segnalati da Alby dopo aver visto la v1.726, con screenshot: 1) Gli Oscar (Pallone d\'Oro, Scarpa d\'Oro, Fedelissimo, Più Premiato, Bidone d\'Oro) ora hanno la stessa hero card con foto+nome già usata nelle Classifiche, gestendo anche i pari merito (mostra il primo in evidenza + "pari merito con:" per gli altri); Kryptonite resta testuale (non è un "vincitore" nello stesso senso, è una coppia di rivalità); 2) FIX: quando un giocatore non ha una foto propria, ora appare correttamente la silhouette anonima invece di un\'immagine rotta — mancava l\'handler @error su tutte le immagini nuove aggiunte in v1.726 (getPlayerPhoto non restituisce mai un valore falsy: se non trova nulla tenta comunque un percorso locale indovinato tipo ./images/players/{uid}.png, che spesso non esiste — serve SEMPRE onPhotoError per far scattare il fallback finale alla silhouette dopo i tentativi falliti); 3) FIX importante: le Formazioni della Stagione apparivano con il campo verde ma senza nessun giocatore dentro — causa: chi aveva già uno snapshot Riepilogo generato PRIMA della v1.726 ce l\'aveva salvato nel vecchio formato (array piatto), mentre il nuovo template si aspettava il formato a righe per ruolo introdotto in v1.726 — indicizzare un array con una chiave stringa come \'Difensore\' restituisce undefined, quindi il v-for non aveva nulla su cui iterare. Aggiunta `formazioneRows(size)`, una funzione di sola visualizzazione che riconosce il formato vecchio e lo converte al volo nel formato nuovo (stessa tecnica di raggruppamento per posizione nello schema già usata in `_buildTopFormazioni`) — funziona per QUALSIASI snapshot già esistente, non serve rigenerarlo; 4) Nelle Classifiche, Overall (OVR) spostato in prima posizione come richiesto. Verificato specificamente il fix #3 simulando in Puppeteer uno snapshot in formato vecchio (esattamente come uno generato con la v1.724/v1.725): tutti i 7 campi si riempiono con tutti e 56 i giocatori attesi. Verificato il fix #2 contando le immagini effettivamente rotte nel DOM dopo il render: 0 su 82.',
+    ]},{version:'v1.726',date:'2026-07-20',items:[
       'Riepilogo Stagione — due miglioramenti grafici richiesti da Alby dopo aver visto la v1.724/v1.725: 1) "Classifiche" — prima ogni classifica era una riga di testo con tutti i nomi appiccicati; ora ognuna delle 9 classifiche mostra una vera hero card con foto e nome del primo classificato, seguita da un elenco compatto (posizione, nome, valore) per il resto; 2) "Formazioni della Stagione" — prima era un elenco di nomi separati da "·"; ora è un vero campo da calcio (stesso stile cromatico di `.field-png`/`.field-lines` già usato per i PNG condivisibili) con i giocatori disposti per riga di ruolo (Attaccanti in alto, poi Centrocampisti, Difensori, Portiere in basso), ciascuno con la sua foto in un cerchio. Nota tecnica: la riga di appartenenza di ogni giocatore è dedotta dalla POSIZIONE nell\'array restituito da `buildTopFormation` (che rispecchia l\'ordine dello schema), non dal suo ruolo anagrafico — un Jolly usato per riempire uno slot da Difensore va disegnato comunque tra i difensori. Nessuna modifica alla logica di calcolo sottostante (stessi dati, stesse soglie di v1.724) — solo presentazione.',
     ]},{version:'v1.725',date:'2026-07-20',items:[
       'Fix CRITICO: la v1.724 restava bloccata in un loop di aggiornamento infinito — il banner "Aggiorna Ora" ricompariva sempre, anche subito dopo aver premuto Aggiorna. Causa: la costante `appVersion` (usata da `checkForUpdates` per confrontarsi con `version.json`) è incorporata come stringa fissa DENTRO il file `amici-fc.html` stesso, separata dal numero di versione in `version.json` — bumpando la v1.724 ho aggiornato `version.json` ma dimenticato di aggiornare questa costante interna, rimasta a \'1.723\'. Risultato: anche dopo il reload, il file nuovo scaricato conteneva ancora la vecchia costante \'1.723\' al suo interno, quindi il confronto (`version.json` sempre più alto della costante mai aggiornata) restava vero per sempre. Segnalato da Alby subito dopo la consegna della v1.724. Rilascio marcato "critical" per forzare l\'aggiornamento silenzioso su chi è rimasto bloccato nel loop. Aggiunta una nuova Regola d\'Oro (28) in REGOLE-PROGETTO.md per non ripetere questo errore.',
@@ -8409,7 +8428,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.726');
+    const appVersion = ref('1.727');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13884,7 +13903,7 @@ Niente altro, nessuna spiegazione.`;
       const max = Math.max(...eligible.map(getVal));
       if (max <= 0) return { valore: 0, giocatori: [] };
       const giocatori = eligible.filter(p => getVal(p) === max)
-        .map(p => ({ uid: p.uid || String(p.id), nome: p.soprannome || p.nome }));
+        .map(p => ({ uid: p.uid || String(p.id), nome: p.soprannome || p.nome, foto: p.foto || null }));
       return { valore: max, giocatori };
     };
 
@@ -14207,6 +14226,32 @@ Niente altro, nessuna spiegazione.`;
       return out;
     };
 
+    // Helper di VISUALIZZAZIONE (non di calcolo) per il template del campo formazioni. Necessario
+    // perché uno snapshot già persistito (generato con l'app prima della v1.726) ha ancora
+    // seasonSummarySnapshot.formazioniTop[size] in formato ARRAY PIATTO (vecchio schema di
+    // _buildTopFormazioni), mentre da v1.726 il formato è a righe per ruolo {Portiere:[...],...}.
+    // Senza questa conversione al volo il campo si vedrebbe vuoto per chiunque avesse già uno
+    // snapshot vecchio in memoria — bug segnalato da Alby il 20/7/2026. Gli array vecchi non hanno
+    // mai salvato la foto (aggiunta solo in v1.726): per quelli si ricalcola con getPlayerPhoto,
+    // che comunque pesca dalla cache foto live lato client se disponibile.
+    const formazioneRows = (size) => {
+      const data = seasonSummarySnapshot.value?.formazioniTop?.[size];
+      if (!data) return null;
+      if (!Array.isArray(data)) return data; // già in formato nuovo (righe per ruolo)
+      const schema = FORMATION_SCHEMAS[size];
+      if (!schema) return null;
+      const rows = { Portiere: [], Difensore: [], Centrocampista: [], Attaccante: [] };
+      let idx = 0;
+      for (const [slotRuolo, count] of Object.entries(schema)) {
+        for (let i = 0; i < count; i++) {
+          const p = data[idx++];
+          if (!p) continue;
+          rows[slotRuolo].push({ uid: p.uid, nome: p.nome, ruoloReale: p.ruolo, foto: getPlayerPhoto(p.foto || null, p.uid), score: p.score });
+        }
+      }
+      return rows;
+    };
+
     // Curiosità della stagione — dati "simpatici" per condire il Riepilogo (richiesta di Alby
     // 20/7/2026). Esclusi apposta "Muro della stagione" (clean sheet, dato già coperto altrove e
     // poco distintivo qui) e "Rimonta dell'anno" (non calcolabile: non si registra il punteggio
@@ -14308,7 +14353,7 @@ Niente altro, nessuna spiegazione.`;
         if (!entries.length) return { valore: 0, giocatori: [] };
         const max = Math.max(...entries.map(([,c]) => c));
         const giocatori = entries.filter(([,c]) => c === max)
-          .map(([uid]) => ({ uid, nome: getPlayer(uid)?.soprannome || getPlayer(uid)?.nome || '?' }));
+          .map(([uid]) => ({ uid, nome: getPlayer(uid)?.soprannome || getPlayer(uid)?.nome || '?', foto: getPlayer(uid)?.foto || null }));
         return { valore: max, giocatori };
       };
       const piuPremiato = _tiedFromCount(fameCount);
@@ -19695,7 +19740,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
       hofStorico, hofStoricoLoading, hofStoricoLoaded, hofStoricoFiltrato, hofExpandedMese, hofPlayerFor, hofCountsFor,
       aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
-      seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest,
+      seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest, formazioneRows,
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
