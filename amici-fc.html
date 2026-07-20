@@ -220,6 +220,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   50%  { width: 70%; margin-left: 15%; }
   100% { width: 0%; margin-left: 100%; }
 }
+@keyframes heroIconBounce {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50%      { transform: translateY(-6px) scale(1.06); }
+}
 
 /* ── Light mode color overrides ── */
 [data-theme="light"] .bottom-nav {
@@ -1455,16 +1459,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   background: rgba(255,255,255,0.2); z-index: 0;
 }
 .rp-row { display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap; gap: 6px; position: relative; z-index: 1; }
-.rp-player { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 54px; }
+.rp-player { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 66px; }
 .rp-avatar {
-  width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  width: 50px; height: 50px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
   background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.55);
-  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center; font-size: 1.2rem;
 }
 .rp-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .rp-name {
-  font-size: 0.6rem; color: #fff; text-align: center; line-height: 1.15;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.65); max-width: 54px;
+  font-size: 0.64rem; color: #fff; text-align: center; line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65); max-width: 66px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 /* Riepilogo Stagione — Classifiche/Oscar: fino a 3 card con foto per i pari merito/primi in
@@ -1477,6 +1481,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 .rp-hero-card .rp-hero-avatar {
   width: 48px; height: 48px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
   border: 2px solid var(--lime);
+}
+/* Oscar: bordo oro invece di lime, per distinguere visivamente i "premi" dalle classifiche
+   statistiche pure — richiesta Alby 20/7/2026. */
+.rp-hero-card.rp-hero-gold .rp-hero-avatar {
+  border-color: #FFD700; box-shadow: 0 0 8px rgba(255,215,0,0.55);
 }
 .rp-hero-card .rp-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
 .rp-hero-card .rp-hero-name {
@@ -2379,17 +2388,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
             <svg v-if="s.type==='stat'" style="position:absolute;right:8px;top:28px;opacity:.08;pointer-events:none" width="110" height="85" viewBox="0 0 130 100" fill="none" stroke="#fff" stroke-width="1.5"><rect x="3" y="3" width="124" height="94" rx="4"/><line x1="65" y1="3" x2="65" y2="97"/><circle cx="65" cy="50" r="16"/><rect x="3" y="30" width="22" height="40"/><rect x="105" y="30" width="22" height="40"/></svg>
-            <!-- Filigrana emoji generica per i tipi che ne erano privi (11/7/2026, richiesta di Alby):
-                 stat/trashTalk/hallFame/hallShame/pronoMini/nickCard/infortunio/fantasma/welcome/tutorial
-                 hanno già la propria (o restano volutamente pulite) — questa copre gli altri 17 tipi,
-                 usando l'emoji già presente nel testo della card se c'è, altrimenti il fallback in
-                 heroWatermarkEmoji(). -->
-            <div v-if="!['stat','trashTalk','hallFame','hallShame','pronoMini','nickCard','infortunio','fantasma','welcome','tutorial'].includes(s.type)"
+            <!-- Filigrana emoji generica per i tipi che ne erano privi (11/7/2026, poi estesa a
+                 tutorial il 20/7/2026 su richiesta di Alby — usa s.icon quando presente):
+                 stat/trashTalk/hallFame/hallShame/pronoMini/nickCard/infortunio/fantasma/welcome
+                 hanno già la propria (o restano volutamente pulite) — questa copre gli altri tipi,
+                 usando l'emoji già presente nel testo/icona della card se c'è, altrimenti il
+                 fallback in heroWatermarkEmoji(). -->
+            <div v-if="!['stat','trashTalk','hallFame','hallShame','pronoMini','nickCard','infortunio','fantasma','welcome'].includes(s.type)"
               style="position:absolute;right:-6px;bottom:-16px;font-size:120px;line-height:1;opacity:.10;pointer-events:none;transform:rotate(-6deg)">{{heroWatermarkEmoji(s)}}</div>
             <!-- ── Welcome card (prima del caricamento dati) ── -->
             <template v-if="s.type==='welcome'">
@@ -2424,7 +2434,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <!-- ── Tutorial card (nuova stagione senza partite) ── -->
             <template v-else-if="s.type==='tutorial'">
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1;padding:20px 18px 16px">
-                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1">{{s.icon}}</div>
+                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1;display:inline-block;animation:heroIconBounce 2s ease-in-out infinite;width:fit-content">{{s.icon}}</div>
                 <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(166,255,77,0.7);margin-bottom:6px">GUIDA RAPIDA</div>
                 <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.25">{{s.titolo}}</div>
                 <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);line-height:1.55">{{s.testo}}</div>
@@ -2433,7 +2443,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
             <template v-else-if="s.type==='newSeason'">
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1;padding:20px 18px 16px">
-                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1">{{s.icon}}</div>
+                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1;display:inline-block;animation:heroIconBounce 2s ease-in-out infinite;width:fit-content">{{s.icon}}</div>
                 <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(166,255,77,0.7);margin-bottom:6px">NUOVA STAGIONE</div>
                 <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.25">{{s.titolo}}</div>
                 <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);line-height:1.55">{{s.testo}}</div>
@@ -4979,7 +4989,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <template v-if="seasonSummarySnapshot.sezioneB[cat.key].giocatori.length">
             <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
             <div class="rp-hero-row">
-              <div class="rp-hero-card" v-for="p in seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(0,3)" :key="p.uid">
+              <div class="rp-hero-card rp-hero-gold" v-for="p in seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(0,3)" :key="p.uid">
                 <div class="rp-hero-avatar">
                   <img :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
                 </div>
@@ -5042,10 +5052,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
         <div style="display:flex;flex-direction:column">
           <div v-for="(m,mi) in seasonSummarySnapshot.sezioneD" :key="mi" style="border-top:1px solid var(--border)">
-            <button style="width:100%;display:flex;align-items:center;justify-content:space-between;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
+            <button style="width:100%;display:flex;flex-direction:column;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
               @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
-              <span>{{ m.data }} · {{ m.squadraANome }} {{ m.golA }}-{{ m.golB }} {{ m.squadraBNome }}</span>
-              <span style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <span>{{ m.data }} · {{ m.squadraANome }} {{ m.golA }}-{{ m.golB }} {{ m.squadraBNome }}</span>
+                <span style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
+              </div>
+              <div v-if="m.uomoPartita" style="text-align:right;font-size:0.72rem;color:var(--text2);margin-top:2px">🏅 {{ m.uomoPartita }}</div>
             </button>
             <div v-if="seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
               <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
@@ -7564,7 +7577,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.728',date:'2026-07-20',items:[
+    const changelogEntries = [{version:'v1.729',date:'2026-07-20',items:[
+      'Riepilogo Stagione e Home — 5 richieste di Alby: 1) Formazioni della Stagione, foto giocatori ingrandite (38px→50px, con nome e player-slot allargati di conseguenza); 2) Le partite, aggiunto l\'Uomo Partita giustificato a destra sotto il risultato (🏅 nome); 3) Gli Oscar, le foto dei vincitori ora hanno bordo oro (#FFD700) invece del lime condiviso con le Classifiche, per distinguere visivamente i "premi" dalle statistiche pure; 4) la card Home "la stagione precedente è ora negli archivi" riscritta per menzionare esplicitamente che statistiche e Partite restano consultabili scegliendo la stagione passata dal menu, e che il Riepilogo Stagione con tutti i dati è in "Altro" — prima diceva solo "la trovi in Altro quando vuoi"; aggiunto anche un bordo fluo lime con glow su tutto il perimetro della card per farla risaltare nel carosello; 5) le card Tutorial (guida rapida) e questa stessa card "Nuova Stagione" ora hanno sia la filigrana emoji di sfondo (prima ne erano escluse/mostravano un fallback generico ⚽ non pertinente) sia l\'icona in primo piano animata con un lieve rimbalzo (nuova keyframe `heroIconBounce`, distinta da `splashPulse` già usata nello splash) — la filigrana ora riusa `s.icon`, la stessa emoji già scelta a mano per ciascuna card, invece del fallback generico. Verificato tutto con dati reali in Puppeteer: dimensione avatar 50px confermata via computed style, bordo oro Oscar confermato (rgb(255,215,0)), MVP nel testo renderizzato delle Partite, bordo fluo confermato risalendo dal testo univoco della card fino al contenitore giusto (border 3px + box-shadow), 2 elementi con `animationName===\'heroIconBounce\'` confermati (newSeason + tutorial). Nessuna regressione sui fix delle versioni precedenti (pari merito, retrocompatibilità formazioni, zero immagini rotte).',
+    ]},{version:'v1.728',date:'2026-07-20',items:[
       'Riepilogo Stagione — richiesta di Alby: nei pari merito (Oscar e Classifiche) prima si vedeva la foto di un solo giocatore, ora se ne vedono fino a 3. Per le Classifiche (Marcatori, Overall, Media Voto, ecc.) il numero di foto mostrate corrisponde a quanti giocatori sono realmente a pari merito al primo posto (calcolato confrontando i valori arrotondati a 2 decimali, per non far scattare falsi "non pari merito" per differenze di virgola mobile sulle medie) — se sono 2 pari merito, 2 foto; se sono 5, le prime 3 con foto e le altre 2 in elenco sotto. Per gli Oscar (Pallone d\'Oro, Scarpa d\'Oro, Fedelissimo, Più Premiato, Bidone d\'Oro) stessa logica: fino a 3 foto, il resto in "🤝 Anche a pari merito: ...". Nuove funzioni di sola visualizzazione `catValue`/`catValueDisplay`/`catTiedCount`/`catSplit`, CSS delle hero card ristrutturato da riga singola (`.rp-classifica-hero`) a card verticali multiple affiancate (`.rp-hero-row`/`.rp-hero-card`). Verificato forzando nei dati di test 5 giocatori a pari merito su più categorie contemporaneamente (Marcatori, Media Voto, Punti, Pallone d\'Oro, Scarpa d\'Oro, Fedelissimo): confermato nel testo effettivamente renderizzato che ovunque compaiono esattamente 3 foto + il resto in elenco, zero immagini rotte, nessuna regressione sul caso senza pareggi né sulla retrocompatibilità con snapshot vecchi introdotta in v1.727.',
     ]},{version:'v1.727',date:'2026-07-20',items:[
       'Riepilogo Stagione — 4 fix segnalati da Alby dopo aver visto la v1.726, con screenshot: 1) Gli Oscar (Pallone d\'Oro, Scarpa d\'Oro, Fedelissimo, Più Premiato, Bidone d\'Oro) ora hanno la stessa hero card con foto+nome già usata nelle Classifiche, gestendo anche i pari merito (mostra il primo in evidenza + "pari merito con:" per gli altri); Kryptonite resta testuale (non è un "vincitore" nello stesso senso, è una coppia di rivalità); 2) FIX: quando un giocatore non ha una foto propria, ora appare correttamente la silhouette anonima invece di un\'immagine rotta — mancava l\'handler @error su tutte le immagini nuove aggiunte in v1.726 (getPlayerPhoto non restituisce mai un valore falsy: se non trova nulla tenta comunque un percorso locale indovinato tipo ./images/players/{uid}.png, che spesso non esiste — serve SEMPRE onPhotoError per far scattare il fallback finale alla silhouette dopo i tentativi falliti); 3) FIX importante: le Formazioni della Stagione apparivano con il campo verde ma senza nessun giocatore dentro — causa: chi aveva già uno snapshot Riepilogo generato PRIMA della v1.726 ce l\'aveva salvato nel vecchio formato (array piatto), mentre il nuovo template si aspettava il formato a righe per ruolo introdotto in v1.726 — indicizzare un array con una chiave stringa come \'Difensore\' restituisce undefined, quindi il v-for non aveva nulla su cui iterare. Aggiunta `formazioneRows(size)`, una funzione di sola visualizzazione che riconosce il formato vecchio e lo converte al volo nel formato nuovo (stessa tecnica di raggruppamento per posizione nello schema già usata in `_buildTopFormazioni`) — funziona per QUALSIASI snapshot già esistente, non serve rigenerarlo; 4) Nelle Classifiche, Overall (OVR) spostato in prima posizione come richiesto. Verificato specificamente il fix #3 simulando in Puppeteer uno snapshot in formato vecchio (esattamente come uno generato con la v1.724/v1.725): tutti i 7 campi si riempiono con tutti e 56 i giocatori attesi. Verificato il fix #2 contando le immagini effettivamente rotte nel DOM dopo il render: 0 su 82.',
@@ -8434,7 +8449,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.728');
+    const appVersion = ref('1.729');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14022,6 +14037,7 @@ Niente altro, nessuna spiegazione.`;
           squadraANome: m.nomeSquadraA || 'Squadra A', squadraBNome: m.nomeSquadraB || 'Squadra B',
           formazioneA: rosterOf(m, m.squadraA), formazioneB: rosterOf(m, m.squadraB),
           titoloGiornale: m.titoloGiornale||'', commentoAI: m.commentoAI||'',
+          uomoPartita: m.uomoPartita || null,
           pngGiornale: pngGiornaleCompresso,
           fotoPartita: m.fotoPartita || null // già leggera, nessuna ricompressione
         });
@@ -17091,6 +17107,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const heroWatermarkEmoji = (s) => {
       if (s.badge) return s.badge;   // news/news2: badge è già un'emoji (n.emoji||'💬')
       if (s.emoji) return s.emoji;   // trashTalk-style: campo emoji dedicato
+      if (s.icon) return s.icon;     // tutorial/newSeason: icona già scelta a mano per la card
       if (s.label) {
         const m = s.label.match(/^(\p{Extended_Pictographic}(?:\u200d\p{Extended_Pictographic}|\uFE0F)*)\s/u);
         if (m) return m[1]; // record 🏆, forma 📈, anniversary 🎂, bilancia ⚖️, h2h ⚔️, podio3 ⚽/📊/📈...
@@ -19293,10 +19310,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         // Aggiunta PRIMA delle tutorial slides, deciso con Alby 18/7/2026.
         const _welcomeSeasonSlide = seasonSummarySnapshot.value ? [{
           type: 'newSeason',
-          dur: 6000,
+          dur: 7000,
           icon: '🎉',
           titolo: `Si riparte! Benvenuti nella ${currentGroup.value.stagione}`,
-          testo: `La ${seasonSummarySnapshot.value.stagione} è ora agli archivi (la trovi in "Altro" quando vuoi) — in bocca al lupo per questa nuova stagione!`,
+          testo: `La ${seasonSummarySnapshot.value.stagione} è ora negli archivi: niente è andato perso — statistiche e Partite restano consultabili scegliendo la stagione passata dal menu, e il Riepilogo con tutti i dati ti aspetta in "Altro". In bocca al lupo per questa nuova stagione!`,
           bg: 'linear-gradient(145deg,#0d1f0d,#1a4a1a 60%,#166534)',
         }] : [];
         const _tutorialSlides = tutorialCards.map((t, idx) => ({
