@@ -4934,7 +4934,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title" style="margin-bottom:10px">📊 Classifiche</div>
         <div style="font-size:0.85rem;margin-bottom:6px"><strong>Marcatori:</strong> {{ seasonSummarySnapshot.sezioneC.topScorers.map(p=>(p.soprannome||p.nome)+' ('+p.goalTotali+')').join(', ') }}</div>
         <div v-if="seasonSummarySnapshot.trackAssist && seasonSummarySnapshot.sezioneC.topAssist?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>Assist:</strong> {{ seasonSummarySnapshot.sezioneC.topAssist.map(p=>(p.soprannome||p.nome)+' ('+p.assistTotali+')').join(', ') }}</div>
-        <div style="font-size:0.85rem"><strong>Media Voto:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaVoto.map(p=>(p.soprannome||p.nome)+' ('+p.mediaVoto.toFixed(2)+')').join(', ') }}</div>
+        <div style="font-size:0.85rem;margin-bottom:6px"><strong>Media Voto:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaVoto.map(p=>(p.soprannome||p.nome)+' ('+p.mediaVoto.toFixed(2)+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.sezioneC.topOverall?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>🥇 Overall (OVR):</strong> {{ seasonSummarySnapshot.sezioneC.topOverall.map(p=>(p.soprannome||p.nome)+' ('+p._score+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.sezioneC.topPoints?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>🏆 Classifica Punti:</strong> {{ seasonSummarySnapshot.sezioneC.topPoints.map(p=>(p.soprannome||p.nome)+' ('+p.puntiTotali+'pt)').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.sezioneC.topMediaGol?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>📈 Media Gol/partita:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaGol.map(p=>(p.soprannome||p.nome)+' ('+(p.goalTotali/p.partiteTotali).toFixed(2)+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.sezioneC.topMediaPunti?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>📈 Media Punti/partita:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaPunti.map(p=>(p.soprannome||p.nome)+' ('+p.mediaPunti.toFixed(2)+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.sezioneC.topUomoPartita?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>🏅 Uomo Partita:</strong> {{ seasonSummarySnapshot.sezioneC.topUomoPartita.map(p=>(p.soprannome||p.nome)+' ('+p.uomoPartitaTotali+')').join(', ') }}</div>
+        <div v-if="seasonSummarySnapshot.sezioneC.topAutogol?.length" style="font-size:0.85rem"><strong>❌ Autogol:</strong> {{ seasonSummarySnapshot.sezioneC.topAutogol.map(p=>(p.soprannome||p.nome)+' ('+p.autogolTotali+')').join(', ') }}</div>
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
       </div>
 
@@ -4965,8 +4971,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" style="display:flex;gap:12px;border-top:1px solid var(--border);padding-top:12px">
             <img :src="p.foto" @error="onPhotoError($event, p.uid)" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
             <div style="font-size:0.82rem;line-height:1.6">
-              <div style="font-weight:700">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.ruolo }}{{ p.piede ? ' · '+p.piede : '' }}</span></div>
-              <div>{{ p.goalTotali }} gol in {{ p.partiteTotali }} presenze · media voto {{ p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—' }} · {{ p.uomoPartitaTotali }} UoM</div>
+              <div style="font-weight:700">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.ruolo }}{{ p.piede ? ' · '+p.piede : '' }}</span> <span style="font-weight:800;color:var(--lime)">· OVR {{ p.overall }}</span></div>
+              <div>{{ p.goalTotali }} gol{{ p.assistTotali!==null ? ' · '+p.assistTotali+' assist' : '' }} in {{ p.partiteTotali }} presenze · media voto {{ p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—' }} · {{ p.uomoPartitaTotali }} UoM</div>
+              <div>{{ p.puntiTotali }} punti totali (media {{ p.mediaPunti.toFixed(2) }}/partita){{ p.autogolTotali>0 ? ' · '+p.autogolTotali+' autogol' : '' }}{{ p.rigoriParatiTotali>0 ? ' · '+p.rigoriParatiTotali+' rigori parati' : '' }}</div>
               <div>🥅 Max gol in una partita: {{ p.maxGolPartita }}</div>
               <div v-if="p.vittima">😈 Vittima preferita: {{ p.vittima.nome }} ({{ p.vittima.vinte }}/{{ p.vittima.tot }})</div>
               <div v-if="p.incubo">☠️ Incubo personale: {{ p.incubo.nome }} ({{ p.incubo.perse }}/{{ p.incubo.tot }})</div>
@@ -4987,6 +4994,31 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <strong>3vs3:</strong> {{ seasonSummarySnapshot.gabbione.gabbione3v3.squadraA.join(' + ') }} 🆚 {{ seasonSummarySnapshot.gabbione.gabbione3v3.squadraB.join(' + ') }}
         </div>
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoGabbione" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoGabbione }}</div>
+      </div>
+
+      <!-- Formazioni della Stagione — sezione separata dal Gabbione: i più forti in assoluto per taglia -->
+      <div v-if="seasonSummarySnapshot.formazioniTop" class="card">
+        <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
+        <template v-for="size in [5,6,7,8,9,10,11]" :key="'ft-'+size">
+          <div v-if="seasonSummarySnapshot.formazioniTop[size]" style="margin-bottom:10px">
+            <div style="font-weight:700;font-size:0.85rem;margin-bottom:4px">{{ size }}vs{{ size }}</div>
+            <div style="font-size:0.82rem;color:var(--text2)">
+              <span v-for="(pl,pli) in seasonSummarySnapshot.formazioniTop[size]" :key="pl.uid">{{ roleEmoji(pl.ruolo) }} {{ pl.nome }}<span v-if="pli<seasonSummarySnapshot.formazioniTop[size].length-1"> · </span></span>
+            </div>
+          </div>
+        </template>
+      </div>
+
+      <!-- Curiosità della stagione -->
+      <div v-if="seasonSummarySnapshot.curiosita" class="card">
+        <div class="card-title" style="margin-bottom:10px">🎲 Curiosità</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:0.85rem">
+          <div v-if="seasonSummarySnapshot.curiosita.partitaPazza">🎲 <strong>Partita più pazza</strong>: {{ seasonSummarySnapshot.curiosita.partitaPazza.squadraANome }} {{ seasonSummarySnapshot.curiosita.partitaPazza.golA }}-{{ seasonSummarySnapshot.curiosita.partitaPazza.golB }} {{ seasonSummarySnapshot.curiosita.partitaPazza.squadraBNome }} ({{ seasonSummarySnapshot.curiosita.partitaPazza.totaleGol }} gol totali)</div>
+          <div v-if="seasonSummarySnapshot.curiosita.manita">💥 <strong>Manita della stagione</strong>: {{ seasonSummarySnapshot.curiosita.manita.squadraANome }} {{ seasonSummarySnapshot.curiosita.manita.golA }}-{{ seasonSummarySnapshot.curiosita.manita.golB }} {{ seasonSummarySnapshot.curiosita.manita.squadraBNome }} (scarto {{ seasonSummarySnapshot.curiosita.manita.scarto }})</div>
+          <div v-if="seasonSummarySnapshot.curiosita.strisciaVittorie">🔥 <strong>Striscia vittorie più lunga</strong>: {{ seasonSummarySnapshot.curiosita.strisciaVittorie.nome }} ({{ seasonSummarySnapshot.curiosita.strisciaVittorie.lunghezza }} di fila)</div>
+          <div v-if="seasonSummarySnapshot.curiosita.strisciaPresenze">📅 <strong>Striscia presenze più lunga</strong>: {{ seasonSummarySnapshot.curiosita.strisciaPresenze.nome }} ({{ seasonSummarySnapshot.curiosita.strisciaPresenze.lunghezza }} partite di fila)</div>
+        </div>
       </div>
 
       <!-- Chiusura -->
@@ -7433,7 +7465,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.723',date:'2026-07-19',items:[
+    const changelogEntries = [{version:'v1.724',date:'2026-07-20',items:[
+      'Riepilogo Stagione (vista in app) — arricchimento dati richiesto da Alby, prima di passare alla riscrittura del PDF in HTML+CSS: 1) Sezione C "Classifiche" aveva solo Marcatori/Assist/Media Voto, aggiunte tutte le altre classifiche già presenti in Statistiche — Overall (OVR), Classifica Punti, Media Gol/partita, Media Punti/partita, Uomo Partita, Autogol — stesse soglie minime e stessa formula OVR di Statistiche, nessuna logica duplicata/reinventata; 2) nuova sezione "📐 Formazioni della Stagione" con la migliore formazione per taglia da 5vs5 a 11vs11, SEPARATA dal Gabbione (concetti diversi: il Gabbione sono sfide "rivincita" tra incubi personali, le Formazioni Top sono i più forti in assoluto) — riusa integralmente buildTopFormation già esistente in Statistiche → Top Team, una taglia viene omessa se non ci sono abbastanza giocatori idonei; 3) Annuario giocatori arricchito con Assist (se il gruppo li traccia), Autogol, Punti totali e Media Punti, Overall (OVR), Rigori Parati per i soli portieri quando >0; 4) nuova sezione "🎲 Curiosità" con Partita più pazza (più gol totali), Manita della stagione (scarto più ampio), Striscia vittorie più lunga e Striscia presenze più lunga di un giocatore (soglia minima 3, esclusi "Muro della stagione" e "Rimonta dell\'anno" su richiesta esplicita di Alby — il primo poco distintivo, la seconda non calcolabile senza il punteggio parziale delle partite); 5) verificato che i nomi squadra in Sezione Partite (già presenti nel codice, con fallback "Squadra A"/"Squadra B" quando l\'utente non li ha impostati) funzionano correttamente. Ogni nuovo riferimento agli assist è condizionato al flag trackAssist del gruppo, stesso pattern già in uso per la classifica Assist esistente. Verificato con dati sintetici realistici (11 giocatori, 25 partite) e casi limite (zero partite, gruppo troppo piccolo per le formazioni grandi) via Puppeteer + chiamata diretta alle funzioni sul componente Vue montato — nessuna eccezione, nessun pageerror, valori sensati in tutti i casi.',
+    ]},{version:'v1.723',date:'2026-07-19',items:[
       'Fix dimensione file: trovato e rimosso un logo duplicato — la stessa immagine (~296KB) era incorporata due volte, una nello splash screen (necessaria, deve funzionare prima che Vue carichi) e una seconda copia inutile aggiunta di recente per la copertina del PDF. Ora il PDF legge il logo direttamente dallo splash screen esistente nel DOM (rimane nel documento anche se nascosto dopo il caricamento, non serve una copia separata). File sceso da circa 2935 KB a circa 2627 KB. Verificato con un\'analisi dimensione per dimensione: le librerie vendorizzate (Vue 144KB, html2canvas 193KB, JSZip 95KB, Sortable 43KB, jsPDF 357KB) sono necessarie per il funzionamento offline dell\'app secondo le regole di progetto — jsPDF in particolare resta necessario anche con un futuro redesign del PDF in HTML+CSS, perché serve comunque per assemblare il file PDF finale. Il grosso della dimensione (939KB) è il codice applicativo vero e proprio, accumulato nel tempo con le funzionalità dell\'app.',
     ]},{version:'v1.722',date:'2026-07-19',items:[
       'Riepilogo Stagione PDF — terzo giro, correzioni serie su feedback diretto di Alby: 1) copertina e chiusura riprogettate — sfondo a strisce "erba tosata" (due tonalità di verde alternate, non più un colore piatto), e soprattutto il titolo NON tocca più la linea/cerchio di centrocampo (prima ci passava sopra rendendolo illeggibile) — logo e titolo ora sempre nella metà campo superiore, motto in quella inferiore; 2) icona pallone rifatta con una vera costruzione a pentagono centrale + cunei (la stessa usata dalle icone "pallone" professionali), non più righe che uscivano da un puntino; 3) Classifiche completamente riprogettate a 3 card affiancate (Marcatori/Assist/Media Voto) con icona colorata, FOTO del primo classificato in evidenza, elenco numerato — su modello fornito da Alby; 4) FIX DEFINITIVO del bug Annuario "un giocatore/due a seconda della pagina": eliminato ogni calcolo dinamico dello spazio rimasto (che continuava a comportarsi in modo incoerente sui dati reali nonostante funzionasse nei test), sostituito con un contatore a righe fisse (6 per pagina, sempre, senza eccezioni); 5) Le partite ORA SONO DAVVERO 4 per pagina (2 righe), non più 6 — verificato numericamente con pdfimages che ogni pagina della sezione partite mostra esattamente 4 immagini, nessuna esclusa. Il totale pagine sale a 21 (da 17) come diretta conseguenza del passaggio a 4 partite/pagina invece di 6 — trade-off esplicitamente richiesto da Alby.',
@@ -13953,18 +13987,37 @@ Niente altro, nessuna spiegazione.`;
         }
       }
 
+      // Overall (OVR) riusa la stessa formula di Statistiche/Sezione C — serve un oggetto "p" con
+      // tutti i campi che overallScoreBreakdown legge, e il pMax della stagione (max partite giocate
+      // da un singolo giocatore, per il bonus costanza).
+      const pMax = Math.max(...uids.map(uid => statsMap[uid]?.partiteTotali||0), 1);
+      const trackAssist = currentGroup.value?.trackAssist !== false;
+
       return players
         .map(p => {
           const uid = p.uid || String(p.id);
           const st = statsMap[uid] || {};
           if (!st.partiteTotali) return null; // non ha giocato quest'anno, niente card
           const nick = aiNicknames.value[uid];
+          const mediaVoto = st.votiTotali > 0 ? st.votiSum/st.votiTotali : 0;
+          const mediaPunti = st.partiteTotali > 0 ? st.puntiTotali/st.partiteTotali : 0;
+          const forScore = {
+            uid, ruolo: p.ruolo, partiteTotali: st.partiteTotali, mediaPunti, mediaVoto,
+            goalTotali: st.goalTotali||0, assistTotali: st.assistTotali||0, autogolTotali: st.autogolTotali||0,
+            uomoPartitaTotali: st.uomoPartitaTotali||0,
+            rigoriParatiTotali: st.rigoriParatiTotali||0, rigoriSbagliatiTotali: st.rigoriSbagliatiTotali||0
+          };
           return {
             uid, nome: p.soprannome || p.nome, ruolo: p.ruolo || '', piede: p.piede || '',
             foto: getPlayerPhoto(p.foto, uid),
             partiteTotali: st.partiteTotali, goalTotali: st.goalTotali||0,
-            mediaVoto: st.votiTotali > 0 ? st.votiSum/st.votiTotali : 0, votiTotali: st.votiTotali||0,
+            assistTotali: trackAssist ? (st.assistTotali||0) : null,
+            autogolTotali: st.autogolTotali||0,
+            puntiTotali: st.puntiTotali||0, mediaPunti,
+            mediaVoto, votiTotali: st.votiTotali||0,
             uomoPartitaTotali: st.uomoPartitaTotali||0,
+            rigoriParatiTotali: p.ruolo==='Portiere' ? (st.rigoriParatiTotali||0) : 0,
+            overall: overallScore(forScore, pMax, matches, players),
             maxGolPartita: maxGolPartita[uid] || 0,
             vittima: rivalries[uid]?.vittima || null,
             incubo: rivalries[uid]?.incubo || null,
@@ -14039,6 +14092,77 @@ Niente altro, nessuna spiegazione.`;
       return { gabbione2v2: build(4), gabbione3v3: build(6) };
     };
 
+    // Formazioni Top della stagione, per ogni taglia 5vs5→11vs11 — sezione SEPARATA dal Gabbione
+    // (deciso con Alby 20/7/2026: il Gabbione è sfide "rivincita" tra incubi personali, le
+    // Formazioni Top sono tutt'altro concetto, i più forti in assoluto). Riusa integralmente
+    // buildTopFormation, già usata identica in Statistiche → Top Team, nessuna logica duplicata.
+    // Una taglia viene omessa (null) se non ci sono abbastanza giocatori idonei per riempirla
+    // tutta — meglio niente che una formazione incompleta.
+    const _buildTopFormazioni = (matches, players) => {
+      const out = {};
+      for (const size of [5,6,7,8,9,10,11]) {
+        const needed = Object.values(FORMATION_SCHEMAS[size]).reduce((a,b)=>a+b,0);
+        const formazione = buildTopFormation(size, matches, players);
+        out[size] = formazione.length >= needed
+          ? formazione.map(p => ({ uid: p.uid||String(p.id), nome: p.soprannome||p.nome, ruolo: p.ruolo, score: p._score }))
+          : null;
+      }
+      return out;
+    };
+
+    // Curiosità della stagione — dati "simpatici" per condire il Riepilogo (richiesta di Alby
+    // 20/7/2026). Esclusi apposta "Muro della stagione" (clean sheet, dato già coperto altrove e
+    // poco distintivo qui) e "Rimonta dell'anno" (non calcolabile: non si registra il punteggio
+    // parziale/andamento della partita, solo il risultato finale).
+    const _buildCuriosita = (matches, players) => {
+      if (!matches.length) return null;
+      const sorted = [...matches].sort((a,b) => (a.data||'').localeCompare(b.data||''));
+
+      // Partita più pazza: più gol complessivi
+      let partitaPazza = null;
+      for (const m of sorted) {
+        const totaleGol = (m.risultato?.goalA||0) + (m.risultato?.goalB||0);
+        if (!partitaPazza || totaleGol > partitaPazza.totaleGol) {
+          partitaPazza = { data: m.data, squadraANome: m.nomeSquadraA||'Squadra A', squadraBNome: m.nomeSquadraB||'Squadra B', golA: m.risultato?.goalA||0, golB: m.risultato?.goalB||0, totaleGol };
+        }
+      }
+
+      // Manita/Manitona: scarto più ampio (solo se c'è una vittoria netta, scarto > 0)
+      let manita = null;
+      for (const m of sorted) {
+        const scarto = Math.abs((m.risultato?.goalA||0) - (m.risultato?.goalB||0));
+        if (scarto > 0 && (!manita || scarto > manita.scarto)) {
+          manita = { data: m.data, squadraANome: m.nomeSquadraA||'Squadra A', squadraBNome: m.nomeSquadraB||'Squadra B', golA: m.risultato?.goalA||0, golB: m.risultato?.goalB||0, scarto };
+        }
+      }
+
+      // Striscia vittorie più lunga (solo tra le partite giocate dal singolo, ignora le partite
+      // saltate) e striscia presenze consecutive più lunga (su TUTTE le partite del gruppo in
+      // ordine — qui una partita saltata azzera davvero la striscia). Soglia minima 3 per
+      // evitare strisce banali da segnalare come "record".
+      let strisciaVittorie = null, strisciaPresenze = null;
+      for (const p of players) {
+        const uid = p.uid || String(p.id);
+        let curPres = 0, maxPres = 0, curWin = 0, maxWin = 0;
+        for (const m of sorted) {
+          const inA = (m.squadraA||[]).includes(uid), inB = (m.squadraB||[]).includes(uid);
+          if (inA || inB) {
+            curPres++; maxPres = Math.max(maxPres, curPres);
+            const ga = m.risultato?.goalA||0, gb = m.risultato?.goalB||0;
+            const won = (inA && ga > gb) || (inB && gb > ga);
+            if (won) { curWin++; maxWin = Math.max(maxWin, curWin); } else curWin = 0;
+          } else {
+            curPres = 0; // partita saltata: la presenza consecutiva si interrompe davvero
+          }
+        }
+        const nome = p.soprannome || p.nome;
+        if (maxWin >= 3 && (!strisciaVittorie || maxWin > strisciaVittorie.lunghezza)) strisciaVittorie = { uid, nome, lunghezza: maxWin };
+        if (maxPres >= 3 && (!strisciaPresenze || maxPres > strisciaPresenze.lunghezza)) strisciaPresenze = { uid, nome, lunghezza: maxPres };
+      }
+
+      return { partitaPazza, manita, strisciaVittorie, strisciaPresenze };
+    };
+
     const buildSeasonSummaryTest = () => {
       const matches = groupMatches.value;
       const players = groupPlayers.value;
@@ -14051,10 +14175,15 @@ Niente altro, nessuna spiegazione.`;
         return {
           ...p, uid,
           goalTotali: st.goalTotali||0, assistTotali: st.assistTotali||0,
-          partiteTotali: st.partiteTotali||0, votiTotali: st.votiTotali||0,
+          autogolTotali: st.autogolTotali||0, uomoPartitaTotali: st.uomoPartitaTotali||0,
+          puntiTotali: st.puntiTotali||0, partiteTotali: st.partiteTotali||0,
+          mediaPunti: st.partiteTotali > 0 ? st.puntiTotali/st.partiteTotali : 0,
+          rigoriParatiTotali: st.rigoriParatiTotali||0, rigoriSbagliatiTotali: st.rigoriSbagliatiTotali||0,
+          votiTotali: st.votiTotali||0,
           mediaVoto: st.votiTotali > 0 ? st.votiSum/st.votiTotali : 0
         };
       });
+      const pMax = Math.max(...enriched.map(p => p.partiteTotali||0), 1);
 
       // ── Sezione A: numeri stagione ──
       const partiteGiocate = matches.length;
@@ -14088,10 +14217,29 @@ Niente altro, nessuna spiegazione.`;
       const piuPremiato = _tiedFromCount(fameCount);
       const bidoneDellAnno = _tiedFromCount(shameCount);
 
-      // ── Sezione C: classifiche complete ──
+      // ── Sezione C: classifiche complete — stesse soglie/logica di Statistiche, nessuna
+      //    reinventata (richiesta di Alby 20/7/2026: mancavano tutte tranne Marcatori/Assist/MediaVoto) ──
       const topScorers = [...enriched].filter(p=>p.goalTotali>0).sort((a,b)=>b.goalTotali-a.goalTotali).slice(0,10);
       const topAssist = trackAssist ? [...enriched].filter(p=>p.assistTotali>0).sort((a,b)=>b.assistTotali-a.assistTotali).slice(0,10) : null;
       const topMediaVoto = [..._mvEligible.giocatori].sort((a,b)=>b.mediaVoto-a.mediaVoto).slice(0,10);
+
+      const overallMinP = Math.max(2, Math.floor(partiteGiocate * 0.25));
+      const topOverallC = enriched
+        .filter(p => (p.partiteTotali||0) >= overallMinP)
+        .map(p => ({ ...p, _score: overallScore(p, pMax, matches, enriched), _cs: p.ruolo==='Portiere' ? calcCleanSheets(p.uid, matches) : 0 }))
+        .sort((a,b) => b._score - a._score).slice(0,10);
+      const topPoints = [...enriched].filter(p=>(p.partiteTotali||0)>0).sort((a,b)=>b.puntiTotali-a.puntiTotali).slice(0,10);
+      const topMediaGol = [...enriched].filter(p=>(p.partiteTotali||0)>=3 && p.goalTotali>0)
+        .sort((a,b)=>(b.goalTotali/b.partiteTotali)-(a.goalTotali/a.partiteTotali)).slice(0,10);
+      const mediaPuntiMinP = Math.max(10, Math.floor(partiteGiocate * 0.25));
+      const topMediaPunti = [...enriched].filter(p=>(p.partiteTotali||0)>=mediaPuntiMinP)
+        .sort((a,b)=>b.mediaPunti-a.mediaPunti).slice(0,10);
+      const topUomoPartita = [...enriched].filter(p=>p.uomoPartitaTotali>0).sort((a,b)=>b.uomoPartitaTotali-a.uomoPartitaTotali).slice(0,10);
+      const topAutogol = [...enriched].filter(p=>p.autogolTotali>0).sort((a,b)=>b.autogolTotali-a.autogolTotali).slice(0,10);
+
+      // ── Formazioni Top 5vs5→11vs11 (sezione separata dal Gabbione) e Curiosità ──
+      const formazioniTop = _buildTopFormazioni(matches, enriched);
+      const curiosita = _buildCuriosita(matches, enriched);
 
       return {
         stagione: stagioneCorrente,
@@ -14099,7 +14247,9 @@ Niente altro, nessuna spiegazione.`;
         mvSoglia: _mvEligible.soglia, // null = dati insufficienti anche a soglia 5, classifica non mostrata
         sezioneA: { partiteGiocate, golTotali, mediaGolPartita, presenzeTotali },
         sezioneB: { palloneDoro, scarpaDoro, fedelissimo, kryptonite, piuPremiato, bidoneDellAnno },
-        sezioneC: { topScorers, topAssist, topMediaVoto }
+        sezioneC: { topScorers, topAssist, topMediaVoto, topOverall: topOverallC, topPoints, topMediaGol, topMediaPunti, topUomoPartita, topAutogol },
+        formazioniTop,
+        curiosita
       };
     };
 
@@ -14262,6 +14412,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           sezioneD,
           sezioneE,
           gabbione,
+          formazioniTop: d.formazioniTop,
+          curiosita: d.curiosita,
           aiTexts: null,
           aiError: null
         };
@@ -14854,6 +15006,29 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         } else {
           out += `Media Voto (min ${d.mvSoglia} partite votate): ` + d.sezioneC.topMediaVoto.map(p=>`${p.soprannome||p.nome} (${p.mediaVoto.toFixed(2)})`).join(', ') + '\n';
         }
+        out += `Overall (OVR): ` + d.sezioneC.topOverall.map(p=>`${p.soprannome||p.nome} (${p._score})`).join(', ') + '\n';
+        out += `Classifica Punti: ` + d.sezioneC.topPoints.map(p=>`${p.soprannome||p.nome} (${p.puntiTotali}pt)`).join(', ') + '\n';
+        out += `Media Gol/partita: ` + (d.sezioneC.topMediaGol.length ? d.sezioneC.topMediaGol.map(p=>`${p.soprannome||p.nome} (${(p.goalTotali/p.partiteTotali).toFixed(2)})`).join(', ') : '— (nessuno con almeno 3 partite e almeno 1 gol)') + '\n';
+        out += `Media Punti/partita: ` + (d.sezioneC.topMediaPunti.length ? d.sezioneC.topMediaPunti.map(p=>`${p.soprannome||p.nome} (${p.mediaPunti.toFixed(2)})`).join(', ') : '— (dati insufficienti)') + '\n';
+        out += `Uomo Partita: ` + (d.sezioneC.topUomoPartita.length ? d.sezioneC.topUomoPartita.map(p=>`${p.soprannome||p.nome} (${p.uomoPartitaTotali})`).join(', ') : '—') + '\n';
+        out += `Autogol: ` + (d.sezioneC.topAutogol.length ? d.sezioneC.topAutogol.map(p=>`${p.soprannome||p.nome} (${p.autogolTotali})`).join(', ') : '— (nessun autogol, ottimo!)') + '\n';
+
+        out += `\nFORMAZIONI DELLA STAGIONE\n`;
+        for (const size of [5,6,7,8,9,10,11]) {
+          const f = d.formazioniTop[size];
+          out += f ? `${size}vs${size}: ` + f.map(p=>`${p.nome} (${p.ruolo}, ${p.score})`).join(', ') + '\n' : `${size}vs${size}: — (non abbastanza giocatori idonei)\n`;
+        }
+
+        out += `\nCURIOSITÀ\n`;
+        const c = d.curiosita;
+        if (c) {
+          out += c.partitaPazza ? `🎲 Partita più pazza: ${c.partitaPazza.squadraANome} ${c.partitaPazza.golA}-${c.partitaPazza.golB} ${c.partitaPazza.squadraBNome} (${c.partitaPazza.totaleGol} gol totali)\n` : '';
+          out += c.manita ? `💥 Manita della stagione: ${c.manita.squadraANome} ${c.manita.golA}-${c.manita.golB} ${c.manita.squadraBNome} (scarto ${c.manita.scarto})\n` : '';
+          out += c.strisciaVittorie ? `🔥 Striscia vittorie più lunga: ${c.strisciaVittorie.nome} (${c.strisciaVittorie.lunghezza} di fila)\n` : '';
+          out += c.strisciaPresenze ? `📅 Striscia presenze più lunga: ${c.strisciaPresenze.nome} (${c.strisciaPresenze.lunghezza} partite di fila)\n` : '';
+        } else {
+          out += '— (nessuna partita in stagione)\n';
+        }
         out += `\nSEZIONE D — Partite (${groupMatches.value.length} totali) — generazione PNG giornale in corso, può richiedere qualche minuto per tutta la stagione...\n`;
         seasonSummaryTestOutput.value = out;
 
@@ -14881,8 +15056,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         seasonSummaryTestSectionE.value = sezioneE;
         out += `\nSEZIONE E — Annuario (${sezioneE.length} giocatori con almeno 1 presenza in stagione)\n`;
         for (const p of sezioneE) {
-          out += `\n📇 ${p.nome} · ${p.ruolo || 'ruolo n.d.'}${p.piede ? ' · piede '+p.piede : ''}\n`;
-          out += `   ${p.goalTotali} gol in ${p.partiteTotali} presenze · media voto ${p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—'} (${p.votiTotali} voti) · ${p.uomoPartitaTotali} Uomo Partita\n`;
+          out += `\n📇 ${p.nome} · ${p.ruolo || 'ruolo n.d.'}${p.piede ? ' · piede '+p.piede : ''} · OVR ${p.overall}\n`;
+          out += `   ${p.goalTotali} gol${p.assistTotali!==null ? ` · ${p.assistTotali} assist` : ''} in ${p.partiteTotali} presenze · media voto ${p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—'} (${p.votiTotali} voti) · ${p.uomoPartitaTotali} Uomo Partita\n`;
+          out += `   ${p.puntiTotali} punti totali (media ${p.mediaPunti.toFixed(2)}/partita)${p.autogolTotali>0 ? ` · ${p.autogolTotali} autogol` : ''}${p.rigoriParatiTotali>0 ? ` · ${p.rigoriParatiTotali} rigori parati` : ''}\n`;
           out += `   🥅 Massimo gol in una partita: ${p.maxGolPartita}\n`;
           out += `   😈 Vittima preferita: ${p.vittima ? `${p.vittima.nome} (${p.vittima.vinte}/${p.vittima.tot} vittorie)` : '— (nessun avversario con almeno 3 scontri diretti)'}\n`;
           out += `   ☠️ Incubo personale: ${p.incubo ? `${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot} sconfitte)` : '— (nessun avversario con almeno 3 scontri diretti)'}\n`;
