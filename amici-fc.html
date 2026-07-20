@@ -1439,6 +1439,50 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   width: 80px; height: 80px; border-radius: 50%;
   border: 2px solid rgba(255,255,255,0.3);
 }
+/* Riepilogo Stagione — Formazioni della Stagione: visualizzazione a campo (righe per ruolo),
+   richiesta da Alby 20/7/2026 al posto del semplice elenco testuale. */
+.rp-pitch {
+  background: linear-gradient(180deg, #2F8F2F 0%, #3aaa4a 45%, #3aaa4a 55%, #2F8F2F 100%);
+  border: 2px solid rgba(255,255,255,0.25);
+  border-radius: 14px;
+  padding: 14px 6px;
+  display: flex; flex-direction: column; justify-content: space-between; gap: 12px;
+  min-height: 240px;
+  position: relative;
+}
+.rp-pitch::after {
+  content: ''; position: absolute; left: 8%; right: 8%; top: 50%; height: 1px;
+  background: rgba(255,255,255,0.2); z-index: 0;
+}
+.rp-row { display: flex; justify-content: space-around; align-items: flex-start; flex-wrap: wrap; gap: 6px; position: relative; z-index: 1; }
+.rp-player { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 54px; }
+.rp-avatar {
+  width: 38px; height: 38px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  background: rgba(255,255,255,0.18); border: 2px solid rgba(255,255,255,0.55);
+  display: flex; align-items: center; justify-content: center; font-size: 1rem;
+}
+.rp-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rp-name {
+  font-size: 0.6rem; color: #fff; text-align: center; line-height: 1.15;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.65); max-width: 54px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* Riepilogo Stagione — Classifiche: hero card con foto+nome del primo, poi elenco compatto per
+   gli altri — richiesta da Alby 20/7/2026 al posto del semplice elenco testuale. */
+.rp-classifica-hero {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg3); border-radius: 10px; padding: 8px 10px; margin-bottom: 6px;
+}
+.rp-classifica-hero .rp-hero-avatar {
+  width: 44px; height: 44px; border-radius: 50%; overflow: hidden; flex-shrink: 0;
+  border: 2px solid var(--lime);
+}
+.rp-classifica-hero .rp-hero-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.rp-classifica-rest {
+  display: flex; flex-direction: column; gap: 2px; font-size: 0.78rem; color: var(--text2);
+  padding: 0 4px 10px;
+}
+.rp-classifica-rest > div { display: flex; justify-content: space-between; gap: 8px; }
 .field-team {
   display: flex; flex-direction: column; align-items: center; gap: 12px;
   position: relative; z-index: 2;
@@ -4929,18 +4973,44 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoB" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoB }}</div>
       </div>
 
-      <!-- Sezione C — Classifiche -->
+      <!-- Sezione C — Classifiche: foto+nome del primo, poi elenco compatto per gli altri (richiesta Alby 20/7/2026) -->
       <div class="card">
-        <div class="card-title" style="margin-bottom:10px">📊 Classifiche</div>
-        <div style="font-size:0.85rem;margin-bottom:6px"><strong>Marcatori:</strong> {{ seasonSummarySnapshot.sezioneC.topScorers.map(p=>(p.soprannome||p.nome)+' ('+p.goalTotali+')').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.trackAssist && seasonSummarySnapshot.sezioneC.topAssist?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>Assist:</strong> {{ seasonSummarySnapshot.sezioneC.topAssist.map(p=>(p.soprannome||p.nome)+' ('+p.assistTotali+')').join(', ') }}</div>
-        <div style="font-size:0.85rem;margin-bottom:6px"><strong>Media Voto:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaVoto.map(p=>(p.soprannome||p.nome)+' ('+p.mediaVoto.toFixed(2)+')').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.sezioneC.topOverall?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>🥇 Overall (OVR):</strong> {{ seasonSummarySnapshot.sezioneC.topOverall.map(p=>(p.soprannome||p.nome)+' ('+p._score+')').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.sezioneC.topPoints?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>🏆 Classifica Punti:</strong> {{ seasonSummarySnapshot.sezioneC.topPoints.map(p=>(p.soprannome||p.nome)+' ('+p.puntiTotali+'pt)').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.sezioneC.topMediaGol?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>📈 Media Gol/partita:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaGol.map(p=>(p.soprannome||p.nome)+' ('+(p.goalTotali/p.partiteTotali).toFixed(2)+')').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.sezioneC.topMediaPunti?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>📈 Media Punti/partita:</strong> {{ seasonSummarySnapshot.sezioneC.topMediaPunti.map(p=>(p.soprannome||p.nome)+' ('+p.mediaPunti.toFixed(2)+')').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.sezioneC.topUomoPartita?.length" style="font-size:0.85rem;margin-bottom:6px"><strong>🏅 Uomo Partita:</strong> {{ seasonSummarySnapshot.sezioneC.topUomoPartita.map(p=>(p.soprannome||p.nome)+' ('+p.uomoPartitaTotali+')').join(', ') }}</div>
-        <div v-if="seasonSummarySnapshot.sezioneC.topAutogol?.length" style="font-size:0.85rem"><strong>❌ Autogol:</strong> {{ seasonSummarySnapshot.sezioneC.topAutogol.map(p=>(p.soprannome||p.nome)+' ('+p.autogolTotali+')').join(', ') }}</div>
+        <div class="card-title" style="margin-bottom:6px">📊 Classifiche</div>
+
+        <template v-for="cat in [
+          {key:'topScorers', label:'⚽ Marcatori', unit:'gol', field:'goalTotali'},
+          {key:'topAssist', label:'🅰️ Assist', unit:'assist', field:'assistTotali', guard: seasonSummarySnapshot.trackAssist},
+          {key:'topMediaVoto', label:'⭐ Media Voto', unit:'', field:null, decimals:'mediaVoto'},
+          {key:'topOverall', label:'🥇 Overall (OVR)', unit:'', field:'_score'},
+          {key:'topPoints', label:'🏆 Classifica Punti', unit:'pt', field:'puntiTotali'},
+          {key:'topMediaGol', label:'📈 Media Gol/partita', unit:'', field:null, computedGol:true},
+          {key:'topMediaPunti', label:'📈 Media Punti/partita', unit:'', field:null, decimals:'mediaPunti'},
+          {key:'topUomoPartita', label:'🏅 Uomo Partita', unit:'', field:'uomoPartitaTotali'},
+          {key:'topAutogol', label:'❌ Autogol', unit:'', field:'autogolTotali'}
+        ]" :key="cat.key">
+          <template v-if="(cat.guard===undefined || cat.guard) && seasonSummarySnapshot.sezioneC[cat.key]?.length">
+            <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
+            <div class="rp-classifica-hero">
+              <div class="rp-hero-avatar">
+                <img v-if="getPlayerPhoto(seasonSummarySnapshot.sezioneC[cat.key][0].foto, seasonSummarySnapshot.sezioneC[cat.key][0].uid)" :src="getPlayerPhoto(seasonSummarySnapshot.sezioneC[cat.key][0].foto, seasonSummarySnapshot.sezioneC[cat.key][0].uid)" :alt="seasonSummarySnapshot.sezioneC[cat.key][0].nome">
+                <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;opacity:0.6">
+              </div>
+              <div style="flex:1">
+                <div style="font-weight:800;font-size:0.95rem">🥇 {{ seasonSummarySnapshot.sezioneC[cat.key][0].soprannome || seasonSummarySnapshot.sezioneC[cat.key][0].nome }}</div>
+                <div style="font-size:0.78rem;color:var(--text2)">
+                  {{ cat.computedGol ? (seasonSummarySnapshot.sezioneC[cat.key][0].goalTotali/seasonSummarySnapshot.sezioneC[cat.key][0].partiteTotali).toFixed(2) : (cat.decimals ? seasonSummarySnapshot.sezioneC[cat.key][0][cat.decimals].toFixed(2) : seasonSummarySnapshot.sezioneC[cat.key][0][cat.field]) }} {{ cat.unit }}
+                </div>
+              </div>
+            </div>
+            <div v-if="seasonSummarySnapshot.sezioneC[cat.key].length>1" class="rp-classifica-rest">
+              <div v-for="(p,pi) in seasonSummarySnapshot.sezioneC[cat.key].slice(1)" :key="p.uid">
+                <span>{{ pi+2 }}. {{ p.soprannome || p.nome }}</span>
+                <span>{{ cat.computedGol ? (p.goalTotali/p.partiteTotali).toFixed(2) : (cat.decimals ? p[cat.decimals].toFixed(2) : p[cat.field]) }} {{ cat.unit }}</span>
+              </div>
+            </div>
+          </template>
+        </template>
+
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
       </div>
 
@@ -5001,10 +5071,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
         <template v-for="size in [5,6,7,8,9,10,11]" :key="'ft-'+size">
-          <div v-if="seasonSummarySnapshot.formazioniTop[size]" style="margin-bottom:10px">
-            <div style="font-weight:700;font-size:0.85rem;margin-bottom:4px">{{ size }}vs{{ size }}</div>
-            <div style="font-size:0.82rem;color:var(--text2)">
-              <span v-for="(pl,pli) in seasonSummarySnapshot.formazioniTop[size]" :key="pl.uid">{{ roleEmoji(pl.ruolo) }} {{ pl.nome }}<span v-if="pli<seasonSummarySnapshot.formazioniTop[size].length-1"> · </span></span>
+          <div v-if="seasonSummarySnapshot.formazioniTop[size]" style="margin-bottom:14px">
+            <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px">{{ size }}vs{{ size }}</div>
+            <div class="rp-pitch">
+              <div class="rp-row" v-for="rowKey in ['Attaccante','Centrocampista','Difensore','Portiere']" :key="rowKey">
+                <div class="rp-player" v-for="pl in seasonSummarySnapshot.formazioniTop[size][rowKey]" :key="pl.uid">
+                  <div class="rp-avatar">
+                    <img v-if="pl.foto" :src="pl.foto" :alt="pl.nome">
+                    <span v-else>{{ roleEmoji(pl.ruoloReale) }}</span>
+                  </div>
+                  <div class="rp-name">{{ pl.nome }}</div>
+                </div>
+              </div>
             </div>
           </div>
         </template>
@@ -7465,7 +7543,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.725',date:'2026-07-20',items:[
+    const changelogEntries = [{version:'v1.726',date:'2026-07-20',items:[
+      'Riepilogo Stagione — due miglioramenti grafici richiesti da Alby dopo aver visto la v1.724/v1.725: 1) "Classifiche" — prima ogni classifica era una riga di testo con tutti i nomi appiccicati; ora ognuna delle 9 classifiche mostra una vera hero card con foto e nome del primo classificato, seguita da un elenco compatto (posizione, nome, valore) per il resto; 2) "Formazioni della Stagione" — prima era un elenco di nomi separati da "·"; ora è un vero campo da calcio (stesso stile cromatico di `.field-png`/`.field-lines` già usato per i PNG condivisibili) con i giocatori disposti per riga di ruolo (Attaccanti in alto, poi Centrocampisti, Difensori, Portiere in basso), ciascuno con la sua foto in un cerchio. Nota tecnica: la riga di appartenenza di ogni giocatore è dedotta dalla POSIZIONE nell\'array restituito da `buildTopFormation` (che rispecchia l\'ordine dello schema), non dal suo ruolo anagrafico — un Jolly usato per riempire uno slot da Difensore va disegnato comunque tra i difensori. Nessuna modifica alla logica di calcolo sottostante (stessi dati, stesse soglie di v1.724) — solo presentazione.',
+    ]},{version:'v1.725',date:'2026-07-20',items:[
       'Fix CRITICO: la v1.724 restava bloccata in un loop di aggiornamento infinito — il banner "Aggiorna Ora" ricompariva sempre, anche subito dopo aver premuto Aggiorna. Causa: la costante `appVersion` (usata da `checkForUpdates` per confrontarsi con `version.json`) è incorporata come stringa fissa DENTRO il file `amici-fc.html` stesso, separata dal numero di versione in `version.json` — bumpando la v1.724 ho aggiornato `version.json` ma dimenticato di aggiornare questa costante interna, rimasta a \'1.723\'. Risultato: anche dopo il reload, il file nuovo scaricato conteneva ancora la vecchia costante \'1.723\' al suo interno, quindi il confronto (`version.json` sempre più alto della costante mai aggiornata) restava vero per sempre. Segnalato da Alby subito dopo la consegna della v1.724. Rilascio marcato "critical" per forzare l\'aggiornamento silenzioso su chi è rimasto bloccato nel loop. Aggiunta una nuova Regola d\'Oro (28) in REGOLE-PROGETTO.md per non ripetere questo errore.',
     ]},{version:'v1.724',date:'2026-07-20',items:[
       'Riepilogo Stagione (vista in app) — arricchimento dati richiesto da Alby, prima di passare alla riscrittura del PDF in HTML+CSS: 1) Sezione C "Classifiche" aveva solo Marcatori/Assist/Media Voto, aggiunte tutte le altre classifiche già presenti in Statistiche — Overall (OVR), Classifica Punti, Media Gol/partita, Media Punti/partita, Uomo Partita, Autogol — stesse soglie minime e stessa formula OVR di Statistiche, nessuna logica duplicata/reinventata; 2) nuova sezione "📐 Formazioni della Stagione" con la migliore formazione per taglia da 5vs5 a 11vs11, SEPARATA dal Gabbione (concetti diversi: il Gabbione sono sfide "rivincita" tra incubi personali, le Formazioni Top sono i più forti in assoluto) — riusa integralmente buildTopFormation già esistente in Statistiche → Top Team, una taglia viene omessa se non ci sono abbastanza giocatori idonei; 3) Annuario giocatori arricchito con Assist (se il gruppo li traccia), Autogol, Punti totali e Media Punti, Overall (OVR), Rigori Parati per i soli portieri quando >0; 4) nuova sezione "🎲 Curiosità" con Partita più pazza (più gol totali), Manita della stagione (scarto più ampio), Striscia vittorie più lunga e Striscia presenze più lunga di un giocatore (soglia minima 3, esclusi "Muro della stagione" e "Rimonta dell\'anno" su richiesta esplicita di Alby — il primo poco distintivo, la seconda non calcolabile senza il punteggio parziale delle partite); 5) verificato che i nomi squadra in Sezione Partite (già presenti nel codice, con fallback "Squadra A"/"Squadra B" quando l\'utente non li ha impostati) funzionano correttamente. Ogni nuovo riferimento agli assist è condizionato al flag trackAssist del gruppo, stesso pattern già in uso per la classifica Assist esistente. Verificato con dati sintetici realistici (11 giocatori, 25 partite) e casi limite (zero partite, gruppo troppo piccolo per le formazioni grandi) via Puppeteer + chiamata diretta alle funzioni sul componente Vue montato — nessuna eccezione, nessun pageerror, valori sensati in tutti i casi.',
@@ -8329,7 +8409,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.725');
+    const appVersion = ref('1.726');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14100,14 +14180,29 @@ Niente altro, nessuna spiegazione.`;
     // buildTopFormation, già usata identica in Statistiche → Top Team, nessuna logica duplicata.
     // Una taglia viene omessa (null) se non ci sono abbastanza giocatori idonei per riempirla
     // tutta — meglio niente che una formazione incompleta.
+    // Restituisce le righe raggruppate per RUOLO DI SCHEMA (Portiere/Difensore/Centrocampista/
+    // Attaccante), non per il ruolo anagrafico del giocatore — richiesto da Alby 20/7/2026 per
+    // una visualizzazione "a campo" invece del semplice elenco. Il ruolo di schema si deduce
+    // dalla POSIZIONE nell'array restituito da buildTopFormation (che rispecchia l'ordine dello
+    // schema), non dal campo p.ruolo: un Jolly usato per riempire uno slot di Difensore mantiene
+    // ruolo:'Jolly' nei suoi dati anagrafici, ma va disegnato comunque nella riga dei difensori.
     const _buildTopFormazioni = (matches, players) => {
       const out = {};
       for (const size of [5,6,7,8,9,10,11]) {
-        const needed = Object.values(FORMATION_SCHEMAS[size]).reduce((a,b)=>a+b,0);
+        const schema = FORMATION_SCHEMAS[size];
+        const needed = Object.values(schema).reduce((a,b)=>a+b,0);
         const formazione = buildTopFormation(size, matches, players);
-        out[size] = formazione.length >= needed
-          ? formazione.map(p => ({ uid: p.uid||String(p.id), nome: p.soprannome||p.nome, ruolo: p.ruolo, score: p._score }))
-          : null;
+        if (formazione.length < needed) { out[size] = null; continue; }
+        const rows = { Portiere: [], Difensore: [], Centrocampista: [], Attaccante: [] };
+        let idx = 0;
+        for (const [slotRuolo, count] of Object.entries(schema)) {
+          for (let i = 0; i < count; i++) {
+            const p = formazione[idx++];
+            const uid = p.uid || String(p.id);
+            rows[slotRuolo].push({ uid, nome: p.soprannome || p.nome, ruoloReale: p.ruolo, foto: getPlayerPhoto(p.foto, uid), score: p._score });
+          }
+        }
+        out[size] = rows;
       }
       return out;
     };
@@ -15017,8 +15112,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 
         out += `\nFORMAZIONI DELLA STAGIONE\n`;
         for (const size of [5,6,7,8,9,10,11]) {
-          const f = d.formazioniTop[size];
-          out += f ? `${size}vs${size}: ` + f.map(p=>`${p.nome} (${p.ruolo}, ${p.score})`).join(', ') + '\n' : `${size}vs${size}: — (non abbastanza giocatori idonei)\n`;
+          const rows = d.formazioniTop[size];
+          if (!rows) { out += `${size}vs${size}: — (non abbastanza giocatori idonei)\n`; continue; }
+          const tutti = [...rows.Portiere, ...rows.Difensore, ...rows.Centrocampista, ...rows.Attaccante];
+          out += `${size}vs${size}: ` + tutti.map(p=>`${p.nome} (${p.ruoloReale}, ${p.score})`).join(', ') + '\n';
         }
 
         out += `\nCURIOSITÀ\n`;
