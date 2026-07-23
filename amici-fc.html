@@ -7577,7 +7577,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.730',date:'2026-07-20',items:[
+    const changelogEntries = [{version:'v1.731',date:'2026-07-21',items:[
+      'Riepilogo Stagione ora incluso nel backup JSON — primo passo del piano discusso con Alby (backup completo → PDF come "stampa" della vista esistente → Inspector). Prima era presente solo su Firebase (già scritto da `_persistSeasonSummarySnapshot`), ma `doExport()`/`restoreFromBackup()` non lo leggevano/scrivevano affatto: un backup JSON esportato oggi non conteneva il Riepilogo. Aggiunto `seasonSummary` (riga singola per gruppo, non un array — stessa chiave primaria `groupId` della tabella Dexie) sia in export che in import, con lo stesso principio di sicurezza già usato per `archivedSeasons`: al ripristino viene reimportato SOLO in locale, mai ripubblicato su Firebase (che ce l\'ha già dal momento della generazione originale). Attenzione tecnica: dopo il ripristino NON si può usare `loadSeasonSummarySnapshot(gid)` per aggiornare la vista, perché quella funzione — comportamento corretto in condizioni normali — cancella la riga locale se Firebase risulta vuoto per quel gruppo, il che avrebbe vanificato esattamente il ripristino appena fatto nel caso in cui Firebase non abbia ancora quel Riepilogo. Usata invece un\'assegnazione diretta da Dexie, stesso principio già seguito per le stagioni archiviate. Verificato end-to-end in Puppeteer chiamando le vere funzioni `doExport`/`restoreFromBackup` dell\'app (non solo la logica replicata): esportato un gruppo di test con Riepilogo, cancellato tutto localmente, reimportato dal JSON catturato — Riepilogo, giocatori e vista in app tutti correttamente ripristinati.',
+    ]},{version:'v1.730',date:'2026-07-20',items:[
       'Tutorial: aggiunte le 2 card proposte e approvate da Alby — "🏆 Scopri le Statistiche" (dopo "Inserisci il risultato", con CTA diretta alla vista Stats) e "✨ L\'AI conosce il gruppo" (dopo "Condividi il Giornale", introduce TrashTalk/pronostici/soprannomi). Da 6 a 8 card totali, stesso comportamento di sempre: scompaiono automaticamente alla prima partita registrata. NOTA importante su MVP nelle Partite (v1.729): il dato non compare per chi ha già un Riepilogo Stagione generato PRIMA di questa versione — è un campo nuovo che non esiste nello snapshot già salvato, e l\'unico modo per rigenerarlo oggi è ripetere il wizard di Archiviazione Stagione (che genera il Riepilogo come suo Step 4), non praticabile solo per vedere una modifica di formattazione. Prima di implementare un fix serve decidere con Alby come procedere (es. un\'azione dedicata "Rigenera Riepilogo" che ricostruisca Sezione D/E dai dati già archiviati in archivedSeasons, senza dover ripetere l\'intera archiviazione) — proposta in attesa di conferma, non ancora implementata.',
     ]},{version:'v1.729',date:'2026-07-20',items:[
       'Riepilogo Stagione e Home — 5 richieste di Alby: 1) Formazioni della Stagione, foto giocatori ingrandite (38px→50px, con nome e player-slot allargati di conseguenza); 2) Le partite, aggiunto l\'Uomo Partita giustificato a destra sotto il risultato (🏅 nome); 3) Gli Oscar, le foto dei vincitori ora hanno bordo oro (#FFD700) invece del lime condiviso con le Classifiche, per distinguere visivamente i "premi" dalle statistiche pure; 4) la card Home "la stagione precedente è ora negli archivi" riscritta per menzionare esplicitamente che statistiche e Partite restano consultabili scegliendo la stagione passata dal menu, e che il Riepilogo Stagione con tutti i dati è in "Altro" — prima diceva solo "la trovi in Altro quando vuoi"; aggiunto anche un bordo fluo lime con glow su tutto il perimetro della card per farla risaltare nel carosello; 5) le card Tutorial (guida rapida) e questa stessa card "Nuova Stagione" ora hanno sia la filigrana emoji di sfondo (prima ne erano escluse/mostravano un fallback generico ⚽ non pertinente) sia l\'icona in primo piano animata con un lieve rimbalzo (nuova keyframe `heroIconBounce`, distinta da `splashPulse` già usata nello splash) — la filigrana ora riusa `s.icon`, la stessa emoji già scelta a mano per ciascuna card, invece del fallback generico. Verificato tutto con dati reali in Puppeteer: dimensione avatar 50px confermata via computed style, bordo oro Oscar confermato (rgb(255,215,0)), MVP nel testo renderizzato delle Partite, bordo fluo confermato risalendo dal testo univoco della card fino al contenitore giusto (border 3px + box-shadow), 2 elementi con `animationName===\'heroIconBounce\'` confermati (newSeason + tutorial). Nessuna regressione sui fix delle versioni precedenti (pari merito, retrocompatibilità formazioni, zero immagini rotte).',
@@ -8453,7 +8455,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.730');
+    const appVersion = ref('1.731');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -17153,7 +17155,11 @@ const toggleFont = () => {
         const players = await db.players.where('groupId').equals(gid).toArray();
         const matches = await db.matches.where('groupId').equals(gid).toArray();
         const archivedSeasons = await db.archivedSeasons.where('groupId').equals(gid).toArray();
-        exportGroups.push({ group: g, players, matches, archivedSeasons });
+        // Riepilogo Stagione — riga singola per gruppo (chiave primaria groupId), non un array.
+        // Aggiunto 21/7/2026: mancava del tutto dal backup JSON (era già su Firebase, ma non qui) —
+        // segnalato da Alby, verificato controllando doExport/restoreFromBackup.
+        const seasonSummary = await db.seasonSummaries.get(gid) || null;
+        exportGroups.push({ group: g, players, matches, archivedSeasons, seasonSummary });
       }
 
       const data = {
@@ -17803,7 +17809,7 @@ const toggleFont = () => {
       const confirmMsg = `⚠️ RIPRISTINO DA BACKUP
 
 Questa operazione:
-1. Cancella partite, giocatori e stagioni archiviate locali del gruppo
+1. Cancella partite, giocatori, stagioni archiviate e Riepilogo Stagione locali del gruppo
 2. Reimporta tutto dal JSON (i matchUUID originali vengono preservati)
 3. Ricalcola le statistiche
 4. Carica tutto su Firebase
@@ -17837,6 +17843,9 @@ Sei sicuro?`;
           : Object.values(backupEntry.matches || {});
         const backupArchivedSeasons = Array.isArray(backupEntry.archivedSeasons) ? backupEntry.archivedSeasons
           : Object.values(backupEntry.archivedSeasons || {});
+        // Riepilogo Stagione — riga singola (non un array), aggiunta al backup il 21/7/2026.
+        // Retrocompatibile: backup più vecchi semplicemente non hanno questo campo, undefined → null.
+        const backupSeasonSummary = backupEntry.seasonSummary || null;
 
         restoreStatus.value = `⏳ Trovati ${backupPlayers.length} giocatori e ${backupMatches.length} partite...`;
 
@@ -17848,6 +17857,7 @@ Sei sicuro?`;
         await db.players.where('groupId').equals(gid).delete();
         await db.matches.where('groupId').equals(gid).delete();
         await db.archivedSeasons.where('groupId').equals(gid).delete();
+        await db.seasonSummaries.delete(gid); // chiave primaria = groupId, niente where/equals
 
         // Step 2: reimport players with fresh uid if missing
         const uidMap = {}; // old id → new local id
@@ -17895,15 +17905,31 @@ Sei sicuro?`;
           importedArchives++;
         }
 
-        restoreStatus.value = `⏳ ${importedMatches} partite e ${importedArchives} stagioni archiviate importate. Ricalcolo statistiche...`;
+        // Step 3c: reimport Riepilogo Stagione (riga singola, no remapping — è un record congelato
+        // come le stagioni archiviate). Stesso principio di sicurezza già usato per archivedSeasons:
+        // NON viene ripubblicato su Firebase qui sotto (Step 5) — Firebase ce l'ha già dal momento
+        // della generazione originale, il ripristino locale basta a farlo ricomparire nell'app.
+        let importedSeasonSummary = false;
+        if (backupSeasonSummary) {
+          await db.seasonSummaries.put({ ...backupSeasonSummary, groupId: gid });
+          importedSeasonSummary = true;
+        }
+
+        restoreStatus.value = `⏳ ${importedMatches} partite, ${importedArchives} stagioni archiviate${importedSeasonSummary ? ' e il Riepilogo Stagione' : ''} importati. Ricalcolo statistiche...`;
 
         // Step 4: recompute stats from scratch
         await recomputeStats();
         await loadGroups();
         await loadGroupData();
+        // NON uso loadSeasonSummarySnapshot(gid) qui: quella funzione, se il gruppo ha Firebase e il
+        // nodo seasonSummary risulta vuoto lì, CANCELLA la riga locale ritenendola un residuo stantio
+        // (comportamento corretto in generale, ma qui cancellerebbe esattamente quello che ho appena
+        // ripristinato, nel caso in cui Firebase non lo abbia ancora). Assegnazione diretta, stesso
+        // principio già usato per archivedSeasons: il backup importato è la fonte di verità qui.
+        if (importedSeasonSummary) seasonSummarySnapshot.value = await db.seasonSummaries.get(gid) || null;
 
         restoreStatus.value = `✅ Ripristino completato!
-${backupPlayers.length} giocatori · ${importedMatches} partite · ${importedArchives} stagioni archiviate
+${backupPlayers.length} giocatori · ${importedMatches} partite · ${importedArchives} stagioni archiviate${importedSeasonSummary ? ' · Riepilogo Stagione ripristinato' : ''}
 Caricamento partite e giocatori su Firebase...`;
 
         // Step 5: upload to Firebase (solo partite/giocatori — le stagioni archiviate restano nel nodo
