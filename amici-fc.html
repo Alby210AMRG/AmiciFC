@@ -5458,13 +5458,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="border:1px solid rgba(255,255,255,.08);border-radius:8px;padding:12px">
             <div style="font-weight:700;font-size:0.82rem;color:var(--blue);margin-bottom:4px">📦 Export Completo</div>
             <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.5">
-              Esporta giocatori + partite + statistiche. Usa per backup completo o per condividere con un nuovo dispositivo.
+              Esporta giocatori + partite + stagioni archiviate + Riepilogo Stagione + statistiche. Backup completo del gruppo, o per condividere con un nuovo dispositivo. Le credenziali Firebase/AI non vengono incluse — vanno reinserite manualmente dopo il ripristino.
             </div>
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
               <label style="display:flex;align-items:center;gap:6px;font-size:0.78rem;cursor:pointer">
                 <input type="checkbox" v-model="ioIncludeFoto"> Includi foto
               </label>
-              <span style="font-size:0.68rem;color:var(--text2)">(senza foto ~100KB, con foto ~1MB)</span>
+              <span style="font-size:0.68rem;color:var(--text2)">(senza foto ~100KB, con foto qualche centinaio di KB o più)</span>
             </div>
             <button class="btn btn-blue btn-sm btn-full" @click="doExportCompleto">📦 Esporta Completo</button>
           </div>
@@ -7577,7 +7577,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.731',date:'2026-07-21',items:[
+    const changelogEntries = [{version:'v1.732',date:'2026-07-23',items:[
+      '"Export Completo" ora davvero completo — Alby aveva segnalato (con file di backup reale allegato) che il pulsante etichettato "backup completo" nella schermata Import/Export non includeva affatto stagioni archiviate né Riepilogo Stagione, mentre l\'altro strumento di backup (corretto in v1.731) sì. Aggiunte entrambe anche qui, sia in esportazione (`doExportCompleto`) sia in importazione (`importData`, che ora riconosce e reimporta `archivedSeasons`/`seasonSummary` anche dal formato a singolo gruppo). Aggiunta anche una pulizia di sicurezza su TUTTI gli export di gruppo (richiesta esplicita di Alby): `firebaseApiKey` non viene più scritta nei file di backup — chi ripristina reinserisce le proprie credenziali manualmente in app. `firebaseUrl` resta (non è una credenziale, serve a sapere a quale progetto riconnettersi). Descrizione del pulsante aggiornata di conseguenza nel template.',
+      'Gemini — aggiunto `gemini-3.6-flash` in cima a tutte e 4 le catene di fallback dei modelli (era: 2.5-flash → 2.5-flash-lite → 2.0-flash → 2.0-flash-lite; ora: 3.6-flash → 2.5-flash → 2.5-flash-lite). Rimossi anche `gemini-2.0-flash`/`-lite`: risultano dismessi da Google dal 1° giugno 2026, rami morti nella catena che avrebbero solo fallito sempre con 404. Aggiunto anche il log del modello Gemini effettivamente usato nei due punti che ne erano privi (commento partita in tempo reale e rigenerazione commento) — gli altri due (test connessione, funzione AI condivisa `_callAI`) lo avevano già.',
+    ]},{version:'v1.731',date:'2026-07-21',items:[
       'Riepilogo Stagione ora incluso nel backup JSON — primo passo del piano discusso con Alby (backup completo → PDF come "stampa" della vista esistente → Inspector). Prima era presente solo su Firebase (già scritto da `_persistSeasonSummarySnapshot`), ma `doExport()`/`restoreFromBackup()` non lo leggevano/scrivevano affatto: un backup JSON esportato oggi non conteneva il Riepilogo. Aggiunto `seasonSummary` (riga singola per gruppo, non un array — stessa chiave primaria `groupId` della tabella Dexie) sia in export che in import, con lo stesso principio di sicurezza già usato per `archivedSeasons`: al ripristino viene reimportato SOLO in locale, mai ripubblicato su Firebase (che ce l\'ha già dal momento della generazione originale). Attenzione tecnica: dopo il ripristino NON si può usare `loadSeasonSummarySnapshot(gid)` per aggiornare la vista, perché quella funzione — comportamento corretto in condizioni normali — cancella la riga locale se Firebase risulta vuoto per quel gruppo, il che avrebbe vanificato esattamente il ripristino appena fatto nel caso in cui Firebase non abbia ancora quel Riepilogo. Usata invece un\'assegnazione diretta da Dexie, stesso principio già seguito per le stagioni archiviate. Verificato end-to-end in Puppeteer chiamando le vere funzioni `doExport`/`restoreFromBackup` dell\'app (non solo la logica replicata): esportato un gruppo di test con Riepilogo, cancellato tutto localmente, reimportato dal JSON catturato — Riepilogo, giocatori e vista in app tutti correttamente ripristinati.',
     ]},{version:'v1.730',date:'2026-07-20',items:[
       'Tutorial: aggiunte le 2 card proposte e approvate da Alby — "🏆 Scopri le Statistiche" (dopo "Inserisci il risultato", con CTA diretta alla vista Stats) e "✨ L\'AI conosce il gruppo" (dopo "Condividi il Giornale", introduce TrashTalk/pronostici/soprannomi). Da 6 a 8 card totali, stesso comportamento di sempre: scompaiono automaticamente alla prima partita registrata. NOTA importante su MVP nelle Partite (v1.729): il dato non compare per chi ha già un Riepilogo Stagione generato PRIMA di questa versione — è un campo nuovo che non esiste nello snapshot già salvato, e l\'unico modo per rigenerarlo oggi è ripetere il wizard di Archiviazione Stagione (che genera il Riepilogo come suo Step 4), non praticabile solo per vedere una modifica di formattazione. Prima di implementare un fix serve decidere con Alby come procedere (es. un\'azione dedicata "Rigenera Riepilogo" che ricostruisca Sezione D/E dai dati già archiviati in archivedSeasons, senza dover ripetere l\'intera archiviazione) — proposta in attesa di conferma, non ancora implementata.',
@@ -8193,7 +8196,7 @@ createApp({
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+          const models = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
           let lastError = null;
           let success = false;
           let quota429=0;
@@ -8225,6 +8228,7 @@ createApp({
               }
               result = d.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || 'Risposta vuota';
               toast(`✅ Gemini OK (${model}): ${result}`, 'success', 5000);
+              logEvent('info', 'ai', `Test connessione Gemini riuscito con ${model}`);
               success = true; break;
             } catch(innerErr) {
               if (innerErr.message.startsWith('❌')) throw innerErr;
@@ -8455,7 +8459,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.731');
+    const appVersion = ref('1.732');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11482,7 +11486,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
         _aiLog('_callAI',`📡 Chiamata AI (${prov}) — ${maxTokens} token max`);
         try {
           if (prov === 'gemini') {
-            const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+            const models = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
             let quota429 = 0;
             for (const model of models) {
               // Prima tentativo con i token richiesti, poi retry con il doppio se MAX_TOKENS
@@ -13119,8 +13123,9 @@ Niente altro, nessuna spiegazione.`;
         }
 
         } else if (prov === 'gemini') {
-          const geminiModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+          const geminiModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
           let data = null;
+          let _usedModel = null;
           for (const model of geminiModels) {
             const r = await fetch(
               `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
@@ -13132,10 +13137,15 @@ Niente altro, nessuna spiegazione.`;
               }
             );
             data = await r.json();
-            if (!data.error) break;
+            if (!data.error) { _usedModel = model; break; }
             const code = data.error?.code || 0;
             if (code !== 404 && code !== 429) break;
           }
+          // Log del modello Gemini effettivamente usato per il commento partita — richiesta di
+          // Alby 23/7/2026, utile per sapere con che versione l'AI sta lavorando senza doverlo
+          // dedurre a posteriori. Gli altri due punti di chiamata Gemini (test connessione e
+          // _callAI condiviso) loggano già; qui e in regenAIComment mancava del tutto.
+          logEvent('info', 'ai', _usedModel ? `Commento partita generato con ${_usedModel}` : `Commento partita: tutti i modelli Gemini falliti, uso fallback locale`);
           { const _raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
           const _lines = _raw.trim().split('\n');
           if (_lines.length >= 2 && _lines[0] === _lines[0].toUpperCase() && _lines[0].length < 120) {
@@ -17159,7 +17169,7 @@ const toggleFont = () => {
         // Aggiunto 21/7/2026: mancava del tutto dal backup JSON (era già su Firebase, ma non qui) —
         // segnalato da Alby, verificato controllando doExport/restoreFromBackup.
         const seasonSummary = await db.seasonSummaries.get(gid) || null;
-        exportGroups.push({ group: g, players, matches, archivedSeasons, seasonSummary });
+        exportGroups.push({ group: _stripGroupSecrets(g), players, matches, archivedSeasons, seasonSummary });
       }
 
       const data = {
@@ -17189,6 +17199,18 @@ const toggleFont = () => {
       return currentGroup.value?.id;
     };
 
+    // Rimuove le credenziali sensibili dal gruppo prima di scriverlo in un file di backup —
+    // richiesta esplicita di Alby 23/7/2026: chi ripristina un backup reinserisce le proprie
+    // credenziali (Firebase, AI) manualmente nell'app, non le eredita dal file. Le configurazioni
+    // AI e login/password Firebase vivono in `settings` (globale), mai in questi export — solo
+    // `firebaseApiKey` sul singolo gruppo va tolta qui. `firebaseUrl` resta: non è una credenziale
+    // (è solo l'indirizzo del progetto), serve a chi ripristina per sapere a quale DB riconnettersi.
+    const _stripGroupSecrets = (g) => {
+      if (!g) return g;
+      const { firebaseApiKey, ...rest } = g;
+      return rest;
+    };
+
     // Export Completo
     const doExportCompleto = async () => {
       const gid = ioActiveGid();
@@ -17196,6 +17218,11 @@ const toggleFont = () => {
       const g = groups.value.find(x => x.id === gid);
       const players = await db.players.where('groupId').equals(gid).toArray();
       const matches = await db.matches.where('groupId').equals(gid).toArray();
+      // Aggiunte 23/7/2026 (segnalato da Alby: un backup "Completo" che non lo era davvero) —
+      // stesso identico contenuto già incluso nell'altro export (Ripristina/Esporta Backup),
+      // qui riportato per rendere questo strumento realmente completo.
+      const archivedSeasons = await db.archivedSeasons.where('groupId').equals(gid).toArray();
+      const seasonSummary = await db.seasonSummaries.get(gid) || null;
 
       const exportPlayers = ioIncludeFoto.value ? players : players.map(p => {
         if (p.foto?.startsWith('data:')) { const {foto,...r}=p; return {...r,foto:''}; }
@@ -17206,9 +17233,11 @@ const toggleFont = () => {
         _exportDate: new Date().toISOString(),
         _exportVersion: appVersion.value,
         _type: 'completo',
-        group: g,
+        group: _stripGroupSecrets(g),
         players: exportPlayers,
-        matches
+        matches,
+        archivedSeasons,
+        seasonSummary
       };
 
       const nome = (g.nome||'gruppo').replace(/\s+/g,'-');
@@ -17219,8 +17248,8 @@ const toggleFont = () => {
       a.download = `amicifc-${nome}-${ts}.json`;
       a.click();
       const sizeKB = Math.round(blob.size/1024);
-      logEvent('info','app',`Export completo: ${players.length} giocatori, ${matches.length} partite (${sizeKB}KB)`);
-      toast(`✅ Esportato: ${players.length} giocatori, ${matches.length} partite (${sizeKB}KB)`, 'success', 3000);
+      logEvent('info','app',`Export completo: ${players.length} giocatori, ${matches.length} partite, ${archivedSeasons.length} stagioni archiviate${seasonSummary?', Riepilogo Stagione':''} (${sizeKB}KB)`);
+      toast(`✅ Esportato: ${players.length} giocatori, ${matches.length} partite, ${archivedSeasons.length} stagioni archiviate (${sizeKB}KB)`, 'success', 3000);
     };
 
     // Export Parziale Partite
@@ -17276,7 +17305,7 @@ const toggleFont = () => {
 
         const groupsToImport = data.multiGroup
           ? data.groups
-          : data.group ? [{ group: data.group, players: data.players||[], matches: data.matches||[] }]
+          : data.group ? [{ group: data.group, players: data.players||[], matches: data.matches||[], archivedSeasons: data.archivedSeasons||[], seasonSummary: data.seasonSummary||null }]
           : null;
 
         if (!groupsToImport) throw new Error('Formato file non riconosciuto');
@@ -17284,7 +17313,7 @@ const toggleFont = () => {
         const names = groupsToImport.map(g => `"${g.group?.nome}"`).join(', ');
         if (!confirm(`Importare ${groupsToImport.length} gruppo/i:\n${names}\n\nI dati verranno aggiunti nel database locale.`)) return;
 
-        let totalPlayers = 0, totalMatches = 0, newGroups = 0;
+        let totalPlayers = 0, totalMatches = 0, newGroups = 0, totalSeasonSummaries = 0;
         let firstImportedGroupId = null;
 
         for (const eg of groupsToImport) {
@@ -17362,6 +17391,19 @@ const toggleFont = () => {
               }
             }
           }
+
+          // ── Import Riepilogo Stagione — riga singola, autorevole se presente nel backup ──
+          // Aggiunto 23/7/2026. Se il backup ha un Riepilogo, sovrascrive quello locale (stesso
+          // principio delle archivedSeasons: il backup è la fonte di verità quando presente).
+          // Se assente (backup più vecchi, o Export Partite/Excel che non lo includono), non
+          // tocchiamo nulla. NON viene ripubblicato su Firebase più sotto — stesso motivo già
+          // documentato in restoreFromBackup: Firebase ce l'ha già dal momento della generazione
+          // originale, e ri-scriverlo qui rischierebbe di sovrascrivere una versione più recente
+          // generata da un altro dispositivo.
+          if (eg.seasonSummary) {
+            await db.seasonSummaries.put({ ...eg.seasonSummary, groupId: gid });
+            totalSeasonSummaries++;
+          }
         }
 
         // Sopprime il pull da Firebase delle archivedSeasons sul prossimo loadGroupData —
@@ -17376,6 +17418,13 @@ const toggleFont = () => {
         // FIX: Ricalcola statistiche da tutti i match importati
         if (importedGroup || groups.value.length > 0) {
           await recomputeStats();
+        }
+        // Aggiorna il Riepilogo Stagione in memoria se ne è stato importato uno per il gruppo
+        // selezionato — lettura diretta da Dexie, non loadSeasonSummarySnapshot(gid) (quella
+        // funzione cancellerebbe la riga appena importata se Firebase risultasse vuoto per quel
+        // gruppo — stesso motivo già documentato in restoreFromBackup, v1.731).
+        if (importedGroup && totalSeasonSummaries > 0) {
+          seasonSummarySnapshot.value = await db.seasonSummaries.get(importedGroup.id) || seasonSummarySnapshot.value;
         }
 
         // ── Post-import Firebase sync ──────────────────────────────────────────────────────────
@@ -17416,10 +17465,10 @@ const toggleFont = () => {
         }
 
         // Messaggio finale — distingue "già presenti" da "nuovi" per non confondere
-        const hadData = totalPlayers === 0 && totalMatches === 0;
+        const hadData = totalPlayers === 0 && totalMatches === 0 && totalSeasonSummaries === 0;
         toast(hadData
           ? '✅ Backup ripristinato — dati già presenti, nessun duplicato aggiunto'
-          : `✅ Importati: ${newGroups} gruppi, ${totalPlayers} giocatori, ${totalMatches} partite!`);
+          : `✅ Importati: ${newGroups} gruppi, ${totalPlayers} giocatori, ${totalMatches} partite${totalSeasonSummaries?', Riepilogo Stagione':''}!`);
         return true; // success flag for importDataAndGo
       } catch (err) {
         console.error('Import error:', err);
@@ -18582,7 +18631,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           ' Sii ironico e usa i soprannomi.';
         let comment = '';
         if (provider === 'gemini') {
-          const geminiModels = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-2.0-flash-lite'];
+          const geminiModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
           for (const model of geminiModels) {
             const rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey,
               {method:'POST', headers:{'Content-Type':'application/json'},
@@ -18591,7 +18640,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
             if (dd.error?.status === 'RESOURCE_EXHAUSTED') continue; // try next model
             if (dd.error) throw new Error('Gemini (' + model + '): ' + (dd.error.message || JSON.stringify(dd.error)));
             comment = ((dd.candidates||[])[0]?.content?.parts||[])[0]?.text || '';
-            if (comment) break; // got a response, stop
+            if (comment) { logEvent('info', 'ai', `Rigenerazione commento partita con ${model}`); break; }
           }
         } else if (provider === 'claude') {
           const rr = await fetch('https://api.anthropic.com/v1/messages',
