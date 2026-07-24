@@ -4957,6 +4957,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
     <!-- ════ RIEPILOGO STAGIONE ════ -->
     <template v-if="currentView === 'seasonSummary' && seasonSummarySnapshot">
+      <div v-if="seasonSummarySnapshot.isLightweight" class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer" @click="backFromSeasonSummaryHistory()">
+        <span style="font-size:0.82rem">📄 Stagione passata (storico, solo testo)</span>
+        <span style="font-size:0.82rem;color:var(--lime);font-weight:700">← Torna allo storico</span>
+      </div>
       <div class="card-title">📖 Riepilogo Stagione — {{ seasonSummarySnapshot.stagione }}</div>
 
       <div v-if="seasonSummarySnapshot.aiTexts?.intro" class="card" style="font-style:italic;line-height:1.6">
@@ -5061,6 +5065,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div v-if="m.uomoPartita" style="text-align:right;font-size:0.72rem;color:var(--text2);margin-top:2px">🏅 {{ m.uomoPartita }}</div>
             </button>
             <div v-if="seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
+              <div v-if="m.titoloGiornale || m.commentoAI" style="font-size:0.82rem;margin-bottom:10px">
+                <div v-if="m.titoloGiornale" style="font-weight:800;margin-bottom:4px">{{ m.titoloGiornale }}</div>
+                <div v-if="m.commentoAI" style="color:var(--text2);white-space:pre-wrap;line-height:1.5">{{ m.commentoAI }}</div>
+              </div>
+              <div style="display:flex;gap:12px;margin-bottom:10px;font-size:0.78rem">
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;margin-bottom:4px">{{ m.squadraANome }}</div>
+                  <div v-for="(p,pi) in m.formazioneA" :key="'a'+pi" style="color:var(--text2)">
+                    {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span>
+                  </div>
+                </div>
+                <div style="flex:1;min-width:0">
+                  <div style="font-weight:700;margin-bottom:4px">{{ m.squadraBNome }}</div>
+                  <div v-for="(p,pi) in m.formazioneB" :key="'b'+pi" style="color:var(--text2)">
+                    {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span>
+                  </div>
+                </div>
+              </div>
               <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
               <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
             </div>
@@ -5867,11 +5889,47 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-else class="more-menu-item" style="opacity:0.4;cursor:default" @click.stop>
         <span class="more-icon">🔒</span> Riepilogo Stagione <span style="font-size:0.68rem;margin-left:4px">(a fine stagione)</span>
       </div>
+      <button v-if="seasonSummarySnapshot" class="more-menu-item" @click="openSeasonSummaryHistory();showMoreMenu=false">
+        <span class="more-icon">🗂️</span> Riepiloghi Stagionali
+      </button>
       <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
         <span class="more-icon">⚙️</span> Impostazioni
       </button>
     </div>
   </div>
+
+
+  <!-- ══════════════════════════════
+       RIEPILOGHI STAGIONALI — storico selezionabile
+       ══════════════════════════════ -->
+  <template v-if="currentView === 'seasonSummaryHistory'">
+    <div class="card-title">🗂️ Riepiloghi Stagionali
+      <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
+    </div>
+    <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
+      Un Riepilogo per ogni stagione archiviata. Solo l'ultimo resta completo di foto — quelli più vecchi sono alleggeriti ma tutti i dati e i testi restano intatti.
+    </div>
+    <div v-if="seasonSummaryHistoryLoading" style="text-align:center;padding:24px;color:var(--text2)">Caricamento...</div>
+    <template v-else>
+      <button v-for="s in seasonSummaryHistoryList" :key="s.id"
+        class="card" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:10px"
+        @click="viewSeasonSummaryHistoryEntry(s)">
+        <div style="font-size:1.6rem">{{ s.isLightweight ? '📄' : '📖' }}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:800">{{ s.stagione }}</div>
+          <div style="font-size:0.74rem;color:var(--text2)">
+            {{ new Date(s.generatedAt).toLocaleDateString('it-IT') }} · {{ s.isLightweight ? 'storico (solo testo)' : 'corrente (con foto)' }}
+          </div>
+        </div>
+        <div style="color:var(--text2)">→</div>
+      </button>
+      <div v-if="!seasonSummaryHistoryList.length" class="empty-state">
+        <span class="emoji">🗂️</span>
+        <h3>Nessun Riepilogo</h3>
+        <p>Genera il Riepilogo Stagione dal wizard di Archiviazione per iniziare lo storico.</p>
+      </div>
+    </template>
+  </template>
 
 
   <!-- ══════════════════════════════
@@ -7396,6 +7454,58 @@ db.version(7).stores({
   seasonSummaries:'groupId'
 });
 
+// VERSION 8+9 (23/7/2026, richiesta di Alby): seasonSummaries da "una riga per gruppo" (sovrascritta
+// ad ogni archiviazione, storico perso) a "una riga per stagione archiviata" — ogni Riepilogo
+// ottiene il proprio archivioId (lo stesso della stagione archiviata corrispondente, nessun UID
+// separato da inventare). Solo l'ultimo Riepilogo generato resta "ricco" (isLightweight:false,
+// con foto/PNG); tutti i precedenti vengono alleggeriti (isLightweight:true, immagini rimosse) nel
+// momento in cui il nuovo li sostituisce — vedi generateSeasonSummarySnapshot().
+//
+// BUG REALE scoperto da Alby subito dopo la consegna: la prima versione di questa migrazione
+// provava a cambiare la chiave primaria di seasonSummaries (da 'groupId' a '++id') DENTRO la
+// stessa versione — Dexie non lo supporta e lancia "UpgradeError: Not yet support for changing
+// primary key", bloccando l'apertura del database e quindi l'intera app all'avvio. Fix: la tabella
+// va invece ELIMINATA in una versione ("seasonSummaries: null") e RICREATA da zero con la nuova
+// chiave nella versione successiva — sono due operazioni distinte (delete + add), entrambe
+// pienamente supportate, mentre "cambia chiave di una tabella esistente" nella stessa versione non
+// lo è. I dati vengono letti PRIMA che la vecchia tabella sparisca (nell'upgrade della v8, quando
+// esiste ancora) e tenuti in una variabile di modulo fino a quando la v9 li reinserisce nella
+// tabella nuova — nessun dato perso nel passaggio, nonostante il cambio di chiave.
+let _ssMigrationStash = null;
+
+db.version(8).stores({
+  groups:         '++id, nome',
+  players:        '++id, groupId, uid, nome, cognome',
+  matches:        '++id, groupId, data, matchUUID',
+  formations:     '++id, groupId, stato, dataCreazione',
+  playerPhotos:   'uid, updatedAt',
+  archivedSeasons:'archivioId, groupId',
+  seasonSummaries: null // elimina la vecchia tabella (chiave 'groupId') — dati letti sotto, prima che sparisca
+}).upgrade(async tx => {
+  try { _ssMigrationStash = await tx.table('seasonSummaries').toArray(); }
+  catch(e) { _ssMigrationStash = []; console.warn('Lettura seasonSummaries pre-migrazione fallita (non bloccante):', e); }
+});
+
+db.version(9).stores({
+  groups:         '++id, nome',
+  players:        '++id, groupId, uid, nome, cognome',
+  matches:        '++id, groupId, data, matchUUID',
+  formations:     '++id, groupId, stato, dataCreazione',
+  playerPhotos:   'uid, updatedAt',
+  archivedSeasons:'archivioId, groupId',
+  seasonSummaries:'++id, groupId, archivioId' // ricreata da zero con la nuova chiave
+}).upgrade(async tx => {
+  const old = _ssMigrationStash || [];
+  for (const row of old) {
+    if (row.archivioId === undefined) row.archivioId = null;
+    if (row.isLightweight === undefined) row.isLightweight = false;
+    delete row.id; // non deve esistere ancora — ++id lo assegna da capo
+    try { await tx.table('seasonSummaries').add(row); }
+    catch(e) { console.warn('Riga seasonSummaries non migrata (non bloccante):', e); }
+  }
+  _ssMigrationStash = null;
+});
+
 // ──────────────────────────────────────
 // HELPER: UUID
 // ──────────────────────────────────────
@@ -7577,7 +7687,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.733',date:'2026-07-23',items:[
+    const changelogEntries = [{version:'v1.735',date:'2026-07-24',items:[
+      "Fix CRITICO: l'app non partiva più dopo la v1.734, errore Dexie 'UpgradeError: Not yet support for changing primary key'. Causa: la migrazione di seasonSummaries proprava a cambiare la chiave primaria (da groupId a ++id) DENTRO la stessa versione — operazione che Dexie non supporta e su cui lancia un errore bloccante, impedendo l'apertura del database e quindi l'avvio dell'intera app. Fix: la tabella va invece eliminata in una versione e ricreata da zero con la nuova chiave nella versione successiva (due operazioni separate, entrambe supportate) — i dati vengono letti prima che la vecchia tabella sparisca e reinseriti nella nuova, nessuna perdita nel passaggio. Verificato simulando esattamente lo scenario di Alby: un database reale in schema pre-fix con un Riepilogo Stagione già dentro, poi caricata la versione corretta — nessun errore, dati migrati correttamente.",
+      'Fix generatore Formazioni AI: usava un SOLO modello Gemini fisso, senza catena di fallback — al primo errore anche transitorio (es. "high demand"/modello sovraccarico, segnalato da Alby con screenshot reale) si arrendeva subito passando al bilanciamento locale, invece di provare gli altri modelli disponibili. Allineato allo stesso pattern già usato altrove (catena di modelli + thinkingConfig corretto per famiglia). Verificato forzando in test il primo modello a fallire con lo stesso errore visto da Alby: confermato che ora prova correttamente il secondo modello invece di arrendersi.',
+    ]},{version:'v1.734',date:'2026-07-23',items:[
+      "Riepilogo Stagione — lavoro grosso concordato con Alby: da \"un solo Riepilogo per gruppo, sovrascritto ad ogni archiviazione\" a \"uno storico permanente, uno per stagione archiviata\". Solo l'ULTIMO Riepilogo generato resta ricco di foto/PNG; tutti i precedenti vengono alleggeriti automaticamente (immagini rimosse, tutto il resto — testo, numeri, formazioni come dati — resta intatto) nel momento in cui ne arriva uno nuovo. Dettagli tecnici: 1) Dexie bump a v8 — seasonSummaries da chiave groupId a ++id con indici groupId/archivioId, migrazione automatica delle righe esistenti; 2) ogni Riepilogo condivide lo stesso archivioId della stagione archiviata corrispondente (generato una volta sola all'apertura del wizard di Archiviazione, riusato sia dal Riepilogo che da archivedSeasons — legame naturale, nessun UID separato); 3) Firebase ristrutturato da seasonSummary/{gruppo} a seasonSummary/{gruppo}/{archivioId}; 4) Sezione D (Le partite) arricchita con assist/autogol per giocatore e mostrata ora anche in TESTO (formazioni, gol, assist, autogol, titolo e commento AI) oltre che in immagine — prima esisteva solo come dato mai visualizzato; questo garantisce che alleggerire un Riepilogo tolga SOLO le immagini, mai informazioni; 5) nuova vista Riepiloghi Stagionali nel menu Altro — elenco di tutte le stagioni con Riepilogo, selezionabili, riusa integralmente il template esistente della vista Riepilogo Stagione (nessun codice duplicato) con un banner Torna allo storico quando si visualizza una voce storica; 6) Export/Import (sia Ripristina/Esporta Backup che Export Completo) aggiornati per gestire un array di Riepiloghi invece di uno singolo, con piena retrocompatibilità sui backup del formato precedente. Verificato con un test end-to-end reale: generato il Riepilogo di una Stagione 1 (con foto), poi generato quello di una Stagione 2 — confermato che la Stagione 1 risulta alleggerita (zero PNG/foto ma testo/formazioni intatti) e la Stagione 2 è quella corrente con le immagini. Verificata anche la vista Riepiloghi Stagionali (lista, apertura di una voce storica, banner, ritorno) e l'export/import con più Riepiloghi contemporaneamente, inclusa la retrocompatibilità con backup del vecchio formato a riga singola.",
+    ]},{version:'v1.733',date:'2026-07-23',items:[
       'Fix Gemini 3.6 Flash: il test di connessione restituiva una risposta troncata/confusa ("Respond ONLY..." invece del testo richiesto). Causa: Gemini 3.x usa un parametro DIVERSO da Gemini 2.5 per disabilitare/limitare il "thinking" prima della risposta — `thinkingConfig:{thinkingLevel:\'minimal\'}` per i modelli 3.x, `thinkingConfig:{thinkingBudget:0}` per i 2.5 (i due parametri non sono intercambiabili: usare thinkingBudget con un modello 3.x è accettato ma la documentazione Google segnala "unexpected performance"). v1.732 aveva aggiunto gemini-3.6-flash alla catena di modelli ma il test di connessione non impostava alcun parametro di thinking, e gli altri 3 punti di chiamata Gemini nel codice usavano il parametro fisso 2.5-style ovunque. Aggiunta `_geminiThinkingConfig(model)`, helper condiviso che sceglie il parametro giusto in base al nome del modello, usato ora in tutti e 4 i punti di chiamata Gemini (test connessione, funzione AI condivisa `_callAI`, commento partita, rigenerazione commento) — prima solo `_callAI` gestiva il thinking, e lo faceva comunque nel modo sbagliato per un eventuale modello 3.x.',
       'Verificata (non un bug) la dimensione del JSON di export segnalata da Alby (~5MB) — quasi interamente `seasonSummary.sezioneD`: 50 partite × ~75KB di PNG giornale compresso ciascuna (540px larghezza, qualità JPEG 0.7). È il primo export che include davvero il contenuto delle partite nel Riepilogo (i test precedenti erano post-archiviazione con 0 partite live) — il dato è reale, già usato in app (si vede espandendo ogni partita in Sezione D), non duplicato né generato per errore.',
     ]},{version:'v1.732',date:'2026-07-23',items:[
@@ -8412,6 +8527,11 @@ createApp({
       zipLoading: false,
       riepilogoGenerato: false, // Riepilogo Stagione generato in questa sessione del wizard
       riepilogoLoading: false,
+      pendingArchivioId: null, // generato in openArchiveWizard — stesso id condiviso tra il Riepilogo
+                                // Stagione (Step 4) e la riga archivedSeasons (doArchiveStagione, più
+                                // avanti nel wizard): legame 1:1 naturale, nessun UID separato da
+                                // inventare per il Riepilogo. Vedi Regola d'Oro sul multi-storico
+                                // dei Riepiloghi, aggiunta 23/7/2026.
       riepilogoNonSupportato: false, // true se si sta archiviando un gruppo diverso da quello corrente (limite noto)
       skipChecksExpanded: false, // sezione "Salta controlli obbligatori" — nascosta finché non la apri apposta
       skipBackup: false,
@@ -8476,7 +8596,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.733');
+    const appVersion = ref('1.735');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9466,12 +9586,30 @@ Rispondi SOLO con questo JSON (niente altro testo):
         let rawJson = '';
 
         if (settings.value.aiProvider === 'gemini') {
-          const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${settings.value.apiKey}`, {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500} })
-          });
-          const d = await r.json();
-          if (d.error) throw new Error(`Gemini: ${d.error.message||d.error.status||'Errore API'}`);
+          // Fix 24/7/2026 (segnalato da Alby con screenshot reale): questa funzione usava un
+          // SINGOLO modello fisso (gemini-2.5-flash), senza catena di fallback e senza
+          // thinkingConfig — al primo errore, anche transitorio (es. "high demand"/modello
+          // sovraccarico), si arrendeva subito e passava al bilanciamento locale, anche quando
+          // gli altri modelli sarebbero stati disponibili. Allineata allo stesso pattern già
+          // usato negli altri punti di chiamata Gemini (test connessione, _callAI, commento
+          // partita): catena di modelli con retry, e _geminiThinkingConfig(model) per il
+          // parametro corretto in base alla famiglia (thinkingLevel per Gemini 3.x, thinkingBudget
+          // per Gemini 2.5 — vedi v1.733).
+          const models = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+          let d = null, lastErr = null, usedModel = null;
+          for (const model of models) {
+            try {
+              const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.value.apiKey}`, {
+                method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{temperature:0.8,maxOutputTokens:1500,thinkingConfig:_geminiThinkingConfig(model)} })
+              });
+              d = await r.json();
+              if (!d.error) { usedModel = model; break; }
+              lastErr = new Error(`Gemini (${model}): ${d.error.message||d.error.status||'Errore API'}`);
+            } catch(e) { lastErr = e; d = null; }
+          }
+          if (!d || d.error) throw lastErr || new Error('Gemini: tutti i modelli non disponibili');
+          logEvent('info', 'ai', `Formazioni AI generate con ${usedModel}`);
           rawJson = d.candidates?.[0]?.content?.parts?.[0]?.text || '';
         } else if (settings.value.aiProvider === 'claude') {
           const r = await fetch('https://api.anthropic.com/v1/messages', {
@@ -14053,10 +14191,20 @@ Niente altro, nessuna spiegazione.`;
     const buildSeasonSummaryTestSectionD = async () => {
       const matches = [...groupMatches.value].sort((a,b) => (a.data||'').localeCompare(b.data||''));
       const risultato = [];
+      // Include assist/autogol per giocatore (richiesta Alby 23/7/2026: la Sezione D deve essere
+      // testualmente COMPLETA — data, squadre, risultato, chi ha segnato, assist, autogol, MVP,
+      // commento AI — così quando un Riepilogo vecchio verrà "alleggerito" (v1.734+) basterà
+      // togliere le sole immagini, senza perdere nessuna informazione. Assist rispetta trackAssist
+      // del gruppo, stesso principio già usato ovunque nel Riepilogo.
+      const _trackAssistD = currentGroup.value?.trackAssist !== false;
       const rosterOf = (m, uids) => (uids||[]).map(uid => {
         const p = getPlayer(uid);
         const st = (m.statisticheGiocatori||[]).find(s => String(s.playerId) === String(uid));
-        return { nome: p?.soprannome || p?.nome || '?', voto: st?.voto ?? null, gol: st?.goal || 0 };
+        return {
+          nome: p?.soprannome || p?.nome || '?', voto: st?.voto ?? null, gol: st?.goal || 0,
+          assist: _trackAssistD ? (st?.assist || 0) : null,
+          autogol: st?.autogol || 0
+        };
       });
       for (const m of matches) {
         let pngGiornale = m.pngRisultato || null;
@@ -14562,10 +14710,35 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const seasonSummarySnapshot = ref(null); // snapshot del gruppo corrente, o null se non ancora generato
     const seasonSummaryExpandedMatches = reactive({}); // {indice: bool} — accordion Sezione D, tutte chiuse di default
 
+    // Toglie tutte le immagini (PNG giornale, foto partita, foto giocatore) da un Riepilogo già
+    // generato, lasciando intatto tutto il resto (testo, numeri, formazioni come dati) — usata per
+    // "alleggerire" un Riepilogo quando ne arriva uno nuovo più recente (23/7/2026, richiesta di
+    // Alby). Il testo NON va mai perso: Sezione D porta già formazioni/gol/assist/autogol/MVP/
+    // titolo/commento come campi separati dal PNG (v1.734), e le Formazioni Top non hanno mai
+    // avuto un PNG proprio (sono già solo dati) — quindi togliere le immagini qui non fa perdere
+    // nessuna informazione sostanziale, solo la resa visiva.
+    const _stripFotoArr = (arr) => { if (Array.isArray(arr)) for (const p of arr) if (p) p.foto = null; };
+    const _stripSnapshotImages = (snap) => {
+      const s = JSON.parse(JSON.stringify(snap));
+      if (Array.isArray(s.sezioneD)) for (const m of s.sezioneD) { m.pngGiornale = null; m.fotoPartita = null; }
+      if (s.sezioneB) for (const k of Object.keys(s.sezioneB)) _stripFotoArr(s.sezioneB[k]?.giocatori);
+      if (s.sezioneC) for (const k of Object.keys(s.sezioneC)) _stripFotoArr(s.sezioneC[k]);
+      _stripFotoArr(s.sezioneE);
+      if (s.formazioniTop) for (const size of Object.keys(s.formazioniTop)) {
+        const rows = s.formazioniTop[size];
+        if (rows) for (const ruolo of Object.keys(rows)) _stripFotoArr(rows[ruolo]);
+      }
+      s.isLightweight = true;
+      return s;
+    };
+
     const loadSeasonSummarySnapshot = async (gid) => {
       if (!gid) { seasonSummarySnapshot.value = null; return; }
       try {
-        const row = await db.seasonSummaries.get(gid);
+        // Il Riepilogo "corrente" (ricco, isLightweight:false) è al massimo uno per gruppo — tutti
+        // gli altri sono storico alleggerito, selezionabili dalla vista "Riepiloghi Stagionali"
+        // (non da qui). Schema multi-riga dalla v1.734 (23/7/2026).
+        const row = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first();
         seasonSummarySnapshot.value = row || null;
         // Se il gruppo ha Firebase, controlla se lì c'è una versione più recente (es. generata da
         // un altro dispositivo) e allinea la copia locale — stesso principio già usato per TrashTalk/HoF.
@@ -14574,24 +14747,71 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // ha ripulito il nodo seasonSummary) da "richiesta fallita" — stesso bug/fix già applicato alle
         // stagioni archiviate (v1.717): senza questa distinzione, uno snapshot locale stantio non
         // veniva mai rimosso quando Firebase risultava genuinamente vuoto. Segnalato da Alby 18/7/2026.
-        if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid) {
+        if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid && row?.archivioId) {
           const tok = await getValidToken().catch(()=>null);
           const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
-          const _resp = await fetch(`${_url}/amicifc/seasonSummary/${gid}.json${tok?'?auth='+tok:''}`, { cache: 'no-store' });
+          const _resp = await fetch(`${_url}/amicifc/seasonSummary/${gid}/${row.archivioId}.json${tok?'?auth='+tok:''}`, { cache: 'no-store' });
           if (_resp.ok) {
             const remote = await _resp.json();
-            if (remote?.generatedAt && (!row || remote.generatedAt > row.generatedAt)) {
-              await db.seasonSummaries.put(remote);
-              seasonSummarySnapshot.value = remote;
+            if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
+              const merged = { ...remote, id: row.id };
+              await db.seasonSummaries.put(merged);
+              seasonSummarySnapshot.value = merged;
             } else if (!remote && row) {
               // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
-              await db.seasonSummaries.delete(gid);
+              await db.seasonSummaries.delete(row.id);
               seasonSummarySnapshot.value = null;
             }
           }
           // Se _resp non è ok (errore di rete/HTTP), non tocchiamo nulla — stesso principio di sicurezza.
         }
       } catch(e) { /* silenzioso: non deve mai bloccare l'avvio */ }
+    };
+
+    // Elenco di TUTTI i Riepiloghi Stagionali di un gruppo (corrente + storico alleggerito),
+    // più recenti prima — usata dalla vista "Riepiloghi Stagionali" in Altro (23/7/2026).
+    const listSeasonSummariesForGroup = async (gid) => {
+      if (!gid) return [];
+      const rows = await db.seasonSummaries.where('groupId').equals(gid).toArray();
+      return rows.sort((a,b) => (b.generatedAt||0) - (a.generatedAt||0));
+    };
+
+    // Vista "Riepiloghi Stagionali": lista + apertura di una voce storica riusando INTERAMENTE il
+    // template già esistente della vista Riepilogo Stagione (Sezione A-E, Formazioni, Curiosità...)
+    // — invece di scrivere una seconda vista duplicata, si scambia temporaneamente il contenuto di
+    // seasonSummarySnapshot e si passa per currentView='seasonSummary'. Il vero Riepilogo corrente
+    // viene messo da parte in _seasonSummaryCurrentCache e ripristinato al "Torna allo storico".
+    const seasonSummaryHistoryList = ref([]);
+    const seasonSummaryHistoryLoading = ref(false);
+    let _seasonSummaryCurrentCache = null;
+
+    const openSeasonSummaryHistory = async () => {
+      if (!currentGroup.value) return;
+      seasonSummaryHistoryLoading.value = true;
+      currentView.value = 'seasonSummaryHistory';
+      try {
+        seasonSummaryHistoryList.value = await listSeasonSummariesForGroup(currentGroup.value.id);
+      } finally {
+        seasonSummaryHistoryLoading.value = false;
+      }
+    };
+
+    const viewSeasonSummaryHistoryEntry = (s) => {
+      // Metto da parte il Riepilogo corrente SOLO se non l'ho già messo da parte (evita di
+      // sovrascrivere la cache se l'utente naviga tra più voci storiche di seguito).
+      if (!_seasonSummaryCurrentCache && seasonSummarySnapshot.value && !seasonSummarySnapshot.value.isLightweight) {
+        _seasonSummaryCurrentCache = seasonSummarySnapshot.value;
+      }
+      seasonSummarySnapshot.value = s;
+      currentView.value = 'seasonSummary';
+    };
+
+    const backFromSeasonSummaryHistory = () => {
+      if (_seasonSummaryCurrentCache) {
+        seasonSummarySnapshot.value = _seasonSummaryCurrentCache;
+        _seasonSummaryCurrentCache = null;
+      }
+      currentView.value = 'seasonSummaryHistory';
     };
 
     const _persistSeasonSummarySnapshot = async (snapshot) => {
@@ -14601,11 +14821,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       // doArchiveStagione): deep-clone in plain object PRIMA di scrivere su Dexie. Segnalato da
       // Alby 18/7/2026 nel test reale.
       const plainSnapshot = JSON.parse(JSON.stringify(snapshot));
-      await db.seasonSummaries.put(plainSnapshot);
-      if (currentGroup.value?.firebaseUrl) {
+      // Schema multi-riga dalla v1.734: la prima volta (Fase 1) non ha ancora un id Dexie, va
+      // creato con add(); le volte successive (Fase 2 testo AI, retry) aggiornano la STESSA riga
+      // con put(), preservando l'id.
+      if (plainSnapshot.id == null) {
+        plainSnapshot.id = await db.seasonSummaries.add(plainSnapshot);
+      } else {
+        await db.seasonSummaries.put(plainSnapshot);
+      }
+      if (currentGroup.value?.firebaseUrl && plainSnapshot.archivioId) {
         try {
           const tok = await getValidToken();
-          await _fbWriteToGroup(currentGroup.value, `seasonSummary/${plainSnapshot.groupId}`, plainSnapshot, tok);
+          await _fbWriteToGroup(currentGroup.value, `seasonSummary/${plainSnapshot.groupId}/${plainSnapshot.archivioId}`, plainSnapshot, tok);
         } catch(e) {
           logEvent('warn','app','Riepilogo Stagione: scrittura Firebase non riuscita — '+e.message);
         }
@@ -14619,13 +14846,41 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (!currentGroup.value) return { ok:false, error:'Nessun gruppo selezionato' };
       const gid = currentGroup.value.id;
       try {
+        // ── Alleggerimento del Riepilogo precedente (se esiste) ──────────────────────────────────
+        // Il Riepilogo "corrente" della stagione appena conclusa PRIMA di questa (isLightweight:
+        // false) viene spogliato delle immagini e diventa storico permanente — resta ricco di
+        // foto/PNG solo l'ULTIMO Riepilogo generato. Deciso con Alby 23/7/2026 per tenere sotto
+        // controllo la dimensione di Firebase/backup nel tempo (50 partite ≈ 3.7MB di soli PNG
+        // giornale, misurato su un test reale — vedi CHANGELOG v1.733).
+        const previousCurrent = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first();
+        if (previousCurrent) {
+          const lightweight = _stripSnapshotImages(previousCurrent);
+          await db.seasonSummaries.put(lightweight);
+          if (currentGroup.value.firebaseUrl && lightweight.archivioId) {
+            try {
+              const tok = await getValidToken();
+              await _fbWriteToGroup(currentGroup.value, `seasonSummary/${gid}/${lightweight.archivioId}`, lightweight, tok);
+            } catch(e) {
+              logEvent('warn','app','Riepilogo Stagione: alleggerimento Firebase del Riepilogo precedente non riuscito — '+e.message);
+            }
+          }
+          logEvent('info','app',`📖 Riepilogo Stagione precedente ("${previousCurrent.stagione}") alleggerito e conservato come storico`);
+        }
+
         const d = buildSeasonSummaryTest();
         const sezioneD = await buildSeasonSummaryTestSectionD();
         const sezioneE = buildSeasonSummaryTestSectionE();
         const gabbione = buildSeasonSummaryTestGabbione();
 
+        // Stesso archivioId già generato all'apertura del wizard (archiveStepData.pendingArchivioId)
+        // — è lo STESSO id che doArchiveStagione userà per la riga in archivedSeasons: legame 1:1
+        // naturale tra la stagione archiviata e il suo Riepilogo, nessun UID separato da inventare.
+        const archivioId = archiveStepData.pendingArchivioId || uuid();
+
         let snapshot = {
           groupId: gid,
+          archivioId,
+          isLightweight: false,
           stagione: d.stagione,
           generatedAt: Date.now(),
           trackAssist: d.trackAssist,
@@ -14667,6 +14922,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         } else {
           snapshot.aiError = 'Nessuna AI configurata';
         }
+        snapshot.id = seasonSummarySnapshot.value?.id; // preserva l'id assegnato da add() in Fase 1
         await _persistSeasonSummarySnapshot(snapshot);
 
         return { ok:true };
@@ -17182,11 +17438,13 @@ const toggleFont = () => {
         const players = await db.players.where('groupId').equals(gid).toArray();
         const matches = await db.matches.where('groupId').equals(gid).toArray();
         const archivedSeasons = await db.archivedSeasons.where('groupId').equals(gid).toArray();
-        // Riepilogo Stagione — riga singola per gruppo (chiave primaria groupId), non un array.
-        // Aggiunto 21/7/2026: mancava del tutto dal backup JSON (era già su Firebase, ma non qui) —
-        // segnalato da Alby, verificato controllando doExport/restoreFromBackup.
-        const seasonSummary = await db.seasonSummaries.get(gid) || null;
-        exportGroups.push({ group: _stripGroupSecrets(g), players, matches, archivedSeasons, seasonSummary });
+        // Riepilogo Stagione — dalla v1.734 è un ARRAY (uno per stagione archiviata, non più una
+        // riga sola sovrascritta ogni volta — vedi Regola d'Oro sul multi-storico dei Riepiloghi).
+        // Manteniamo anche il vecchio campo singolare `seasonSummary` (il più recente/corrente)
+        // per retrocompatibilità con chi legge backup di questo formato con codice pre-v1.734.
+        const seasonSummaries = await db.seasonSummaries.where('groupId').equals(gid).toArray();
+        const seasonSummary = seasonSummaries.find(s => !s.isLightweight) || seasonSummaries[0] || null;
+        exportGroups.push({ group: _stripGroupSecrets(g), players, matches, archivedSeasons, seasonSummaries, seasonSummary });
       }
 
       const data = {
@@ -17239,7 +17497,10 @@ const toggleFont = () => {
       // stesso identico contenuto già incluso nell'altro export (Ripristina/Esporta Backup),
       // qui riportato per rendere questo strumento realmente completo.
       const archivedSeasons = await db.archivedSeasons.where('groupId').equals(gid).toArray();
-      const seasonSummary = await db.seasonSummaries.get(gid) || null;
+      // Dalla v1.734: array (uno per stagione archiviata), + campo singolare per retrocompatibilità
+      // con codice/backup pre-v1.734 (il più recente/corrente).
+      const seasonSummaries = await db.seasonSummaries.where('groupId').equals(gid).toArray();
+      const seasonSummary = seasonSummaries.find(s => !s.isLightweight) || seasonSummaries[0] || null;
 
       const exportPlayers = ioIncludeFoto.value ? players : players.map(p => {
         if (p.foto?.startsWith('data:')) { const {foto,...r}=p; return {...r,foto:''}; }
@@ -17254,6 +17515,7 @@ const toggleFont = () => {
         players: exportPlayers,
         matches,
         archivedSeasons,
+        seasonSummaries,
         seasonSummary
       };
 
@@ -17265,8 +17527,8 @@ const toggleFont = () => {
       a.download = `amicifc-${nome}-${ts}.json`;
       a.click();
       const sizeKB = Math.round(blob.size/1024);
-      logEvent('info','app',`Export completo: ${players.length} giocatori, ${matches.length} partite, ${archivedSeasons.length} stagioni archiviate${seasonSummary?', Riepilogo Stagione':''} (${sizeKB}KB)`);
-      toast(`✅ Esportato: ${players.length} giocatori, ${matches.length} partite, ${archivedSeasons.length} stagioni archiviate (${sizeKB}KB)`, 'success', 3000);
+      logEvent('info','app',`Export completo: ${players.length} giocatori, ${matches.length} partite, ${archivedSeasons.length} stagioni archiviate, ${seasonSummaries.length} Riepiloghi Stagionali (${sizeKB}KB)`);
+      toast(`✅ Esportato: ${players.length} giocatori, ${matches.length} partite, ${archivedSeasons.length} stagioni archiviate, ${seasonSummaries.length} Riepiloghi (${sizeKB}KB)`, 'success', 3000);
     };
 
     // Export Parziale Partite
@@ -17322,7 +17584,7 @@ const toggleFont = () => {
 
         const groupsToImport = data.multiGroup
           ? data.groups
-          : data.group ? [{ group: data.group, players: data.players||[], matches: data.matches||[], archivedSeasons: data.archivedSeasons||[], seasonSummary: data.seasonSummary||null }]
+          : data.group ? [{ group: data.group, players: data.players||[], matches: data.matches||[], archivedSeasons: data.archivedSeasons||[], seasonSummaries: data.seasonSummaries||(data.seasonSummary?[data.seasonSummary]:[]) }]
           : null;
 
         if (!groupsToImport) throw new Error('Formato file non riconosciuto');
@@ -17409,17 +17671,24 @@ const toggleFont = () => {
             }
           }
 
-          // ── Import Riepilogo Stagione — riga singola, autorevole se presente nel backup ──
-          // Aggiunto 23/7/2026. Se il backup ha un Riepilogo, sovrascrive quello locale (stesso
-          // principio delle archivedSeasons: il backup è la fonte di verità quando presente).
-          // Se assente (backup più vecchi, o Export Partite/Excel che non lo includono), non
-          // tocchiamo nulla. NON viene ripubblicato su Firebase più sotto — stesso motivo già
-          // documentato in restoreFromBackup: Firebase ce l'ha già dal momento della generazione
-          // originale, e ri-scriverlo qui rischierebbe di sovrascrivere una versione più recente
-          // generata da un altro dispositivo.
-          if (eg.seasonSummary) {
-            await db.seasonSummaries.put({ ...eg.seasonSummary, groupId: gid });
-            totalSeasonSummaries++;
+          // ── Import Riepiloghi Stagionali — array dalla v1.734, uno per stagione archiviata ──
+          // Deduplicazione per archivioId (come le archivedSeasons): se una riga con lo stesso
+          // archivioId esiste già in locale, viene aggiornata (preservando l'id Dexie locale, che
+          // non ha senso portare da un altro dispositivo); altrimenti viene aggiunta come nuova.
+          // NON viene ripubblicato nulla su Firebase più sotto — stesso motivo già documentato in
+          // restoreFromBackup: Firebase ce l'ha già dal momento della generazione originale, e
+          // ri-scriverlo qui rischierebbe di sovrascrivere una versione più recente generata da un
+          // altro dispositivo.
+          if (Array.isArray(eg.seasonSummaries) && eg.seasonSummaries.length) {
+            const existingSummaries = await db.seasonSummaries.where('groupId').equals(gid).toArray();
+            for (const ss of eg.seasonSummaries) {
+              if (!ss) continue;
+              const { id: _foreignId, ...ssRest } = ss; // id Dexie locale al dispositivo di origine, non si porta
+              const match = ss.archivioId && existingSummaries.find(e => e.archivioId === ss.archivioId);
+              if (match) await db.seasonSummaries.put({ ...ssRest, groupId: gid, id: match.id });
+              else await db.seasonSummaries.add({ ...ssRest, groupId: gid });
+              totalSeasonSummaries++;
+            }
           }
         }
 
@@ -17441,7 +17710,7 @@ const toggleFont = () => {
         // funzione cancellerebbe la riga appena importata se Firebase risultasse vuoto per quel
         // gruppo — stesso motivo già documentato in restoreFromBackup, v1.731).
         if (importedGroup && totalSeasonSummaries > 0) {
-          seasonSummarySnapshot.value = await db.seasonSummaries.get(importedGroup.id) || seasonSummarySnapshot.value;
+          seasonSummarySnapshot.value = await db.seasonSummaries.where('groupId').equals(importedGroup.id).and(r => !r.isLightweight).first() || seasonSummarySnapshot.value;
         }
 
         // ── Post-import Firebase sync ──────────────────────────────────────────────────────────
@@ -17523,6 +17792,7 @@ const toggleFont = () => {
       archiveStepData.zipLoading = false;
       archiveStepData.riepilogoGenerato = false;
       archiveStepData.riepilogoLoading = false;
+      archiveStepData.pendingArchivioId = uuid();
       // Limite noto: la generazione del Riepilogo Stagione riusa i computed della UI (Statistiche,
       // Zona Pericolo) che lavorano sempre sul gruppo ATTUALMENTE selezionato — se si archivia un
       // gruppo diverso (da Gestione Gruppi), il Riepilogo non può essere generato qui. Da rivedere
@@ -17717,7 +17987,11 @@ const toggleFont = () => {
         });
 
         // 2. Crea snapshot archivio con UUID univoco — solo testo/numeri, niente immagini
-        const archivioId = uuid();
+        // Riusa lo stesso id già generato all'apertura del wizard (archiveStepData.pendingArchivioId)
+        // — è lo STESSO id sotto cui il Riepilogo Stagione (Step 4) è stato salvato, legame 1:1
+        // naturale tra la stagione archiviata e il suo Riepilogo. Fallback a un nuovo uuid se per
+        // qualche motivo manca (es. wizard aperto con una versione precedente dell'app).
+        const archivioId = archiveStepData.pendingArchivioId || uuid();
         const snapshot = {
           archivioId,           // UUID stabile su tutti i dispositivi — chiave univoca, mai il nome
           groupId: gid,
@@ -17875,7 +18149,7 @@ const toggleFont = () => {
       const confirmMsg = `⚠️ RIPRISTINO DA BACKUP
 
 Questa operazione:
-1. Cancella partite, giocatori, stagioni archiviate e Riepilogo Stagione locali del gruppo
+1. Cancella partite, giocatori, stagioni archiviate e Riepiloghi Stagionali locali del gruppo
 2. Reimporta tutto dal JSON (i matchUUID originali vengono preservati)
 3. Ricalcola le statistiche
 4. Carica tutto su Firebase
@@ -17909,9 +18183,10 @@ Sei sicuro?`;
           : Object.values(backupEntry.matches || {});
         const backupArchivedSeasons = Array.isArray(backupEntry.archivedSeasons) ? backupEntry.archivedSeasons
           : Object.values(backupEntry.archivedSeasons || {});
-        // Riepilogo Stagione — riga singola (non un array), aggiunta al backup il 21/7/2026.
-        // Retrocompatibile: backup più vecchi semplicemente non hanno questo campo, undefined → null.
-        const backupSeasonSummary = backupEntry.seasonSummary || null;
+        // Riepiloghi Stagionali — array dalla v1.734 (uno per stagione archiviata), + retrocompatibilità
+        // con backup pre-v1.734 che avevano solo il campo singolare `seasonSummary`.
+        const backupSeasonSummaries = Array.isArray(backupEntry.seasonSummaries) ? backupEntry.seasonSummaries
+          : (backupEntry.seasonSummary ? [backupEntry.seasonSummary] : []);
 
         restoreStatus.value = `⏳ Trovati ${backupPlayers.length} giocatori e ${backupMatches.length} partite...`;
 
@@ -17923,7 +18198,7 @@ Sei sicuro?`;
         await db.players.where('groupId').equals(gid).delete();
         await db.matches.where('groupId').equals(gid).delete();
         await db.archivedSeasons.where('groupId').equals(gid).delete();
-        await db.seasonSummaries.delete(gid); // chiave primaria = groupId, niente where/equals
+        await db.seasonSummaries.where('groupId').equals(gid).delete(); // chiave ora ++id (v1.734), non più groupId
 
         // Step 2: reimport players with fresh uid if missing
         const uidMap = {}; // old id → new local id
@@ -17971,17 +18246,21 @@ Sei sicuro?`;
           importedArchives++;
         }
 
-        // Step 3c: reimport Riepilogo Stagione (riga singola, no remapping — è un record congelato
-        // come le stagioni archiviate). Stesso principio di sicurezza già usato per archivedSeasons:
-        // NON viene ripubblicato su Firebase qui sotto (Step 5) — Firebase ce l'ha già dal momento
-        // della generazione originale, il ripristino locale basta a farlo ricomparire nell'app.
-        let importedSeasonSummary = false;
-        if (backupSeasonSummary) {
-          await db.seasonSummaries.put({ ...backupSeasonSummary, groupId: gid });
-          importedSeasonSummary = true;
+        // Step 3c: reimport Riepiloghi Stagionali — array dalla v1.734, record congelati come le
+        // stagioni archiviate (nessun remapping). Stesso principio di sicurezza già usato per
+        // archivedSeasons: NON vengono ripubblicati su Firebase qui sotto (Step 5) — Firebase ce
+        // li ha già dal momento della generazione originale, il ripristino locale basta a farli
+        // ricomparire nell'app. L'id Dexie originale (locale al dispositivo di origine del backup)
+        // viene scartato: essendo un ripristino totale, Dexie ne assegna uno nuovo.
+        let importedSeasonSummary = 0;
+        for (const ss of backupSeasonSummaries) {
+          if (!ss) continue;
+          const { id: _oldSsId, ...ssRest } = ss;
+          await db.seasonSummaries.add({ ...ssRest, groupId: gid });
+          importedSeasonSummary++;
         }
 
-        restoreStatus.value = `⏳ ${importedMatches} partite, ${importedArchives} stagioni archiviate${importedSeasonSummary ? ' e il Riepilogo Stagione' : ''} importati. Ricalcolo statistiche...`;
+        restoreStatus.value = `⏳ ${importedMatches} partite, ${importedArchives} stagioni archiviate${importedSeasonSummary ? ` e ${importedSeasonSummary} Riepiloghi Stagionali` : ''} importati. Ricalcolo statistiche...`;
 
         // Step 4: recompute stats from scratch
         await recomputeStats();
@@ -17992,10 +18271,10 @@ Sei sicuro?`;
         // (comportamento corretto in generale, ma qui cancellerebbe esattamente quello che ho appena
         // ripristinato, nel caso in cui Firebase non lo abbia ancora). Assegnazione diretta, stesso
         // principio già usato per archivedSeasons: il backup importato è la fonte di verità qui.
-        if (importedSeasonSummary) seasonSummarySnapshot.value = await db.seasonSummaries.get(gid) || null;
+        if (importedSeasonSummary) seasonSummarySnapshot.value = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first() || null;
 
         restoreStatus.value = `✅ Ripristino completato!
-${backupPlayers.length} giocatori · ${importedMatches} partite · ${importedArchives} stagioni archiviate${importedSeasonSummary ? ' · Riepilogo Stagione ripristinato' : ''}
+${backupPlayers.length} giocatori · ${importedMatches} partite · ${importedArchives} stagioni archiviate${importedSeasonSummary ? ` · ${importedSeasonSummary} Riepiloghi Stagionali ripristinati` : ''}
 Caricamento partite e giocatori su Firebase...`;
 
         // Step 5: upload to Firebase (solo partite/giocatori — le stagioni archiviate restano nel nodo
@@ -19890,6 +20169,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
+      listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
       seasonSummaryPdfGenerating, generateSeasonSummaryPDF,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
