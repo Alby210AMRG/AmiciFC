@@ -7684,7 +7684,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.736',date:'2026-07-25',items:[
+    const changelogEntries = [{version:'v1.737',date:'2026-07-25',items:[
+      "TrashTalk ancora non rigenerato — Alby ha giustamente messo in dubbio il fix v1.736 con un nuovo log reale. Verificato: quel \"fix\" era un duplicato di uno già presente dal 16/7 (stesso codice, stesso scopo) — non ha cambiato nulla, la vera causa resta da isolare con certezza. Trovato però che il controllo automatico (_initAiCards) falliva in TOTALE silenzio in tre punti: quando il gate iniziale (API key/partite presenti) non passava, quando Firebase risultava già avere un Trash Talk per la data (ramo senza nessun log), e nel catch finale (commento esplicito \"silenzioso\"). Senza questi log era impossibile capire dal log copiato da Alby dove/perché il controllo non facesse quello che doveva. Aggiunta visibilità in tutti e tre i punti (nessun cambio di comportamento, solo log) — al prossimo giro sapremo con certezza quale dei tre casi si verifica davvero. Rimosso anche il duplicato inutile introdotto in v1.736.",
+    ]},{version:'v1.736',date:'2026-07-25',items:[
       'Fix CRITICO TrashTalk: dopo la correzione di una partita, il TrashTalk poteva "resuscitare" quello VECCHIO (di una partita precedente) etichettandolo con la data della partita appena corretta — segnalato da Alby con log reale, contenuto del TrashTalk relativo a giovedì scorso invece che a ieri. Causa: invalidare il TrashTalk dopo una correzione cancellava la copia su Firebase e la cache locale, ma NON il ref in memoria `aiCardsTrashTalk` (quello che alimenta le card mostrate a schermo) — il sync generico che parte quasi sempre subito dopo il salvataggio di una correzione include sempre le card correnti in memoria nel proprio payload, quindi ripubblicava su Firebase le card vecchie, questa volta timbrate con la data dell\'ultima partita (quella appena corretta). Fix: l\'invalidazione ora svuota anche `aiCardsTrashTalk`/`aiCardsTrashTalkFirma` — il prossimo sync non ha più nulla di vecchio da ripubblicare, e la rigenerazione vera parte al successivo controllo AI con i dati corretti.',
       'Fix CSS vista "Riepiloghi Stagionali": la card era renderizzata FUORI dal contenitore principale delle viste (era finita, per errore mio, subito dopo la barra di navigazione e il popup del menu Altro, invece che insieme alle altre schermate) — da qui l\'aspetto rotto segnalato da Alby con screenshot. Spostata al posto giusto, accanto alla vista Riepilogo Stagione: ora eredita lo stesso stile del resto dell\'app.',
     ]},{version:'v1.735',date:'2026-07-24',items:[
@@ -8596,7 +8598,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.736');
+    const appVersion = ref('1.737');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12939,7 +12941,15 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       // parte 2). Il guard 30s protegge solo il resto dell'init (Soprannomi/HoF/Pronostico, più
       // costoso) — questo controllo è una singola lettura Firebase, non una chiamata AI, e va sempre
       // eseguito quando c'è API key e ci sono partite, indipendentemente da guard e flag.
-      if (settings.value.apiKey && groupMatches.value.length > 0) {
+      //
+      // 25/7/2026 (segnalato da Alby con log reale, TrashTalk non rigenerato dopo correzione
+      // partita — causa non ancora isolata con certezza): questo blocco falliva in TOTALE silenzio
+      // in tre punti — il gate sotto, il ramo "esiste già" e il catch — rendendo impossibile capire
+      // dal log dove/perché il controllo non facesse quello che doveva. Aggiunta visibilità in
+      // tutti e tre, nessun cambio di comportamento, solo log.
+      if (!settings.value.apiKey || groupMatches.value.length === 0) {
+        _aiLog('Init', '⏭️ Controllo Trash Talk saltato (apiKey:'+(!!settings.value.apiKey)+', partite:'+groupMatches.value.length+')');
+      } else {
         try {
           const _allM2 = await db.matches.where('groupId').equals(_gid).toArray();
           const _newestM = _allM2.sort((a,b)=>b.data.localeCompare(a.data))[0];
@@ -12947,18 +12957,24 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
             const _newestKey = (_newestM.data||'').replace(/-/g,'');
             const _gKey3 = _aiCardGroupKey();
             const _tok3 = await getValidToken() || '';
-            const _existingTT = _tok3
-              ? await _fbRead('aiCards/trashTalk/'+_gKey3+'/'+_newestKey, _tok3, 'shallow=true')
-              : null;
-            if (!_existingTT) {
-              // Nessun Trash Talk su Firebase per la partita più recente
-              _aiLog('Init','🔥 Partita '+_newestM.data+' non ha Trash Talk su Firebase — genero...');
-              aiFlagClear('tt', _gid); // invalida il flag locale per permettere la rigenerazione
-              _generateTrashTalk(_newestM).catch(e => _aiLog('Init','❌ TT auto-gen: '+e.message, false));
+            if (!_tok3) {
+              _aiLog('Init', '⚠️ Controllo Trash Talk saltato: nessun token Firebase valido', false);
+            } else {
+              const _existingTT = await _fbRead('aiCards/trashTalk/'+_gKey3+'/'+_newestKey, _tok3);
+              if (!_existingTT) {
+                // Nessun Trash Talk su Firebase per la partita più recente
+                _aiLog('Init','🔥 Partita '+_newestM.data+' non ha Trash Talk su Firebase — genero...');
+                aiFlagClear('tt', _gid); // invalida il flag locale per permettere la rigenerazione
+                _generateTrashTalk(_newestM).catch(e => _aiLog('Init','❌ TT auto-gen: '+e.message, false));
+              } else {
+                _aiLog('Init', '✅ Partita '+_newestM.data+' ha già Trash Talk su Firebase (generato '+(_existingTT.generatedAt ? new Date(_existingTT.generatedAt).toLocaleString('it-IT') : 'data ignota')+') — skip');
+              }
             }
+          } else {
+            _aiLog('Init', '⚠️ Controllo Trash Talk: nessuna partita trovata in Dexie per il gruppo', false);
           }
         } catch(_e2) {
-          // Silenzioso: check best-effort, non blocca il resto dell'init
+          _aiLog('Init', '❌ Controllo Trash Talk fallito: '+_e2.message, false);
         }
       }
 
@@ -13613,18 +13629,6 @@ Niente altro, nessuna spiegazione.`;
           }
           aiFlagClear('tt', currentGroup.value?.id || '');
           localStorage.removeItem('amicifc_tt_' + (currentGroup.value?.id || ''));
-          // FIX BUG REALE 25/7/2026 (segnalato da Alby con log reale): mancava questo svuotamento.
-          // Senza, il ref in memoria aiCardsTrashTalk.value restava con le card VECCHIE (quelle
-          // già mostrate a schermo prima della correzione) — e il prossimo sync generico
-          // (doSyncNow, che parte quasi sempre subito dopo il salvataggio di una correzione)
-          // le ricaricava su Firebase associandole alla data dell'ULTIMA partita del gruppo
-          // (calcolata al volo da _lastMatch, non dalla data della card originale): risultato,
-          // la card vecchia (di una partita precedente) veniva "resuscitata" su Firebase con la
-          // data della partita appena corretta, facendola sembrare generata per quella partita
-          // quando in realtà parlava di tutt'altro. Svuotare qui impedisce che la prossima
-          // sincronizzazione abbia qualcosa di stantio da ripubblicare.
-          aiCardsTrashTalk.value = [];
-          aiCardsTrashTalkFirma.value = '';
           // Fix 16/7/2026: sopra si puliva Firebase/flag/localStorage ma MAI la variabile in
           // memoria (aiCardsTrashTalk) che la UI legge davvero — risultato: la home continuava
           // a mostrare le card vecchie (di una partita precedente) finché la rigenerazione vera
