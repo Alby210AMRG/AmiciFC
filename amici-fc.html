@@ -5178,6 +5178,36 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
     </template>
 
+    <!-- ════ RIEPILOGHI STAGIONALI — storico selezionabile ════ -->
+    <template v-if="currentView === 'seasonSummaryHistory'">
+      <div class="card-title">🗂️ Riepiloghi Stagionali
+        <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
+      </div>
+      <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
+        Un Riepilogo per ogni stagione archiviata. Solo l'ultimo resta completo di foto — quelli più vecchi sono alleggeriti ma tutti i dati e i testi restano intatti.
+      </div>
+      <div v-if="seasonSummaryHistoryLoading" style="text-align:center;padding:24px;color:var(--text2)">Caricamento...</div>
+      <template v-else>
+        <button v-for="s in seasonSummaryHistoryList" :key="s.id"
+          class="card" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:10px"
+          @click="viewSeasonSummaryHistoryEntry(s)">
+          <div style="font-size:1.6rem">{{ s.isLightweight ? '📄' : '📖' }}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:800">{{ s.stagione }}</div>
+            <div style="font-size:0.74rem;color:var(--text2)">
+              {{ new Date(s.generatedAt).toLocaleDateString('it-IT') }} · {{ s.isLightweight ? 'storico (solo testo)' : 'corrente (con foto)' }}
+            </div>
+          </div>
+          <div style="color:var(--text2)">→</div>
+        </button>
+        <div v-if="!seasonSummaryHistoryList.length" class="empty-state">
+          <span class="emoji">🗂️</span>
+          <h3>Nessun Riepilogo</h3>
+          <p>Genera il Riepilogo Stagione dal wizard di Archiviazione per iniziare lo storico.</p>
+        </div>
+      </template>
+    </template>
+
     <!-- ════ IMPOSTAZIONI ════ -->
     <template v-if="currentView === 'settings'">
       <div class="card-title">⚙️ Impostazioni</div>
@@ -5897,39 +5927,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </button>
     </div>
   </div>
-
-
-  <!-- ══════════════════════════════
-       RIEPILOGHI STAGIONALI — storico selezionabile
-       ══════════════════════════════ -->
-  <template v-if="currentView === 'seasonSummaryHistory'">
-    <div class="card-title">🗂️ Riepiloghi Stagionali
-      <span v-if="currentGroup" class="badge badge-gray">{{ currentGroup.nome }}</span>
-    </div>
-    <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
-      Un Riepilogo per ogni stagione archiviata. Solo l'ultimo resta completo di foto — quelli più vecchi sono alleggeriti ma tutti i dati e i testi restano intatti.
-    </div>
-    <div v-if="seasonSummaryHistoryLoading" style="text-align:center;padding:24px;color:var(--text2)">Caricamento...</div>
-    <template v-else>
-      <button v-for="s in seasonSummaryHistoryList" :key="s.id"
-        class="card" style="width:100%;text-align:left;display:flex;align-items:center;gap:12px;cursor:pointer;margin-bottom:10px"
-        @click="viewSeasonSummaryHistoryEntry(s)">
-        <div style="font-size:1.6rem">{{ s.isLightweight ? '📄' : '📖' }}</div>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:800">{{ s.stagione }}</div>
-          <div style="font-size:0.74rem;color:var(--text2)">
-            {{ new Date(s.generatedAt).toLocaleDateString('it-IT') }} · {{ s.isLightweight ? 'storico (solo testo)' : 'corrente (con foto)' }}
-          </div>
-        </div>
-        <div style="color:var(--text2)">→</div>
-      </button>
-      <div v-if="!seasonSummaryHistoryList.length" class="empty-state">
-        <span class="emoji">🗂️</span>
-        <h3>Nessun Riepilogo</h3>
-        <p>Genera il Riepilogo Stagione dal wizard di Archiviazione per iniziare lo storico.</p>
-      </div>
-    </template>
-  </template>
 
 
   <!-- ══════════════════════════════
@@ -7687,7 +7684,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.735',date:'2026-07-24',items:[
+    const changelogEntries = [{version:'v1.736',date:'2026-07-25',items:[
+      'Fix CRITICO TrashTalk: dopo la correzione di una partita, il TrashTalk poteva "resuscitare" quello VECCHIO (di una partita precedente) etichettandolo con la data della partita appena corretta — segnalato da Alby con log reale, contenuto del TrashTalk relativo a giovedì scorso invece che a ieri. Causa: invalidare il TrashTalk dopo una correzione cancellava la copia su Firebase e la cache locale, ma NON il ref in memoria `aiCardsTrashTalk` (quello che alimenta le card mostrate a schermo) — il sync generico che parte quasi sempre subito dopo il salvataggio di una correzione include sempre le card correnti in memoria nel proprio payload, quindi ripubblicava su Firebase le card vecchie, questa volta timbrate con la data dell\'ultima partita (quella appena corretta). Fix: l\'invalidazione ora svuota anche `aiCardsTrashTalk`/`aiCardsTrashTalkFirma` — il prossimo sync non ha più nulla di vecchio da ripubblicare, e la rigenerazione vera parte al successivo controllo AI con i dati corretti.',
+      'Fix CSS vista "Riepiloghi Stagionali": la card era renderizzata FUORI dal contenitore principale delle viste (era finita, per errore mio, subito dopo la barra di navigazione e il popup del menu Altro, invece che insieme alle altre schermate) — da qui l\'aspetto rotto segnalato da Alby con screenshot. Spostata al posto giusto, accanto alla vista Riepilogo Stagione: ora eredita lo stesso stile del resto dell\'app.',
+    ]},{version:'v1.735',date:'2026-07-24',items:[
       "Fix CRITICO: l'app non partiva più dopo la v1.734, errore Dexie 'UpgradeError: Not yet support for changing primary key'. Causa: la migrazione di seasonSummaries proprava a cambiare la chiave primaria (da groupId a ++id) DENTRO la stessa versione — operazione che Dexie non supporta e su cui lancia un errore bloccante, impedendo l'apertura del database e quindi l'avvio dell'intera app. Fix: la tabella va invece eliminata in una versione e ricreata da zero con la nuova chiave nella versione successiva (due operazioni separate, entrambe supportate) — i dati vengono letti prima che la vecchia tabella sparisca e reinseriti nella nuova, nessuna perdita nel passaggio. Verificato simulando esattamente lo scenario di Alby: un database reale in schema pre-fix con un Riepilogo Stagione già dentro, poi caricata la versione corretta — nessun errore, dati migrati correttamente.",
       'Fix generatore Formazioni AI: usava un SOLO modello Gemini fisso, senza catena di fallback — al primo errore anche transitorio (es. "high demand"/modello sovraccarico, segnalato da Alby con screenshot reale) si arrendeva subito passando al bilanciamento locale, invece di provare gli altri modelli disponibili. Allineato allo stesso pattern già usato altrove (catena di modelli + thinkingConfig corretto per famiglia). Verificato forzando in test il primo modello a fallire con lo stesso errore visto da Alby: confermato che ora prova correttamente il secondo modello invece di arrendersi.',
     ]},{version:'v1.734',date:'2026-07-23',items:[
@@ -8596,7 +8596,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.735');
+    const appVersion = ref('1.736');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13613,6 +13613,18 @@ Niente altro, nessuna spiegazione.`;
           }
           aiFlagClear('tt', currentGroup.value?.id || '');
           localStorage.removeItem('amicifc_tt_' + (currentGroup.value?.id || ''));
+          // FIX BUG REALE 25/7/2026 (segnalato da Alby con log reale): mancava questo svuotamento.
+          // Senza, il ref in memoria aiCardsTrashTalk.value restava con le card VECCHIE (quelle
+          // già mostrate a schermo prima della correzione) — e il prossimo sync generico
+          // (doSyncNow, che parte quasi sempre subito dopo il salvataggio di una correzione)
+          // le ricaricava su Firebase associandole alla data dell'ULTIMA partita del gruppo
+          // (calcolata al volo da _lastMatch, non dalla data della card originale): risultato,
+          // la card vecchia (di una partita precedente) veniva "resuscitata" su Firebase con la
+          // data della partita appena corretta, facendola sembrare generata per quella partita
+          // quando in realtà parlava di tutt'altro. Svuotare qui impedisce che la prossima
+          // sincronizzazione abbia qualcosa di stantio da ripubblicare.
+          aiCardsTrashTalk.value = [];
+          aiCardsTrashTalkFirma.value = '';
           // Fix 16/7/2026: sopra si puliva Firebase/flag/localStorage ma MAI la variabile in
           // memoria (aiCardsTrashTalk) che la UI legge davvero — risultato: la home continuava
           // a mostrare le card vecchie (di una partita precedente) finché la rigenerazione vera
