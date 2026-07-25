@@ -485,11 +485,12 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 /* Fix 25/7/2026 (segnalato da Alby, vista Riepiloghi Stagionali): i <button> HTML non ereditano
-   font-family dal body per default nei browser (comportamento standard, non un bug del browser) —
-   qualunque bottone senza classe .btn (che lo imposta esplicitamente sopra) cade sul font di
-   sistema del browser, non su quello dell'app. Reset globale qui invece di doverlo ricordare ad
-   ogni nuovo bottone scritto in futuro. */
-button { font-family: inherit; }
+   font-family/color/font-size dal body per default nei browser (comportamento standard, non un
+   bug del browser) — qualunque bottone senza classe .btn (che li imposta esplicitamente sopra)
+   cade sui valori di sistema del browser, non su quelli dell'app. La v1.739 aveva resettato solo
+   font-family: non bastava, restavano ancora colore e dimensione del testo sbagliati. Reset
+   completo qui invece di doverlo ricordare ad ogni nuovo bottone scritto in futuro. */
+button { font-family: inherit; font-size: inherit; color: inherit; }
 .btn:active { transform: scale(0.96); }
 
 .btn-primary   { background: var(--lime);   color: var(--dark); box-shadow: 0 4px 16px rgba(166,255,77,0.35); }
@@ -5809,6 +5810,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   @click="testGeneraRiepilogoStagione" :disabled="seasonSummaryTestGenerating">
                   {{ seasonSummaryTestGenerating ? '⏳ Calcolo...' : '🧪 Genera Anteprima (solo testo)' }}
                 </button>
+                <div style="font-size:0.68rem;color:var(--text2);margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);line-height:1.5">
+                  I Riepiloghi storici (alleggeriti) restano SEMPRE in locale su questo dispositivo,
+                  anche dopo un ripristino da Inspector — Inspector scrive solo su Firebase, non
+                  tocca mai l'IndexedDB del dispositivo. Per ripartire da zero durante i test, usa
+                  questo (solo su questo gruppo, solo su questo dispositivo):
+                </div>
+                <button class="btn btn-full btn-sm" style="margin-top:6px;background:rgba(255,77,77,0.1);border:1.5px solid var(--red);color:var(--red)"
+                  @click="wipeLocalSeasonSummaryHistory" :disabled="seasonSummaryWipeLoading">
+                  {{ seasonSummaryWipeLoading ? '⏳...' : '🧹 Cancella storico Riepiloghi (solo locale, solo questo gruppo)' }}
+                </button>
                 <pre v-if="seasonSummaryTestOutput" style="margin-top:10px;padding:10px;background:rgba(0,0,0,.3);border-radius:8px;font-size:0.72rem;line-height:1.5;white-space:pre-wrap;color:var(--text2);max-height:400px;overflow-y:auto">{{ seasonSummaryTestOutput }}</pre>
                 <div v-if="seasonSummaryPreviewMatch" style="margin-top:10px">
                   <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">
@@ -7696,7 +7707,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.739',date:'2026-07-25',items:[
+    const changelogEntries = [{version:'v1.740',date:'2026-07-25',items:[
+      'Fix strutturale del bug dei Riepiloghi Stagionali duplicati — il log inviato da Alby ha mostrato che NESSUNA delle righe diagnostiche aggiunte in v1.739 compariva prima dell\'archiviazione: prova che la verifica con Firebase non stava proprio girando in tempo. Causa: quella verifica viveva solo dentro loadSeasonSummarySnapshot() (chiamata da selectGroup, senza await — non garantita completa prima di qualunque altra azione), mentre generateSeasonSummarySnapshot() faceva una query locale grezza e indipendente per decidere cosa alleggerire, senza mai verificarla contro Firebase. Estratta la logica in una funzione condivisa (_reconcileCurrentSeasonSummary), ora chiamata (con await, quindi garantita) direttamente dentro generateSeasonSummarySnapshot prima di decidere di alleggerire qualcosa — il controllo Firebase avviene sempre, non importa cos\'altro sia già girato prima.',
+      'Nuovo tool in Zona Pericolo → Riepilogo Stagione: "🧹 Cancella storico Riepiloghi (solo locale, solo questo gruppo)". Va detto con chiarezza: anche col fix sopra, i Riepiloghi storici già esistenti da sessioni di test precedenti su questo stesso dispositivo continueranno a comparire — sono record legittimi (non stantii, semplicemente vecchi) che né Inspector (scrive solo su Firebase, mai sull\'IndexedDB locale) né nessun meccanismo automatico dovrebbero mai cancellare da soli. Per ripartire davvero puliti durante i test ripetuti serve un\'azione esplicita: questo pulsante.',
+      'Fix font/colore/dimensione bottoni — il fix v1.739 (solo font-family) non bastava, come segnalato di nuovo da Alby con screenshot: i bottoni senza classe .btn cadevano anche su colore e dimensione di sistema del browser, non solo sul font. Reset esteso a `color` e `font-size` oltre a `font-family`.',
+    ]},{version:'v1.739',date:'2026-07-25',items:[
       'Fix font non coerenti nella vista "Riepiloghi Stagionali", segnalato da Alby con screenshot. Causa: i `<button>` HTML non ereditano `font-family` dal `body` per default nei browser — solo i bottoni con classe `.btn` lo impostavano esplicitamente, i bottoni-card della lista storico no, quindi cadevano sul font di sistema. Aggiunto un reset globale (`button { font-family: inherit; }`) così il problema non si ripresenta su nessun bottone futuro.',
       'Aggiunta barra di progresso + conteggio partite ("partita 12/40") durante "Genera Riepilogo Stagione" nel wizard di archiviazione — richiesta da Alby due volte, prima non c\'era alcun feedback visivo che l\'operazione (la generazione/compressione di una PNG per partita, la parte più lenta) fosse davvero in corso.',
       'Riepilogo Stagione ancora presente in triplo dopo un test con lo stesso identico scenario del fix v1.738 (residuo, non due). Il fix v1.738 era corretto per il caso specifico che copriva, ma esiste un secondo modo in cui il controllo di staleness può fallire in silenzio: se al momento del controllo `getValidToken()` non restituisce un token valido (es. rinnovo ancora in corso), la verifica veniva saltata senza dirlo, lasciando un Riepilogo "corrente" locale ormai stantio pronto per essere scambiato per "la stagione precedente" alla prossima archiviazione. Aggiunta visibilità completa a `loadSeasonSummarySnapshot()` (nessun cambio di comportamento, solo log) in tutti i punti che oggi tacciono: token assente, richiesta Firebase fallita, Riepilogo confermato/aggiornato/eliminato. Riprodotto in test il caso "nessun token disponibile" e confermato che ora viene loggato invece di fallire in silenzio.',
@@ -8617,7 +8632,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.739');
+    const appVersion = ref('1.740');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14109,6 +14124,32 @@ Niente altro, nessuna spiegazione.`;
     // ═══════════════════════════════════════════════════════════════════
     const seasonSummaryTestOutput = ref('');
     const seasonSummaryTestGenerating = ref(false);
+    const seasonSummaryWipeLoading = ref(false);
+    // Cancella TUTTI i Riepiloghi Stagionali locali (correnti e storici) del gruppo corrente — solo
+    // su questo dispositivo, Firebase non viene toccato. Serve perché niente nell'app o in Inspector
+    // può farlo automaticamente: gli storici sono record legittimi pensati per restare per sempre,
+    // e un ripristino da Inspector scrive solo su Firebase, mai sull'IndexedDB locale. Utile solo
+    // per ripartire puliti durante i test ripetuti — pensato per Zona Pericolo, non per l'uso normale.
+    // Aggiunto 25/7/2026 dopo che Alby, ripetendo lo stesso test di archiviazione più volte sullo
+    // stesso dispositivo, si è ritrovato con Riepiloghi storici accumulati da sessioni precedenti,
+    // ciascuno legittimo ma indesiderato ai fini del test.
+    const wipeLocalSeasonSummaryHistory = async () => {
+      if (!currentGroup.value) return;
+      if (!confirm(`Cancellare TUTTI i Riepiloghi Stagionali locali (correnti e storici) di "${currentGroup.value.nome}"?\n\nSolo su questo dispositivo — Firebase non viene toccato.\n\nQuesta operazione non si può annullare.`)) return;
+      seasonSummaryWipeLoading.value = true;
+      try {
+        const gid = currentGroup.value.id;
+        const n = await db.seasonSummaries.where('groupId').equals(gid).delete();
+        seasonSummarySnapshot.value = null;
+        seasonSummaryHistoryList.value = [];
+        logEvent('info', 'app', `🧹 Cancellati ${n} Riepiloghi Stagionali locali per "${currentGroup.value.nome}" (solo dispositivo, Firebase intatto)`);
+        toast(`✅ ${n} Riepiloghi Stagionali locali cancellati`, 'success', 3000);
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error', 4000);
+      } finally {
+        seasonSummaryWipeLoading.value = false;
+      }
+    };
     const seasonSummaryTestSectionD = ref([]); // [{data,golA,golB,titoloGiornale,commentoAI,pngGiornale,fotoPartita}]
     const seasonSummaryTestSectionE = ref([]); // [{uid,nome,ruolo,piede,foto,partiteTotali,goalTotali,mediaVoto,votiTotali,uomoPartitaTotali,maxGolPartita,vittima,incubo,soprannomeAI,confrontoAI}]
     // Step 6: testo AI — Fase 2, MAI bloccante. Se fallisce, tutto il resto (numeri/Oscar/Annuario/
@@ -14774,70 +14815,67 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return s;
     };
 
+    // Trova il Riepilogo "corrente" di un gruppo E lo verifica contro Firebase, eliminando
+    // eventuali residui stantii — funzione condivisa (25/7/2026, bug reale trovato insieme ad
+    // Alby dopo 3 giri di segnalazioni sullo stesso problema). PRIMA questa logica viveva solo
+    // dentro loadSeasonSummarySnapshot() (chiamata solo da selectGroup, senza await, quindi non
+    // garantita completa prima di qualunque altra azione dell'utente) — generateSeasonSummarySnapshot()
+    // faceva invece una query locale GREZZA e indipendente per trovare il Riepilogo da alleggerire,
+    // senza mai verificarlo contro Firebase. Risultato osservato: un ripristino da Inspector (che
+    // svuota seasonSummary su Firebase con un PUT sulla radice) non faceva in tempo a essere
+    // recepito dalla riconciliazione di loadSeasonSummarySnapshot prima che l'utente premesse
+    // "Genera Riepilogo" — quella funzione trovava quindi ancora il vecchio Riepilogo "corrente"
+    // (mai verificato) e lo alleggeriva credendolo legittimo, invece di riconoscerlo come residuo
+    // e scartarlo. Ora ENTRAMBE le funzioni passano da qui, quindi il controllo Firebase è sempre
+    // fatto, non importa quale delle due giri per prima.
+    const _reconcileCurrentSeasonSummary = async (gid) => {
+      if (!gid) return null;
+      const row = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first();
+      if (!row) return null;
+      if (!(currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid)) return row; // niente Firebase da confrontare, fidati del locale
+
+      const tok = await getValidToken().catch(()=>null);
+      if (!tok) {
+        logEvent('warn', 'app', '📖 Verifica Riepilogo Stagione saltata: nessun token Firebase valido al momento del controllo');
+        return row; // non possiamo confermare né smentire — meglio tenerlo che perderlo per un problema di rete
+      }
+      const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
+      const _path = row.archivioId ? `seasonSummary/${gid}/${row.archivioId}` : `seasonSummary/${gid}`;
+      const _resp = await fetch(`${_url}/amicifc/${_path}.json?auth=${tok}`, { cache: 'no-store' });
+      if (!_resp.ok) {
+        logEvent('warn', 'app', `📖 Verifica Riepilogo Stagione fallita: HTTP ${_resp.status} su ${_path}`);
+        return row;
+      }
+      const remote = await _resp.json();
+      const remoteEmpty = !remote || (typeof remote === 'object' && !Array.isArray(remote) && !Object.keys(remote).length);
+      if (row.archivioId) {
+        if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
+          const merged = { ...remote, id: row.id };
+          await db.seasonSummaries.put(merged);
+          logEvent('info', 'app', `📖 Riepilogo Stagione locale aggiornato da Firebase (più recente: ${new Date(remote.generatedAt).toLocaleString('it-IT')})`);
+          return merged;
+        }
+        if (remoteEmpty) {
+          logEvent('info', 'app', `🗑️ Riepilogo Stagione locale ("${row.stagione}", archivioId ${row.archivioId}) è un residuo stantio (Firebase vuoto per quel path) — eliminato`);
+          await db.seasonSummaries.delete(row.id);
+          return null;
+        }
+        logEvent('info', 'app', `📖 Riepilogo Stagione locale confermato aggiornato ("${row.stagione}")`);
+        return row;
+      }
+      if (remoteEmpty) {
+        logEvent('info', 'app', `🗑️ Riepilogo Stagione locale ("${row.stagione}", senza archivioId — residuo pre-v1.734) e Firebase vuoto per l'intero gruppo — eliminato`);
+        await db.seasonSummaries.delete(row.id);
+        return null;
+      }
+      logEvent('info', 'app', `📖 Riepilogo Stagione locale senza archivioId ma Firebase ha dati per il gruppo — tenuto per prudenza, non confrontabile con certezza`);
+      return row;
+    };
+
     const loadSeasonSummarySnapshot = async (gid) => {
       if (!gid) { seasonSummarySnapshot.value = null; return; }
       try {
-        // Il Riepilogo "corrente" (ricco, isLightweight:false) è al massimo uno per gruppo — tutti
-        // gli altri sono storico alleggerito, selezionabili dalla vista "Riepiloghi Stagionali"
-        // (non da qui). Schema multi-riga dalla v1.734 (23/7/2026).
-        const row = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first();
-        seasonSummarySnapshot.value = row || null;
-        // Se il gruppo ha Firebase, controlla se lì c'è una versione più recente (es. generata da
-        // un altro dispositivo) e allinea la copia locale — stesso principio già usato per TrashTalk/HoF.
-        // Fetch fatta "a mano" (non _fbReadFromGroup) per distinguere "richiesta riuscita ma Firebase
-        // non ha nulla" (es. dopo un ripristino esterno da un backup precedente all'archiviazione, che
-        // ha ripulito il nodo seasonSummary) da "richiesta fallita" — stesso bug/fix già applicato alle
-        // stagioni archiviate (v1.717): senza questa distinzione, uno snapshot locale stantio non
-        // veniva mai rimosso quando Firebase risultava genuinamente vuoto. Segnalato da Alby 18/7/2026.
-        //
-        // Fix 25/7/2026 (bug reale, ricostruito insieme ad Alby): questo controllo richiedeva
-        // row?.archivioId per partire — per una riga locale SENZA archivioId (residuo della
-        // migrazione dallo schema pre-v1.734, dove seasonSummaries non aveva ancora questo campo)
-        // il controllo veniva saltato del tutto, per SEMPRE, qualunque cosa succedesse su Firebase.
-        // Un ripristino da Inspector (che fa un PUT sulla radice amicifc, cancellando il nodo
-        // seasonSummary perché non lo include nel payload) non aveva quindi alcun effetto su questo
-        // residuo: restava lì, invisibile, finché una nuova archiviazione lo alleggeriva credendolo
-        // la stagione precedente — risultato, due Riepiloghi invece di uno dopo una sola
-        // archiviazione. Ora, se manca l'archivioId, si controlla il nodo dell'INTERO gruppo
-        // (seasonSummary/{gid}, non uno specifico archivioId) — se Firebase non ha proprio nulla lì,
-        // il residuo locale è sicuramente stantio e viene eliminato.
-        if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid && row) {
-          const tok = await getValidToken().catch(()=>null);
-          if (!tok) {
-            logEvent('warn', 'app', '📖 Verifica Riepilogo Stagione saltata: nessun token Firebase valido al momento del controllo');
-          } else {
-            const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
-            const _path = row.archivioId ? `seasonSummary/${gid}/${row.archivioId}` : `seasonSummary/${gid}`;
-            const _resp = await fetch(`${_url}/amicifc/${_path}.json?auth=${tok}`, { cache: 'no-store' });
-            if (!_resp.ok) {
-              logEvent('warn', 'app', `📖 Verifica Riepilogo Stagione fallita: HTTP ${_resp.status} su ${_path}`);
-            } else {
-              const remote = await _resp.json();
-              const remoteEmpty = !remote || (typeof remote === 'object' && !Array.isArray(remote) && !Object.keys(remote).length);
-              if (row.archivioId) {
-                if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
-                  const merged = { ...remote, id: row.id };
-                  await db.seasonSummaries.put(merged);
-                  seasonSummarySnapshot.value = merged;
-                  logEvent('info', 'app', `📖 Riepilogo Stagione locale aggiornato da Firebase (più recente: ${new Date(remote.generatedAt).toLocaleString('it-IT')})`);
-                } else if (remoteEmpty) {
-                  // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
-                  logEvent('info', 'app', `🗑️ Riepilogo Stagione locale ("${row.stagione}", archivioId ${row.archivioId}) è un residuo stantio (Firebase vuoto per quel path) — eliminato`);
-                  await db.seasonSummaries.delete(row.id);
-                  seasonSummarySnapshot.value = null;
-                } else {
-                  logEvent('info', 'app', `📖 Riepilogo Stagione locale confermato aggiornato ("${row.stagione}")`);
-                }
-              } else if (remoteEmpty) {
-                logEvent('info', 'app', `🗑️ Riepilogo Stagione locale ("${row.stagione}", senza archivioId — residuo pre-v1.734) e Firebase vuoto per l'intero gruppo — eliminato`);
-                await db.seasonSummaries.delete(row.id);
-                seasonSummarySnapshot.value = null;
-              } else {
-                logEvent('info', 'app', `📖 Riepilogo Stagione locale senza archivioId ma Firebase ha dati per il gruppo — tenuto per prudenza, non confrontabile con certezza`);
-              }
-            }
-          }
-        }
+        seasonSummarySnapshot.value = await _reconcileCurrentSeasonSummary(gid);
       } catch(e) { logEvent('warn', 'app', '📖 loadSeasonSummarySnapshot: errore imprevisto — ' + (e.message||e)); }
     };
 
@@ -14925,7 +14963,19 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // foto/PNG solo l'ULTIMO Riepilogo generato. Deciso con Alby 23/7/2026 per tenere sotto
         // controllo la dimensione di Firebase/backup nel tempo (50 partite ≈ 3.7MB di soli PNG
         // giornale, misurato su un test reale — vedi CHANGELOG v1.733).
-        const previousCurrent = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first();
+        //
+        // Fix 25/7/2026: PRIMA questa riga faceva una query locale grezza, senza mai verificare
+        // se quel Riepilogo "corrente" fosse ancora valido — un ripristino esterno da Inspector
+        // (che svuota seasonSummary su Firebase con un PUT sulla radice) non aveva alcun modo di
+        // essere recepito in tempo, perché quella verifica viveva SOLO in loadSeasonSummarySnapshot
+        // (chiamata altrove, senza await, non garantita completa prima di questo punto). Risultato
+        // osservato da Alby: un Riepilogo residuo veniva alleggerito e "conservato come storico"
+        // come se fosse legittimo, invece di essere riconosciuto come stantio e scartato — da qui
+        // Riepiloghi che si accumulavano ad ogni test invece di restare a uno. Ora si usa la stessa
+        // funzione di riconciliazione condivisa (_reconcileCurrentSeasonSummary) usata da
+        // loadSeasonSummarySnapshot: il controllo Firebase è garantito qui, sempre, non importa
+        // cos'altro sia già girato prima.
+        const previousCurrent = await _reconcileCurrentSeasonSummary(gid);
         if (previousCurrent) {
           const lightweight = _stripSnapshotImages(previousCurrent);
           await db.seasonSummaries.put(lightweight);
@@ -20242,7 +20292,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
       hofStorico, hofStoricoLoading, hofStoricoLoaded, hofStoricoFiltrato, hofExpandedMese, hofPlayerFor, hofCountsFor,
       aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
-      seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest, formazioneRows, catValue, catValueDisplay, catTiedCount, catSplit,
+      seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest, formazioneRows, catValue, catValueDisplay, catTiedCount, catSplit, seasonSummaryWipeLoading, wipeLocalSeasonSummaryHistory,
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
