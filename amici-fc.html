@@ -7684,7 +7684,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.737',date:'2026-07-25',items:[
+    const changelogEntries = [{version:'v1.738',date:'2026-07-25',items:[
+      'Fix: due Riepiloghi Stagionali dopo una sola archiviazione — segnalato da Alby, ricostruito con certezza. Causa: una riga locale residua (senza `archivioId`, ereditata dallo schema pre-v1.734) non veniva MAI ripulita dal controllo di staleness in `loadSeasonSummarySnapshot`, perché quel controllo richiedeva un `archivioId` valido per partire. Il "♻️ Ripristina da Backup JSON" di Inspector fa un PUT sulla radice `amicifc` di Firebase (che non include mai `seasonSummary` nel payload, quindi lo cancella completamente) — ma questo non aveva alcun effetto sul residuo locale privo di archivioId, che restava invisibile a qualunque cosa succedesse su Firebase. Alla prima archiviazione successiva, il codice trovava questo residuo, lo alleggeriva credendolo la stagione precedente, e ne creava uno nuovo: 2 invece di 1. Fix: quando manca l\'archivioId, il controllo ora verifica l\'intero nodo Firebase del gruppo invece di un percorso specifico — se risulta vuoto, il residuo viene eliminato. Verificato con un test end-to-end che riproduce esattamente lo scenario di Alby (residuo senza archivioId + Firebase vuoto mockato + una sola archiviazione): risultato correttamente un solo Riepilogo.',
+    ]},{version:'v1.737',date:'2026-07-25',items:[
       "TrashTalk ancora non rigenerato — Alby ha giustamente messo in dubbio il fix v1.736 con un nuovo log reale. Verificato: quel \"fix\" era un duplicato di uno già presente dal 16/7 (stesso codice, stesso scopo) — non ha cambiato nulla, la vera causa resta da isolare con certezza. Trovato però che il controllo automatico (_initAiCards) falliva in TOTALE silenzio in tre punti: quando il gate iniziale (API key/partite presenti) non passava, quando Firebase risultava già avere un Trash Talk per la data (ramo senza nessun log), e nel catch finale (commento esplicito \"silenzioso\"). Senza questi log era impossibile capire dal log copiato da Alby dove/perché il controllo non facesse quello che doveva. Aggiunta visibilità in tutti e tre i punti (nessun cambio di comportamento, solo log) — al prossimo giro sapremo con certezza quale dei tre casi si verifica davvero. Rimosso anche il duplicato inutile introdotto in v1.736.",
     ]},{version:'v1.736',date:'2026-07-25',items:[
       'Fix CRITICO TrashTalk: dopo la correzione di una partita, il TrashTalk poteva "resuscitare" quello VECCHIO (di una partita precedente) etichettandolo con la data della partita appena corretta — segnalato da Alby con log reale, contenuto del TrashTalk relativo a giovedì scorso invece che a ieri. Causa: invalidare il TrashTalk dopo una correzione cancellava la copia su Firebase e la cache locale, ma NON il ref in memoria `aiCardsTrashTalk` (quello che alimenta le card mostrate a schermo) — il sync generico che parte quasi sempre subito dopo il salvataggio di una correzione include sempre le card correnti in memoria nel proprio payload, quindi ripubblicava su Firebase le card vecchie, questa volta timbrate con la data dell\'ultima partita (quella appena corretta). Fix: l\'invalidazione ora svuota anche `aiCardsTrashTalk`/`aiCardsTrashTalkFirma` — il prossimo sync non ha più nulla di vecchio da ripubblicare, e la rigenerazione vera parte al successivo controllo AI con i dati corretti.',
@@ -8598,7 +8600,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.737');
+    const appVersion = ref('1.738');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14763,18 +14765,39 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // ha ripulito il nodo seasonSummary) da "richiesta fallita" — stesso bug/fix già applicato alle
         // stagioni archiviate (v1.717): senza questa distinzione, uno snapshot locale stantio non
         // veniva mai rimosso quando Firebase risultava genuinamente vuoto. Segnalato da Alby 18/7/2026.
-        if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid && row?.archivioId) {
+        //
+        // Fix 25/7/2026 (bug reale, ricostruito insieme ad Alby): questo controllo richiedeva
+        // row?.archivioId per partire — per una riga locale SENZA archivioId (residuo della
+        // migrazione dallo schema pre-v1.734, dove seasonSummaries non aveva ancora questo campo)
+        // il controllo veniva saltato del tutto, per SEMPRE, qualunque cosa succedesse su Firebase.
+        // Un ripristino da Inspector (che fa un PUT sulla radice amicifc, cancellando il nodo
+        // seasonSummary perché non lo include nel payload) non aveva quindi alcun effetto su questo
+        // residuo: restava lì, invisibile, finché una nuova archiviazione lo alleggeriva credendolo
+        // la stagione precedente — risultato, due Riepiloghi invece di uno dopo una sola
+        // archiviazione. Ora, se manca l'archivioId, si controlla il nodo dell'INTERO gruppo
+        // (seasonSummary/{gid}, non uno specifico archivioId) — se Firebase non ha proprio nulla lì,
+        // il residuo locale è sicuramente stantio e viene eliminato.
+        if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid && row) {
           const tok = await getValidToken().catch(()=>null);
           const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
-          const _resp = await fetch(`${_url}/amicifc/seasonSummary/${gid}/${row.archivioId}.json${tok?'?auth='+tok:''}`, { cache: 'no-store' });
+          const _path = row.archivioId ? `seasonSummary/${gid}/${row.archivioId}` : `seasonSummary/${gid}`;
+          const _resp = await fetch(`${_url}/amicifc/${_path}.json${tok?'?auth='+tok:''}`, { cache: 'no-store' });
           if (_resp.ok) {
             const remote = await _resp.json();
-            if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
-              const merged = { ...remote, id: row.id };
-              await db.seasonSummaries.put(merged);
-              seasonSummarySnapshot.value = merged;
-            } else if (!remote && row) {
-              // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
+            const remoteEmpty = !remote || (typeof remote === 'object' && !Array.isArray(remote) && !Object.keys(remote).length);
+            if (row.archivioId) {
+              if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
+                const merged = { ...remote, id: row.id };
+                await db.seasonSummaries.put(merged);
+                seasonSummarySnapshot.value = merged;
+              } else if (remoteEmpty) {
+                // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
+                await db.seasonSummaries.delete(row.id);
+                seasonSummarySnapshot.value = null;
+              }
+            } else if (remoteEmpty) {
+              // Riga locale legacy senza archivioId: nessun percorso specifico da confrontare, ma se
+              // l'INTERO nodo del gruppo su Firebase è vuoto, questo residuo non può essere valido.
               await db.seasonSummaries.delete(row.id);
               seasonSummarySnapshot.value = null;
             }
