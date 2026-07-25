@@ -484,6 +484,12 @@ body {
   font-size: 0.95rem;
   -webkit-tap-highlight-color: transparent;
 }
+/* Fix 25/7/2026 (segnalato da Alby, vista Riepiloghi Stagionali): i <button> HTML non ereditano
+   font-family dal body per default nei browser (comportamento standard, non un bug del browser) —
+   qualunque bottone senza classe .btn (che lo imposta esplicitamente sopra) cade sul font di
+   sistema del browser, non su quello dell'app. Reset globale qui invece di doverlo ricordare ad
+   ogni nuovo bottone scritto in futuro. */
+button { font-family: inherit; }
 .btn:active { transform: scale(0.96); }
 
 .btn-primary   { background: var(--lime);   color: var(--dark); box-shadow: 0 4px 16px rgba(166,255,77,0.35); }
@@ -1982,8 +1988,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <button class="btn btn-sm" style="width:100%;background:rgba(200,255,0,0.15);border:1.5px solid #C8FF00;color:#C8FF00;font-weight:700"
                 :disabled="archiveStepData.loading||archiveStepData.riepilogoLoading"
                 @click="archiveGeneraRiepilogoStagione">
-                {{ archiveStepData.riepilogoLoading ? '⏳ Genero Riepilogo...' : (archiveStepData.riepilogoGenerato ? '✅ Riepilogo generato — rigenera' : '📖 Genera Riepilogo Stagione') }}
+                {{ archiveStepData.riepilogoLoading
+                  ? (archiveStepData.riepilogoProgress.total ? `⏳ Genero Riepilogo... partita ${archiveStepData.riepilogoProgress.current}/${archiveStepData.riepilogoProgress.total}` : '⏳ Genero Riepilogo...')
+                  : (archiveStepData.riepilogoGenerato ? '✅ Riepilogo generato — rigenera' : '📖 Genera Riepilogo Stagione') }}
               </button>
+              <div v-if="archiveStepData.riepilogoLoading && archiveStepData.riepilogoProgress.total" style="margin-top:8px;height:6px;background:rgba(255,255,255,0.08);border-radius:3px;overflow:hidden">
+                <div style="height:100%;background:#C8FF00;transition:width 0.25s"
+                  :style="{width: Math.round(archiveStepData.riepilogoProgress.current/archiveStepData.riepilogoProgress.total*100)+'%'}"></div>
+              </div>
             </template>
           </div>
           <div style="background:rgba(255,77,77,0.05);border:1px solid rgba(255,77,77,0.2);border-radius:8px;padding:10px;margin-bottom:12px">
@@ -7684,7 +7696,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.738',date:'2026-07-25',items:[
+    const changelogEntries = [{version:'v1.739',date:'2026-07-25',items:[
+      'Fix font non coerenti nella vista "Riepiloghi Stagionali", segnalato da Alby con screenshot. Causa: i `<button>` HTML non ereditano `font-family` dal `body` per default nei browser — solo i bottoni con classe `.btn` lo impostavano esplicitamente, i bottoni-card della lista storico no, quindi cadevano sul font di sistema. Aggiunto un reset globale (`button { font-family: inherit; }`) così il problema non si ripresenta su nessun bottone futuro.',
+      'Aggiunta barra di progresso + conteggio partite ("partita 12/40") durante "Genera Riepilogo Stagione" nel wizard di archiviazione — richiesta da Alby due volte, prima non c\'era alcun feedback visivo che l\'operazione (la generazione/compressione di una PNG per partita, la parte più lenta) fosse davvero in corso.',
+      'Riepilogo Stagione ancora presente in triplo dopo un test con lo stesso identico scenario del fix v1.738 (residuo, non due). Il fix v1.738 era corretto per il caso specifico che copriva, ma esiste un secondo modo in cui il controllo di staleness può fallire in silenzio: se al momento del controllo `getValidToken()` non restituisce un token valido (es. rinnovo ancora in corso), la verifica veniva saltata senza dirlo, lasciando un Riepilogo "corrente" locale ormai stantio pronto per essere scambiato per "la stagione precedente" alla prossima archiviazione. Aggiunta visibilità completa a `loadSeasonSummarySnapshot()` (nessun cambio di comportamento, solo log) in tutti i punti che oggi tacciono: token assente, richiesta Firebase fallita, Riepilogo confermato/aggiornato/eliminato. Riprodotto in test il caso "nessun token disponibile" e confermato che ora viene loggato invece di fallire in silenzio.',
+    ]},{version:'v1.738',date:'2026-07-25',items:[
       'Fix: due Riepiloghi Stagionali dopo una sola archiviazione — segnalato da Alby, ricostruito con certezza. Causa: una riga locale residua (senza `archivioId`, ereditata dallo schema pre-v1.734) non veniva MAI ripulita dal controllo di staleness in `loadSeasonSummarySnapshot`, perché quel controllo richiedeva un `archivioId` valido per partire. Il "♻️ Ripristina da Backup JSON" di Inspector fa un PUT sulla radice `amicifc` di Firebase (che non include mai `seasonSummary` nel payload, quindi lo cancella completamente) — ma questo non aveva alcun effetto sul residuo locale privo di archivioId, che restava invisibile a qualunque cosa succedesse su Firebase. Alla prima archiviazione successiva, il codice trovava questo residuo, lo alleggeriva credendolo la stagione precedente, e ne creava uno nuovo: 2 invece di 1. Fix: quando manca l\'archivioId, il controllo ora verifica l\'intero nodo Firebase del gruppo invece di un percorso specifico — se risulta vuoto, il residuo viene eliminato. Verificato con un test end-to-end che riproduce esattamente lo scenario di Alby (residuo senza archivioId + Firebase vuoto mockato + una sola archiviazione): risultato correttamente un solo Riepilogo.',
     ]},{version:'v1.737',date:'2026-07-25',items:[
       "TrashTalk ancora non rigenerato — Alby ha giustamente messo in dubbio il fix v1.736 con un nuovo log reale. Verificato: quel \"fix\" era un duplicato di uno già presente dal 16/7 (stesso codice, stesso scopo) — non ha cambiato nulla, la vera causa resta da isolare con certezza. Trovato però che il controllo automatico (_initAiCards) falliva in TOTALE silenzio in tre punti: quando il gate iniziale (API key/partite presenti) non passava, quando Firebase risultava già avere un Trash Talk per la data (ramo senza nessun log), e nel catch finale (commento esplicito \"silenzioso\"). Senza questi log era impossibile capire dal log copiato da Alby dove/perché il controllo non facesse quello che doveva. Aggiunta visibilità in tutti e tre i punti (nessun cambio di comportamento, solo log) — al prossimo giro sapremo con certezza quale dei tre casi si verifica davvero. Rimosso anche il duplicato inutile introdotto in v1.736.",
@@ -8531,6 +8547,7 @@ createApp({
       zipLoading: false,
       riepilogoGenerato: false, // Riepilogo Stagione generato in questa sessione del wizard
       riepilogoLoading: false,
+      riepilogoProgress: { current: 0, total: 0 }, // avanzamento generazione PNG per partita — richiesta Alby 25/7/2026
       pendingArchivioId: null, // generato in openArchiveWizard — stesso id condiviso tra il Riepilogo
                                 // Stagione (Step 4) e la riga archivedSeasons (doArchiveStagione, più
                                 // avanti nel wizard): legame 1:1 naturale, nessun UID separato da
@@ -8600,7 +8617,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.738');
+    const appVersion = ref('1.739');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14206,7 +14223,7 @@ Niente altro, nessuna spiegazione.`;
     // → generateAndShareMatchPNG(), MAI persistito sulla partita (stessa cosa che fa già lo ZIP
     // di fine stagione, vedi _generateGiornalePNGForMatch + riga ~15460). Section D ora fa lo
     // stesso: usa m.pngRisultato se già in cache, altrimenti genera al volo con quella funzione.
-    const buildSeasonSummaryTestSectionD = async () => {
+    const buildSeasonSummaryTestSectionD = async (onProgress) => {
       const matches = [...groupMatches.value].sort((a,b) => (a.data||'').localeCompare(b.data||''));
       const risultato = [];
       // Include assist/autogol per giocatore (richiesta Alby 23/7/2026: la Sezione D deve essere
@@ -14224,7 +14241,14 @@ Niente altro, nessuna spiegazione.`;
           autogol: st?.autogol || 0
         };
       });
+      let _i = 0;
       for (const m of matches) {
+        _i++;
+        // Callback di avanzamento — richiesta di Alby 25/7/2026: questo ciclo (una PNG per
+        // partita, generata+ricompressa una alla volta) è la parte lenta della generazione del
+        // Riepilogo Stagione ("può richiedere qualche minuto per tutta la stagione"), e senza
+        // nessun indicatore l'utente non ha modo di sapere se l'app si è bloccata o sta lavorando.
+        if (onProgress) try { onProgress(_i, matches.length); } catch {}
         let pngGiornale = m.pngRisultato || null;
         if (!pngGiornale) {
           try { pngGiornale = await _generateGiornalePNGForMatch(m); } catch { pngGiornale = null; }
@@ -14779,32 +14803,42 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // il residuo locale è sicuramente stantio e viene eliminato.
         if (currentGroup.value?.firebaseUrl && currentGroup.value?.id === gid && row) {
           const tok = await getValidToken().catch(()=>null);
-          const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
-          const _path = row.archivioId ? `seasonSummary/${gid}/${row.archivioId}` : `seasonSummary/${gid}`;
-          const _resp = await fetch(`${_url}/amicifc/${_path}.json${tok?'?auth='+tok:''}`, { cache: 'no-store' });
-          if (_resp.ok) {
-            const remote = await _resp.json();
-            const remoteEmpty = !remote || (typeof remote === 'object' && !Array.isArray(remote) && !Object.keys(remote).length);
-            if (row.archivioId) {
-              if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
-                const merged = { ...remote, id: row.id };
-                await db.seasonSummaries.put(merged);
-                seasonSummarySnapshot.value = merged;
+          if (!tok) {
+            logEvent('warn', 'app', '📖 Verifica Riepilogo Stagione saltata: nessun token Firebase valido al momento del controllo');
+          } else {
+            const _url = (currentGroup.value.firebaseUrl||'').replace(/\/$/,'');
+            const _path = row.archivioId ? `seasonSummary/${gid}/${row.archivioId}` : `seasonSummary/${gid}`;
+            const _resp = await fetch(`${_url}/amicifc/${_path}.json?auth=${tok}`, { cache: 'no-store' });
+            if (!_resp.ok) {
+              logEvent('warn', 'app', `📖 Verifica Riepilogo Stagione fallita: HTTP ${_resp.status} su ${_path}`);
+            } else {
+              const remote = await _resp.json();
+              const remoteEmpty = !remote || (typeof remote === 'object' && !Array.isArray(remote) && !Object.keys(remote).length);
+              if (row.archivioId) {
+                if (remote?.generatedAt && remote.generatedAt > row.generatedAt) {
+                  const merged = { ...remote, id: row.id };
+                  await db.seasonSummaries.put(merged);
+                  seasonSummarySnapshot.value = merged;
+                  logEvent('info', 'app', `📖 Riepilogo Stagione locale aggiornato da Firebase (più recente: ${new Date(remote.generatedAt).toLocaleString('it-IT')})`);
+                } else if (remoteEmpty) {
+                  // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
+                  logEvent('info', 'app', `🗑️ Riepilogo Stagione locale ("${row.stagione}", archivioId ${row.archivioId}) è un residuo stantio (Firebase vuoto per quel path) — eliminato`);
+                  await db.seasonSummaries.delete(row.id);
+                  seasonSummarySnapshot.value = null;
+                } else {
+                  logEvent('info', 'app', `📖 Riepilogo Stagione locale confermato aggiornato ("${row.stagione}")`);
+                }
               } else if (remoteEmpty) {
-                // Fetch riuscita, Firebase non ha nulla: lo snapshot locale è un residuo stantio
+                logEvent('info', 'app', `🗑️ Riepilogo Stagione locale ("${row.stagione}", senza archivioId — residuo pre-v1.734) e Firebase vuoto per l'intero gruppo — eliminato`);
                 await db.seasonSummaries.delete(row.id);
                 seasonSummarySnapshot.value = null;
+              } else {
+                logEvent('info', 'app', `📖 Riepilogo Stagione locale senza archivioId ma Firebase ha dati per il gruppo — tenuto per prudenza, non confrontabile con certezza`);
               }
-            } else if (remoteEmpty) {
-              // Riga locale legacy senza archivioId: nessun percorso specifico da confrontare, ma se
-              // l'INTERO nodo del gruppo su Firebase è vuoto, questo residuo non può essere valido.
-              await db.seasonSummaries.delete(row.id);
-              seasonSummarySnapshot.value = null;
             }
           }
-          // Se _resp non è ok (errore di rete/HTTP), non tocchiamo nulla — stesso principio di sicurezza.
         }
-      } catch(e) { /* silenzioso: non deve mai bloccare l'avvio */ }
+      } catch(e) { logEvent('warn', 'app', '📖 loadSeasonSummarySnapshot: errore imprevisto — ' + (e.message||e)); }
     };
 
     // Elenco di TUTTI i Riepiloghi Stagionali di un gruppo (corrente + storico alleggerito),
@@ -14907,7 +14941,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         }
 
         const d = buildSeasonSummaryTest();
-        const sezioneD = await buildSeasonSummaryTestSectionD();
+        archiveStepData.riepilogoProgress = { current: 0, total: groupMatches.value.length };
+        const sezioneD = await buildSeasonSummaryTestSectionD((cur, tot) => {
+          archiveStepData.riepilogoProgress = { current: cur, total: tot };
+        });
         const sezioneE = buildSeasonSummaryTestSectionE();
         const gabbione = buildSeasonSummaryTestGabbione();
 
@@ -17919,6 +17956,7 @@ const toggleFont = () => {
     const archiveGeneraRiepilogoStagione = async () => {
       if (archiveStepData.riepilogoNonSupportato) return;
       archiveStepData.riepilogoLoading = true;
+      archiveStepData.riepilogoProgress = { current: 0, total: groupMatches.value.length };
       try {
         const res = await generateSeasonSummarySnapshot();
         if (res.ok) {
@@ -17931,6 +17969,7 @@ const toggleFont = () => {
         toast('❌ Errore: ' + e.message, 'error', 4000);
       } finally {
         archiveStepData.riepilogoLoading = false;
+        archiveStepData.riepilogoProgress = { current: 0, total: 0 };
       }
     };
 
