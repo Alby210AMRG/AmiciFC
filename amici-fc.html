@@ -1012,6 +1012,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   width: 800px;
 }
 
+/* Contenitore offscreen per il rendering delle pagine del PDF Riepilogo Stagione (Copertina,
+   Chiusura, e in futuro le sezioni catturate dalla vista già esistente) — stesso pattern già
+   usato sopra per i PNG, dimensione A4 in proporzione (794×1123 a 96dpi, scala 2x in cattura). */
+#pdf-page-render {
+  position: fixed; left: -9999px; top: -9999px;
+  width: 794px; height: 1123px;
+}
+
 /* Formation PNG */
 .formation-png {
   background: linear-gradient(160deg, #0a2818 0%, #1a4a30 40%, #0d3322 100%);
@@ -5810,6 +5818,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   @click="testGeneraRiepilogoStagione" :disabled="seasonSummaryTestGenerating">
                   {{ seasonSummaryTestGenerating ? '⏳ Calcolo...' : '🧪 Genera Anteprima (solo testo)' }}
                 </button>
+                <div v-if="seasonSummarySnapshot" style="margin-top:10px">
+                  <button class="btn btn-full btn-sm" style="background:rgba(58,123,255,0.12);border:1.5px solid var(--blue);color:var(--blue)"
+                    @click="testGenerateCoverClosingPDF">
+                    🧪 Test PDF: solo Copertina + Chiusura
+                  </button>
+                </div>
                 <div style="font-size:0.68rem;color:var(--text2);margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);line-height:1.5">
                   I Riepiloghi storici (alleggeriti) restano SEMPRE in locale su questo dispositivo,
                   anche dopo un ripristino da Inspector — Inspector scrive solo su Firebase, non
@@ -6913,6 +6927,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">{{ t.msg }}</div>
   </div>
 
+  <!-- Contenitore offscreen per il rendering delle pagine del PDF Riepilogo Stagione — il
+       contenuto viene iniettato via JS (innerHTML) prima di ogni cattura con html2canvas, stesso
+       principio dei contenitori PNG sopra ma riusato per pagine diverse una alla volta invece di
+       uno fisso per tipo. -->
+  <div id="pdf-page-render"></div>
+
   <!-- HIDDEN PNG RENDER TEMPLATES -->
   <div id="png-formation">
     <div class="formation-png">
@@ -7707,7 +7727,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.740',date:'2026-07-25',items:[
+    const changelogEntries = [{version:'v1.742',date:'2026-07-25',items:[
+      "Fix probabile del font sbagliato in Copertina/Chiusura del PDF, segnalato da Alby (\"AMICI FC\" e la stagione sembravano un font classico/generico invece di Fredoka One). Causa più probabile: veniva forzato `font-weight:900` su Fredoka One, che ha un solo peso disponibile — html2canvas può sostituire silenziosamente un font di sistema quando il peso richiesto non esiste per quel font, pur senza errori visibili. Tolto il peso forzato (ora 400, il peso naturale del font), aggiunta anche un'attesa esplicita di `document.fonts.ready` prima di ogni cattura. Non verificabile visivamente in questa sessione: Google Fonts (da cui Fredoka One viene scaricato) risulta bloccato nell'ambiente di sviluppo usato — richiede conferma da Alby con connessione reale.",
+    ]},{version:'v1.741',date:'2026-07-25',items:[
+      'PDF Riepilogo Stagione — primo passo del nuovo approccio concordato con Alby: invece di ridisegnare ogni sezione a mano con jsPDF vettoriale, si cattura con html2canvas HTML/CSS scritto apposta (per Copertina/Chiusura, che non esistono già a schermo) o le card già esistenti nella vista Riepilogo Stagione (prossimi passi). Costruite Copertina e Chiusura: sfondo con filigrana di emoji sparse in stile hero card del carosello, logo letto a runtime da .splash-logo, testo di chiusura AI se disponibile (con firma), palette brand verde/lime. Nuovo contenitore offscreen #pdf-page-render (stesso principio dei contenitori PNG già esistenti). Aggiunto un pulsante di test dedicato in Zona Diagnostica ("Test PDF: solo Copertina + Chiusura") per verificare questo primo passo — il pulsante reale "Condividi PDF" nella vista Riepilogo resta sulla vecchia versione vettoriale finché tutte le sezioni non saranno state convertite.',
+    ]},{version:'v1.740',date:'2026-07-25',items:[
       'Fix strutturale del bug dei Riepiloghi Stagionali duplicati — il log inviato da Alby ha mostrato che NESSUNA delle righe diagnostiche aggiunte in v1.739 compariva prima dell\'archiviazione: prova che la verifica con Firebase non stava proprio girando in tempo. Causa: quella verifica viveva solo dentro loadSeasonSummarySnapshot() (chiamata da selectGroup, senza await — non garantita completa prima di qualunque altra azione), mentre generateSeasonSummarySnapshot() faceva una query locale grezza e indipendente per decidere cosa alleggerire, senza mai verificarla contro Firebase. Estratta la logica in una funzione condivisa (_reconcileCurrentSeasonSummary), ora chiamata (con await, quindi garantita) direttamente dentro generateSeasonSummarySnapshot prima di decidere di alleggerire qualcosa — il controllo Firebase avviene sempre, non importa cos\'altro sia già girato prima.',
       'Nuovo tool in Zona Pericolo → Riepilogo Stagione: "🧹 Cancella storico Riepiloghi (solo locale, solo questo gruppo)". Va detto con chiarezza: anche col fix sopra, i Riepiloghi storici già esistenti da sessioni di test precedenti su questo stesso dispositivo continueranno a comparire — sono record legittimi (non stantii, semplicemente vecchi) che né Inspector (scrive solo su Firebase, mai sull\'IndexedDB locale) né nessun meccanismo automatico dovrebbero mai cancellare da soli. Per ripartire davvero puliti durante i test ripetuti serve un\'azione esplicita: questo pulsante.',
       'Fix font/colore/dimensione bottoni — il fix v1.739 (solo font-family) non bastava, come segnalato di nuovo da Alby con screenshot: i bottoni senza classe .btn cadevano anche su colore e dimensione di sistema del browser, non solo sul font. Reset esteso a `color` e `font-size` oltre a `font-family`.',
@@ -8632,7 +8656,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.740');
+    const appVersion = ref('1.742');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15113,6 +15137,124 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       setTimeout(() => resolve(null), 5000);
     });
 
+    // ═══════════════════════════════════════════════════════════════════════════════════
+    // PDF Riepilogo Stagione — nuovo approccio (25/7/2026, concordato con Alby): invece di
+    // ridisegnare ogni sezione a mano con jsPDF vettoriale (vecchio codice sotto, ancora attivo
+    // finché questo lavoro non è completo), si cattura con html2canvas l'HTML/CSS già esistente
+    // — sia le card già a schermo nella vista Riepilogo Stagione (prossimo passo), sia due pagine
+    // costruite apposta perché non esistono già a schermo: Copertina e Chiusura. Un'unica fonte
+    // di verità, meno codice da mantenere in sincronia.
+    // ═══════════════════════════════════════════════════════════════════════════════════
+
+    const _escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+    // Cattura una pagina: inietta l'HTML nel contenitore offscreen #pdf-page-render, attende che
+    // le immagini (logo) siano caricate, cattura con html2canvas (scala 2x per qualità di stampa),
+    // svuota il contenitore. Restituisce il canvas pronto per essere aggiunto al PDF.
+    const _capturePdfPage = async (html) => {
+      const el = document.getElementById('pdf-page-render');
+      el.innerHTML = html;
+      // Attende il caricamento di eventuali <img> (il logo) prima di catturare — altrimenti
+      // html2canvas potrebbe catturare un'area vuota se l'immagine non ha ancora fatto il decode.
+      const imgs = el.querySelectorAll('img');
+      await Promise.all([...imgs].map(img => img.complete ? Promise.resolve() :
+        new Promise(res => { img.onload = res; img.onerror = res; })));
+      // Fix 25/7/2026 (segnalato da Alby: il font "AMICI FC"/titolo stagione sembrava un font di
+      // sistema generico, non Fredoka One): senza aspettare document.fonts.ready, html2canvas può
+      // catturare prima che il web font (caricato da Google Fonts, non embeddato) abbia finito di
+      // scaricarsi, cadendo silenziosamente su un fallback generico per quella cattura specifica —
+      // nessun errore, solo un font sbagliato nell'immagine risultante.
+      await document.fonts.ready;
+      const canvas = await html2canvas(el, { backgroundColor: null, scale: 2, useCORS: true, allowTaint: true, width: 794, height: 1123 });
+      el.innerHTML = '';
+      return canvas;
+    };
+
+    // Copertina — logo letto a runtime da .splash-logo (mai duplicato/hardcoded, vedi Regola
+    // d'Oro sui base64 embedded), sfondo con filigrana di emoji sparse in stile hero card del
+    // carosello (grandi, ruotate, opacità bassa), palette brand (verde scuro + lime).
+    const _buildCoverPageHTML = (snapshot, groupNome) => {
+      const logo = document.querySelector('.splash-logo')?.src || '';
+      const stagione = _escapeHtml(snapshot.stagione || '');
+      const gruppo = _escapeHtml(groupNome || '');
+      const dataGen = new Date(snapshot.generatedAt || Date.now()).toLocaleDateString('it-IT', { day:'numeric', month:'long', year:'numeric' });
+      const stagioneFontSize = stagione.length > 12 ? 56 : 74;
+      return `
+        <div style="width:794px;height:1123px;position:relative;overflow:hidden;background:linear-gradient(160deg,#0a2818 0%,#1a4a30 45%,#166534 100%);font-family:'Nunito','Segoe UI',sans-serif;box-sizing:border-box">
+          <div style="position:absolute;top:-70px;left:-90px;font-size:340px;opacity:.08;transform:rotate(-18deg);line-height:1">⚽</div>
+          <div style="position:absolute;bottom:-110px;right:-110px;font-size:420px;opacity:.07;transform:rotate(12deg);line-height:1">🏆</div>
+          <div style="position:absolute;top:38%;right:-70px;font-size:220px;opacity:.05;transform:rotate(-8deg);line-height:1">⭐</div>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:0 90px;box-sizing:border-box">
+            <img src="${logo}" style="width:130px;height:130px;border-radius:50%;box-shadow:0 12px 40px rgba(0,0,0,.4);margin-bottom:32px;border:4px solid rgba(166,255,77,.5);object-fit:cover">
+            <div style="font-family:'Fredoka One',cursive;font-size:50px;font-weight:400;color:#A6FF4D;letter-spacing:2px;margin-bottom:6px">AMICI FC</div>
+            <div style="font-size:19px;color:rgba(255,255,255,.5);font-style:italic;margin-bottom:54px">Il Calcetto Manager Definitivo</div>
+            <div style="width:110px;height:3px;background:#A6FF4D;border-radius:2px;margin-bottom:36px"></div>
+            <div style="font-size:20px;font-weight:700;color:rgba(255,255,255,.65);text-transform:uppercase;letter-spacing:4px;margin-bottom:12px">Riepilogo Stagione</div>
+            <div style="font-family:'Fredoka One',cursive;font-size:${stagioneFontSize}px;font-weight:400;color:#fff;line-height:1.08;margin-bottom:14px">${stagione}</div>
+            <div style="font-size:23px;color:#A6FF4D;font-weight:700;margin-bottom:56px">${gruppo}</div>
+            <div style="width:110px;height:3px;background:#A6FF4D;border-radius:2px;margin-bottom:36px"></div>
+            <div style="font-size:18px;color:rgba(255,255,255,.45);max-width:500px;line-height:1.6;font-style:italic">"Dove i campioni nascono... e litigano!"</div>
+          </div>
+          <div style="position:absolute;bottom:34px;left:0;right:0;text-align:center;font-size:13px;color:rgba(255,255,255,.3);z-index:2">Generato il ${dataGen}</div>
+        </div>`;
+    };
+
+    // Chiusura — testo AI (aiTexts.chiusura + firma) se presente, altrimenti un saluto generico
+    // di fallback (il PDF deve poter essere generato anche se il testo AI non è disponibile).
+    const _buildClosingPageHTML = (snapshot) => {
+      const chiusura = _escapeHtml(snapshot.aiTexts?.chiusura || 'Un\'altra stagione da ricordare, tra vittorie, pali sventrati e discussioni sul fuorigioco che non finiscono mai. Alla prossima!');
+      const firma = _escapeHtml(snapshot.aiTexts?.firma || 'Amici FC');
+      return `
+        <div style="width:794px;height:1123px;position:relative;overflow:hidden;background:linear-gradient(160deg,#12061a 0%,#1a4a30 55%,#0a2818 100%);font-family:'Nunito','Segoe UI',sans-serif;box-sizing:border-box">
+          <div style="position:absolute;top:-80px;right:-90px;font-size:360px;opacity:.07;transform:rotate(14deg);line-height:1">🏁</div>
+          <div style="position:absolute;bottom:-100px;left:-90px;font-size:260px;opacity:.06;transform:rotate(-10deg);line-height:1">👏</div>
+          <div style="position:absolute;top:42%;left:-60px;font-size:200px;opacity:.05;transform:rotate(8deg);line-height:1">🎉</div>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:0 80px;box-sizing:border-box">
+            <div style="font-size:58px;margin-bottom:20px;line-height:1">🏁</div>
+            <div style="font-family:'Fredoka One',cursive;font-size:42px;font-weight:400;color:#A6FF4D;letter-spacing:2px;margin-bottom:44px">FINE STAGIONE</div>
+            <div style="background:rgba(255,255,255,.06);border:1px solid rgba(166,255,77,.25);border-radius:22px;padding:38px 42px;max-width:560px;position:relative">
+              <div style="font-family:Georgia,serif;font-size:56px;color:rgba(166,255,77,.28);position:absolute;top:-6px;left:18px">"</div>
+              <div style="font-size:18px;line-height:1.75;color:rgba(255,255,255,.88);white-space:pre-wrap">${chiusura}</div>
+              <div style="margin-top:22px;font-size:14px;color:#A6FF4D;font-weight:700;text-align:right">— ${firma}</div>
+            </div>
+            <div style="margin-top:60px;font-size:15px;color:rgba(255,255,255,.4)">Arrivederci alla prossima stagione ⚽</div>
+          </div>
+          <div style="position:absolute;bottom:34px;left:0;right:0;text-align:center;font-size:13px;color:rgba(255,255,255,.28);z-index:2">Amici FC — Il Calcetto Manager Definitivo</div>
+        </div>`;
+    };
+
+    // Aggiunge un canvas come pagina del PDF, ridimensionato per riempire un A4 (210×297mm)
+    // mantenendo le proporzioni — pensato per canvas già in proporzione A4 (794×1123), quindi qui
+    // il fit è diretto senza lettere-boxing.
+    const _pdfAddCanvasPage = (doc, canvas, isFirst) => {
+      if (!isFirst) doc.addPage();
+      const imgData = canvas.toDataURL('image/jpeg', 0.92);
+      doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
+    };
+
+    // Funzione di TEST per questo primo passo (scaffolding + Copertina + Chiusura) — verificabile
+    // da Zona Pericolo prima di sostituire il pulsante reale "Condividi PDF", che per ora resta
+    // sulla vecchia versione vettoriale finché tutte le sezioni non sono state convertite.
+    const testGenerateCoverClosingPDF = async () => {
+      if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
+        toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
+        return;
+      }
+      try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+        const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
+        _pdfAddCanvasPage(doc, coverCanvas, true);
+        const closingCanvas = await _capturePdfPage(_buildClosingPageHTML(seasonSummarySnapshot.value));
+        _pdfAddCanvasPage(doc, closingCanvas, false);
+        doc.save(`test-copertina-chiusura-${(currentGroup.value?.nome||'gruppo').replace(/\s+/g,'-')}.pdf`);
+        toast('✅ Test PDF generato (Copertina + Chiusura)', 'success', 3000);
+      } catch (e) {
+        console.error('Test PDF error:', e);
+        toast('❌ Errore: ' + e.message, 'error', 4000);
+      }
+    };
+
     const generateSeasonSummaryPDF = async () => {
       if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
         toast('❌ Impossibile generare il PDF (dati mancanti)', 'error', 3000);
@@ -20298,7 +20440,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
-      seasonSummaryPdfGenerating, generateSeasonSummaryPDF,
+      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, testGenerateCoverClosingPDF,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
