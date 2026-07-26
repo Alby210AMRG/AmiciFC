@@ -5087,42 +5087,58 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
            "modo stampa" per il PDF, seasonSummaryPdfPrintMode forza tutte aperte e nasconde la
            freccia, dato che non ha senso in un'immagine statica) -->
       <div class="card" id="rp-pdf-sezD">
-        <div class="card-title" style="margin-bottom:6px">🗞️ Le partite</div>
-        <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
+        <!-- Fix 26/7/2026 (segnalato da Alby: con "Includi immagini" attivo e molte partite la
+             sezione risultava completamente vuota nel PDF): un'unica cattura html2canvas di TUTTA
+             la sezione con decine di partite e le loro immagini può superare i limiti di dimensione
+             canvas del browser, che allora restituisce un canvas vuoto SENZA errore. Con le
+             immagini attive, la generazione cattura ora un LOTTO di partite alla volta (vedi
+             rp-pdf-sezD-batch{i} sotto, PDF_MATCH_BATCH_SIZE per lotto) invece di tutta la sezione
+             insieme — abbastanza piccolo da restare sotto i limiti del browser, abbastanza grande
+             da restare ragionevolmente veloce (html2canvas clona l'intero documento a ogni singola
+             chiamata, quindi tante chiamate piccolissime sono lente). Senza immagini si passa
+             invece dal percorso veloce (tutta la sezione in una sola cattura, mai stato un
+             problema). Il padding qui sotto (20px ai lati) replica manualmente quello della card,
+             dato che le catture a lotti non hanno più il wrapper .card intorno. -->
+        <div id="rp-pdf-sezD-header" style="padding:0 20px">
+          <div class="card-title" style="margin-bottom:6px;padding-top:20px">🗞️ Le partite</div>
+          <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
+        </div>
         <div style="display:flex;flex-direction:column">
-          <div v-for="(m,mi) in seasonSummarySnapshot.sezioneD" :key="mi" style="border-top:1px solid var(--border)">
+          <div v-for="(batch, bi) in seasonSummaryPdfMatchBatches" :key="bi" :id="'rp-pdf-sezD-batch'+bi">
+          <div v-for="mi in batch" :key="mi" :id="'rp-pdf-sezD-m'+mi" style="border-top:1px solid var(--border);padding:0 20px">
             <button style="width:100%;display:flex;flex-direction:column;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
               @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
               <div style="display:flex;align-items:center;justify-content:space-between">
-                <span>{{ m.data }} · {{ m.squadraANome }} {{ m.golA }}-{{ m.golB }} {{ m.squadraBNome }}</span>
+                <span>{{ seasonSummarySnapshot.sezioneD[mi].data }} · {{ seasonSummarySnapshot.sezioneD[mi].squadraANome }} {{ seasonSummarySnapshot.sezioneD[mi].golA }}-{{ seasonSummarySnapshot.sezioneD[mi].golB }} {{ seasonSummarySnapshot.sezioneD[mi].squadraBNome }}</span>
                 <span v-if="!seasonSummaryPdfPrintMode" style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
               </div>
-              <div v-if="m.uomoPartita" style="text-align:right;font-size:0.72rem;color:var(--text2);margin-top:2px">🏅 {{ m.uomoPartita }}</div>
+              <div v-if="seasonSummarySnapshot.sezioneD[mi].uomoPartita" style="text-align:right;font-size:0.72rem;color:var(--text2);margin-top:2px">🏅 {{ seasonSummarySnapshot.sezioneD[mi].uomoPartita }}</div>
             </button>
             <div v-if="seasonSummaryPdfPrintMode || seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
-              <div v-if="m.titoloGiornale || m.commentoAI" style="font-size:0.82rem;margin-bottom:10px">
-                <div v-if="m.titoloGiornale" style="font-weight:800;margin-bottom:4px">{{ m.titoloGiornale }}</div>
-                <div v-if="m.commentoAI" style="color:var(--text2);white-space:pre-wrap;line-height:1.5">{{ m.commentoAI }}</div>
+              <div v-if="seasonSummarySnapshot.sezioneD[mi].titoloGiornale || seasonSummarySnapshot.sezioneD[mi].commentoAI" style="font-size:0.82rem;margin-bottom:10px">
+                <div v-if="seasonSummarySnapshot.sezioneD[mi].titoloGiornale" style="font-weight:800;margin-bottom:4px">{{ seasonSummarySnapshot.sezioneD[mi].titoloGiornale }}</div>
+                <div v-if="seasonSummarySnapshot.sezioneD[mi].commentoAI" style="color:var(--text2);white-space:pre-wrap;line-height:1.5">{{ seasonSummarySnapshot.sezioneD[mi].commentoAI }}</div>
               </div>
               <div style="display:flex;gap:12px;margin-bottom:10px;font-size:0.78rem">
                 <div style="flex:1;min-width:0">
-                  <div style="font-weight:700;margin-bottom:4px">{{ m.squadraANome }}</div>
-                  <div v-for="(p,pi) in m.formazioneA" :key="'a'+pi" style="color:var(--text2)">
+                  <div style="font-weight:700;margin-bottom:4px">{{ seasonSummarySnapshot.sezioneD[mi].squadraANome }}</div>
+                  <div v-for="(p,pi) in seasonSummarySnapshot.sezioneD[mi].formazioneA" :key="'a'+pi" style="color:var(--text2)">
                     {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span>
                   </div>
                 </div>
                 <div style="flex:1;min-width:0">
-                  <div style="font-weight:700;margin-bottom:4px">{{ m.squadraBNome }}</div>
-                  <div v-for="(p,pi) in m.formazioneB" :key="'b'+pi" style="color:var(--text2)">
+                  <div style="font-weight:700;margin-bottom:4px">{{ seasonSummarySnapshot.sezioneD[mi].squadraBNome }}</div>
+                  <div v-for="(p,pi) in seasonSummarySnapshot.sezioneD[mi].formazioneB" :key="'b'+pi" style="color:var(--text2)">
                     {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span>
                   </div>
                 </div>
               </div>
               <template v-if="!seasonSummaryPdfPrintMode || seasonSummaryPdfIncludeImages">
-                <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
-                <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+                <img v-if="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :src="seasonSummarySnapshot.sezioneD[mi].pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
+                <img v-if="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :src="seasonSummarySnapshot.sezioneD[mi].fotoPartita" style="max-width:100%;border-radius:10px;display:block">
               </template>
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -7752,7 +7768,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.751',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.752',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — risolto il bug segnalato da Alby: con "Includi immagini" attivo e molte partite, la Sezione D (Le partite) risultava completamente vuota (né testo né immagini). Causa reale: la cattura dell\'intera sezione in un solo scatto, con decine di partite e le loro immagini, superava i limiti di dimensione canvas imposti dai browser — il browser tornava allora un\'immagine vuota, SENZA errore visibile. Prima soluzione tentata (una cattura per singola partita) risolveva il vuoto ma era troppo lenta su larga scala (html2canvas clona l\'intero documento a ogni chiamata, quindi il costo è quasi fisso per chiamata): con 50 partite serviva più di 2 minuti. Soluzione finale: cattura a LOTTI di 6 partite alla volta — abbastanza piccoli da restare sempre sotto i limiti del browser, abbastanza grandi da restare in tempi ragionevoli. Senza immagini attive resta il percorso originale (tutta la sezione in un solo scatto, mai stato un problema, verificato invariato). Verificato concretamente con 50 partite e immagini di dimensioni realistiche: generazione completata con successo in circa 76 secondi (prima si bloccava oltre i 2 minuti), contenuto delle pagine confermato non vuoto per campionamento statistico dei colori.',
+    ]},{version:'v1.751',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — 2 fix richiesti da Alby: 1) mancava il controllo per attivare l\'inclusione delle immagini delle partite nel PDF (la variabile esisteva già ma senza un modo per accenderla) — aggiunto un checkbox "Includi le immagini delle partite (PDF più pesante)" sotto il pulsante Condividi PDF, verificato collegato correttamente. 2) Titoletti di sottosezione orfani (es. "Assist" rimasto da solo in fondo a una pagina, con la lista che iniziava nella successiva): il taglio pagina ora misura quanto è alto il blocco di contenuto appena sopra il punto scelto, e se è troppo corto per essere una lista vera (tipico di un titoletto isolato) cerca un taglio anche prima di lui, spingendo tutto il blocco alla pagina dopo. Verificato con OCR sullo stesso identico dataset di prima: "Assist" ora appare sempre insieme al suo primo elemento ("15 assist") in cima alla pagina, mai più da solo in fondo a quella precedente.',
     ]},{version:'v1.750',date:'2026-07-26',items:[
       'Overlay generazione PDF — fix segnalato da Alby con screenshot: lo sfondo scuro dietro la card di progresso era troppo trasparente (72%), si intravedeva ancora chiaramente il contenuto sottostante che cambiava (tema, layout). Portato al 94% di opacità e aggiunto un blur (10px) sopra — verificato numericamente: la zona di sfondo è ora praticamente uniforme, il testo sotto non è più distinguibile.',
@@ -8699,7 +8717,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.751');
+    const appVersion = ref('1.752');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14859,6 +14877,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // ═══════════════════════════════════════════════════════════════════
     const seasonSummarySnapshot = ref(null); // snapshot del gruppo corrente, o null se non ancora generato
     const seasonSummaryExpandedMatches = reactive({}); // {indice: bool} — accordion Sezione D, tutte chiuse di default
+    // Lotti di partite per la cattura PDF (26/7/2026): con "Includi immagini" attivo, catturare
+    // ogni partita singolarmente è troppo lento (html2canvas clona l'intero documento a OGNI
+    // chiamata, quindi il costo è quasi fisso per chiamata, non per dimensione — 50 chiamate
+    // singole possono richiedere oltre un minuto). Raggruppando 6 partite per cattura si riduce il
+    // numero di chiamate di ~6x restando comunque ben sotto i limiti di dimensione canvas del
+    // browser anche con le immagini incluse.
+    const PDF_MATCH_BATCH_SIZE = 6;
+    const seasonSummaryPdfMatchBatches = computed(() => {
+      const matches = seasonSummarySnapshot.value?.sezioneD || [];
+      const batches = [];
+      for (let i = 0; i < matches.length; i += PDF_MATCH_BATCH_SIZE) {
+        batches.push(Array.from({ length: Math.min(PDF_MATCH_BATCH_SIZE, matches.length - i) }, (_, j) => i + j));
+      }
+      return batches;
+    });
 
     // Toglie tutte le immagini (PNG giornale, foto partita, foto giocatore) da un Riepilogo già
     // generato, lasciando intatto tutto il resto (testo, numeri, formazioni come dati) — usata per
@@ -15463,7 +15496,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // (es. "87"/"86" di una classifica scritti sopra "Pagina X di Y"). Ora si riserva SEMPRE uno
     // spazio vuoto in fondo a ogni pagina (footerReserveMM), dentro cui il contenuto non entra mai
     // — il piè di pagina viene poi disegnato in quello spazio, garantito libero.
-    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gapPx = 32, footerReserveMM = 16) => {
+    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gaps = 32, footerReserveMM = 16) => {
+      // gaps può essere un numero fisso (comportamento originale) o un array con un gap diverso
+      // dopo ogni pezzo — usato per Sezione D (26/7/2026): 0 tra una partita e l'altra (hanno già
+      // il loro bordo/padding), il gap normale (32, come tra due card) solo verso la sezione dopo.
+      const gapAfter = (idx) => Array.isArray(gaps) ? (gaps[idx] ?? 32) : gaps;
       const pageHeightPx = Math.round(pageWidthPx * (297 / 210));
       const footerReservePx = Math.round(pageWidthPx * (footerReserveMM / 210));
       const contentLimitPx = pageHeightPx - footerReservePx; // il contenuto non deve mai superare questo limite
@@ -15533,7 +15570,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // non ci sta nella pagina corrente (senza invadere lo spazio riservato), si passa a una
         // nuova pagina.
         if (sIdx < sectionCanvases.length - 1) {
-          if (gapPx <= contentLimitPx - currentY) currentY += gapPx;
+          const g = gapAfter(sIdx);
+          if (g <= contentLimitPx - currentY) currentY += g;
           else finishPage(pageHeightPx);
         }
       });
@@ -15619,17 +15657,51 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         allPages.push({ canvas: coverCanvas, heightMM: 297, isDark: true });
 
         const sectionCanvases = [];
+        const sectionGaps = []; // gap DOPO ogni pezzo di sectionCanvases (0 tra le partite di Sezione D, 32 altrove)
         let pageWidthPx = null;
+        const _captureOneEl = async (el) => {
+          await _waitForImages(el);
+          return html2canvas(el, { backgroundColor: '#EBF6EB', scale: 2, useCORS: true, allowTaint: true });
+        };
+        const _pushPiece = (c, gapAfter) => {
+          sectionCanvases.push(c);
+          sectionGaps.push(gapAfter);
+          if (!pageWidthPx) pageWidthPx = c.width;
+        };
         for (const id of presentSectionIds) {
           seasonSummaryPdfStep.current++;
           seasonSummaryPdfStep.label = _seasonSummaryPdfSectionLabels[id] || 'Sezione...';
+          if (id === 'rp-pdf-sezD') {
+            // Fix 26/7/2026 (segnalato da Alby: con "Includi immagini" e molte partite la sezione
+            // risultava vuota, poi troppo lenta con la cattura partita-per-partita): due percorsi.
+            if (!seasonSummaryPdfIncludeImages.value) {
+              // Senza immagini: tutte le partite insieme restano ben sotto i limiti di dimensione
+              // canvas anche con decine di partite (solo testo) — una sola cattura, più veloce
+              // (html2canvas clona l'intero documento ad OGNI chiamata: poche chiamate = più veloce).
+              const el = document.getElementById('rp-pdf-sezD');
+              _pushPiece(await _captureOneEl(el), 32);
+            } else {
+              // Con immagini: l'intera sezione può superare i limiti di dimensione canvas del
+              // browser (canvas vuoto, senza errore). Catturata a LOTTI di PDF_MATCH_BATCH_SIZE
+              // partite alla volta — abbastanza piccolo da restare sotto i limiti, abbastanza
+              // grande da restare ragionevolmente veloce.
+              const headerEl = document.getElementById('rp-pdf-sezD-header');
+              if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
+              const totalBatches = seasonSummaryPdfMatchBatches.value.length;
+              for (let bi = 0; bi < totalBatches; bi++) {
+                const batchEl = document.getElementById('rp-pdf-sezD-batch' + bi);
+                if (!batchEl) continue;
+                if (totalBatches > 1) seasonSummaryPdfStep.label = `Le partite (lotto ${bi + 1}/${totalBatches})...`;
+                _pushPiece(await _captureOneEl(batchEl), 0);
+              }
+              if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
+            }
+            continue;
+          }
           const el = document.getElementById(id);
-          await _waitForImages(el); // fix: aspettare le foto reali prima di catturare, non solo il logo
-          const canvas = await html2canvas(el, { backgroundColor: '#EBF6EB', scale: 2, useCORS: true, allowTaint: true });
-          sectionCanvases.push(canvas);
-          if (!pageWidthPx) pageWidthPx = canvas.width;
+          _pushPiece(await _captureOneEl(el), 32);
         }
-        const flowedPages = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', 32);
+        const flowedPages = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', sectionGaps);
         flowedPages.forEach(p => allPages.push({ canvas: p.canvas, heightMM: p.heightMM, isDark: false }));
 
         seasonSummaryPdfStep.current++;
@@ -20397,7 +20469,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
-      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep,
+      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep, seasonSummaryPdfMatchBatches,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
