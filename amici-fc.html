@@ -5828,7 +5828,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     🧪 Test PDF: solo Copertina + Chiusura
                   </button>
                 </div>
-                <div v-if="seasonSummarySnapshot && currentView === 'seasonSummary'" style="margin-top:10px">
+                <div v-if="seasonSummarySnapshot" style="margin-top:10px">
                   <button class="btn btn-full btn-sm" style="background:rgba(166,255,77,0.12);border:1.5px solid var(--lime);color:var(--lime)"
                     :disabled="seasonSummaryPdfGenerating" @click="testGenerateFullSeasonSummaryPDF">
                     {{ seasonSummaryPdfGenerating ? '⏳ Genero...' : '🧪 Test PDF: completo (tutte le sezioni)' }}
@@ -7737,7 +7737,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.743',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.744',date:'2026-07-26',items:[
+      'Fix pulsante "Test PDF: completo" segnalato da Alby: era invisibile da Impostazioni → Zona Pericolo perché la condizione v-if richiedeva currentView === \'seasonSummary\', vero solo se si era già aperti sul Riepilogo. Tolto quel vincolo dal pulsante; la funzione ora passa da sola alla vista Riepilogo Stagione (necessaria per avere le card rp-pdf-* nel DOM da fotografare), genera il PDF, e torna automaticamente alla vista di partenza — verificato end-to-end chiamando la funzione da Impostazioni: PDF generato correttamente, vista tornata a \'settings\' alla fine.',
+    ]},{version:'v1.743',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — secondo passo: tutte le sezioni intermedie (Numeri, Oscar, Classifiche, Le partite, Annuario, Il Gabbione, Formazioni della Stagione, Curiosità) ora catturate con html2canvas direttamente dalla vista Riepilogo Stagione già esistente, invece di essere ridisegnate a mano. Aggiunto un "modo stampa" per Sezione D: tutte le partite risultano aperte (senza freccia apri/chiudi) e le immagini delle partite sono escluse di default per restare leggeri e condivisibili — il testo completo (formazioni, gol, assist, autogol, MVP, titolo, commento) resta sempre presente. Durante la generazione il tema viene forzato temporaneamente su chiaro (più adatto alla stampa/condivisione) e la larghezza dell\'app viene vincolata a stile mobile per evitare che le card si stirino in modo innaturale su schermi larghi — entrambi ripristinati automaticamente a fine generazione. Ogni sezione viene paginata automaticamente su più pagine A4 se supera l\'altezza di una pagina. Aggiunto un secondo pulsante di test in Zona Diagnostica ("Test PDF: completo") per verificare questo passo — il pulsante reale "Condividi PDF" resta sulla vecchia versione vettoriale in attesa di conferma finale.',
     ]},{version:'v1.742',date:'2026-07-25',items:[
       "Fix probabile del font sbagliato in Copertina/Chiusura del PDF, segnalato da Alby (\"AMICI FC\" e la stagione sembravano un font classico/generico invece di Fredoka One). Causa più probabile: veniva forzato `font-weight:900` su Fredoka One, che ha un solo peso disponibile — html2canvas può sostituire silenziosamente un font di sistema quando il peso richiesto non esiste per quel font, pur senza errori visibili. Tolto il peso forzato (ora 400, il peso naturale del font), aggiunta anche un'attesa esplicita di `document.fonts.ready` prima di ogni cattura. Non verificabile visivamente in questa sessione: Google Fonts (da cui Fredoka One viene scaricato) risulta bloccato nell'ambiente di sviluppo usato — richiede conferma da Alby con connessione reale.",
@@ -8668,7 +8670,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.743');
+    const appVersion = ref('1.744');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15320,15 +15322,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
         return;
       }
-      if (currentView.value !== 'seasonSummary') {
-        toast('❌ Apri il Riepilogo Stagione prima di generare il PDF', 'error', 3000);
-        return;
-      }
       seasonSummaryPdfGenerating.value = true;
       const originalTheme = document.documentElement.getAttribute('data-theme');
       const appEl = document.getElementById('app');
       const originalMaxWidth = appEl.style.maxWidth;
+      // Le card da fotografare (rp-pdf-*) esistono nel DOM solo quando currentView è
+      // 'seasonSummary' — se il pulsante è premuto da un'altra vista (es. Zona Diagnostica in
+      // Impostazioni), passiamo lì temporaneamente e torniamo alla vista di partenza alla fine.
+      const originalView = currentView.value;
       try {
+        currentView.value = 'seasonSummary';
         // Forza tema chiaro (i PDF/documenti da condividere sono più leggibili e stampabili in
         // chiaro) e una larghezza tipo mobile (l'app non ha un max-width fisso: su schermi larghi
         // le card del Riepilogo si allargherebbero in modo innaturale se catturate così come sono).
@@ -15337,7 +15340,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         seasonSummaryPdfPrintMode.value = true;
         await Vue.nextTick();
         await document.fonts.ready;
-        await new Promise(r => setTimeout(r, 150)); // margine per il repaint di tema/layout
+        await new Promise(r => setTimeout(r, 150)); // margine per il repaint di tema/layout/vista
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -15364,6 +15367,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         seasonSummaryPdfPrintMode.value = false;
         document.documentElement.setAttribute('data-theme', originalTheme || 'dark');
         appEl.style.maxWidth = originalMaxWidth;
+        currentView.value = originalView;
         seasonSummaryPdfGenerating.value = false;
       }
     };
