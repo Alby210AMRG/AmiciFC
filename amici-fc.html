@@ -7737,7 +7737,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.745',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.746',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — 2 miglioramenti su segnalazione di Alby: 1) taglio pagina più intelligente: prima si fermava alla prima riga di solo sfondo trovata vicino al punto ideale, che spesso era solo l\'interlinea tra due righe di una lista (es. tra "2. Volpe" e "3. Pantera" nelle Classifiche) — tecnicamente non tagliava una lettera a metà, ma spezzava comunque una lista/sottosezione in un punto arbitrario. Ora individua TUTTE le strisce di sfondo vicino al punto ideale e preferisce quelle più larghe (i veri margini tra sottosezioni, es. prima di un titoletto) rispetto alle strisce sottili (semplice interlinea) — verificato con OCR sul PDF generato: "Overall (OVR)" e "Marcatori" restano ora interi sulla stessa pagina invece di spezzarsi a metà lista. Caso residuo noto e minore: a volte il titolo di una sottosezione può restare da solo in fondo pagina con la lista che parte nella successiva — meno grave del taglio a metà lista, migliorabile in un giro successivo se richiesto. 2) Aggiunto piè di pagina: numero di pagina (Copertina, Chiusura e tutte le pagine di contenuto), più nome app e slogan sulle pagine di contenuto (non ripetuti su Copertina/Chiusura che hanno già il marchio nel design), in basso a destra su ogni pagina.',
+    ]},{version:'v1.745',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix di 4 problemi segnalati da Alby con screenshot: 1) box bianchi tra una sezione e l\'altra: ogni sezione forzava l\'inizio di una pagina nuova, lasciando vuoto il resto della pagina precedente se corta — sostituito con un flusso continuo (una card corta lascia il posto alla successiva sulla stessa pagina, come un\'interruzione di pagina in un documento Word); 2) testo tagliato a metà riga tra una pagina e l\'altra: il taglio avveniva a un\'altezza fissa in pixel senza guardare il contenuto — ora cerca la riga di solo colore di sfondo più vicina al punto ideale (campionando l\'immagine) e taglia lì, così cade sempre in uno spazio vuoto tra due elementi; 3) filigrane assenti nelle pagine intermedie: c\'erano solo su Copertina/Chiusura (costruite da zero), le sezioni vere sono foto della vista esistente che non ha filigrane a schermo — aggiunta una filigrana (emoji enorme, ruotata, opacità bassa, a rotazione tra pallone/coppa/stella) disegnata direttamente su ogni pagina composta; 4) silhouette assente per i giocatori senza foto: bug noto di html2canvas che non renderizza correttamente le <img> con src SVG in base64 (la silhouette dell\'app lo è) — rasterizzata una volta in PNG e sostituita temporaneamente solo per la cattura, poi ripristinata. Aggiunta anche un\'attesa del caricamento delle foto reali prima di catturare ogni sezione (mancava, poteva causare foto vuote a caricamento lento). Verificato non solo visivamente ma anche numericamente: nessuna pagina ha più una striscia vuota oltre il 7% dell\'altezza (prima 30-50%+), colore della silhouette trovato su tutte le pagine con giocatori senza foto.',
     ]},{version:'v1.744',date:'2026-07-26',items:[
       'Fix pulsante "Test PDF: completo" segnalato da Alby: era invisibile da Impostazioni → Zona Pericolo perché la condizione v-if richiedeva currentView === \'seasonSummary\', vero solo se si era già aperti sul Riepilogo. Tolto quel vincolo dal pulsante; la funzione ora passa da sola alla vista Riepilogo Stagione (necessaria per avere le card rp-pdf-* nel DOM da fotografare), genera il PDF, e torna automaticamente alla vista di partenza — verificato end-to-end chiamando la funzione da Impostazioni: PDF generato correttamente, vista tornata a \'settings\' alla fine.',
@@ -8672,7 +8674,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.745');
+    const appVersion = ref('1.746');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15300,10 +15302,15 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
     };
 
-    // Cerca, in un canvas sorgente, la riga più vicina a idealY che sia interamente del colore di
-    // sfondo. Cerca PRIMA verso l'alto (non deve mai sforare la pagina corrente), poi come ultima
-    // risorsa verso il basso. Campiona 1 pixel ogni 8 per restare veloce anche su canvas grandi.
-    const _findSafeCutY = (canvas, idealY, bgHex, maxSearchUp = 260, maxSearchDown = 60) => {
+    // Cerca, in un canvas sorgente, il punto migliore per tagliare vicino a idealY. Fix 26/7/2026
+    // su segnalazione di Alby: la versione precedente si fermava alla PRIMA riga di solo sfondo
+    // trovata, che spesso era solo l'interlinea tra due righe di una lista (es. tra "2. Volpe" e
+    // "3. Pantera" nelle Classifiche) — tecnicamente non tagliava una lettera a metà, ma spezzava
+    // comunque una lista/sottosezione in un punto arbitrario invece che a un vero margine. Ora
+    // individua TUTTE le strisce di sfondo nella finestra di ricerca e preferisce quelle più larghe
+    // (i veri margini tra card/sottosezioni, es. margin:12px prima di un titoletto) rispetto alle
+    // strisce sottili (semplice interlinea), scegliendo tra quelle la più vicina al punto ideale.
+    const _findSafeCutY = (canvas, idealY, bgHex, maxSearchUp = 420, maxSearchDown = 60, minGapPx = 10) => {
       const ctx = canvas.getContext('2d');
       const bg = _rgbFromHex(bgHex);
       const top = Math.max(0, idealY - maxSearchUp);
@@ -15313,6 +15320,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       try { imgData = ctx.getImageData(0, top, canvas.width, bottom - top).data; }
       catch (e) { return idealY; } // canvas "tainted" o altro errore: meglio tagliare comunque che bloccarsi
       const tol = 10;
+      const h = bottom - top;
       const isRowBg = (localY) => {
         const rowStart = localY * canvas.width * 4;
         for (let x = 0; x < canvas.width; x += 8) {
@@ -15321,16 +15329,27 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         }
         return true;
       };
+      // Individua tutte le strisce continue di righe di solo sfondo nella finestra di ricerca
+      const runs = [];
+      let runStart = -1;
+      for (let y = 0; y < h; y++) {
+        if (isRowBg(y)) { if (runStart === -1) runStart = y; }
+        else if (runStart !== -1) { runs.push([runStart, y]); runStart = -1; }
+      }
+      if (runStart !== -1) runs.push([runStart, h]);
+      if (!runs.length) return idealY; // nessuna riga di sfondo trovata: tagliamo comunque
+
       const idealLocal = idealY - top;
-      for (let dy = 0; dy <= maxSearchUp; dy++) {
-        const y = idealLocal - dy;
-        if (y >= 0 && isRowBg(y)) return top + y;
-      }
-      for (let dy = 1; dy <= maxSearchDown; dy++) {
-        const y = idealLocal + dy;
-        if (y < (bottom - top) && isRowBg(y)) return top + y;
-      }
-      return idealY; // nessuna riga sicura trovata (raro): tagliamo comunque, meglio che bloccarsi
+      const scored = runs.map(([s, e]) => ({ mid: Math.round((s + e) / 2), size: e - s }));
+      // Preferiamo le strisce larghe (veri margini) che non sforano la pagina disponibile; se
+      // nessuna è abbastanza larga, va bene anche una stretta pur di non sforare; se non c'è
+      // proprio nessuna striscia entro il limite (rarissimo), tagliamo al punto ideale.
+      const nonOverflow = scored.filter(r => r.mid <= idealLocal);
+      if (!nonOverflow.length) return idealY;
+      const bigNonOverflow = nonOverflow.filter(r => r.size >= minGapPx);
+      const pool = bigNonOverflow.length ? bigNonOverflow : nonOverflow;
+      pool.sort((a, b) => Math.abs(a.mid - idealLocal) - Math.abs(b.mid - idealLocal));
+      return top + pool[0].mid;
     };
 
     // Disegna una filigrana (stesso principio delle hero card del carosello: emoji enorme, ruotata,
@@ -15348,6 +15367,32 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       ctx.restore();
     };
     const _pdfWatermarkEmojis = ['⚽', '🏆', '⭐'];
+
+    // Piè di pagina (richiesto da Alby 26/7/2026): numero di pagina in basso a destra su ogni
+    // pagina, più nome app e slogan sulle pagine di contenuto (non su Copertina/Chiusura, che
+    // hanno già il proprio marchio ben visibile nel design). Dimensionato in proporzione alla
+    // larghezza del canvas (px per mm) così resta coerente indipendentemente dalla risoluzione di
+    // cattura.
+    const _drawPageFooter = (canvas, pageNum, totalPages, textColor, showBranding) => {
+      const ctx = canvas.getContext('2d');
+      const scale = canvas.width / 210; // px per mm
+      ctx.save();
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillStyle = textColor;
+      const marginRight = Math.round(scale * 10);
+      let y = canvas.height - Math.round(scale * 7);
+      const fsPage = Math.round(scale * 3.0);
+      ctx.font = `${fsPage}px sans-serif`;
+      ctx.fillText(`Pagina ${pageNum} di ${totalPages}`, canvas.width - marginRight, y);
+      if (showBranding) {
+        y -= fsPage + Math.round(scale * 1.5);
+        const fsBrand = Math.round(scale * 3.3);
+        ctx.font = `600 ${fsBrand}px sans-serif`;
+        ctx.fillText('Amici FC — Il Calcetto Manager Definitivo', canvas.width - marginRight, y);
+      }
+      ctx.restore();
+    };
 
     // Attende che tutte le <img> dentro un elemento abbiano finito di caricare (con un timeout di
     // sicurezza: alcune foto giocatore possono essere link esterni — es. Google Drive — e non
@@ -15441,14 +15486,6 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return pages;
     };
 
-    const _pdfAddSlicedPages = (doc, pages, isFirstOverall) => {
-      pages.forEach((p, i) => {
-        if (!(isFirstOverall && i === 0)) doc.addPage();
-        const imgData = p.canvas.toDataURL('image/jpeg', 0.92);
-        doc.addImage(imgData, 'JPEG', 0, 0, 210, p.heightMM);
-      });
-    };
-
     // Ordine delle sezioni vere catturate dalla vista (id assegnati nel template). Chiusura NON è
     // inclusa qui: è sostituita dalla pagina di chiusura disegnata apposta (_buildClosingPageHTML),
     // più curata graficamente del semplice box di testo a schermo.
@@ -15501,8 +15538,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
+        // Raccoglie TUTTE le pagine (Copertina, sezioni, Chiusura) in un unico array prima di
+        // scrivere qualunque cosa nel PDF — serve per conoscere il totale pagine ed etichettare
+        // correttamente il piè di pagina ("Pagina X di Y") su ognuna.
+        const allPages = []; // { canvas, heightMM, isDark }
+
         const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
-        _pdfAddCanvasPage(doc, coverCanvas, true);
+        allPages.push({ canvas: coverCanvas, heightMM: 297, isDark: true });
 
         const sectionCanvases = [];
         let pageWidthPx = null;
@@ -15515,10 +15557,23 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           if (!pageWidthPx) pageWidthPx = canvas.width;
         }
         const flowedPages = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', 32);
-        _pdfAddSlicedPages(doc, flowedPages, false);
+        flowedPages.forEach(p => allPages.push({ canvas: p.canvas, heightMM: p.heightMM, isDark: false }));
 
         const closingCanvas = await _capturePdfPage(_buildClosingPageHTML(seasonSummarySnapshot.value));
-        _pdfAddCanvasPage(doc, closingCanvas, false);
+        allPages.push({ canvas: closingCanvas, heightMM: 297, isDark: true });
+
+        // Piè di pagina (richiesto da Alby 26/7/2026): numero pagina su tutte, nome app+slogan solo
+        // sulle pagine di contenuto (Copertina/Chiusura hanno già il marchio ben visibile nel design).
+        allPages.forEach((p, i) => {
+          _drawPageFooter(p.canvas, i + 1, allPages.length,
+            p.isDark ? 'rgba(255,255,255,0.78)' : 'rgba(27,43,27,0.72)', !p.isDark);
+        });
+
+        allPages.forEach((p, i) => {
+          if (i > 0) doc.addPage();
+          const imgData = p.canvas.toDataURL('image/jpeg', 0.92);
+          doc.addImage(imgData, 'JPEG', 0, 0, 210, p.heightMM);
+        });
 
         doc.save(`riepilogo-stagione-${(currentGroup.value?.nome || 'gruppo').replace(/\s+/g, '-')}.pdf`);
         toast('✅ PDF completo generato', 'success', 3000);
