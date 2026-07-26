@@ -5134,8 +5134,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <template v-if="!seasonSummaryPdfPrintMode || seasonSummaryPdfIncludeImages">
-                <img v-if="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :src="seasonSummarySnapshot.sezioneD[mi].pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
-                <img v-if="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :src="seasonSummarySnapshot.sezioneD[mi].fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+                <img v-if="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :src="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :style="{maxWidth: seasonSummaryPdfPrintMode ? '72%' : '100%', borderRadius:'10px', display:'block', margin: seasonSummaryPdfPrintMode ? '0 auto 6px auto' : '0 0 6px 0'}">
+                <img v-if="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :src="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :style="{maxWidth: seasonSummaryPdfPrintMode ? '72%' : '100%', borderRadius:'10px', display:'block', margin: seasonSummaryPdfPrintMode ? '0 auto' : '0'}">
               </template>
             </div>
           </div>
@@ -7768,7 +7768,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.753',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.754',date:'2026-07-26',items:[
+      "PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: dopo il fix precedente (mai tagliare un'immagine a metà), restava molto spazio vuoto in fondo ad alcune pagine. Causa reale: ogni partita ha FINO A DUE immagini (PNG giornale + foto), ciascuna alta quasi quanto un'intera pagina — quando la seconda non ci sta più nello spazio rimasto, va INTERA alla pagina successiva (corretto, per non tagliarla), ma lo spazio che lasciava libero restava sprecato. Ridotta la dimensione delle immagini SOLO nel PDF (non nell'app, dove restano piene come sempre) al 72% della larghezza — trovato empiricamente il punto migliore tra diverse prove (55/65/72/80%). Verificato: da 103 a 78 pagine con lo stesso identico contenuto di prova (50 partite, 2 immagini ciascuna), zero immagini tagliate a metà confermato di nuovo. Nota onesta: un po' di spazio vuoto resta comunque inevitabile quando un'immagine non entra nello spazio rimasto — è il prezzo di non tagliarle mai, come richiesto.",
+    ]},{version:'v1.753',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: i PNG delle partite (formazioni con foto giocatori) venivano tagliati a metà tra una pagina e l\'altra. Causa: il taglio pagina cerca righe di solo sfondo per non spezzare il testo, ma un\'immagine non ha righe di sfondo al suo interno, quindi quella ricerca da sola non basta a evitare di tagliarla. Aggiunta una mappa delle "zone protette" (bounding box di ogni <img>, calcolato al momento della cattura) che il taglio pagina ora controlla esplicitamente: se il punto di taglio scelto cade dentro un\'immagine, viene spostato subito prima di essa, spingendo l\'immagine intera alla pagina successiva. Verificato su tutte le 103 pagine di un PDF di prova con 50 partite e immagini vere: zero confini di pagina con un\'immagine tagliata a metà (prima della verifica: controllo automatico che cerca "rumore" di immagine sia in fondo a una pagina che in cima alla successiva).',
     ]},{version:'v1.752',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — risolto il bug segnalato da Alby: con "Includi immagini" attivo e molte partite, la Sezione D (Le partite) risultava completamente vuota (né testo né immagini). Causa reale: la cattura dell\'intera sezione in un solo scatto, con decine di partite e le loro immagini, superava i limiti di dimensione canvas imposti dai browser — il browser tornava allora un\'immagine vuota, SENZA errore visibile. Prima soluzione tentata (una cattura per singola partita) risolveva il vuoto ma era troppo lenta su larga scala (html2canvas clona l\'intero documento a ogni chiamata, quindi il costo è quasi fisso per chiamata): con 50 partite serviva più di 2 minuti. Soluzione finale: cattura a LOTTI di 6 partite alla volta — abbastanza piccoli da restare sempre sotto i limiti del browser, abbastanza grandi da restare in tempi ragionevoli. Senza immagini attive resta il percorso originale (tutta la sezione in un solo scatto, mai stato un problema, verificato invariato). Verificato concretamente con 50 partite e immagini di dimensioni realistiche: generazione completata con successo in circa 76 secondi (prima si bloccava oltre i 2 minuti), contenuto delle pagine confermato non vuoto per campionamento statistico dei colori.',
@@ -8719,7 +8721,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.753');
+    const appVersion = ref('1.754');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15552,26 +15554,40 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             let safeCut = _findSafeCutY(sectionCanvas, idealCut, bgHex);
             if (safeCut <= srcY || safeCut > idealCut) safeCut = idealCut; // non deve mai sforare né tornare indietro
 
-            // Evita titoletti orfani (punto 4, Alby 26/7/2026): se il blocco di contenuto appena
-            // sopra il taglio scelto è molto basso — tipico di un titoletto di sottosezione (es.
-            // "Assist") rimasto da solo senza la sua lista sotto — proviamo a tagliare anche prima
-            // di lui, spingendolo insieme al resto alla pagina successiva. Soglia ~45px CSS (90px a
-            // scala 2x): una singola riga di titolo con margini, non abbastanza per una vera lista.
-            const trailing = _measureTrailingContentHeight(sectionCanvas, safeCut, bgHex);
-            if (trailing.height > 0 && trailing.height < 90 && trailing.contentTop > srcY) {
-              const earlierCut = _findSafeCutY(sectionCanvas, trailing.contentTop, bgHex, 260, 10);
-              if (earlierCut > srcY && earlierCut <= trailing.contentTop + 10) safeCut = earlierCut;
-            }
-
             // Fix 26/7/2026 (segnalato da Alby: i PNG delle partite tagliati a metà tra una pagina
             // e l'altra): se il taglio scelto cade DENTRO un'immagine (zona protetta), lo spostiamo
             // subito prima dell'inizio di quell'immagine — l'immagine intera va alla pagina dopo,
             // mai spezzata. Un'immagine non ha righe di sfondo al suo interno, quindi la ricerca
-            // "riga sicura" da sola non basta a evitarlo: serve questo controllo esplicito.
+            // "riga sicura" da sola non basta a evitarlo: serve questo controllo esplicito. Va
+            // fatto PRIMA dell'euristica anti-titoletto-orfano qui sotto: altrimenti le due si
+            // sommavano (l'euristica vedeva il breve testo del punteggio partita appena sopra
+            // un'immagine come un "titoletto orfano" e spingeva il taglio ancora più indietro,
+            // sprecando spazio bianco inutilmente — segnalato da Alby con screenshot).
+            let hitProtectedImage = false;
             for (const [pTop, pBottom] of protectedRanges) {
               if (safeCut > pTop && safeCut < pBottom) {
                 if (pTop > srcY) safeCut = pTop;
+                hitProtectedImage = true;
                 break; // le immagini non si sovrappongono, la prima che tocca è quella giusta
+              }
+            }
+
+            // Evita titoletti orfani (punto 4, Alby 26/7/2026) — solo se il taglio non è già stato
+            // deciso da un'immagine qui sopra: se il blocco di contenuto appena sopra il taglio
+            // scelto è molto basso (tipico di un titoletto di sottosezione, es. "Assist", rimasto
+            // da solo senza la sua lista sotto), proviamo a tagliare anche prima di lui.
+            if (!hitProtectedImage) {
+              const trailing = _measureTrailingContentHeight(sectionCanvas, safeCut, bgHex);
+              if (trailing.height > 0 && trailing.height < 90 && trailing.contentTop > srcY) {
+                const earlierCut = _findSafeCutY(sectionCanvas, trailing.contentTop, bgHex, 260, 10);
+                if (earlierCut > srcY && earlierCut <= trailing.contentTop + 10) {
+                  safeCut = earlierCut;
+                  // Ricontrolliamo le zone protette anche dopo l'aggiustamento anti-orfano, per
+                  // sicurezza (raro, ma l'aggiustamento potrebbe in teoria ricadere in un'immagine).
+                  for (const [pTop, pBottom] of protectedRanges) {
+                    if (safeCut > pTop && safeCut < pBottom) { if (pTop > srcY) safeCut = pTop; break; }
+                  }
+                }
               }
             }
 
