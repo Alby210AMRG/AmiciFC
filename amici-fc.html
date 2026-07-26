@@ -7768,7 +7768,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.754',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.755',date:'2026-07-26',items:[
+      "PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: restava visibile una sottile fetta del bordo superiore di un\\'immagine partita prima del taglio pagina, nonostante il fix precedente. Non riprodotto identico con dati sintetici (verificato che il calcolo delle zone protette è accurato al pixel in diversi test), ma il pattern (piccola fetta + spazio vuoto dopo) indica un piccolo scostamento di misura tra il DOM live e il canvas catturato. Aggiunto un margine di sicurezza di 8px attorno a ogni zona protetta. Provati anche un margine più ampio (40px) e una rifinitura basata sui pixel reali del canvas: entrambi scartati perché peggioravano lo spreco di spazio (il margine ampio fondeva le due immagini della stessa partita in un blocco unico; la rifinitura veniva ingannata da badge/emoji colorati vicini alle immagini, es. ⚽ 🅰️, scambiati per parte dell\\'immagine). Verificato: zero immagini tagliate su test con contenuti variabili (commenti di lunghezza diversa, MVP presente/assente, titolo assente, seconda immagine assente) e nessuna regressione sul dataset standard.",
+    ]},{version:'v1.754',date:'2026-07-26',items:[
       "PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: dopo il fix precedente (mai tagliare un'immagine a metà), restava molto spazio vuoto in fondo ad alcune pagine. Causa reale: ogni partita ha FINO A DUE immagini (PNG giornale + foto), ciascuna alta quasi quanto un'intera pagina — quando la seconda non ci sta più nello spazio rimasto, va INTERA alla pagina successiva (corretto, per non tagliarla), ma lo spazio che lasciava libero restava sprecato. Ridotta la dimensione delle immagini SOLO nel PDF (non nell'app, dove restano piene come sempre) al 72% della larghezza — trovato empiricamente il punto migliore tra diverse prove (55/65/72/80%). Verificato: da 103 a 78 pagine con lo stesso identico contenuto di prova (50 partite, 2 immagini ciascuna), zero immagini tagliate a metà confermato di nuovo. Nota onesta: un po' di spazio vuoto resta comunque inevitabile quando un'immagine non entra nello spazio rimasto — è il prezzo di non tagliarle mai, come richiesto.",
     ]},{version:'v1.753',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: i PNG delle partite (formazioni con foto giocatori) venivano tagliati a metà tra una pagina e l\'altra. Causa: il taglio pagina cerca righe di solo sfondo per non spezzare il testo, ma un\'immagine non ha righe di sfondo al suo interno, quindi quella ricerca da sola non basta a evitare di tagliarla. Aggiunta una mappa delle "zone protette" (bounding box di ogni <img>, calcolato al momento della cattura) che il taglio pagina ora controlla esplicitamente: se il punto di taglio scelto cade dentro un\'immagine, viene spostato subito prima di essa, spingendo l\'immagine intera alla pagina successiva. Verificato su tutte le 103 pagine di un PDF di prova con 50 partite e immagini vere: zero confini di pagina con un\'immagine tagliata a metà (prima della verifica: controllo automatico che cerca "rumore" di immagine sia in fondo a una pagina che in cima alla successiva).',
@@ -8721,7 +8723,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.754');
+    const appVersion = ref('1.755');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15697,13 +15699,20 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           // Fix 26/7/2026 (segnalato da Alby: i PNG delle partite venivano tagliati a metà tra una
           // pagina e l'altra): calcola dove si trova ogni <img> dentro l'elemento appena catturato,
           // in coordinate del canvas — sono "zone protette" che il taglio pagina non deve mai
-          // attraversare (un'immagine intera va spinta alla pagina successiva, mai spezzata).
+          // attraversare. Piccolo margine di sicurezza (10px canvas, 5px CSS) per assorbire piccole
+          // imprecisioni di misura, ma non troppo ampio: un margine grande (provato: 40px) rischiava
+          // di "fondere" le due immagini della stessa partita (giornale+foto, separate da soli 12px
+          // canvas) in un unico blocco enorme, sprecando più spazio del necessario. Una rifinitura
+          // basata sui pixel reali del canvas era anche stata provata, ma badge/emoji colorati
+          // vicini alle immagini (⚽, 🅰️, medaglie) venivano scambiati per "inizio immagine",
+          // allargando le zone protette più del dovuto — scartata a favore di questo margine fisso.
+          const PROTECTED_MARGIN = 8;
           const elRect = el.getBoundingClientRect();
           const scale = elRect.width > 0 ? canvas.width / elRect.width : 2;
           const protectedRanges = [...el.querySelectorAll('img')].map(img => {
             const r = img.getBoundingClientRect();
-            const top = Math.round((r.top - elRect.top) * scale);
-            const bottom = Math.round((r.bottom - elRect.top) * scale);
+            const top = Math.round((r.top - elRect.top) * scale) - PROTECTED_MARGIN;
+            const bottom = Math.round((r.bottom - elRect.top) * scale) + PROTECTED_MARGIN;
             return [Math.max(0, top), Math.min(canvas.height, bottom)];
           }).filter(([t, b]) => b > t);
           return { canvas, protectedRanges };
