@@ -4990,6 +4990,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <button class="btn btn-primary" style="width:100%" :disabled="seasonSummaryPdfGenerating" @click="generateSeasonSummaryPDF">
           {{ seasonSummaryPdfGenerating ? '⏳ Genero PDF...' : '📤 Condividi PDF' }}
         </button>
+        <label style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:12px;font-size:0.78rem;color:var(--text2);cursor:pointer">
+          <input type="checkbox" v-model="seasonSummaryPdfIncludeImages" style="width:16px;height:16px;accent-color:var(--lime)">
+          Includi le immagini delle partite (PDF più pesante)
+        </label>
       </div>
 
       <div v-if="seasonSummarySnapshot.aiTexts?.intro" class="card" style="font-style:italic;line-height:1.6">
@@ -7748,7 +7752,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.750',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.751',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — 2 fix richiesti da Alby: 1) mancava il controllo per attivare l\'inclusione delle immagini delle partite nel PDF (la variabile esisteva già ma senza un modo per accenderla) — aggiunto un checkbox "Includi le immagini delle partite (PDF più pesante)" sotto il pulsante Condividi PDF, verificato collegato correttamente. 2) Titoletti di sottosezione orfani (es. "Assist" rimasto da solo in fondo a una pagina, con la lista che iniziava nella successiva): il taglio pagina ora misura quanto è alto il blocco di contenuto appena sopra il punto scelto, e se è troppo corto per essere una lista vera (tipico di un titoletto isolato) cerca un taglio anche prima di lui, spingendo tutto il blocco alla pagina dopo. Verificato con OCR sullo stesso identico dataset di prima: "Assist" ora appare sempre insieme al suo primo elemento ("15 assist") in cima alla pagina, mai più da solo in fondo a quella precedente.',
+    ]},{version:'v1.750',date:'2026-07-26',items:[
       'Overlay generazione PDF — fix segnalato da Alby con screenshot: lo sfondo scuro dietro la card di progresso era troppo trasparente (72%), si intravedeva ancora chiaramente il contenuto sottostante che cambiava (tema, layout). Portato al 94% di opacità e aggiunto un blur (10px) sopra — verificato numericamente: la zona di sfondo è ora praticamente uniforme, il testo sotto non è più distinguibile.',
     ]},{version:'v1.749',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: la generazione forza temporaneamente tema chiaro, larghezza mobile e tutte le partite aperte, tutte modifiche visibili sulla STESSA schermata che l\'utente sta guardando (il pulsante è in cima al Riepilogo) — risultato: un lampo della vista che cambiava aspetto e poi tornava normale. Aggiunto un overlay a schermo intero (sopra tutto, z-index alto) con icona, etichetta del passo corrente e barra di progresso reale (Copertina → ogni sezione presente, con nome leggibile → Chiusura → Finalizzazione), che compare PRIMA di qualunque cambiamento tecnico e nasconde tutto quello che succede sotto. Verificato campionando lo stato ogni 60ms per l\'intera durata della generazione: l\'overlay resta visibile per tutto il tempo in cui il tema sottostante passa da scuro a chiaro e viceversa, e la sequenza di step della barra segue esattamente l\'ordine reale delle sezioni catturate.',
@@ -8693,7 +8699,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.750');
+    const appVersion = ref('1.751');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15346,6 +15352,37 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return top + pool[0].mid;
     };
 
+    // Fix 26/7/2026 su segnalazione di Alby (punto 4, "titoletti orfani"): misura quanto è alto il
+    // blocco di contenuto appena sopra un punto di taglio — se è molto basso (tipico di un
+    // titoletto di sottosezione rimasto da solo, senza la sua lista sotto), _flowSectionsIntoPages
+    // lo usa per spingere anche quel blocco alla pagina successiva invece di lasciarlo orfano.
+    const _measureTrailingContentHeight = (canvas, cutY, bgHex, maxScan = 200) => {
+      const ctx = canvas.getContext('2d');
+      const bg = _rgbFromHex(bgHex);
+      const top = Math.max(0, cutY - maxScan);
+      if (cutY <= top) return { height: 0, contentTop: cutY };
+      let imgData;
+      try { imgData = ctx.getImageData(0, top, canvas.width, cutY - top).data; }
+      catch (e) { return { height: 0, contentTop: cutY }; }
+      const tol = 10;
+      const h = cutY - top;
+      const isRowBg = (localY) => {
+        const rowStart = localY * canvas.width * 4;
+        for (let x = 0; x < canvas.width; x += 8) {
+          const idx = rowStart + x * 4;
+          if (Math.abs(imgData[idx] - bg[0]) > tol || Math.abs(imgData[idx + 1] - bg[1]) > tol || Math.abs(imgData[idx + 2] - bg[2]) > tol) return false;
+        }
+        return true;
+      };
+      let y = h - 1;
+      while (y >= 0 && isRowBg(y)) y--; // salta lo sfondo del gap di taglio stesso
+      const contentBottom = y;
+      while (y >= 0 && !isRowBg(y)) y--; // sale nel blocco di contenuto appena sopra
+      const contentTop = y + 1;
+      if (contentBottom < 0) return { height: 0, contentTop: cutY };
+      return { height: contentBottom - contentTop, contentTop: top + contentTop };
+    };
+
     // Disegna una filigrana (stesso principio delle hero card del carosello: emoji enorme, ruotata,
     // opacità bassa) direttamente sul canvas della pagina già composta, in un angolo.
     const _drawPageWatermark = (canvas, emoji) => {
@@ -15473,6 +15510,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             const idealCut = srcY + available;
             let safeCut = _findSafeCutY(sectionCanvas, idealCut, bgHex);
             if (safeCut <= srcY || safeCut > idealCut) safeCut = idealCut; // non deve mai sforare né tornare indietro
+
+            // Evita titoletti orfani (punto 4, Alby 26/7/2026): se il blocco di contenuto appena
+            // sopra il taglio scelto è molto basso — tipico di un titoletto di sottosezione (es.
+            // "Assist") rimasto da solo senza la sua lista sotto — proviamo a tagliare anche prima
+            // di lui, spingendolo insieme al resto alla pagina successiva. Soglia ~45px CSS (90px a
+            // scala 2x): una singola riga di titolo con margini, non abbastanza per una vera lista.
+            const trailing = _measureTrailingContentHeight(sectionCanvas, safeCut, bgHex);
+            if (trailing.height > 0 && trailing.height < 90 && trailing.contentTop > srcY) {
+              const earlierCut = _findSafeCutY(sectionCanvas, trailing.contentTop, bgHex, 260, 10);
+              if (earlierCut > srcY && earlierCut <= trailing.contentTop + 10) safeCut = earlierCut;
+            }
+
             const sliceHeight = safeCut - srcY;
             pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, sliceHeight, 0, currentY, pageWidthPx, sliceHeight);
             currentY += sliceHeight;
