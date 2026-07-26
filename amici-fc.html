@@ -6935,7 +6935,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
        schermata mentre il PDF viene generato, cosicché i cambiamenti tecnici temporanei (tema
        forzato chiaro, larghezza mobile, partite tutte aperte) restano nascosti sotto invece di
        essere visibili sulla schermata che l'utente sta guardando. -->
-  <div v-if="seasonSummaryPdfOverlay" style="position:fixed;inset:0;z-index:9999;background:rgba(10,20,10,0.72);display:flex;align-items:center;justify-content:center;padding:24px">
+  <div v-if="seasonSummaryPdfOverlay" style="position:fixed;inset:0;z-index:9999;background:rgba(8,16,8,0.94);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:center;padding:24px">
     <div style="background:var(--bg1);border:1px solid var(--border);border-radius:20px;padding:32px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
       <div style="font-size:38px;margin-bottom:14px">📄</div>
       <div style="font-weight:800;font-size:1.05rem;margin-bottom:6px">Genero il PDF...</div>
@@ -7748,7 +7748,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.749',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.750',date:'2026-07-26',items:[
+      'Overlay generazione PDF — fix segnalato da Alby con screenshot: lo sfondo scuro dietro la card di progresso era troppo trasparente (72%), si intravedeva ancora chiaramente il contenuto sottostante che cambiava (tema, layout). Portato al 94% di opacità e aggiunto un blur (10px) sopra — verificato numericamente: la zona di sfondo è ora praticamente uniforme, il testo sotto non è più distinguibile.',
+    ]},{version:'v1.749',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: la generazione forza temporaneamente tema chiaro, larghezza mobile e tutte le partite aperte, tutte modifiche visibili sulla STESSA schermata che l\'utente sta guardando (il pulsante è in cima al Riepilogo) — risultato: un lampo della vista che cambiava aspetto e poi tornava normale. Aggiunto un overlay a schermo intero (sopra tutto, z-index alto) con icona, etichetta del passo corrente e barra di progresso reale (Copertina → ogni sezione presente, con nome leggibile → Chiusura → Finalizzazione), che compare PRIMA di qualunque cambiamento tecnico e nasconde tutto quello che succede sotto. Verificato campionando lo stato ogni 60ms per l\'intera durata della generazione: l\'overlay resta visibile per tutto il tempo in cui il tema sottostante passa da scuro a chiaro e viceversa, e la sequenza di step della barra segue esattamente l\'ordine reale delle sezioni catturate.',
     ]},{version:'v1.748',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — integrazione finale: il pulsante "Condividi PDF" ora usa la nuova generazione (Copertina/Chiusura disegnate da zero + sezioni catturate dalla vista con html2canvas, flusso continuo, filigrane, piè di pagina) al posto della vecchia versione vettoriale, rimossa insieme al codice ormai morto (~460 righe). Il pulsante è stato anche spostato in cima alla vista Riepilogo Stagione, prima della prima sezione — su richiesta di Alby, che lo trovava troppo poco visibile in fondo dopo uno scroll lungo. Rimossi anche i due pulsanti di test in Zona Diagnostica, non più necessari dato che ora sono la stessa identica logica del pulsante reale. Verificato: click reale sul pulsante genera correttamente il PDF, nessun errore, comportamento identico ai test precedenti anche partendo da Impostazioni.',
@@ -8691,7 +8693,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.749');
+    const appVersion = ref('1.750');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
