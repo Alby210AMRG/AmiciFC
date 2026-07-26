@@ -4989,7 +4989,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Sezione A -->
-      <div class="card">
+      <div class="card" id="rp-pdf-sezA">
         <div class="card-title" style="margin-bottom:6px">🔢 Numeri della stagione</div>
         <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:8px">
           <div><div style="font-size:1.6rem;font-weight:800">{{ seasonSummarySnapshot.sezioneA.partiteGiocate }}</div><div style="font-size:0.7rem;color:var(--text2)">Partite</div></div>
@@ -5001,7 +5001,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Sezione B — Gli Oscar: foto+nome del vincitore, come le Classifiche (richiesta Alby) -->
-      <div class="card">
+      <div class="card" id="rp-pdf-sezB">
         <div class="card-title" style="margin-bottom:6px">🏆 Gli Oscar</div>
 
         <template v-for="cat in [
@@ -5034,7 +5034,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Sezione C — Classifiche: foto+nome del primo, poi elenco compatto per gli altri (richiesta Alby 20/7/2026) -->
-      <div class="card">
+      <div class="card" id="rp-pdf-sezC">
         <div class="card-title" style="margin-bottom:6px">📊 Classifiche</div>
 
         <template v-for="cat in [
@@ -5071,8 +5071,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
       </div>
 
-      <!-- Sezione D — Partite (accordion: collassate di default, si aprono singolarmente) -->
-      <div class="card">
+      <!-- Sezione D — Partite (accordion: collassate di default, si aprono singolarmente — in
+           "modo stampa" per il PDF, seasonSummaryPdfPrintMode forza tutte aperte e nasconde la
+           freccia, dato che non ha senso in un'immagine statica) -->
+      <div class="card" id="rp-pdf-sezD">
         <div class="card-title" style="margin-bottom:6px">🗞️ Le partite</div>
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
         <div style="display:flex;flex-direction:column">
@@ -5081,11 +5083,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
               <div style="display:flex;align-items:center;justify-content:space-between">
                 <span>{{ m.data }} · {{ m.squadraANome }} {{ m.golA }}-{{ m.golB }} {{ m.squadraBNome }}</span>
-                <span style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
+                <span v-if="!seasonSummaryPdfPrintMode" style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
               </div>
               <div v-if="m.uomoPartita" style="text-align:right;font-size:0.72rem;color:var(--text2);margin-top:2px">🏅 {{ m.uomoPartita }}</div>
             </button>
-            <div v-if="seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
+            <div v-if="seasonSummaryPdfPrintMode || seasonSummaryExpandedMatches[mi]" style="padding-bottom:12px">
               <div v-if="m.titoloGiornale || m.commentoAI" style="font-size:0.82rem;margin-bottom:10px">
                 <div v-if="m.titoloGiornale" style="font-weight:800;margin-bottom:4px">{{ m.titoloGiornale }}</div>
                 <div v-if="m.commentoAI" style="color:var(--text2);white-space:pre-wrap;line-height:1.5">{{ m.commentoAI }}</div>
@@ -5104,15 +5106,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   </div>
                 </div>
               </div>
-              <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
-              <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+              <template v-if="!seasonSummaryPdfPrintMode || seasonSummaryPdfIncludeImages">
+                <img v-if="m.pngGiornale" :src="m.pngGiornale" style="max-width:100%;border-radius:10px;display:block;margin-bottom:6px">
+                <img v-if="m.fotoPartita" :src="m.fotoPartita" style="max-width:100%;border-radius:10px;display:block">
+              </template>
             </div>
           </div>
         </div>
       </div>
 
       <!-- Sezione E — Annuario -->
-      <div class="card">
+      <div class="card" id="rp-pdf-sezE">
         <div class="card-title" style="margin-bottom:6px">📇 Annuario giocatori</div>
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
         <div style="display:flex;flex-direction:column;gap:16px">
@@ -5132,7 +5136,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Il Gabbione -->
-      <div class="card">
+      <div class="card" id="rp-pdf-gabbione">
         <div class="card-title" style="margin-bottom:6px">🥊 Il Gabbione</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Sfide "rivincita" suggerite — non partite realmente giocate.</div>
         <div v-if="seasonSummarySnapshot.gabbione.gabbione2v2" style="font-size:0.85rem;margin-bottom:8px">
@@ -5145,7 +5149,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Formazioni della Stagione — sezione separata dal Gabbione: i più forti in assoluto per taglia -->
-      <div v-if="seasonSummarySnapshot.formazioniTop" class="card">
+      <div v-if="seasonSummarySnapshot.formazioniTop" class="card" id="rp-pdf-formazioni">
         <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
         <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
         <template v-for="size in [5,6,7,8,9,10,11]" :key="'ft-'+size">
@@ -5166,7 +5170,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <!-- Curiosità della stagione -->
-      <div v-if="seasonSummarySnapshot.curiosita" class="card">
+      <div v-if="seasonSummarySnapshot.curiosita" class="card" id="rp-pdf-curiosita">
         <div class="card-title" style="margin-bottom:10px">🎲 Curiosità</div>
         <div style="display:flex;flex-direction:column;gap:8px;font-size:0.85rem">
           <div v-if="seasonSummarySnapshot.curiosita.partitaPazza">🎲 <strong>Partita più pazza</strong>: {{ seasonSummarySnapshot.curiosita.partitaPazza.squadraANome }} {{ seasonSummarySnapshot.curiosita.partitaPazza.golA }}-{{ seasonSummarySnapshot.curiosita.partitaPazza.golB }} {{ seasonSummarySnapshot.curiosita.partitaPazza.squadraBNome }} ({{ seasonSummarySnapshot.curiosita.partitaPazza.totaleGol }} gol totali)</div>
@@ -5822,6 +5826,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <button class="btn btn-full btn-sm" style="background:rgba(58,123,255,0.12);border:1.5px solid var(--blue);color:var(--blue)"
                     @click="testGenerateCoverClosingPDF">
                     🧪 Test PDF: solo Copertina + Chiusura
+                  </button>
+                </div>
+                <div v-if="seasonSummarySnapshot && currentView === 'seasonSummary'" style="margin-top:10px">
+                  <button class="btn btn-full btn-sm" style="background:rgba(166,255,77,0.12);border:1.5px solid var(--lime);color:var(--lime)"
+                    :disabled="seasonSummaryPdfGenerating" @click="testGenerateFullSeasonSummaryPDF">
+                    {{ seasonSummaryPdfGenerating ? '⏳ Genero...' : '🧪 Test PDF: completo (tutte le sezioni)' }}
                   </button>
                 </div>
                 <div style="font-size:0.68rem;color:var(--text2);margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);line-height:1.5">
@@ -7727,7 +7737,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.742',date:'2026-07-25',items:[
+    const changelogEntries = [{version:'v1.743',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — secondo passo: tutte le sezioni intermedie (Numeri, Oscar, Classifiche, Le partite, Annuario, Il Gabbione, Formazioni della Stagione, Curiosità) ora catturate con html2canvas direttamente dalla vista Riepilogo Stagione già esistente, invece di essere ridisegnate a mano. Aggiunto un "modo stampa" per Sezione D: tutte le partite risultano aperte (senza freccia apri/chiudi) e le immagini delle partite sono escluse di default per restare leggeri e condivisibili — il testo completo (formazioni, gol, assist, autogol, MVP, titolo, commento) resta sempre presente. Durante la generazione il tema viene forzato temporaneamente su chiaro (più adatto alla stampa/condivisione) e la larghezza dell\'app viene vincolata a stile mobile per evitare che le card si stirino in modo innaturale su schermi larghi — entrambi ripristinati automaticamente a fine generazione. Ogni sezione viene paginata automaticamente su più pagine A4 se supera l\'altezza di una pagina. Aggiunto un secondo pulsante di test in Zona Diagnostica ("Test PDF: completo") per verificare questo passo — il pulsante reale "Condividi PDF" resta sulla vecchia versione vettoriale in attesa di conferma finale.',
+    ]},{version:'v1.742',date:'2026-07-25',items:[
       "Fix probabile del font sbagliato in Copertina/Chiusura del PDF, segnalato da Alby (\"AMICI FC\" e la stagione sembravano un font classico/generico invece di Fredoka One). Causa più probabile: veniva forzato `font-weight:900` su Fredoka One, che ha un solo peso disponibile — html2canvas può sostituire silenziosamente un font di sistema quando il peso richiesto non esiste per quel font, pur senza errori visibili. Tolto il peso forzato (ora 400, il peso naturale del font), aggiunta anche un'attesa esplicita di `document.fonts.ready` prima di ogni cattura. Non verificabile visivamente in questa sessione: Google Fonts (da cui Fredoka One viene scaricato) risulta bloccato nell'ambiente di sviluppo usato — richiede conferma da Alby con connessione reale.",
     ]},{version:'v1.741',date:'2026-07-25',items:[
       'PDF Riepilogo Stagione — primo passo del nuovo approccio concordato con Alby: invece di ridisegnare ogni sezione a mano con jsPDF vettoriale, si cattura con html2canvas HTML/CSS scritto apposta (per Copertina/Chiusura, che non esistono già a schermo) o le card già esistenti nella vista Riepilogo Stagione (prossimi passi). Costruite Copertina e Chiusura: sfondo con filigrana di emoji sparse in stile hero card del carosello, logo letto a runtime da .splash-logo, testo di chiusura AI se disponibile (con firma), palette brand verde/lime. Nuovo contenitore offscreen #pdf-page-render (stesso principio dei contenitori PNG già esistenti). Aggiunto un pulsante di test dedicato in Zona Diagnostica ("Test PDF: solo Copertina + Chiusura") per verificare questo primo passo — il pulsante reale "Condividi PDF" nella vista Riepilogo resta sulla vecchia versione vettoriale finché tutte le sezioni non saranno state convertite.',
@@ -8656,7 +8668,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.742');
+    const appVersion = ref('1.743');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15125,6 +15137,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // resto — tutte le partite per esteso, non solo un'anteprima.
     // ═══════════════════════════════════════════════════════════════════
     const seasonSummaryPdfGenerating = ref(false);
+    // Modo stampa: quando true, Sezione D (Le partite) mostra tutte le partite aperte e nasconde
+    // la freccia apri/chiudi — non ha senso in un'immagine statica catturata per il PDF. Le
+    // immagini delle partite (PNG giornale) sono ESCLUSE di default (testo completo comunque,
+    // vedi Sezione D — formazioni/gol/assist/autogol/MVP/commento) per tenere il PDF leggero e
+    // condivisibile via WhatsApp; opzionale includerle sapendo che il file sarà più pesante
+    // (deciso con Alby 25/7/2026, dopo l'analisi sulla dimensione dei PNG giornale in v1.733).
+    const seasonSummaryPdfPrintMode = ref(false);
+    const seasonSummaryPdfIncludeImages = ref(false);
 
     // Legge le dimensioni reali di un'immagine base64, per scalarla nel PDF mantenendo
     // le proporzioni corrette invece di deformarla in un riquadro fisso.
@@ -15252,6 +15272,99 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       } catch (e) {
         console.error('Test PDF error:', e);
         toast('❌ Errore: ' + e.message, 'error', 4000);
+      }
+    };
+
+    // Cattura una sezione GIÀ A SCHERMO (le card vere della vista Riepilogo Stagione, con i loro
+    // ID rp-pdf-*) alla sua altezza naturale, poi la affetta in pagine A4 — a differenza di
+    // Copertina/Chiusura (costruite da zero offscreen), qui il contenuto può essere più alto di
+    // una pagina (es. Sezione D con tante partite), quindi serve paginazione.
+    const _captureLiveElementPaginated = async (el, scale = 2, bgColor = '#EBF6EB') => {
+      await document.fonts.ready;
+      const canvas = await html2canvas(el, { backgroundColor: bgColor, scale, useCORS: true, allowTaint: true });
+      const pageHeightPx = Math.round(canvas.width * (297 / 210)); // proporzione A4 alla larghezza catturata
+      const pages = [];
+      for (let y = 0; y < canvas.height; y += pageHeightPx) {
+        const sliceHeight = Math.min(pageHeightPx, canvas.height - y);
+        const pageCanvas = document.createElement('canvas');
+        pageCanvas.width = canvas.width;
+        pageCanvas.height = sliceHeight;
+        pageCanvas.getContext('2d').drawImage(canvas, 0, y, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+        pages.push({ canvas: pageCanvas, heightMM: 210 * (sliceHeight / canvas.width) });
+      }
+      return pages;
+    };
+
+    // Aggiunge una lista di pagine "affettate" (da _captureLiveElementPaginated) al PDF, ciascuna
+    // alla sua altezza reale in mm (non stirata a piena pagina — l'ultima fetta di ogni sezione è
+    // tipicamente più corta, ed è normale, come un'interruzione di pagina in un documento Word).
+    const _pdfAddSlicedPages = (doc, pages, isFirstOverall) => {
+      pages.forEach((p, i) => {
+        if (!(isFirstOverall && i === 0)) doc.addPage();
+        const imgData = p.canvas.toDataURL('image/jpeg', 0.92);
+        doc.addImage(imgData, 'JPEG', 0, 0, 210, p.heightMM);
+      });
+    };
+
+    // Ordine delle sezioni vere catturate dalla vista (id assegnati nel template). Chiusura NON è
+    // inclusa qui: è sostituita dalla pagina di chiusura disegnata apposta (_buildClosingPageHTML),
+    // più curata graficamente del semplice box di testo a schermo.
+    const seasonSummaryPdfSectionIds = ['rp-pdf-sezA', 'rp-pdf-sezB', 'rp-pdf-sezC', 'rp-pdf-sezD', 'rp-pdf-sezE', 'rp-pdf-gabbione', 'rp-pdf-formazioni', 'rp-pdf-curiosita'];
+
+    // Generazione PDF completa — passo 2 (25/7/2026): Copertina e Chiusura disegnate da zero,
+    // tutte le sezioni intermedie catturate dalla vista Riepilogo Stagione già esistente (via
+    // html2canvas). Ancora una funzione di TEST separata: il pulsante reale "Condividi PDF" resta
+    // sulla vecchia versione vettoriale finché Alby non conferma che questa va bene.
+    const testGenerateFullSeasonSummaryPDF = async () => {
+      if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
+        toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
+        return;
+      }
+      if (currentView.value !== 'seasonSummary') {
+        toast('❌ Apri il Riepilogo Stagione prima di generare il PDF', 'error', 3000);
+        return;
+      }
+      seasonSummaryPdfGenerating.value = true;
+      const originalTheme = document.documentElement.getAttribute('data-theme');
+      const appEl = document.getElementById('app');
+      const originalMaxWidth = appEl.style.maxWidth;
+      try {
+        // Forza tema chiaro (i PDF/documenti da condividere sono più leggibili e stampabili in
+        // chiaro) e una larghezza tipo mobile (l'app non ha un max-width fisso: su schermi larghi
+        // le card del Riepilogo si allargherebbero in modo innaturale se catturate così come sono).
+        document.documentElement.setAttribute('data-theme', 'light');
+        appEl.style.maxWidth = '480px';
+        seasonSummaryPdfPrintMode.value = true;
+        await Vue.nextTick();
+        await document.fonts.ready;
+        await new Promise(r => setTimeout(r, 150)); // margine per il repaint di tema/layout
+
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+
+        const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
+        _pdfAddCanvasPage(doc, coverCanvas, true);
+
+        for (const id of seasonSummaryPdfSectionIds) {
+          const el = document.getElementById(id);
+          if (!el) continue; // sezione assente per questo Riepilogo (es. formazioniTop/curiosita opzionali)
+          const pages = await _captureLiveElementPaginated(el);
+          _pdfAddSlicedPages(doc, pages, false);
+        }
+
+        const closingCanvas = await _capturePdfPage(_buildClosingPageHTML(seasonSummarySnapshot.value));
+        _pdfAddCanvasPage(doc, closingCanvas, false);
+
+        doc.save(`riepilogo-stagione-${(currentGroup.value?.nome || 'gruppo').replace(/\s+/g, '-')}.pdf`);
+        toast('✅ PDF completo generato', 'success', 3000);
+      } catch (e) {
+        console.error('Full PDF error:', e);
+        toast('❌ Errore: ' + e.message, 'error', 4000);
+      } finally {
+        seasonSummaryPdfPrintMode.value = false;
+        document.documentElement.setAttribute('data-theme', originalTheme || 'dark');
+        appEl.style.maxWidth = originalMaxWidth;
+        seasonSummaryPdfGenerating.value = false;
       }
     };
 
@@ -20440,7 +20553,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
-      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, testGenerateCoverClosingPDF,
+      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, testGenerateCoverClosingPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, testGenerateFullSeasonSummaryPDF,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
