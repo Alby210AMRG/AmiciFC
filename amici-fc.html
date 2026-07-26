@@ -4984,6 +4984,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
       <div class="card-title">📖 Riepilogo Stagione — {{ seasonSummarySnapshot.stagione }}</div>
 
+      <!-- Condividi PDF — spostato qui in cima (richiesta Alby 26/7/2026): prima era in fondo alla
+           pagina, troppo poco visibile dopo uno scroll lungo -->
+      <div class="card" style="text-align:center">
+        <button class="btn btn-primary" style="width:100%" :disabled="seasonSummaryPdfGenerating" @click="generateSeasonSummaryPDF">
+          {{ seasonSummaryPdfGenerating ? '⏳ Genero PDF...' : '📤 Condividi PDF' }}
+        </button>
+      </div>
+
       <div v-if="seasonSummarySnapshot.aiTexts?.intro" class="card" style="font-style:italic;line-height:1.6">
         {{ seasonSummarySnapshot.aiTexts.intro }}
       </div>
@@ -5195,12 +5203,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div v-else style="font-size:0.72rem;color:var(--text2);margin-top:6px">Serve un'AI configurata{{ currentGroup.firebaseUrl ? ' e il login Firebase' : '' }} per riprovare.</div>
       </div>
 
-      <!-- Condividi PDF -->
-      <div class="card" style="text-align:center">
-        <button class="btn btn-primary" style="width:100%" :disabled="seasonSummaryPdfGenerating" @click="generateSeasonSummaryPDF">
-          {{ seasonSummaryPdfGenerating ? '⏳ Genero PDF...' : '📤 Condividi PDF' }}
-        </button>
-      </div>
+      <!-- Il pulsante Condividi PDF è stato spostato in cima alla vista (26/7/2026) -->
     </template>
 
     <!-- ════ RIEPILOGHI STAGIONALI — storico selezionabile ════ -->
@@ -5822,18 +5825,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   @click="testGeneraRiepilogoStagione" :disabled="seasonSummaryTestGenerating">
                   {{ seasonSummaryTestGenerating ? '⏳ Calcolo...' : '🧪 Genera Anteprima (solo testo)' }}
                 </button>
-                <div v-if="seasonSummarySnapshot" style="margin-top:10px">
-                  <button class="btn btn-full btn-sm" style="background:rgba(58,123,255,0.12);border:1.5px solid var(--blue);color:var(--blue)"
-                    @click="testGenerateCoverClosingPDF">
-                    🧪 Test PDF: solo Copertina + Chiusura
-                  </button>
-                </div>
-                <div v-if="seasonSummarySnapshot" style="margin-top:10px">
-                  <button class="btn btn-full btn-sm" style="background:rgba(166,255,77,0.12);border:1.5px solid var(--lime);color:var(--lime)"
-                    :disabled="seasonSummaryPdfGenerating" @click="testGenerateFullSeasonSummaryPDF">
-                    {{ seasonSummaryPdfGenerating ? '⏳ Genero...' : '🧪 Test PDF: completo (tutte le sezioni)' }}
-                  </button>
-                </div>
+                <!-- I pulsanti di test PDF (Copertina+Chiusura, completo) sono stati rimossi il
+                     26/7/2026: la stessa logica è ora quella del pulsante reale "Condividi PDF"
+                     in cima al Riepilogo Stagione, quindi erano diventati ridondanti. -->
                 <div style="font-size:0.68rem;color:var(--text2);margin-top:12px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);line-height:1.5">
                   I Riepiloghi storici (alleggeriti) restano SEMPRE in locale su questo dispositivo,
                   anche dopo un ripristino da Inspector — Inspector scrive solo su Firebase, non
@@ -7737,7 +7731,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.747',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.748',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — integrazione finale: il pulsante "Condividi PDF" ora usa la nuova generazione (Copertina/Chiusura disegnate da zero + sezioni catturate dalla vista con html2canvas, flusso continuo, filigrane, piè di pagina) al posto della vecchia versione vettoriale, rimossa insieme al codice ormai morto (~460 righe). Il pulsante è stato anche spostato in cima alla vista Riepilogo Stagione, prima della prima sezione — su richiesta di Alby, che lo trovava troppo poco visibile in fondo dopo uno scroll lungo. Rimossi anche i due pulsanti di test in Zona Diagnostica, non più necessari dato che ora sono la stessa identica logica del pulsante reale. Verificato: click reale sul pulsante genera correttamente il PDF, nessun errore, comportamento identico ai test precedenti anche partendo da Impostazioni.',
+    ]},{version:'v1.747',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: il piè di pagina veniva disegnato a una posizione fissa in basso, ma il contenuto poteva arrivare fino al bordo della pagina e finirci scritto sopra (es. i numeri di una classifica sovrapposti a "Pagina X di Y"). Ora viene sempre riservato uno spazio vuoto in fondo a ogni pagina (16mm) dentro cui il contenuto non entra mai — il taglio tra le pagine tiene conto di questo spazio riservato, e anche l\'ultima pagina (parziale) di ogni blocco di sezioni viene allungata di quel tanto in più, mai lasciata esattamente al bordo del contenuto. Verificato con OCR a coordinate (non solo a occhio): su tutte le pagine controllate, nella zona riservata compare ora SOLO il testo del piè di pagina, mai una parola del contenuto.',
     ]},{version:'v1.746',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — 2 miglioramenti su segnalazione di Alby: 1) taglio pagina più intelligente: prima si fermava alla prima riga di solo sfondo trovata vicino al punto ideale, che spesso era solo l\'interlinea tra due righe di una lista (es. tra "2. Volpe" e "3. Pantera" nelle Classifiche) — tecnicamente non tagliava una lettera a metà, ma spezzava comunque una lista/sottosezione in un punto arbitrario. Ora individua TUTTE le strisce di sfondo vicino al punto ideale e preferisce quelle più larghe (i veri margini tra sottosezioni, es. prima di un titoletto) rispetto alle strisce sottili (semplice interlinea) — verificato con OCR sul PDF generato: "Overall (OVR)" e "Marcatori" restano ora interi sulla stessa pagina invece di spezzarsi a metà lista. Caso residuo noto e minore: a volte il titolo di una sottosezione può restare da solo in fondo pagina con la lista che parte nella successiva — meno grave del taglio a metà lista, migliorabile in un giro successivo se richiesto. 2) Aggiunto piè di pagina: numero di pagina (Copertina, Chiusura e tutte le pagine di contenuto), più nome app e slogan sulle pagine di contenuto (non ripetuti su Copertina/Chiusura che hanno già il marchio nel design), in basso a destra su ogni pagina.',
@@ -8676,7 +8672,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.747');
+    const appVersion = ref('1.748');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15251,38 +15247,6 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         </div>`;
     };
 
-    // Aggiunge un canvas come pagina del PDF, ridimensionato per riempire un A4 (210×297mm)
-    // mantenendo le proporzioni — pensato per canvas già in proporzione A4 (794×1123), quindi qui
-    // il fit è diretto senza lettere-boxing.
-    const _pdfAddCanvasPage = (doc, canvas, isFirst) => {
-      if (!isFirst) doc.addPage();
-      const imgData = canvas.toDataURL('image/jpeg', 0.92);
-      doc.addImage(imgData, 'JPEG', 0, 0, 210, 297);
-    };
-
-    // Funzione di TEST per questo primo passo (scaffolding + Copertina + Chiusura) — verificabile
-    // da Zona Pericolo prima di sostituire il pulsante reale "Condividi PDF", che per ora resta
-    // sulla vecchia versione vettoriale finché tutte le sezioni non sono state convertite.
-    const testGenerateCoverClosingPDF = async () => {
-      if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
-        toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
-        return;
-      }
-      try {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-        const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
-        _pdfAddCanvasPage(doc, coverCanvas, true);
-        const closingCanvas = await _capturePdfPage(_buildClosingPageHTML(seasonSummarySnapshot.value));
-        _pdfAddCanvasPage(doc, closingCanvas, false);
-        doc.save(`test-copertina-chiusura-${(currentGroup.value?.nome||'gruppo').replace(/\s+/g,'-')}.pdf`);
-        toast('✅ Test PDF generato (Copertina + Chiusura)', 'success', 3000);
-      } catch (e) {
-        console.error('Test PDF error:', e);
-        toast('❌ Errore: ' + e.message, 'error', 4000);
-      }
-    };
-
     // ─── Fix 26/7/2026 su segnalazione di Alby (4 problemi nel PDF completo) ───
     // 1) Box bianchi tra una sezione e l'altra: ogni sezione iniziava SEMPRE una pagina nuova,
     //    lasciando vuoto il resto della pagina precedente se la sezione precedente era corta.
@@ -15512,7 +15476,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // html2canvas), composte in flusso continuo con taglio intelligente e filigrana. Ancora una
     // funzione di TEST separata: il pulsante reale "Condividi PDF" resta sulla vecchia versione
     // vettoriale finché Alby non conferma che questa va bene.
-    const testGenerateFullSeasonSummaryPDF = async () => {
+    const generateSeasonSummaryPDF = async () => {
       if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
         toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
         return;
@@ -15606,463 +15570,6 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       }
     };
 
-    const generateSeasonSummaryPDF = async () => {
-      if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
-        toast('❌ Impossibile generare il PDF (dati mancanti)', 'error', 3000);
-        return;
-      }
-      seasonSummaryPdfGenerating.value = true;
-      try {
-        const s = seasonSummarySnapshot.value;
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: 'a4' });
-
-        // Palette: verde scuro solo per testo/accenti, LIME brillante (colore-marchio dell'app,
-        // #A6FF4D) per gli sfondi banner — corretto dopo il primo giro, dove avevo usato un verde
-        // scuro dominante ovunque, giudicato "troppo scuro, non i colori dell'app" da Alby.
-        const C = {
-          darkText: [21, 60, 38],
-          lime:     [166, 255, 77],
-          limeText: [58, 110, 12],
-          gold:     [172, 124, 12],
-          red:      [176, 44, 44],
-          text:     [35, 35, 35],
-          muted:    [120, 120, 120],
-          line:     [222, 230, 218],
-          band:     [241, 250, 236],
-          pitch:    [23, 92, 42],
-          pitch2:   [19, 82, 37],
-        };
-
-        const pageW = 210, pageH = 297, marginX = 16, marginTop = 18, marginBottom = 18;
-        const maxW = pageW - marginX * 2;
-        let y = marginTop;
-
-        const addPageDecoration = () => {
-          doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity: 0.06 }));
-          doc.setFillColor(...C.limeText); doc.circle(pageW - 8, 10, 26, 'F');
-          doc.setFillColor(...C.darkText); doc.circle(6, pageH - 12, 20, 'F');
-          doc.restoreGraphicsState();
-        };
-        const newPage = () => { doc.addPage(); addPageDecoration(); y = marginTop; };
-        const checkBreak = (needed) => { if (y + needed > pageH - marginBottom) newPage(); };
-
-        // Icona pallone da calcio "flat style" — pentagono nero centrale + 5 cunei che escono dai
-        // suoi lati verso il bordo del cerchio, la stessa costruzione geometrica usata dalle icone
-        // pallone professionali (non più righe che uscivano da un puntino, che sembravano un sole).
-        const drawBallIcon = (cx, cy, r, color) => {
-          doc.setDrawColor(...color); doc.setLineWidth(0.3);
-          doc.setFillColor(255,255,255);
-          doc.circle(cx, cy, r, 'FD');
-          doc.setFillColor(...color);
-          const pentR = r * 0.38;
-          const pts = [];
-          for (let i = 0; i < 5; i++) {
-            const ang = -Math.PI/2 + i * 2*Math.PI/5;
-            pts.push([cx + pentR*Math.cos(ang), cy + pentR*Math.sin(ang)]);
-          }
-          const segs = [];
-          for (let i = 1; i < 5; i++) segs.push([pts[i][0]-pts[i-1][0], pts[i][1]-pts[i-1][1]]);
-          doc.lines(segs, pts[0][0], pts[0][1], [1,1], 'F', true);
-          for (let i = 0; i < 5; i++) {
-            const a1 = pts[i], a2 = pts[(i+1)%5];
-            const midAng = -Math.PI/2 + (i+0.5) * 2*Math.PI/5;
-            const outX = cx + r*0.88*Math.cos(midAng), outY = cy + r*0.88*Math.sin(midAng);
-            doc.lines([[a2[0]-a1[0], a2[1]-a1[1]],[outX-a2[0], outY-a2[1]],[a1[0]-outX, a1[1]-outY]], a1[0], a1[1], [1,1], 'F', true);
-          }
-        };
-
-        const addSectionTitle = (text) => {
-          checkBreak(14);
-          doc.setFillColor(...C.lime);
-          doc.roundedRect(marginX, y, maxW, 9, 1.5, 1.5, 'F');
-          drawBallIcon(marginX + 6.5, y + 4.5, 3, C.darkText);
-          doc.setFont(undefined, 'bold'); doc.setFontSize(12.5); doc.setTextColor(...C.darkText);
-          doc.text(text, marginX + 12, y + 6.2);
-          y += 13;
-          doc.setFont(undefined, 'normal'); doc.setFontSize(10); doc.setTextColor(...C.text);
-        };
-
-        const addParagraph = (text, opts = {}) => {
-          if (!text) return;
-          doc.setFontSize(opts.size || 10);
-          doc.setFont(undefined, opts.italic ? 'italic' : (opts.bold ? 'bold' : 'normal'));
-          doc.setTextColor(...(opts.color || C.text));
-          const lineH = opts.lineH || 4.6;
-          const lines = doc.splitTextToSize(text, maxW - (opts.indent||0));
-          checkBreak(lines.length * lineH + 2);
-          doc.text(lines, marginX + (opts.indent||0), y);
-          y += lines.length * lineH + (opts.gap ?? 2.5);
-          doc.setTextColor(...C.text);
-        };
-
-        const addList = (items, opts = {}) => {
-          items.forEach((item, i) => {
-            const prefix = opts.numbered ? `${i+1}.` : '•';
-            doc.setFontSize(opts.size || 9.5);
-            doc.setFont(undefined, 'normal'); doc.setTextColor(...C.text);
-            const lines = doc.splitTextToSize(item, maxW - 7);
-            checkBreak(lines.length * 4.2 + 0.8);
-            doc.setTextColor(...(opts.bulletColor || C.limeText));
-            doc.text(prefix, marginX, y);
-            doc.setTextColor(...C.text);
-            doc.text(lines, marginX + 6, y);
-            y += lines.length * 4.2 + 0.8;
-          });
-          y += 1.5;
-        };
-
-        // Tronca un testo con "…" se supera la larghezza data, nel font/dimensione correnti —
-        // necessario nelle card a due colonne dove lo spazio orizzontale è limitato
-        const truncate = (text, w, size) => {
-          doc.setFontSize(size);
-          if (!text) return '';
-          if (doc.getTextWidth(text) <= w) return text;
-          let t = text;
-          while (t.length > 1 && doc.getTextWidth(t + '…') > w) t = t.slice(0, -1);
-          return t + '…';
-        };
-
-        const computeImgSize = async (dataUrl, maxImgW, maxImgH) => {
-          if (!dataUrl) return null;
-          const dims = await _imgDims(dataUrl);
-          if (!dims) return null;
-          let w = maxImgW, h = w * dims.h / dims.w;
-          if (h > maxImgH) { h = maxImgH; w = h * dims.w / dims.h; }
-          return { w, h };
-        };
-
-        // Foto giocatore ritagliata a cerchio. FIX rispetto alla v1.719: getPlayerPhoto può
-        // restituire un valore non incorporabile (es. un vecchio percorso locale legacy) quando
-        // manca la foto vera — prima ci provavo comunque e falliva silenziosamente lasciando un
-        // cerchio scuro invece della silhouette grigia prevista. Ora si tenta l'incorporamento
-        // SOLO se il valore è davvero un\'immagine base64 (data:image/...), altrimenti va dritto
-        // al cerchio grigio di riserva.
-        const addCircularPhoto = (dataUrl, x, yPos, diameter) => {
-          const embeddable = typeof dataUrl === 'string' && dataUrl.startsWith('data:image/');
-          if (!embeddable) {
-            doc.setFillColor(226,226,226);
-            doc.circle(x + diameter/2, yPos + diameter/2, diameter/2, 'F');
-            return;
-          }
-          try {
-            doc.saveGraphicsState();
-            doc.ellipse(x + diameter/2, yPos + diameter/2, diameter/2, diameter/2, null);
-            doc.clip();
-            const fmt = dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
-            doc.addImage(dataUrl, fmt, x, yPos, diameter, diameter);
-            doc.restoreGraphicsState();
-          } catch(e) { doc.restoreGraphicsState(); }
-        };
-
-        const nomi = (arr) => (arr || []).map(g => g.nome).join(', ') || '—';
-        const photoByName = {};
-        for (const p of s.sezioneE) photoByName[p.nome] = p.foto;
-        // Il logo si legge dal DOM (elemento .splash-logo, sempre presente anche se nascosto —
-        // vedi nota sopra sulla rimozione della costante duplicata)
-        const APP_LOGO = document.querySelector('.splash-logo')?.src || null;
-        const APP_MOTTO1 = 'Il Calcetto Manager Definitivo';
-        const APP_MOTTO2 = "dove i campioni nascono... e litigano!";
-
-        // Sfondo "erba tosata" — strisce orizzontali a due tonalità di verde alternate, come un
-        // vero campo da calcio falciato (non più un verde piatto e anonimo)
-        const drawMowedStripes = () => {
-          const stripes = 14;
-          const stripeH = pageH / stripes;
-          for (let i = 0; i < stripes; i++) {
-            doc.setFillColor(...(i % 2 === 0 ? C.pitch : C.pitch2));
-            doc.rect(0, stripeH * i, pageW, stripeH + 0.6, 'F');
-          }
-        };
-
-        // Disegna le righe di un campo da calcio stilizzato (bordo, linea di metà campo, cerchio
-        // centrale, due aree di rigore) — SOLO le righe, mai testo sopra: il testo va sempre nella
-        // metà campo superiore o in quella inferiore, mai a cavallo del cerchio/linea di centrocampo
-        const drawPitchLines = (opacity) => {
-          doc.saveGraphicsState();
-          doc.setGState(new doc.GState({ opacity }));
-          doc.setDrawColor(255,255,255); doc.setLineWidth(0.8);
-          const fm = 18;
-          doc.rect(fm, fm, pageW - fm*2, pageH - fm*2, 'S');
-          doc.line(fm, pageH/2, pageW - fm, pageH/2);
-          doc.circle(pageW/2, pageH/2, 22, 'S');
-          doc.circle(pageW/2, pageH/2, 1, 'F');
-          doc.rect(pageW/2 - 34, fm, 68, 26, 'S');
-          doc.rect(pageW/2 - 34, pageH - fm - 26, 68, 26, 'S');
-          doc.restoreGraphicsState();
-        };
-
-        // ═══ Copertina — pagina dedicata: campo "erba tosata" a righe, logo vero dell'app e
-        // titolo SEMPRE nella metà campo superiore (mai sul cerchio di centrocampo), motto nella
-        // metà campo inferiore — corretto dopo il primo giro, dove il titolo tagliava la linea ═══
-        drawMowedStripes();
-        drawPitchLines(0.5);
-        if (APP_LOGO) {
-          const logoSize = 34;
-          try { doc.addImage(APP_LOGO, 'PNG', pageW/2 - logoSize/2, 58, logoSize, logoSize); } catch(e) {}
-        }
-        doc.setTextColor(255,255,255); doc.setFont(undefined,'bold'); doc.setFontSize(23);
-        doc.text('Riepilogo Stagione', pageW/2, 106, { align: 'center' });
-        doc.setFont(undefined,'normal'); doc.setFontSize(14); doc.setTextColor(...C.lime);
-        doc.text(s.stagione || '', pageW/2, 118, { align: 'center' });
-        doc.setFont(undefined,'italic'); doc.setFontSize(9.5); doc.setTextColor(225,238,220);
-        doc.text(APP_MOTTO1, pageW/2, 208, { align: 'center' });
-        doc.text(APP_MOTTO2, pageW/2, 214, { align: 'center' });
-        newPage();
-
-        if (s.aiTexts?.intro) addParagraph(s.aiTexts.intro, { italic: true, size: 10.5, lineH: 5 });
-
-        // ═══ Sezione A ═══
-        addSectionTitle('Numeri della stagione');
-        const stats = [
-          ['Partite', s.sezioneA.partiteGiocate],
-          ['Gol totali', s.sezioneA.golTotali],
-          ['Media gol/partita', s.sezioneA.mediaGolPartita.toFixed(2)],
-          ['Presenze', s.sezioneA.presenzeTotali],
-        ];
-        checkBreak(22);
-        const boxW = (maxW - 9) / 4;
-        stats.forEach((st, i) => {
-          const bx = marginX + i * (boxW + 3);
-          doc.setFillColor(...C.band);
-          doc.roundedRect(bx, y, boxW, 20, 2, 2, 'F');
-          doc.setFont(undefined,'bold'); doc.setFontSize(15); doc.setTextColor(...C.darkText);
-          doc.text(String(st[1]), bx + boxW/2, y + 10, { align: 'center' });
-          doc.setFont(undefined,'normal'); doc.setFontSize(7); doc.setTextColor(...C.muted);
-          doc.text(st[0], bx + boxW/2, y + 16, { align: 'center' });
-        });
-        y += 25;
-        doc.setTextColor(...C.text);
-        if (s.aiTexts?.commentoA) addParagraph(s.aiTexts.commentoA, { italic: true });
-
-        // ═══ Sezione B — Gli Oscar ═══
-        addSectionTitle("Gli Oscar");
-        const oscarList = [
-          { label: "Pallone d'Oro", val: `${s.sezioneB.palloneDoro.valore?.toFixed(2) || '—'}`, giocatori: s.sezioneB.palloneDoro.giocatori, color: C.gold },
-          { label: "Scarpa d'Oro", val: `${s.sezioneB.scarpaDoro.valore} gol`, giocatori: s.sezioneB.scarpaDoro.giocatori, color: C.gold },
-          { label: 'Fedelissimo', val: `${s.sezioneB.fedelissimo.valore} presenze`, giocatori: s.sezioneB.fedelissimo.giocatori, color: C.limeText },
-          { label: 'Giocatore Più Premiato', val: 'titoli Re del Mese', giocatori: s.sezioneB.piuPremiato.giocatori, color: C.limeText },
-          { label: "Il Bidone d'Oro", val: 'titoli Bidone del Mese', giocatori: s.sezioneB.bidoneDellAnno.giocatori, color: C.muted },
-        ];
-        for (const o of oscarList) {
-          if (!o.giocatori.length) continue;
-          checkBreak(16);
-          const rowTop = y;
-          const winnersToShow = o.giocatori.slice(0, 2);
-          let photoX = marginX;
-          for (const w of winnersToShow) { addCircularPhoto(photoByName[w.nome], photoX, rowTop, 12); photoX += 14; }
-          const textX = photoX + 2;
-          doc.setFont(undefined,'bold'); doc.setFontSize(10); doc.setTextColor(...o.color);
-          doc.text(o.label, textX, rowTop + 5);
-          doc.setFont(undefined,'normal'); doc.setFontSize(9); doc.setTextColor(...C.text);
-          const extra = o.giocatori.length > 2 ? ` (+${o.giocatori.length-2} a pari merito)` : '';
-          doc.text(`${nomi(o.giocatori)}${extra} · ${o.val}`, textX, rowTop + 10);
-          y += 15;
-        }
-        if (s.sezioneB.kryptonite.length) {
-          addList(s.sezioneB.kryptonite.map(k => `Kryptonite: ${k.vittima} soccombe contro ${k.incubo} (${k.persi}/${k.tot} sconfitte)`), { bulletColor: C.red, size: 9 });
-        }
-        if (s.aiTexts?.commentoB) addParagraph(s.aiTexts.commentoB, { italic: true });
-
-        // ═══ Sezione C — Classifiche: card a 3 colonne (Marcatori/Assist/Media Voto) con icona
-        // colorata, foto del primo classificato in evidenza, elenco numerato — riprogettata da zero
-        // su modello fornito da Alby (non più liste "nude" a piena larghezza) ═══
-        addSectionTitle('Classifiche');
-        const addClassificheColumns = (columns) => {
-          const activeCols = columns.filter(c => c.items.length);
-          if (!activeCols.length) return;
-          const colGap2 = 6;
-          const colW2c = (maxW - colGap2 * (activeCols.length - 1)) / activeCols.length;
-          checkBreak(78);
-          const topY = y;
-          let maxColH = 0;
-          activeCols.forEach((col, ci) => {
-            const cx = marginX + ci * (colW2c + colGap2);
-            let cy = topY;
-            doc.setFillColor(...C.band);
-            doc.roundedRect(cx, cy, colW2c, 74, 2.5, 2.5, 'F');
-            cy += 6;
-            drawBallIcon(cx + 7, cy, 3.4, col.color);
-            doc.setFont(undefined,'bold'); doc.setFontSize(10.5); doc.setTextColor(...col.color);
-            doc.text(col.label, cx + 13, cy + 1.6);
-            cy += 9;
-            const first = col.items[0];
-            if (first) {
-              addCircularPhoto(first.foto, cx + 4, cy, 15);
-              doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.darkText);
-              doc.text(truncate(first.nome, colW2c - 24, 9.5), cx + 22, cy + 6);
-              doc.setFont(undefined,'bold'); doc.setFontSize(11); doc.setTextColor(...col.color);
-              doc.text(String(first.valore), cx + 22, cy + 12.5);
-              cy += 20;
-            }
-            doc.setDrawColor(...C.line); doc.line(cx + 4, cy, cx + colW2c - 4, cy);
-            cy += 4;
-            col.items.slice(1).forEach((it, idx) => {
-              doc.setFont(undefined,'normal'); doc.setFontSize(8);
-              doc.setTextColor(...col.color);
-              doc.text(`${idx + 2}.`, cx + 4, cy);
-              doc.setTextColor(...C.text);
-              doc.text(truncate(it.nome, colW2c - 24, 8), cx + 11, cy);
-              doc.setFont(undefined,'bold'); doc.setTextColor(...col.color);
-              doc.text(String(it.valore), cx + colW2c - 4, cy, { align: 'right' });
-              cy += 4.4;
-            });
-            maxColH = Math.max(maxColH, cy - topY);
-          });
-          y = topY + Math.max(maxColH, 74) + 4;
-        };
-        addClassificheColumns([
-          { label: 'Marcatori', color: C.pitch, items: s.sezioneC.topScorers.map(p => ({ nome: p.soprannome||p.nome, valore: p.goalTotali, foto: photoByName[p.soprannome||p.nome] })) },
-          ...(s.trackAssist && s.sezioneC.topAssist?.length ? [{ label: 'Assist', color: [30,110,190], items: s.sezioneC.topAssist.map(p => ({ nome: p.soprannome||p.nome, valore: p.assistTotali, foto: photoByName[p.soprannome||p.nome] })) }] : []),
-          { label: 'Media Voto', color: C.gold, items: s.sezioneC.topMediaVoto.map(p => ({ nome: p.soprannome||p.nome, valore: p.mediaVoto.toFixed(2), foto: photoByName[p.soprannome||p.nome] })) },
-        ]);
-        if (s.aiTexts?.commentoC) addParagraph(s.aiTexts.commentoC, { italic: true });
-
-        // ═══ Il Gabbione ═══
-        addSectionTitle('Il Gabbione');
-        addParagraph('Sfide "rivincita" suggerite — non partite realmente giocate.', { size: 8.5, italic: true, color: C.muted });
-        if (s.gabbione.gabbione2v2) addParagraph(`2vs2:  ${s.gabbione.gabbione2v2.squadraA.join(' + ')}   vs   ${s.gabbione.gabbione2v2.squadraB.join(' + ')}`, { bold: true });
-        if (s.gabbione.gabbione3v3) addParagraph(`3vs3:  ${s.gabbione.gabbione3v3.squadraA.join(' + ')}   vs   ${s.gabbione.gabbione3v3.squadraB.join(' + ')}`, { bold: true });
-        if (s.aiTexts?.commentoGabbione) addParagraph(s.aiTexts.commentoGabbione, { italic: true });
-
-        // ═══ Sezione E — Annuario: griglia a DUE COLONNE, card compatte ═══
-        // Riprogettata dopo il primo giro: prima un giocatore per pagina con testo esteso —
-        // ora card fisse compatte, testo troncato dove serve, per stare in molte meno pagine.
-        newPage();
-        addSectionTitle('Annuario giocatori');
-        if (s.aiTexts?.commentoE) addParagraph(s.aiTexts.commentoE, { italic: true });
-        const colGap = 6;
-        const colW = (maxW - colGap) / 2;
-        const cardH = 36;
-        const drawPlayerCard = (p, cx, cy) => {
-          if (!p) return;
-          addCircularPhoto(p.foto, cx, cy, 15);
-          const tx = cx + 18, tw = colW - 18;
-          doc.setFont(undefined,'bold'); doc.setFontSize(9.5); doc.setTextColor(...C.darkText);
-          doc.text(truncate(p.nome, tw, 9.5), tx, cy + 4);
-          doc.setFont(undefined,'normal'); doc.setFontSize(6.8); doc.setTextColor(...C.muted);
-          doc.text(truncate(`${p.ruolo||''}${p.piede?' · '+p.piede:''}`, tw, 6.8), tx, cy + 8);
-          doc.setFontSize(7); doc.setTextColor(...C.text);
-          doc.text(truncate(`${p.goalTotali} gol · ${p.partiteTotali} pres. · voto ${p.votiTotali>0?p.mediaVoto.toFixed(2):'—'}`, tw, 7), tx, cy + 12);
-          let ly = cy + 16;
-          if (p.incubo) {
-            doc.setTextColor(...C.red); doc.setFontSize(6.6);
-            doc.text(truncate(`Incubo: ${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot})`, tw, 6.6), tx, ly);
-            doc.setTextColor(...C.text); ly += 3.6;
-          }
-          if (p.soprannomeAI) {
-            doc.setFont(undefined,'italic'); doc.setFontSize(6.6); doc.setTextColor(...C.limeText);
-            const sopLines = doc.splitTextToSize(p.soprannomeAI, colW).slice(0, 2);
-            doc.text(sopLines, cx, ly + 3);
-            doc.setTextColor(...C.text);
-          }
-        };
-        // Corretto DEFINITIVAMENTE dopo la terza segnalazione dello stesso bug: invece di
-        // affidarsi a checkBreak() (calcolo dinamico di quanto spazio resta, che continuava a
-        // comportarsi in modo incoerente sui dati reali di Alby nonostante funzionasse nei test
-        // sintetici), ora si contano le righe con un contatore fisso — massimo 6 righe (12
-        // giocatori) per pagina, punto, senza eccezioni e senza calcoli che possano sbagliare.
-        const ROWS_PER_PAGE_ANNUARIO = 6;
-        let annuarioRowsOnPage = 0;
-        for (let i = 0; i < s.sezioneE.length; i += 2) {
-          if (annuarioRowsOnPage >= ROWS_PER_PAGE_ANNUARIO) {
-            newPage();
-            annuarioRowsOnPage = 0;
-          }
-          drawPlayerCard(s.sezioneE[i], marginX, y);
-          drawPlayerCard(s.sezioneE[i+1], marginX + colW + colGap, y);
-          y += cardH;
-          doc.setDrawColor(...C.line);
-          doc.line(marginX, y, marginX + maxW, y);
-          y += 3;
-          annuarioRowsOnPage++;
-        }
-
-        // ═══ Sezione D — Le partite: griglia a DUE COLONNE, ESATTAMENTE 4 per pagina (2 righe) —
-        // richiesta esplicita di Alby, prima erano 6. Altezza di riga fissa (non più calcolata
-        // dinamicamente dall'immagine più alta della coppia), stesso motivo del fix dell'Annuario:
-        // eliminare qualunque calcolo variabile che possa comportarsi in modo incoerente. ═══
-        newPage();
-        addSectionTitle('Le partite');
-        if (s.aiTexts?.commentoD) addParagraph(s.aiTexts.commentoD, { italic: true });
-        const maxImgH = 95;
-        const ROWS_PER_PAGE_PARTITE = 2;
-        let partiteRowsOnPage = 0;
-        const drawMatchCard = (m, size, cx, cy) => {
-          if (!m) return;
-          doc.setFillColor(...C.band);
-          doc.roundedRect(cx, cy, colW, 8, 1.2, 1.2, 'F');
-          doc.setFont(undefined,'normal'); doc.setFontSize(6.3); doc.setTextColor(...C.muted);
-          doc.text(m.data, cx + 2, cy + 5.2);
-          doc.setFont(undefined,'bold'); doc.setFontSize(7);
-          const label = truncate(`${m.squadraANome}  ${m.golA}-${m.golB}  ${m.squadraBNome}`, colW - 20, 7);
-          doc.setTextColor(...C.text);
-          doc.text(label, cx + colW - 2, cy + 5.2, { align: 'right' });
-          if (size && m.pngGiornale) {
-            const ix = cx + (colW - size.w) / 2;
-            const fmt = m.pngGiornale.includes('image/png') ? 'PNG' : 'JPEG';
-            try { doc.addImage(m.pngGiornale, fmt, ix, cy + 10, size.w, size.h); } catch(e) { /* salta */ }
-          }
-        };
-        for (let i = 0; i < s.sezioneD.length; i += 2) {
-          if (partiteRowsOnPage >= ROWS_PER_PAGE_PARTITE) {
-            newPage();
-            partiteRowsOnPage = 0;
-          }
-          const left = s.sezioneD[i], right = s.sezioneD[i+1];
-          const leftSize = left ? await computeImgSize(left.pngGiornale, colW, maxImgH) : null;
-          const rightSize = right ? await computeImgSize(right.pngGiornale, colW, maxImgH) : null;
-          drawMatchCard(left, leftSize, marginX, y);
-          drawMatchCard(right, rightSize, marginX + colW + colGap, y);
-          y += 9 + 2 + maxImgH + 4;
-          partiteRowsOnPage++;
-        }
-
-        // ═══ Chiusura — pagina intera "erba tosata", coerente con la copertina. Logo in alto e
-        // testo SEMPRE nella metà campo superiore, motto in quella inferiore — mai a cavallo del
-        // cerchio di centrocampo (stesso principio della copertina) ═══
-        let closingPageNum = null;
-        if (s.aiTexts?.chiusura) {
-          newPage();
-          closingPageNum = doc.internal.getNumberOfPages();
-          drawMowedStripes();
-          drawPitchLines(0.5);
-          if (APP_LOGO) {
-            const logoSize2 = 22;
-            try { doc.addImage(APP_LOGO, 'PNG', pageW/2 - logoSize2/2, 34, logoSize2, logoSize2); } catch(e) {}
-          }
-          y = 74;
-          doc.setTextColor(255,255,255);
-          addParagraph(s.aiTexts.chiusura, { italic: true, size: 12, color: [255,255,255], lineH: 6 });
-          if (s.aiTexts.firma) {
-            doc.setFont(undefined,'italic'); doc.setFontSize(10); doc.setTextColor(...C.lime);
-            doc.text('— ' + s.aiTexts.firma, pageW - marginX, y + 5, { align: 'right' });
-          }
-          doc.setFont(undefined,'italic'); doc.setFontSize(9); doc.setTextColor(210,228,205);
-          doc.text(APP_MOTTO1, pageW/2, 208, { align: 'center' });
-        }
-
-        // ═══ Piè di pagina: numero pagina + nome app e slogan (tranne sulla copertina) ═══
-        const totalPages = doc.internal.getNumberOfPages();
-        for (let p = 2; p <= totalPages; p++) {
-          doc.setPage(p);
-          const onClosing = p === closingPageNum;
-          doc.setFont(undefined,'normal'); doc.setFontSize(8);
-          doc.setTextColor(...(onClosing ? [210,228,205] : C.muted));
-          doc.text('Amici FC · ' + APP_MOTTO1, marginX, pageH - 8);
-          doc.text(`${p - 1} / ${totalPages - 1}`, pageW - marginX, pageH - 8, { align: 'right' });
-        }
-
-        doc.save(`Riepilogo_Stagione_${(s.stagione||'stagione').replace(/[^a-z0-9]/gi,'_')}.pdf`);
-        toast('✅ PDF generato', 'success', 3000);
-      } catch(e) {
-        logEvent('error','app','Riepilogo Stagione: generazione PDF fallita — '+e.message);
-        toast('❌ Errore generazione PDF: ' + e.message, 'error', 4000);
-      } finally {
-        seasonSummaryPdfGenerating.value = false;
-      }
-    };
 
     const testGeneraRiepilogoStagione = async () => {
       seasonSummaryTestGenerating.value = true;
@@ -20791,7 +20298,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
-      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, testGenerateCoverClosingPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, testGenerateFullSeasonSummaryPDF,
+      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
