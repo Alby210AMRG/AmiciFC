@@ -7768,7 +7768,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.752',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.753',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: i PNG delle partite (formazioni con foto giocatori) venivano tagliati a metà tra una pagina e l\'altra. Causa: il taglio pagina cerca righe di solo sfondo per non spezzare il testo, ma un\'immagine non ha righe di sfondo al suo interno, quindi quella ricerca da sola non basta a evitare di tagliarla. Aggiunta una mappa delle "zone protette" (bounding box di ogni <img>, calcolato al momento della cattura) che il taglio pagina ora controlla esplicitamente: se il punto di taglio scelto cade dentro un\'immagine, viene spostato subito prima di essa, spingendo l\'immagine intera alla pagina successiva. Verificato su tutte le 103 pagine di un PDF di prova con 50 partite e immagini vere: zero confini di pagina con un\'immagine tagliata a metà (prima della verifica: controllo automatico che cerca "rumore" di immagine sia in fondo a una pagina che in cima alla successiva).',
+    ]},{version:'v1.752',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — risolto il bug segnalato da Alby: con "Includi immagini" attivo e molte partite, la Sezione D (Le partite) risultava completamente vuota (né testo né immagini). Causa reale: la cattura dell\'intera sezione in un solo scatto, con decine di partite e le loro immagini, superava i limiti di dimensione canvas imposti dai browser — il browser tornava allora un\'immagine vuota, SENZA errore visibile. Prima soluzione tentata (una cattura per singola partita) risolveva il vuoto ma era troppo lenta su larga scala (html2canvas clona l\'intero documento a ogni chiamata, quindi il costo è quasi fisso per chiamata): con 50 partite serviva più di 2 minuti. Soluzione finale: cattura a LOTTI di 6 partite alla volta — abbastanza piccoli da restare sempre sotto i limiti del browser, abbastanza grandi da restare in tempi ragionevoli. Senza immagini attive resta il percorso originale (tutta la sezione in un solo scatto, mai stato un problema, verificato invariato). Verificato concretamente con 50 partite e immagini di dimensioni realistiche: generazione completata con successo in circa 76 secondi (prima si bloccava oltre i 2 minuti), contenuto delle pagine confermato non vuoto per campionamento statistico dei colori.',
     ]},{version:'v1.751',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — 2 fix richiesti da Alby: 1) mancava il controllo per attivare l\'inclusione delle immagini delle partite nel PDF (la variabile esisteva già ma senza un modo per accenderla) — aggiunto un checkbox "Includi le immagini delle partite (PDF più pesante)" sotto il pulsante Condividi PDF, verificato collegato correttamente. 2) Titoletti di sottosezione orfani (es. "Assist" rimasto da solo in fondo a una pagina, con la lista che iniziava nella successiva): il taglio pagina ora misura quanto è alto il blocco di contenuto appena sopra il punto scelto, e se è troppo corto per essere una lista vera (tipico di un titoletto isolato) cerca un taglio anche prima di lui, spingendo tutto il blocco alla pagina dopo. Verificato con OCR sullo stesso identico dataset di prima: "Assist" ora appare sempre insieme al suo primo elemento ("15 assist") in cima alla pagina, mai più da solo in fondo a quella precedente.',
@@ -8717,7 +8719,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.752');
+    const appVersion = ref('1.753');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15534,7 +15536,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         currentY = 0;
       };
 
-      sectionCanvases.forEach((sectionCanvas, sIdx) => {
+      sectionCanvases.forEach((piece, sIdx) => {
+        const sectionCanvas = piece.canvas;
+        const protectedRanges = piece.protectedRanges || [];
         let srcY = 0;
         while (srcY < sectionCanvas.height) {
           const available = contentLimitPx - currentY;
@@ -15557,6 +15561,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             if (trailing.height > 0 && trailing.height < 90 && trailing.contentTop > srcY) {
               const earlierCut = _findSafeCutY(sectionCanvas, trailing.contentTop, bgHex, 260, 10);
               if (earlierCut > srcY && earlierCut <= trailing.contentTop + 10) safeCut = earlierCut;
+            }
+
+            // Fix 26/7/2026 (segnalato da Alby: i PNG delle partite tagliati a metà tra una pagina
+            // e l'altra): se il taglio scelto cade DENTRO un'immagine (zona protetta), lo spostiamo
+            // subito prima dell'inizio di quell'immagine — l'immagine intera va alla pagina dopo,
+            // mai spezzata. Un'immagine non ha righe di sfondo al suo interno, quindi la ricerca
+            // "riga sicura" da sola non basta a evitarlo: serve questo controllo esplicito.
+            for (const [pTop, pBottom] of protectedRanges) {
+              if (safeCut > pTop && safeCut < pBottom) {
+                if (pTop > srcY) safeCut = pTop;
+                break; // le immagini non si sovrappongono, la prima che tocca è quella giusta
+              }
             }
 
             const sliceHeight = safeCut - srcY;
@@ -15656,17 +15672,30 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
         allPages.push({ canvas: coverCanvas, heightMM: 297, isDark: true });
 
-        const sectionCanvases = [];
+        const sectionCanvases = []; // { canvas, protectedRanges: [[top,bottom], ...] }
         const sectionGaps = []; // gap DOPO ogni pezzo di sectionCanvases (0 tra le partite di Sezione D, 32 altrove)
         let pageWidthPx = null;
         const _captureOneEl = async (el) => {
           await _waitForImages(el);
-          return html2canvas(el, { backgroundColor: '#EBF6EB', scale: 2, useCORS: true, allowTaint: true });
+          const canvas = await html2canvas(el, { backgroundColor: '#EBF6EB', scale: 2, useCORS: true, allowTaint: true });
+          // Fix 26/7/2026 (segnalato da Alby: i PNG delle partite venivano tagliati a metà tra una
+          // pagina e l'altra): calcola dove si trova ogni <img> dentro l'elemento appena catturato,
+          // in coordinate del canvas — sono "zone protette" che il taglio pagina non deve mai
+          // attraversare (un'immagine intera va spinta alla pagina successiva, mai spezzata).
+          const elRect = el.getBoundingClientRect();
+          const scale = elRect.width > 0 ? canvas.width / elRect.width : 2;
+          const protectedRanges = [...el.querySelectorAll('img')].map(img => {
+            const r = img.getBoundingClientRect();
+            const top = Math.round((r.top - elRect.top) * scale);
+            const bottom = Math.round((r.bottom - elRect.top) * scale);
+            return [Math.max(0, top), Math.min(canvas.height, bottom)];
+          }).filter(([t, b]) => b > t);
+          return { canvas, protectedRanges };
         };
-        const _pushPiece = (c, gapAfter) => {
-          sectionCanvases.push(c);
+        const _pushPiece = (piece, gapAfter) => {
+          sectionCanvases.push(piece);
           sectionGaps.push(gapAfter);
-          if (!pageWidthPx) pageWidthPx = c.width;
+          if (!pageWidthPx) pageWidthPx = piece.canvas.width;
         };
         for (const id of presentSectionIds) {
           seasonSummaryPdfStep.current++;
