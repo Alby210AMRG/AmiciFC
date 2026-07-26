@@ -6931,6 +6931,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">{{ t.msg }}</div>
   </div>
 
+  <!-- Overlay generazione PDF Riepilogo Stagione (26/7/2026, richiesta Alby): copre tutta la
+       schermata mentre il PDF viene generato, cosicché i cambiamenti tecnici temporanei (tema
+       forzato chiaro, larghezza mobile, partite tutte aperte) restano nascosti sotto invece di
+       essere visibili sulla schermata che l'utente sta guardando. -->
+  <div v-if="seasonSummaryPdfOverlay" style="position:fixed;inset:0;z-index:9999;background:rgba(10,20,10,0.72);display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="background:var(--bg1);border:1px solid var(--border);border-radius:20px;padding:32px 28px;max-width:340px;width:100%;text-align:center;box-shadow:0 20px 60px rgba(0,0,0,0.4)">
+      <div style="font-size:38px;margin-bottom:14px">📄</div>
+      <div style="font-weight:800;font-size:1.05rem;margin-bottom:6px">Genero il PDF...</div>
+      <div style="font-size:0.82rem;color:var(--text2);margin-bottom:18px;min-height:1.2em">{{ seasonSummaryPdfStep.label }}</div>
+      <div style="background:var(--bg3);border-radius:8px;height:10px;overflow:hidden">
+        <div style="background:var(--lime);height:100%;border-radius:8px;transition:width .25s ease"
+          :style="{width: Math.round(100 * seasonSummaryPdfStep.current / seasonSummaryPdfStep.total) + '%'}"></div>
+      </div>
+      <div style="font-size:0.7rem;color:var(--text2);margin-top:8px">{{ seasonSummaryPdfStep.current }} / {{ seasonSummaryPdfStep.total }}</div>
+    </div>
+  </div>
+
   <!-- Contenitore offscreen per il rendering delle pagine del PDF Riepilogo Stagione — il
        contenuto viene iniettato via JS (innerHTML) prima di ogni cattura con html2canvas, stesso
        principio dei contenitori PNG sopra ma riusato per pagine diverse una alla volta invece di
@@ -7731,7 +7748,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.748',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.749',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: la generazione forza temporaneamente tema chiaro, larghezza mobile e tutte le partite aperte, tutte modifiche visibili sulla STESSA schermata che l\'utente sta guardando (il pulsante è in cima al Riepilogo) — risultato: un lampo della vista che cambiava aspetto e poi tornava normale. Aggiunto un overlay a schermo intero (sopra tutto, z-index alto) con icona, etichetta del passo corrente e barra di progresso reale (Copertina → ogni sezione presente, con nome leggibile → Chiusura → Finalizzazione), che compare PRIMA di qualunque cambiamento tecnico e nasconde tutto quello che succede sotto. Verificato campionando lo stato ogni 60ms per l\'intera durata della generazione: l\'overlay resta visibile per tutto il tempo in cui il tema sottostante passa da scuro a chiaro e viceversa, e la sequenza di step della barra segue esattamente l\'ordine reale delle sezioni catturate.',
+    ]},{version:'v1.748',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — integrazione finale: il pulsante "Condividi PDF" ora usa la nuova generazione (Copertina/Chiusura disegnate da zero + sezioni catturate dalla vista con html2canvas, flusso continuo, filigrane, piè di pagina) al posto della vecchia versione vettoriale, rimossa insieme al codice ormai morto (~460 righe). Il pulsante è stato anche spostato in cima alla vista Riepilogo Stagione, prima della prima sezione — su richiesta di Alby, che lo trovava troppo poco visibile in fondo dopo uno scroll lungo. Rimossi anche i due pulsanti di test in Zona Diagnostica, non più necessari dato che ora sono la stessa identica logica del pulsante reale. Verificato: click reale sul pulsante genera correttamente il PDF, nessun errore, comportamento identico ai test precedenti anche partendo da Impostazioni.',
     ]},{version:'v1.747',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: il piè di pagina veniva disegnato a una posizione fissa in basso, ma il contenuto poteva arrivare fino al bordo della pagina e finirci scritto sopra (es. i numeri di una classifica sovrapposti a "Pagina X di Y"). Ora viene sempre riservato uno spazio vuoto in fondo a ogni pagina (16mm) dentro cui il contenuto non entra mai — il taglio tra le pagine tiene conto di questo spazio riservato, e anche l\'ultima pagina (parziale) di ogni blocco di sezioni viene allungata di quel tanto in più, mai lasciata esattamente al bordo del contenuto. Verificato con OCR a coordinate (non solo a occhio): su tutte le pagine controllate, nella zona riservata compare ora SOLO il testo del piè di pagina, mai una parola del contenuto.',
@@ -8672,7 +8691,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.748');
+    const appVersion = ref('1.749');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15149,6 +15168,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // (deciso con Alby 25/7/2026, dopo l'analisi sulla dimensione dei PNG giornale in v1.733).
     const seasonSummaryPdfPrintMode = ref(false);
     const seasonSummaryPdfIncludeImages = ref(false);
+    // Overlay a schermo intero durante la generazione PDF (richiesto da Alby 26/7/2026): la
+    // generazione forza temporaneamente tema chiaro, larghezza mobile e "modo stampa" — tutte
+    // modifiche visibili sulla stessa schermata che l'utente sta guardando. L'overlay copre tutto
+    // (z-index sopra il resto dell'app) così quei cambiamenti tecnici restano nascosti sotto, e
+    // l'utente vede solo una barra di progresso pulita che sparisce a lavoro finito.
+    const seasonSummaryPdfOverlay = ref(false);
+    const seasonSummaryPdfStep = reactive({ label: '', current: 0, total: 1 });
 
     // Legge le dimensioni reali di un'immagine base64, per scalarla nel PDF mantenendo
     // le proporzioni corrette invece di deformarla in un riquadro fisso.
@@ -15476,25 +15502,39 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // html2canvas), composte in flusso continuo con taglio intelligente e filigrana. Ancora una
     // funzione di TEST separata: il pulsante reale "Condividi PDF" resta sulla vecchia versione
     // vettoriale finché Alby non conferma che questa va bene.
+    // Etichette leggibili per la barra di progresso, una per ogni sezione catturata dalla vista.
+    const _seasonSummaryPdfSectionLabels = {
+      'rp-pdf-sezA': 'Numeri della stagione', 'rp-pdf-sezB': 'Gli Oscar', 'rp-pdf-sezC': 'Classifiche',
+      'rp-pdf-sezD': 'Le partite', 'rp-pdf-sezE': 'Annuario', 'rp-pdf-gabbione': 'Il Gabbione',
+      'rp-pdf-formazioni': 'Formazioni della Stagione', 'rp-pdf-curiosita': 'Curiosità',
+    };
+
     const generateSeasonSummaryPDF = async () => {
       if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
         toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
         return;
       }
       seasonSummaryPdfGenerating.value = true;
+      // L'overlay va mostrato PRIMA di qualunque cambiamento tecnico (tema, larghezza, vista,
+      // modo stampa) e la UI deve fare in tempo a disegnarlo (nextTick) prima che quei cambiamenti
+      // avvengano sotto — altrimenti l'utente vedrebbe comunque un lampo della schermata sottostante.
+      seasonSummaryPdfOverlay.value = true;
+      seasonSummaryPdfStep.current = 0;
+      seasonSummaryPdfStep.total = 1;
+      seasonSummaryPdfStep.label = 'Preparazione...';
+      await Vue.nextTick();
+      await new Promise(r => setTimeout(r, 50));
+
       const originalTheme = document.documentElement.getAttribute('data-theme');
       const appEl = document.getElementById('app');
       const originalMaxWidth = appEl.style.maxWidth;
       // Le card da fotografare (rp-pdf-*) esistono nel DOM solo quando currentView è
-      // 'seasonSummary' — se il pulsante è premuto da un'altra vista (es. Zona Diagnostica in
-      // Impostazioni), passiamo lì temporaneamente e torniamo alla vista di partenza alla fine.
+      // 'seasonSummary' — se il pulsante è premuto da un'altra vista, passiamo lì temporaneamente
+      // e torniamo alla vista di partenza alla fine (nascosto dietro l'overlay, mai visibile).
       const originalView = currentView.value;
       const swappedSilhouetteImgs = [];
       try {
         currentView.value = 'seasonSummary';
-        // Forza tema chiaro (i PDF/documenti da condividere sono più leggibili e stampabili in
-        // chiaro) e una larghezza tipo mobile (l'app non ha un max-width fisso: su schermi larghi
-        // le card del Riepilogo si allargherebbero in modo innaturale se catturate così come sono).
         document.documentElement.setAttribute('data-theme', 'light');
         appEl.style.maxWidth = '480px';
         seasonSummaryPdfPrintMode.value = true;
@@ -15502,7 +15542,6 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         await document.fonts.ready;
         await new Promise(r => setTimeout(r, 150)); // margine per il repaint di tema/layout/vista
 
-        // Sostituisce temporaneamente le silhouette SVG con la versione PNG rasterizzata (fix #4)
         const silhouettePng = await _rasterizeSilhouette();
         seasonSummaryPdfSectionIds.forEach(id => {
           const sectionEl = document.getElementById(id);
@@ -15515,22 +15554,25 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           });
         });
 
+        const presentSectionIds = seasonSummaryPdfSectionIds.filter(id => document.getElementById(id));
+        seasonSummaryPdfStep.total = 1 /* copertina */ + presentSectionIds.length + 1 /* chiusura */ + 1 /* finalizzazione */;
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
-        // Raccoglie TUTTE le pagine (Copertina, sezioni, Chiusura) in un unico array prima di
-        // scrivere qualunque cosa nel PDF — serve per conoscere il totale pagine ed etichettare
-        // correttamente il piè di pagina ("Pagina X di Y") su ognuna.
         const allPages = []; // { canvas, heightMM, isDark }
 
+        seasonSummaryPdfStep.current = 1;
+        seasonSummaryPdfStep.label = 'Copertina...';
         const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
         allPages.push({ canvas: coverCanvas, heightMM: 297, isDark: true });
 
         const sectionCanvases = [];
         let pageWidthPx = null;
-        for (const id of seasonSummaryPdfSectionIds) {
+        for (const id of presentSectionIds) {
+          seasonSummaryPdfStep.current++;
+          seasonSummaryPdfStep.label = _seasonSummaryPdfSectionLabels[id] || 'Sezione...';
           const el = document.getElementById(id);
-          if (!el) continue; // sezione assente per questo Riepilogo (es. formazioniTop/curiosita opzionali)
           await _waitForImages(el); // fix: aspettare le foto reali prima di catturare, non solo il logo
           const canvas = await html2canvas(el, { backgroundColor: '#EBF6EB', scale: 2, useCORS: true, allowTaint: true });
           sectionCanvases.push(canvas);
@@ -15539,8 +15581,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const flowedPages = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', 32);
         flowedPages.forEach(p => allPages.push({ canvas: p.canvas, heightMM: p.heightMM, isDark: false }));
 
+        seasonSummaryPdfStep.current++;
+        seasonSummaryPdfStep.label = 'Chiusura...';
         const closingCanvas = await _capturePdfPage(_buildClosingPageHTML(seasonSummarySnapshot.value));
         allPages.push({ canvas: closingCanvas, heightMM: 297, isDark: true });
+
+        seasonSummaryPdfStep.current++;
+        seasonSummaryPdfStep.label = 'Finalizzo il PDF...';
 
         // Piè di pagina (richiesto da Alby 26/7/2026): numero pagina su tutte, nome app+slogan solo
         // sulle pagine di contenuto (Copertina/Chiusura hanno già il marchio ben visibile nel design).
@@ -15566,6 +15613,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         document.documentElement.setAttribute('data-theme', originalTheme || 'dark');
         appEl.style.maxWidth = originalMaxWidth;
         currentView.value = originalView;
+        seasonSummaryPdfOverlay.value = false;
         seasonSummaryPdfGenerating.value = false;
       }
     };
@@ -20298,7 +20346,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
-      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages,
+      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
