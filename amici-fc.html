@@ -7737,7 +7737,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.744',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.745',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — fix di 4 problemi segnalati da Alby con screenshot: 1) box bianchi tra una sezione e l\'altra: ogni sezione forzava l\'inizio di una pagina nuova, lasciando vuoto il resto della pagina precedente se corta — sostituito con un flusso continuo (una card corta lascia il posto alla successiva sulla stessa pagina, come un\'interruzione di pagina in un documento Word); 2) testo tagliato a metà riga tra una pagina e l\'altra: il taglio avveniva a un\'altezza fissa in pixel senza guardare il contenuto — ora cerca la riga di solo colore di sfondo più vicina al punto ideale (campionando l\'immagine) e taglia lì, così cade sempre in uno spazio vuoto tra due elementi; 3) filigrane assenti nelle pagine intermedie: c\'erano solo su Copertina/Chiusura (costruite da zero), le sezioni vere sono foto della vista esistente che non ha filigrane a schermo — aggiunta una filigrana (emoji enorme, ruotata, opacità bassa, a rotazione tra pallone/coppa/stella) disegnata direttamente su ogni pagina composta; 4) silhouette assente per i giocatori senza foto: bug noto di html2canvas che non renderizza correttamente le <img> con src SVG in base64 (la silhouette dell\'app lo è) — rasterizzata una volta in PNG e sostituita temporaneamente solo per la cattura, poi ripristinata. Aggiunta anche un\'attesa del caricamento delle foto reali prima di catturare ogni sezione (mancava, poteva causare foto vuote a caricamento lento). Verificato non solo visivamente ma anche numericamente: nessuna pagina ha più una striscia vuota oltre il 7% dell\'altezza (prima 30-50%+), colore della silhouette trovato su tutte le pagine con giocatori senza foto.',
+    ]},{version:'v1.744',date:'2026-07-26',items:[
       'Fix pulsante "Test PDF: completo" segnalato da Alby: era invisibile da Impostazioni → Zona Pericolo perché la condizione v-if richiedeva currentView === \'seasonSummary\', vero solo se si era già aperti sul Riepilogo. Tolto quel vincolo dal pulsante; la funzione ora passa da sola alla vista Riepilogo Stagione (necessaria per avere le card rp-pdf-* nel DOM da fotografare), genera il PDF, e torna automaticamente alla vista di partenza — verificato end-to-end chiamando la funzione da Impostazioni: PDF generato correttamente, vista tornata a \'settings\' alla fine.',
     ]},{version:'v1.743',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — secondo passo: tutte le sezioni intermedie (Numeri, Oscar, Classifiche, Le partite, Annuario, Il Gabbione, Formazioni della Stagione, Curiosità) ora catturate con html2canvas direttamente dalla vista Riepilogo Stagione già esistente, invece di essere ridisegnate a mano. Aggiunto un "modo stampa" per Sezione D: tutte le partite risultano aperte (senza freccia apri/chiudi) e le immagini delle partite sono escluse di default per restare leggeri e condivisibili — il testo completo (formazioni, gol, assist, autogol, MVP, titolo, commento) resta sempre presente. Durante la generazione il tema viene forzato temporaneamente su chiaro (più adatto alla stampa/condivisione) e la larghezza dell\'app viene vincolata a stile mobile per evitare che le card si stirino in modo innaturale su schermi larghi — entrambi ripristinati automaticamente a fine generazione. Ogni sezione viene paginata automaticamente su più pagine A4 se supera l\'altezza di una pagina. Aggiunto un secondo pulsante di test in Zona Diagnostica ("Test PDF: completo") per verificare questo passo — il pulsante reale "Condividi PDF" resta sulla vecchia versione vettoriale in attesa di conferma finale.',
@@ -8670,7 +8672,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.744');
+    const appVersion = ref('1.745');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15277,29 +15279,168 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       }
     };
 
-    // Cattura una sezione GIÀ A SCHERMO (le card vere della vista Riepilogo Stagione, con i loro
-    // ID rp-pdf-*) alla sua altezza naturale, poi la affetta in pagine A4 — a differenza di
-    // Copertina/Chiusura (costruite da zero offscreen), qui il contenuto può essere più alto di
-    // una pagina (es. Sezione D con tante partite), quindi serve paginazione.
-    const _captureLiveElementPaginated = async (el, scale = 2, bgColor = '#EBF6EB') => {
-      await document.fonts.ready;
-      const canvas = await html2canvas(el, { backgroundColor: bgColor, scale, useCORS: true, allowTaint: true });
-      const pageHeightPx = Math.round(canvas.width * (297 / 210)); // proporzione A4 alla larghezza catturata
-      const pages = [];
-      for (let y = 0; y < canvas.height; y += pageHeightPx) {
-        const sliceHeight = Math.min(pageHeightPx, canvas.height - y);
-        const pageCanvas = document.createElement('canvas');
-        pageCanvas.width = canvas.width;
-        pageCanvas.height = sliceHeight;
-        pageCanvas.getContext('2d').drawImage(canvas, 0, y, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
-        pages.push({ canvas: pageCanvas, heightMM: 210 * (sliceHeight / canvas.width) });
+    // ─── Fix 26/7/2026 su segnalazione di Alby (4 problemi nel PDF completo) ───
+    // 1) Box bianchi tra una sezione e l'altra: ogni sezione iniziava SEMPRE una pagina nuova,
+    //    lasciando vuoto il resto della pagina precedente se la sezione precedente era corta.
+    // 2) Testo tagliato a metà riga tra una pagina e l'altra: il taglio avveniva a un'altezza fissa
+    //    in pixel, senza guardare cosa c'era in quel punto.
+    // 3) Filigrana assente nelle pagine intermedie: c'era solo su Copertina/Chiusura (costruite da
+    //    zero); le sezioni vere sono foto della vista esistente, che non ha filigrane a schermo.
+    // 4) Silhouette assente per i giocatori senza foto: bug noto di html2canvas che non renderizza
+    //    correttamente le <img> il cui src è un SVG in base64 (la SILHOUETTE dell'app lo è).
+    // Soluzione per 1+2: invece di affettare ogni sezione per conto suo a un'altezza fissa, le
+    // sezioni vengono ora composte in un flusso continuo pagina per pagina (una card corta lascia
+    // il posto alla successiva sulla STESSA pagina, come una normale interruzione di pagina in un
+    // documento Word) e il taglio, quando serve, cerca la riga di solo colore di sfondo più vicina
+    // al punto ideale invece di tagliare a un'altezza fissa — così cade sempre in uno spazio vuoto
+    // tra due elementi, mai in mezzo a una riga di testo.
+
+    const _rgbFromHex = (hex) => {
+      const h = hex.replace('#', '');
+      return [parseInt(h.substring(0, 2), 16), parseInt(h.substring(2, 4), 16), parseInt(h.substring(4, 6), 16)];
+    };
+
+    // Cerca, in un canvas sorgente, la riga più vicina a idealY che sia interamente del colore di
+    // sfondo. Cerca PRIMA verso l'alto (non deve mai sforare la pagina corrente), poi come ultima
+    // risorsa verso il basso. Campiona 1 pixel ogni 8 per restare veloce anche su canvas grandi.
+    const _findSafeCutY = (canvas, idealY, bgHex, maxSearchUp = 260, maxSearchDown = 60) => {
+      const ctx = canvas.getContext('2d');
+      const bg = _rgbFromHex(bgHex);
+      const top = Math.max(0, idealY - maxSearchUp);
+      const bottom = Math.min(canvas.height, idealY + maxSearchDown);
+      if (bottom <= top) return idealY;
+      let imgData;
+      try { imgData = ctx.getImageData(0, top, canvas.width, bottom - top).data; }
+      catch (e) { return idealY; } // canvas "tainted" o altro errore: meglio tagliare comunque che bloccarsi
+      const tol = 10;
+      const isRowBg = (localY) => {
+        const rowStart = localY * canvas.width * 4;
+        for (let x = 0; x < canvas.width; x += 8) {
+          const idx = rowStart + x * 4;
+          if (Math.abs(imgData[idx] - bg[0]) > tol || Math.abs(imgData[idx + 1] - bg[1]) > tol || Math.abs(imgData[idx + 2] - bg[2]) > tol) return false;
+        }
+        return true;
+      };
+      const idealLocal = idealY - top;
+      for (let dy = 0; dy <= maxSearchUp; dy++) {
+        const y = idealLocal - dy;
+        if (y >= 0 && isRowBg(y)) return top + y;
       }
+      for (let dy = 1; dy <= maxSearchDown; dy++) {
+        const y = idealLocal + dy;
+        if (y < (bottom - top) && isRowBg(y)) return top + y;
+      }
+      return idealY; // nessuna riga sicura trovata (raro): tagliamo comunque, meglio che bloccarsi
+    };
+
+    // Disegna una filigrana (stesso principio delle hero card del carosello: emoji enorme, ruotata,
+    // opacità bassa) direttamente sul canvas della pagina già composta, in un angolo.
+    const _drawPageWatermark = (canvas, emoji) => {
+      const ctx = canvas.getContext('2d');
+      ctx.save();
+      ctx.globalAlpha = 0.07;
+      ctx.font = `${Math.round(canvas.width * 0.85)}px sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.translate(canvas.width * 0.74, canvas.height * 0.85);
+      ctx.rotate(-14 * Math.PI / 180);
+      ctx.fillText(emoji, 0, 0);
+      ctx.restore();
+    };
+    const _pdfWatermarkEmojis = ['⚽', '🏆', '⭐'];
+
+    // Attende che tutte le <img> dentro un elemento abbiano finito di caricare (con un timeout di
+    // sicurezza: alcune foto giocatore possono essere link esterni — es. Google Drive — e non
+    // vogliamo bloccare il PDF a tempo indeterminato se una è lenta o irraggiungibile).
+    const _waitForImages = async (el, timeoutMs = 4000) => {
+      const imgs = [...el.querySelectorAll('img')];
+      await Promise.race([
+        Promise.all(imgs.map(img => img.complete ? Promise.resolve() : new Promise(res => { img.onload = res; img.onerror = res; }))),
+        new Promise(res => setTimeout(res, timeoutMs))
+      ]);
+    };
+
+    // Fix silhouette: html2canvas non renderizza in modo affidabile le <img> con src SVG in
+    // base64. La rasterizza in PNG una sola volta (cache) così può sostituirla temporaneamente
+    // nelle <img> che la usano, solo per la durata della cattura.
+    let _silhouettePngCache = null;
+    const _rasterizeSilhouette = () => new Promise((resolve) => {
+      if (_silhouettePngCache) return resolve(_silhouettePngCache);
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement('canvas');
+        c.width = 100; c.height = 100;
+        c.getContext('2d').drawImage(img, 0, 0);
+        _silhouettePngCache = c.toDataURL('image/png');
+        resolve(_silhouettePngCache);
+      };
+      img.onerror = () => resolve(SILHOUETTE); // se anche questo fallisce, meglio l'originale che niente
+      img.src = SILHOUETTE;
+    });
+
+    // Compone le sezioni in pagine A4 con flusso continuo (niente pagina nuova forzata per ogni
+    // sezione) e taglio "intelligente" — elabora una pagina alla volta (mai un canvas enorme in
+    // memoria) per restare leggero anche su telefoni con poca RAM. Aggiunge la filigrana a ogni
+    // pagina prodotta.
+    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gapPx = 32) => {
+      const pageHeightPx = Math.round(pageWidthPx * (297 / 210));
+      const pages = [];
+      let watermarkIdx = 0;
+      let currentPage = document.createElement('canvas');
+      currentPage.width = pageWidthPx;
+      currentPage.height = pageHeightPx;
+      let pageCtx = currentPage.getContext('2d');
+      pageCtx.fillStyle = bgHex;
+      pageCtx.fillRect(0, 0, pageWidthPx, pageHeightPx);
+      let currentY = 0;
+
+      const finishPage = (actualHeight) => {
+        const trimmed = document.createElement('canvas');
+        trimmed.width = pageWidthPx;
+        trimmed.height = actualHeight;
+        trimmed.getContext('2d').drawImage(currentPage, 0, 0, pageWidthPx, actualHeight, 0, 0, pageWidthPx, actualHeight);
+        _drawPageWatermark(trimmed, _pdfWatermarkEmojis[watermarkIdx++ % _pdfWatermarkEmojis.length]);
+        pages.push({ canvas: trimmed, heightMM: 210 * (actualHeight / pageWidthPx) });
+        currentPage = document.createElement('canvas');
+        currentPage.width = pageWidthPx;
+        currentPage.height = pageHeightPx;
+        pageCtx = currentPage.getContext('2d');
+        pageCtx.fillStyle = bgHex;
+        pageCtx.fillRect(0, 0, pageWidthPx, pageHeightPx);
+        currentY = 0;
+      };
+
+      sectionCanvases.forEach((sectionCanvas, sIdx) => {
+        let srcY = 0;
+        while (srcY < sectionCanvas.height) {
+          const available = pageHeightPx - currentY;
+          const remaining = sectionCanvas.height - srcY;
+          if (remaining <= available) {
+            pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, remaining, 0, currentY, pageWidthPx, remaining);
+            currentY += remaining;
+            srcY = sectionCanvas.height;
+          } else {
+            const idealCut = srcY + available;
+            let safeCut = _findSafeCutY(sectionCanvas, idealCut, bgHex);
+            if (safeCut <= srcY || safeCut > idealCut) safeCut = idealCut; // non deve mai sforare né tornare indietro
+            const sliceHeight = safeCut - srcY;
+            pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, sliceHeight, 0, currentY, pageWidthPx, sliceHeight);
+            currentY += sliceHeight;
+            finishPage(pageHeightPx);
+            srcY = safeCut;
+          }
+        }
+        // Spazio tra una sezione e la successiva (stesso margin-bottom delle card a schermo) — se
+        // non ci sta nella pagina corrente, si passa semplicemente a una nuova pagina.
+        if (sIdx < sectionCanvases.length - 1) {
+          if (gapPx <= pageHeightPx - currentY) currentY += gapPx;
+          else finishPage(currentY);
+        }
+      });
+      if (currentY > 0) finishPage(currentY);
       return pages;
     };
 
-    // Aggiunge una lista di pagine "affettate" (da _captureLiveElementPaginated) al PDF, ciascuna
-    // alla sua altezza reale in mm (non stirata a piena pagina — l'ultima fetta di ogni sezione è
-    // tipicamente più corta, ed è normale, come un'interruzione di pagina in un documento Word).
     const _pdfAddSlicedPages = (doc, pages, isFirstOverall) => {
       pages.forEach((p, i) => {
         if (!(isFirstOverall && i === 0)) doc.addPage();
@@ -15313,10 +15454,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // più curata graficamente del semplice box di testo a schermo.
     const seasonSummaryPdfSectionIds = ['rp-pdf-sezA', 'rp-pdf-sezB', 'rp-pdf-sezC', 'rp-pdf-sezD', 'rp-pdf-sezE', 'rp-pdf-gabbione', 'rp-pdf-formazioni', 'rp-pdf-curiosita'];
 
-    // Generazione PDF completa — passo 2 (25/7/2026): Copertina e Chiusura disegnate da zero,
+    // Generazione PDF completa — passo 2 (25-26/7/2026): Copertina e Chiusura disegnate da zero,
     // tutte le sezioni intermedie catturate dalla vista Riepilogo Stagione già esistente (via
-    // html2canvas). Ancora una funzione di TEST separata: il pulsante reale "Condividi PDF" resta
-    // sulla vecchia versione vettoriale finché Alby non conferma che questa va bene.
+    // html2canvas), composte in flusso continuo con taglio intelligente e filigrana. Ancora una
+    // funzione di TEST separata: il pulsante reale "Condividi PDF" resta sulla vecchia versione
+    // vettoriale finché Alby non conferma che questa va bene.
     const testGenerateFullSeasonSummaryPDF = async () => {
       if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
         toast('❌ Impossibile generare (dati o libreria mancanti)', 'error', 3000);
@@ -15330,6 +15472,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       // 'seasonSummary' — se il pulsante è premuto da un'altra vista (es. Zona Diagnostica in
       // Impostazioni), passiamo lì temporaneamente e torniamo alla vista di partenza alla fine.
       const originalView = currentView.value;
+      const swappedSilhouetteImgs = [];
       try {
         currentView.value = 'seasonSummary';
         // Forza tema chiaro (i PDF/documenti da condividere sono più leggibili e stampabili in
@@ -15342,18 +15485,37 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         await document.fonts.ready;
         await new Promise(r => setTimeout(r, 150)); // margine per il repaint di tema/layout/vista
 
+        // Sostituisce temporaneamente le silhouette SVG con la versione PNG rasterizzata (fix #4)
+        const silhouettePng = await _rasterizeSilhouette();
+        seasonSummaryPdfSectionIds.forEach(id => {
+          const sectionEl = document.getElementById(id);
+          if (!sectionEl) return;
+          sectionEl.querySelectorAll('img').forEach(img => {
+            if (img.getAttribute('src') === SILHOUETTE) {
+              swappedSilhouetteImgs.push(img);
+              img.src = silhouettePng;
+            }
+          });
+        });
+
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
         const coverCanvas = await _capturePdfPage(_buildCoverPageHTML(seasonSummarySnapshot.value, currentGroup.value?.nome));
         _pdfAddCanvasPage(doc, coverCanvas, true);
 
+        const sectionCanvases = [];
+        let pageWidthPx = null;
         for (const id of seasonSummaryPdfSectionIds) {
           const el = document.getElementById(id);
           if (!el) continue; // sezione assente per questo Riepilogo (es. formazioniTop/curiosita opzionali)
-          const pages = await _captureLiveElementPaginated(el);
-          _pdfAddSlicedPages(doc, pages, false);
+          await _waitForImages(el); // fix: aspettare le foto reali prima di catturare, non solo il logo
+          const canvas = await html2canvas(el, { backgroundColor: '#EBF6EB', scale: 2, useCORS: true, allowTaint: true });
+          sectionCanvases.push(canvas);
+          if (!pageWidthPx) pageWidthPx = canvas.width;
         }
+        const flowedPages = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', 32);
+        _pdfAddSlicedPages(doc, flowedPages, false);
 
         const closingCanvas = await _capturePdfPage(_buildClosingPageHTML(seasonSummarySnapshot.value));
         _pdfAddCanvasPage(doc, closingCanvas, false);
@@ -15364,6 +15526,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         console.error('Full PDF error:', e);
         toast('❌ Errore: ' + e.message, 'error', 4000);
       } finally {
+        swappedSilhouetteImgs.forEach(img => { img.src = SILHOUETTE; });
         seasonSummaryPdfPrintMode.value = false;
         document.documentElement.setAttribute('data-theme', originalTheme || 'dark');
         appEl.style.maxWidth = originalMaxWidth;
