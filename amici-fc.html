@@ -7737,7 +7737,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.746',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.747',date:'2026-07-26',items:[
+      'PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: il piè di pagina veniva disegnato a una posizione fissa in basso, ma il contenuto poteva arrivare fino al bordo della pagina e finirci scritto sopra (es. i numeri di una classifica sovrapposti a "Pagina X di Y"). Ora viene sempre riservato uno spazio vuoto in fondo a ogni pagina (16mm) dentro cui il contenuto non entra mai — il taglio tra le pagine tiene conto di questo spazio riservato, e anche l\'ultima pagina (parziale) di ogni blocco di sezioni viene allungata di quel tanto in più, mai lasciata esattamente al bordo del contenuto. Verificato con OCR a coordinate (non solo a occhio): su tutte le pagine controllate, nella zona riservata compare ora SOLO il testo del piè di pagina, mai una parola del contenuto.',
+    ]},{version:'v1.746',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — 2 miglioramenti su segnalazione di Alby: 1) taglio pagina più intelligente: prima si fermava alla prima riga di solo sfondo trovata vicino al punto ideale, che spesso era solo l\'interlinea tra due righe di una lista (es. tra "2. Volpe" e "3. Pantera" nelle Classifiche) — tecnicamente non tagliava una lettera a metà, ma spezzava comunque una lista/sottosezione in un punto arbitrario. Ora individua TUTTE le strisce di sfondo vicino al punto ideale e preferisce quelle più larghe (i veri margini tra sottosezioni, es. prima di un titoletto) rispetto alle strisce sottili (semplice interlinea) — verificato con OCR sul PDF generato: "Overall (OVR)" e "Marcatori" restano ora interi sulla stessa pagina invece di spezzarsi a metà lista. Caso residuo noto e minore: a volte il titolo di una sottosezione può restare da solo in fondo pagina con la lista che parte nella successiva — meno grave del taglio a metà lista, migliorabile in un giro successivo se richiesto. 2) Aggiunto piè di pagina: numero di pagina (Copertina, Chiusura e tutte le pagine di contenuto), più nome app e slogan sulle pagine di contenuto (non ripetuti su Copertina/Chiusura che hanno già il marchio nel design), in basso a destra su ogni pagina.',
     ]},{version:'v1.745',date:'2026-07-26',items:[
       'PDF Riepilogo Stagione — fix di 4 problemi segnalati da Alby con screenshot: 1) box bianchi tra una sezione e l\'altra: ogni sezione forzava l\'inizio di una pagina nuova, lasciando vuoto il resto della pagina precedente se corta — sostituito con un flusso continuo (una card corta lascia il posto alla successiva sulla stessa pagina, come un\'interruzione di pagina in un documento Word); 2) testo tagliato a metà riga tra una pagina e l\'altra: il taglio avveniva a un\'altezza fissa in pixel senza guardare il contenuto — ora cerca la riga di solo colore di sfondo più vicina al punto ideale (campionando l\'immagine) e taglia lì, così cade sempre in uno spazio vuoto tra due elementi; 3) filigrane assenti nelle pagine intermedie: c\'erano solo su Copertina/Chiusura (costruite da zero), le sezioni vere sono foto della vista esistente che non ha filigrane a schermo — aggiunta una filigrana (emoji enorme, ruotata, opacità bassa, a rotazione tra pallone/coppa/stella) disegnata direttamente su ogni pagina composta; 4) silhouette assente per i giocatori senza foto: bug noto di html2canvas che non renderizza correttamente le <img> con src SVG in base64 (la silhouette dell\'app lo è) — rasterizzata una volta in PNG e sostituita temporaneamente solo per la cattura, poi ripristinata. Aggiunta anche un\'attesa del caricamento delle foto reali prima di catturare ogni sezione (mancava, poteva causare foto vuote a caricamento lento). Verificato non solo visivamente ma anche numericamente: nessuna pagina ha più una striscia vuota oltre il 7% dell\'altezza (prima 30-50%+), colore della silhouette trovato su tutte le pagine con giocatori senza foto.',
@@ -8674,7 +8676,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.746');
+    const appVersion = ref('1.747');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15427,8 +15429,15 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // sezione) e taglio "intelligente" — elabora una pagina alla volta (mai un canvas enorme in
     // memoria) per restare leggero anche su telefoni con poca RAM. Aggiunge la filigrana a ogni
     // pagina prodotta.
-    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gapPx = 32) => {
+    // Fix 26/7/2026 su segnalazione di Alby: il piè di pagina veniva disegnato a una posizione
+    // fissa in basso, ma il contenuto poteva arrivare fino al bordo della pagina e sovrapporsi
+    // (es. "87"/"86" di una classifica scritti sopra "Pagina X di Y"). Ora si riserva SEMPRE uno
+    // spazio vuoto in fondo a ogni pagina (footerReserveMM), dentro cui il contenuto non entra mai
+    // — il piè di pagina viene poi disegnato in quello spazio, garantito libero.
+    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gapPx = 32, footerReserveMM = 16) => {
       const pageHeightPx = Math.round(pageWidthPx * (297 / 210));
+      const footerReservePx = Math.round(pageWidthPx * (footerReserveMM / 210));
+      const contentLimitPx = pageHeightPx - footerReservePx; // il contenuto non deve mai superare questo limite
       const pages = [];
       let watermarkIdx = 0;
       let currentPage = document.createElement('canvas');
@@ -15439,13 +15448,17 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       pageCtx.fillRect(0, 0, pageWidthPx, pageHeightPx);
       let currentY = 0;
 
-      const finishPage = (actualHeight) => {
+      // finalHeight: quanto alto rendere il canvas della pagina finita. Le pagine "piene" restano
+      // sempre a piena altezza (pageHeightPx, che include già lo spazio riservato in fondo, mai
+      // toccato dal contenuto). L'ultima pagina (parziale) viene invece accorciata, ma SEMPRE
+      // lasciando sotto il contenuto reale lo spazio riservato per il piè di pagina.
+      const finishPage = (finalHeight) => {
         const trimmed = document.createElement('canvas');
         trimmed.width = pageWidthPx;
-        trimmed.height = actualHeight;
-        trimmed.getContext('2d').drawImage(currentPage, 0, 0, pageWidthPx, actualHeight, 0, 0, pageWidthPx, actualHeight);
+        trimmed.height = finalHeight;
+        trimmed.getContext('2d').drawImage(currentPage, 0, 0, pageWidthPx, finalHeight, 0, 0, pageWidthPx, finalHeight);
         _drawPageWatermark(trimmed, _pdfWatermarkEmojis[watermarkIdx++ % _pdfWatermarkEmojis.length]);
-        pages.push({ canvas: trimmed, heightMM: 210 * (actualHeight / pageWidthPx) });
+        pages.push({ canvas: trimmed, heightMM: 210 * (finalHeight / pageWidthPx) });
         currentPage = document.createElement('canvas');
         currentPage.width = pageWidthPx;
         currentPage.height = pageHeightPx;
@@ -15458,7 +15471,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       sectionCanvases.forEach((sectionCanvas, sIdx) => {
         let srcY = 0;
         while (srcY < sectionCanvas.height) {
-          const available = pageHeightPx - currentY;
+          const available = contentLimitPx - currentY;
           const remaining = sectionCanvas.height - srcY;
           if (remaining <= available) {
             pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, remaining, 0, currentY, pageWidthPx, remaining);
@@ -15471,18 +15484,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             const sliceHeight = safeCut - srcY;
             pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, sliceHeight, 0, currentY, pageWidthPx, sliceHeight);
             currentY += sliceHeight;
-            finishPage(pageHeightPx);
+            finishPage(pageHeightPx); // pagina piena: lo spazio riservato in fondo resta sfondo puro
             srcY = safeCut;
           }
         }
         // Spazio tra una sezione e la successiva (stesso margin-bottom delle card a schermo) — se
-        // non ci sta nella pagina corrente, si passa semplicemente a una nuova pagina.
+        // non ci sta nella pagina corrente (senza invadere lo spazio riservato), si passa a una
+        // nuova pagina.
         if (sIdx < sectionCanvases.length - 1) {
-          if (gapPx <= pageHeightPx - currentY) currentY += gapPx;
-          else finishPage(currentY);
+          if (gapPx <= contentLimitPx - currentY) currentY += gapPx;
+          else finishPage(pageHeightPx);
         }
       });
-      if (currentY > 0) finishPage(currentY);
+      // Ultima pagina (parziale): accorciata al contenuto reale + lo spazio riservato per il piè
+      // di pagina (mai solo currentY, altrimenti il piè finirebbe appiccicato all'ultima riga).
+      if (currentY > 0) finishPage(Math.min(currentY + footerReservePx, pageHeightPx));
       return pages;
     };
 
