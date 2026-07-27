@@ -7769,7 +7769,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.758',date:'2026-07-27',items:[
+    const changelogEntries = [{version:'v1.759',date:'2026-07-27',items:[
+      'Trash Talk: rinforzato il prompt AI (sia generazione normale che "Azzera e Rigenera") per rendere esplicito che il campo target_nome è obbligatorio e non può mai essere vuoto — segnalato da Alby: una card mostrava il testo ma senza il nome del giocatore a cui si riferiva. Il codice di visualizzazione era già corretto (nasconde la riga se il nome manca invece di mostrare qualcosa di rotto), il problema era a monte nel prompt che non specificava chiaramente l\'obbligatorietà del campo. Non elimina il rischio al 100% (dipende dal modello AI), ma lo riduce.',
+    ]},{version:'v1.758',date:'2026-07-27',items:[
       'Fix Trash Talk — pulsante "Rigenera" (Zona Pericolo): rimosso lo stesso tipo di gate a flag temporale (aiFlagValid, legato al gruppo e non alla partita) trovato e già rimosso in v1.757 sul salvataggio partita e sul ritorno in foreground — terza occorrenza dello stesso bug. Il pulsante diceva "già presente e aggiornato" e non generava nulla anche quando il Trash Talk esistente non era per l\'ultima partita, perché controllava solo un timer di 3 giorni invece di verificare su Firebase se questa specifica partita avesse già una card. Ora chiama sempre _generateTrashTalk, che fa già il controllo corretto per data specifica.',
     ]},{version:'v1.757',date:'2026-07-27',items:[
       'Fix CRITICO Trash Talk mancante: rimosso il gate "non generato negli ultimi 3 giorni" al salvataggio partita — leggeva un timestamp locale non legato alla data della partita specifica, bloccando silenziosamente la generazione se un altro Trash Talk era stato generato di recente. _generateTrashTalk ha già un controllo Firebase corretto per data specifica (con lock anti-doppia-generazione), quindi ora viene chiamata sempre, senza gate esterno ridondante.',
@@ -8731,7 +8733,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.758');
+    const appVersion = ref('1.759');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12045,7 +12047,9 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
 Risultato: ${_score}
 Giocatori: ${_statsStr}
 Usa esattamente questa firma: "${_ttFirma}"
-JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","testo":"max 25 parole","target_nome":"nome"}],"firma":"${_ttFirma}"}`;
+IMPORTANTE: "target_nome" è OBBLIGATORIO in OGNI card, non può mai essere vuoto o omesso — deve
+essere esattamente uno dei nomi elencati in "Giocatori" qui sopra, il giocatore a cui quella card si riferisce.
+JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","testo":"max 25 parole","target_nome":"nome esatto di un giocatore elencato sopra, mai vuoto"}],"firma":"${_ttFirma}"}`;
       const raw = await _callAI(prompt, 700);
       if (!raw) { _aiLog('TrashTalk','❌ Nessuna risposta AI'); return; }
       const parsed = _parseAIJson(raw);
@@ -12155,13 +12159,16 @@ ISTRUZIONI:
 - Riferimenti a calciatori famosi, proverbi storpiati, esclamazioni italiane ("Mamma mia!", "Roba da matti!")
 - Massimo 40 parole per card
 - Usa esattamente questa firma: "${_ttFirma}"
+- IMPORTANTE: "target_nome" è OBBLIGATORIO in OGNI card, non può mai essere vuoto o omesso.
+  Deve essere esattamente uno dei nomi/soprannomi presenti in PROFILI qui sopra (campo "nome"),
+  il giocatore a cui quella specifica card si riferisce.
 
 OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 {
   "cards": [
-    { "id": "tt_1", "emoji": "🔥", "titolo": "...", "testo": "...", "target_nome": "..." },
-    { "id": "tt_2", "emoji": "😂", "titolo": "...", "testo": "...", "target_nome": "..." },
-    { "id": "tt_3", "emoji": "💀", "titolo": "...", "testo": "...", "target_nome": "..." }
+    { "id": "tt_1", "emoji": "🔥", "titolo": "...", "testo": "...", "target_nome": "nome esatto di un giocatore da PROFILI, mai vuoto" },
+    { "id": "tt_2", "emoji": "😂", "titolo": "...", "testo": "...", "target_nome": "nome esatto di un giocatore da PROFILI, mai vuoto" },
+    { "id": "tt_3", "emoji": "💀", "titolo": "...", "testo": "...", "target_nome": "nome esatto di un giocatore da PROFILI, mai vuoto" }
   ],
   "firma": "${_ttFirma}"
 }`;
