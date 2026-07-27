@@ -7783,7 +7783,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.761',date:'2026-07-27',items:[
+    const changelogEntries = [{version:'v1.762',date:'2026-07-27',items:[
+      'Trash Talk — riprogettazione definitiva del target mancante: dopo due tentativi falliti (target_nome testo libero v1.759, target_n numerico v1.761 — l\'AI continuava a non compilarlo in un prompt lungo e creativo), ora è il CODICE a decidere quale giocatore assegnare a ciascuna delle 3 card (migliore della partita, momento negativo/autogol, episodio particolare come fine di un digiuno o una serie di risultati), PRIMA di chiamare l\'AI. Il prompt comunica il giocatore già assegnato per ciascuna card; l\'AI scrive solo il testo creativo, senza dover scegliere né riportare nulla sul target. Il nome è quindi garantito sempre presente, non dipende più in alcun modo dalla disciplina del modello AI. Applicato sia alla generazione normale che a "Azzera e Rigenera".',
+    ]},{version:'v1.761',date:'2026-07-27',items:[
       'Trash Talk — fix definitivo (si spera) del nome giocatore mancante: sostituito "target_nome" (testo libero che l\'AI a volte lasciava vuoto, vedi v1.759) con "target_n" (numero di riferimento 1-based), stesso identico pattern già in uso e collaudato in _generateNicknames/Soprannomi AI (suggerito da Alby). Il nome vero viene ricavato dal codice stesso indicizzando l\'elenco giocatori con il numero restituito dall\'AI, non più affidandosi a un testo libero che il modello può omettere o storpiare. Applicato sia alla generazione normale che a "Azzera e Rigenera". Se il numero restituito non è valido, la card resta senza target invece di rompersi, con log di avviso.',
     ]},{version:'v1.760',date:'2026-07-27',items:[
       'Fix cosmetico segnalato da Alby: durante l\'aggiornamento dell\'app (pulsante "Aggiorna" del banner), per circa un secondo prima del reload restava visibile la schermata precedente così com\'era — se ci si trovava sul Riepilogo Stagione con il PDF in corso/appena finito, si vedeva un flash di "Genero PDF...". Aggiunto un overlay a schermo intero ("Aggiornamento in corso...") che si attiva come primissima cosa quando parte l\'aggiornamento, con z-index più alto di ogni altro overlay dell\'app — copre sempre tutto, qualunque fosse lo stato della schermata sotto.',
@@ -8751,7 +8753,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.761');
+    const appVersion = ref('1.762');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12057,31 +12059,31 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const dataPath = `aiCards/trashTalk/${_gKey}/${_ttKey}`;
       const token = await getValidToken() || '';
       const stats = (match.statisticheGiocatori||[]);
-      const _notable = [...stats].sort((a,b)=>((b.goal||0)+(b.assist||0))-((a.goal||0)+(a.assist||0))).slice(0,4);
-      // numero_riferimento invece del nome libero (stesso motivo di _generateTrashTalk/_generateNicknames:
-      // un indice numerico è molto più robusto per l'AI di un nome da restituire integralmente).
-      const _statsStr = _notable.map((s,idx)=>`${idx+1}=${s.nome||s.nomeGiocatore||'?'}:gol${s.goal||0},v${s.voto||0}${s.autogol?',OG':''}${s.uomoPartita?',MVP':''}`).join(';');
+      const _notable = [...stats].sort((a,b)=>((b.goal||0)+(b.assist||0))-((a.goal||0)+(a.assist||0))).slice(0,3);
+      if (!_notable.length) { _aiLog('TrashTalk','⚠️ Nessuna statistica giocatori nella partita',false); return; }
+      // Target assegnato dal codice per POSIZIONE (card i-esima -> _notable[i-esimo]), non più
+      // chiesto all'AI in nessuna forma (27/7/2026): due tentativi precedenti (nome libero in
+      // v1.759, numero in v1.761) avevano comunque prodotto card senza target — con un prompt
+      // lungo il modello può ignorare un campo richiesto indipendentemente dal suo formato.
+      const _statsStr = _notable.map((s,idx)=>`Card ${idx+1}: SOLO su "${s.nome||s.nomeGiocatore||'?'}" — gol${s.goal||0},voto${s.voto||0}${s.autogol?',autogol':''}${s.uomoPartita?',MVP':''}`).join('\n');
       const _score = `${match.nomeSquadraA||'A'} ${match.risultato?.goalA??0}-${match.risultato?.goalB??0} ${match.nomeSquadraB||'B'}`;
       const _ttFirma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
-      const prompt = `Telecronista ironico italiano. Genera 3 trash talk cards su questa partita di calcetto.
+      const prompt = `Telecronista ironico italiano. Genera ${_notable.length} trash talk cards su questa partita di calcetto.
 Risultato: ${_score}
-Giocatori (numero=nome:statistiche): ${_statsStr}
+CARD DA SCRIVERE (il giocatore di ciascuna è già deciso, non sceglierlo tu — scrivi solo il testo):
+${_statsStr}
 Usa esattamente questa firma: "${_ttFirma}"
-IMPORTANTE: "target_n" è OBBLIGATORIO in OGNI card, non può mai essere vuoto o omesso — deve
-essere il numero (da 1 a ${_notable.length}) del giocatore elencato sopra a cui quella card si riferisce.
-Riporta SOLO il numero, non il nome.
-JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","testo":"max 25 parole","target_n":1}],"firma":"${_ttFirma}"}`;
+JSON ONLY senza testo fuori, ESATTAMENTE ${_notable.length} card nell'ordine sopra: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","testo":"max 25 parole"}],"firma":"${_ttFirma}"}`;
       const raw = await _callAI(prompt, 700);
       if (!raw) { _aiLog('TrashTalk','❌ Nessuna risposta AI'); return; }
       const parsed = _parseAIJson(raw);
       if (!parsed?.cards?.length) { _aiLog('TrashTalk','❌ JSON non valido — raw: '+raw.slice(0,100)); return; }
       const ttFirma = parsed.firma || _ttFirma;
-      // Converto target_n in target_nome, stesso pattern di _generateTrashTalk/_generateNicknames
-      parsed.cards.forEach(c => {
-        const _n = parseInt(c.target_n);
-        const _s = (_n>=1 && _n<=_notable.length) ? _notable[_n-1] : null;
+      // Target assegnato per posizione, stesso principio di _generateTrashTalk qui sopra
+      parsed.cards.forEach((c, idx) => {
+        const _s = _notable[idx];
         if (_s) { c.target_nome = _s.nome || _s.nomeGiocatore || ''; }
-        else { _aiLog('TrashTalk', `⚠️ Card "${c.titolo}": target_n non valido (${c.target_n})`, false); }
+        else { _aiLog('TrashTalk', `⚠️ Card ${idx+1} "${c.titolo}": nessun target assegnato per questa posizione`, false); }
       });
       aiCardsTrashTalk.value = parsed.cards;
       aiCardsTrashTalkFirma.value = ttFirma;
@@ -12160,17 +12162,49 @@ JSON ONLY senza testo fuori: {"cards":[{"emoji":"🔥","titolo":"max 6 parole","
           digiuno_gol: (p.goalTotali||0) > 0 && recentGol === 0 && (s.goal||0) > 0
         };
       }).filter(Boolean)
-        // numero_riferimento assegnato DOPO il filter, cosi resta sempre 1..N contiguo
-        // (stesso motivo/pattern di _generateNicknames: un indice numerico semplice è molto
-        // più robusto per l'AI di un nome libero da restituire — vedi bug 27/7/2026, card
-        // Trash Talk senza target perché l'AI non compilava target_nome in modo affidabile).
         .map((profilo, idx) => ({ numero_riferimento: idx + 1, ...profilo }));
+
+      // ── Assegnazione dei 3 target FATTA DAL CODICE, non chiesta all'AI (27/7/2026) ──
+      // Due tentativi precedenti (target_nome testo libero in v1.759, target_n numerico in
+      // v1.761) hanno comunque prodotto card senza target: con un prompt lungo e creativo,
+      // il modello a volte ignora/omette il campo richiesto indipendentemente dal suo formato.
+      // Soluzione definitiva: il codice stesso sceglie quale giocatore assegnare a ciascuna
+      // delle 3 card (stessa logica di "angolazioni diverse" che prima chiedevamo all'AI di
+      // decidere da sola), e lo comunica come istruzione già pronta. L'AI scrive solo il testo
+      // creativo per il giocatore già assegnato — non deve più scegliere né riportare nulla.
+      const _pickTrashTalkTargets = (pool) => {
+        const remaining = [...pool];
+        const takeBest = (filterFn, sortFn) => {
+          let cands = remaining.filter(filterFn);
+          if (!cands.length) cands = remaining;
+          if (!cands.length) return null;
+          const sorted = [...cands].sort(sortFn);
+          const picked = sorted[0];
+          const i = remaining.indexOf(picked);
+          if (i>=0) remaining.splice(i,1);
+          return picked;
+        };
+        // 1) Migliore della partita: uomo_partita, poi più gol, poi voto più alto
+        const best = takeBest(()=>true,
+          (a,b)=>(b.uomo_partita?1:0)-(a.uomo_partita?1:0) || (b.gol_oggi-a.gol_oggi) || (b.voto_oggi-a.voto_oggi));
+        // 2) Momento negativo/da prendere in giro: autogol, altrimenti voto più basso
+        const worst = takeBest(p=>p.autogol_oggi>0 || p.voto_oggi>0,
+          (a,b)=>(b.autogol_oggi-a.autogol_oggi) || (a.voto_oggi-b.voto_oggi));
+        // 3) Episodio particolare: digiuno interrotto, poi streak (positiva o negativa), altrimenti chi resta
+        const notable = takeBest(p=>p.digiuno_gol || p.streak_positiva || p.streak_negativa,
+          (a,b)=>(b.digiuno_gol?1:0)-(a.digiuno_gol?1:0) || (b.streak_positiva?1:0)-(a.streak_positiva?1:0) || (b.streak_negativa?1:0)-(a.streak_negativa?1:0));
+        return [best, worst, notable].filter(Boolean);
+      };
+      const _ttTargets = _pickTrashTalkTargets(profili);
+      if (!_ttTargets.length) { _aiLog('TrashTalk','⚠️ Nessun giocatore assegnabile',false); return; }
+      const _ttAngoli = ['il migliore della partita (MVP, più gol, voto più alto)', 'un momento no / da prendere bonariamente in giro (autogol o voto basso)', 'un episodio particolare (fine di un digiuno di gol, oppure una serie di vittorie o sconfitte)'];
+      const _ttCardSpec = _ttTargets.map((t,i)=>`Card ${i+1}: SOLO su "${t.nome}" (numero_riferimento ${t.numero_riferimento}) — angolazione: ${_ttAngoli[i]||'un aspetto della sua partita'}.`).join('\n');
 
       // _ttFirmePool ora condiviso a livello di componente (vedi sopra, prima di _forceGenerateTrashTalk)
       const _ttFirma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
 
       const prompt = `Sei un commentatore sportivo italiano goliardico, ironico e provocatorio stile "Bar Sport" anni '90.
-Analizza questa partita di calcetto tra amici e genera ESATTAMENTE 3 card "Trash Talk" in formato JSON.
+Analizza questa partita di calcetto tra amici e genera ESATTAMENTE ${_ttTargets.length} card "Trash Talk" in formato JSON.
 
 PARTITA:
 Gruppo: ${currentGroup.value?.nome || 'Amici FC'}
@@ -12181,8 +12215,11 @@ Uomo Partita: ${match.uomoPartita || 'nessuno'}
 PROFILI GIOCATORI (con storico recente):
 ${JSON.stringify(profili, null, 2)}
 
+CARD DA SCRIVERE (il giocatore di ciascuna è già deciso, non sceglierlo tu — scrivi solo il testo):
+${_ttCardSpec}
+
 ISTRUZIONI:
-- Ogni card deve avere un angolazione diversa: es. il migliore della partita, il peggior giocatore, un momento epico/ridicolo
+- Ogni card deve parlare SOLO ED ESCLUSIVAMENTE del giocatore assegnato sopra, nell'ordine indicato
 - Usa i soprannomi, sii pungente ma divertente mai offensivo
 - Se un giocatore ha segnato dopo un digiuno (digiuno_gol=true), menzionealo con enfasi
 - Se streak_negativa=true per un perdente, sfottilo sulla serie nera
@@ -12192,16 +12229,11 @@ ISTRUZIONI:
 - Riferimenti a calciatori famosi, proverbi storpiati, esclamazioni italiane ("Mamma mia!", "Roba da matti!")
 - Massimo 40 parole per card
 - Usa esattamente questa firma: "${_ttFirma}"
-- IMPORTANTE: "target_n" è OBBLIGATORIO in OGNI card, non può mai essere vuoto o omesso.
-  Deve essere il numero_riferimento (da 1 a ${profili.length}) del giocatore a cui quella
-  specifica card si riferisce — riporta SOLO il numero, non il nome.
 
-OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
+OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON, ESATTAMENTE ${_ttTargets.length} card nell'ordine sopra:
 {
   "cards": [
-    { "id": "tt_1", "emoji": "🔥", "titolo": "...", "testo": "...", "target_n": 1 },
-    { "id": "tt_2", "emoji": "😂", "titolo": "...", "testo": "...", "target_n": 2 },
-    { "id": "tt_3", "emoji": "💀", "titolo": "...", "testo": "...", "target_n": 3 }
+    ${_ttTargets.map((t,i)=>`{ "id": "tt_${i+1}", "emoji": "🔥", "titolo": "...", "testo": "..." }`).join(',\n    ')}
   ],
   "firma": "${_ttFirma}"
 }`;
@@ -12259,14 +12291,13 @@ OUTPUT: Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const parsed = _parseAIJson(raw);
       const cards = parsed?.cards || [];
       const ttFirma = parsed?.firma || _ttFirma;
-      // Converto target_n (numero di riferimento, robusto) in target_nome (usato dalla UI) —
-      // stesso pattern di _generateNicknames: il nome vero lo ricava il codice dall'elenco
-      // che ha costruito lui stesso, non l'AI (che può lasciare vuoto un campo testo libero).
-      cards.forEach(c => {
-        const _n = parseInt(c.target_n);
-        const _p = (_n>=1 && _n<=profili.length) ? profili[_n-1] : null;
-        if (_p) { c.target_nome = _p.nome; }
-        else { _aiLog('TrashTalk', `⚠️ Card "${c.titolo}": target_n non valido (${c.target_n})`, false); }
+      // Target assegnato per POSIZIONE (card i-esima -> _ttTargets[i-esimo]) deciso dal codice
+      // prima ancora di chiamare l'AI — non dipende più da nessun campo che l'AI deve riportare
+      // (due tentativi precedenti, testo libero e numero, avevano comunque fallito — v1.759/v1.761).
+      cards.forEach((c, idx) => {
+        const _t = _ttTargets[idx];
+        if (_t) { c.target_nome = _t.nome; }
+        else { _aiLog('TrashTalk', `⚠️ Card ${idx+1} "${c.titolo}": nessun target assegnato per questa posizione`, false); }
       });
       if (cards.length) _aiLog('TrashTalk',`✅ ${cards.length} card generate`);
       else _aiLog('TrashTalk','❌ Nessuna card generata — raw: '+(raw||'').slice(0,80),false);
