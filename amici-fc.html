@@ -6952,6 +6952,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <div v-for="t in toasts" :key="t.id" class="toast" :class="t.type">{{ t.msg }}</div>
   </div>
 
+  <!-- Overlay aggiornamento app (27/7/2026, bug segnalato da Alby: durante il reload di
+       aggiornamento, per la finestra di ~800ms+ prima che window.location.reload() scatti
+       davvero, la schermata precedente restava visibile così com'era — se in quel momento
+       si era sulla schermata Riepilogo Stagione con il PDF in corso/appena finito, si vedeva
+       un flash di "Genero PDF...". z-index più alto di ogni altro overlay (99999 vs 9999 del
+       PDF) così copre sempre tutto, qualunque fosse lo stato della schermata sotto. -->
+  <div v-if="appUpdateOverlay" style="position:fixed;inset:0;z-index:99999;background:var(--bg1,#0a0a0f);display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="text-align:center">
+      <div style="font-size:42px;margin-bottom:16px;animation:spin 1.2s linear infinite">⚽</div>
+      <div style="font-weight:800;font-size:1.1rem;color:var(--lime,#a6ff4d)">Aggiornamento in corso...</div>
+    </div>
+  </div>
+  <style>@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}</style>
+
   <!-- Overlay generazione PDF Riepilogo Stagione (26/7/2026, richiesta Alby): copre tutta la
        schermata mentre il PDF viene generato, cosicché i cambiamenti tecnici temporanei (tema
        forzato chiaro, larghezza mobile, partite tutte aperte) restano nascosti sotto invece di
@@ -7769,7 +7783,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.759',date:'2026-07-27',items:[
+    const changelogEntries = [{version:'v1.760',date:'2026-07-27',items:[
+      'Fix cosmetico segnalato da Alby: durante l\'aggiornamento dell\'app (pulsante "Aggiorna" del banner), per circa un secondo prima del reload restava visibile la schermata precedente così com\'era — se ci si trovava sul Riepilogo Stagione con il PDF in corso/appena finito, si vedeva un flash di "Genero PDF...". Aggiunto un overlay a schermo intero ("Aggiornamento in corso...") che si attiva come primissima cosa quando parte l\'aggiornamento, con z-index più alto di ogni altro overlay dell\'app — copre sempre tutto, qualunque fosse lo stato della schermata sotto.',
+    ]},{version:'v1.759',date:'2026-07-27',items:[
       'Trash Talk: rinforzato il prompt AI (sia generazione normale che "Azzera e Rigenera") per rendere esplicito che il campo target_nome è obbligatorio e non può mai essere vuoto — segnalato da Alby: una card mostrava il testo ma senza il nome del giocatore a cui si riferiva. Il codice di visualizzazione era già corretto (nasconde la riga se il nome manca invece di mostrare qualcosa di rotto), il problema era a monte nel prompt che non specificava chiaramente l\'obbligatorietà del campo. Non elimina il rischio al 100% (dipende dal modello AI), ma lo riduce.',
     ]},{version:'v1.758',date:'2026-07-27',items:[
       'Fix Trash Talk — pulsante "Rigenera" (Zona Pericolo): rimosso lo stesso tipo di gate a flag temporale (aiFlagValid, legato al gruppo e non alla partita) trovato e già rimosso in v1.757 sul salvataggio partita e sul ritorno in foreground — terza occorrenza dello stesso bug. Il pulsante diceva "già presente e aggiornato" e non generava nulla anche quando il Trash Talk esistente non era per l\'ultima partita, perché controllava solo un timer di 3 giorni invece di verificare su Firebase se questa specifica partita avesse già una card. Ora chiama sempre _generateTrashTalk, che fa già il controllo corretto per data specifica.',
@@ -8733,7 +8749,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.759');
+    const appVersion = ref('1.760');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15237,6 +15253,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // (z-index sopra il resto dell'app) così quei cambiamenti tecnici restano nascosti sotto, e
     // l'utente vede solo una barra di progresso pulita che sparisce a lavoro finito.
     const seasonSummaryPdfOverlay = ref(false);
+    const appUpdateOverlay = ref(false);
     const seasonSummaryPdfStep = reactive({ label: '', current: 0, total: 1 });
 
     // Legge le dimensioni reali di un'immagine base64, per scalarla nel PDF mantenendo
@@ -18790,6 +18807,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         updateAvailable.value = true; // riprova al prossimo checkForUpdates utile
         return;
       }
+      appUpdateOverlay.value = true; // copre subito tutto lo schermo, qualunque fosse lo stato prima
       updateAvailable.value = false; // hide banner immediately to avoid loop
       toast('⏳ Aggiornamento in corso...', 'info', 3000);
       try {
@@ -18812,6 +18830,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       if (!navigator.onLine) {
         console.warn('[AmiciFC] doUpdate: connessione caduta durante la pulizia — reload rimandato');
         updateAvailable.value = true;
+        appUpdateOverlay.value = false; // altrimenti l'utente resta bloccato su questa schermata
         return;
       }
       setTimeout(() => window.location.reload(true), 800);
@@ -20542,7 +20561,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
       seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
-      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep, seasonSummaryPdfMatchBatches,
+      seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep, seasonSummaryPdfMatchBatches, appUpdateOverlay,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
     };
   }
