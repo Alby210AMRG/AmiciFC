@@ -7783,7 +7783,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.762',date:'2026-07-27',items:[
+    const changelogEntries = [{version:'v1.763',date:'2026-07-27',items:[
+      'Trash Talk — trovata la VERA causa del nome mancante (dopo 3 tentativi falliti su v1.759/v1.761/v1.762): la funzione "Azzera e Rigenera" leggeva il nome del giocatore da statisticheGiocatori, che però non ha MAI avuto un campo nome/nomeGiocatore — solo playerId (vedi saveMatch()). Il codice leggeva quindi sempre "?" come nome, indipendentemente da come veniva gestito il campo target nei tentativi precedenti. Ora il nome viene cercato correttamente nell\'elenco giocatori tramite playerId, esattamente come fa la generazione normale. Confermato con un test che riproduce lo schema dati reale: prima "?" per ogni giocatore, ora il nome vero.',
+      'Soprannomi AI — trovato e corretto un bug analogo a quello già risolto per il Pronostico il 18/7: il flag che decide se serve ricontrollare i soprannomi si riattivava ogni avvio semplicemente perché esisteva una cache locale, non importa quanto vecchia — bloccando per sempre il controllo reale (Inspector segnalava correttamente "6 da aggiornare" ma l\'app non li aggiornava mai). Tolto quel flag dal blocco che decide se rifare i controlli, e ora la generazione soprannomi viene sempre verificata a ogni avvio (la funzione stessa si ferma da sola, senza consumare nulla, se davvero non c\'è nulla da aggiornare).',
+    ]},{version:'v1.762',date:'2026-07-27',items:[
       'Trash Talk — riprogettazione definitiva del target mancante: dopo due tentativi falliti (target_nome testo libero v1.759, target_n numerico v1.761 — l\'AI continuava a non compilarlo in un prompt lungo e creativo), ora è il CODICE a decidere quale giocatore assegnare a ciascuna delle 3 card (migliore della partita, momento negativo/autogol, episodio particolare come fine di un digiuno o una serie di risultati), PRIMA di chiamare l\'AI. Il prompt comunica il giocatore già assegnato per ciascuna card; l\'AI scrive solo il testo creativo, senza dover scegliere né riportare nulla sul target. Il nome è quindi garantito sempre presente, non dipende più in alcun modo dalla disciplina del modello AI. Applicato sia alla generazione normale che a "Azzera e Rigenera".',
     ]},{version:'v1.761',date:'2026-07-27',items:[
       'Trash Talk — fix definitivo (si spera) del nome giocatore mancante: sostituito "target_nome" (testo libero che l\'AI a volte lasciava vuoto, vedi v1.759) con "target_n" (numero di riferimento 1-based), stesso identico pattern già in uso e collaudato in _generateNicknames/Soprannomi AI (suggerito da Alby). Il nome vero viene ricavato dal codice stesso indicizzando l\'elenco giocatori con il numero restituito dall\'AI, non più affidandosi a un testo libero che il modello può omettere o storpiare. Applicato sia alla generazione normale che a "Azzera e Rigenera". Se il numero restituito non è valido, la card resta senza target invece di rompersi, con log di avviso.',
@@ -8753,7 +8756,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.762');
+    const appVersion = ref('1.763');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12059,13 +12062,25 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       const dataPath = `aiCards/trashTalk/${_gKey}/${_ttKey}`;
       const token = await getValidToken() || '';
       const stats = (match.statisticheGiocatori||[]);
-      const _notable = [...stats].sort((a,b)=>((b.goal||0)+(b.assist||0))-((a.goal||0)+(a.assist||0))).slice(0,3);
+      // BUG TROVATO 27/7/2026 (segnalato da Alby dopo il 3° tentativo fallito sul campo target):
+      // statisticheGiocatori NON ha mai avuto un campo nome/nomeGiocatore — solo playerId (vedi
+      // saveMatch(): {playerId,goal,assist,autogol,voto,uomoPartita,rigoriParati,rigoriSbagliati,punti}).
+      // "s.nome||s.nomeGiocatore||'?'" leggeva quindi SEMPRE '?' come nome del giocatore, ben prima
+      // di qualunque mio fix al campo target — il nome vero va cercato nell'elenco giocatori tramite
+      // playerId, esattamente come fa _generateTrashTalk (quella "normale") con players.find(...).
+      const _players = groupPlayers.value;
+      const _findName = pid => { const p = _players.find(x => x.uid===pid || String(x.uid)===String(pid) || String(x.id)===String(pid)); return p ? (p.soprannome||p.nome) : null; };
+      const _notable = [...stats]
+        .map(s => ({ ...s, nome: _findName(s.playerId) }))
+        .filter(s => s.nome) // scarta eventuali playerId non risolvibili invece di mandare '?' all'AI
+        .sort((a,b)=>((b.goal||0)+(b.assist||0))-((a.goal||0)+(a.assist||0)))
+        .slice(0,3);
       if (!_notable.length) { _aiLog('TrashTalk','⚠️ Nessuna statistica giocatori nella partita',false); return; }
       // Target assegnato dal codice per POSIZIONE (card i-esima -> _notable[i-esimo]), non più
       // chiesto all'AI in nessuna forma (27/7/2026): due tentativi precedenti (nome libero in
       // v1.759, numero in v1.761) avevano comunque prodotto card senza target — con un prompt
       // lungo il modello può ignorare un campo richiesto indipendentemente dal suo formato.
-      const _statsStr = _notable.map((s,idx)=>`Card ${idx+1}: SOLO su "${s.nome||s.nomeGiocatore||'?'}" — gol${s.goal||0},voto${s.voto||0}${s.autogol?',autogol':''}${s.uomoPartita?',MVP':''}`).join('\n');
+      const _statsStr = _notable.map((s,idx)=>`Card ${idx+1}: SOLO su "${s.nome}" — gol${s.goal||0},voto${s.voto||0}${s.autogol?',autogol':''}${s.uomoPartita?',MVP':''}`).join('\n');
       const _score = `${match.nomeSquadraA||'A'} ${match.risultato?.goalA??0}-${match.risultato?.goalB??0} ${match.nomeSquadraB||'B'}`;
       const _ttFirma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
       const prompt = `Telecronista ironico italiano. Genera ${_notable.length} trash talk cards su questa partita di calcetto.
@@ -13213,8 +13228,6 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _lsHofCheck = JSON.parse(localStorage.getItem('amicifc_hof_'+_localMonthKey(new Date()))||
                           localStorage.getItem('amicifc_hof_'+_localMonthKey(new Date(Date.now()-30*864e5)))||'null');
       if (_lsHofCheck?.fame && !aiFlagValid('hof', _gid)) aiFlagSet('hof', _gid);
-      const _lsNicksCheck = JSON.parse(localStorage.getItem('amicifc_nicks_'+_gid)||'{}');
-      if (Object.keys(_lsNicksCheck).length && !aiFlagValid('nicks', _gid)) aiFlagSet('nicks', _gid);
       const _lsPronoCheck = JSON.parse(localStorage.getItem('amicifc_prono_'+_gid)||'null');
       // Fix 18/7/2026: qui prima si riattivava il flag solo perché esisteva un titolo in cache,
       // senza controllare se quel contenuto fosse ancora recente — un Pronostico vecchio di
@@ -13225,7 +13238,22 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _pronoFresh = _lsPronoCheck?.titolo && _lsPronoCheck?.generatedAt && (Date.now() - _lsPronoCheck.generatedAt) < (7*24*60*60*1000);
       if (_pronoFresh && !aiFlagValid('pronostico', _gid)) aiFlagSet('pronostico', _gid);
 
-      if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto() && aiFlagValid('nicks', _gid) && aiFlagValid('pronostico', _gid)) {
+      // BUG TROVATO 27/7/2026 (segnalato da Alby: Soprannomi "6 da aggiornare" su Inspector ma
+      // mai rigenerati da soli): qui c'era la STESSA identica riattivazione ingenua del flag
+      // 'nicks' già scoperta e corretta per 'pronostico' il 18/7 — bastava una QUALSIASI cache
+      // locale, non importa quanto vecchia, per riattivare il flag e bloccare per sempre il
+      // controllo vero. Per i soprannomi il problema è più profondo: sono PER GIOCATORE, non un
+      // blob unico con un generatedAt — non ha senso ridurli a un singolo flag a calendario.
+      // Soluzione: tolto 'nicks' dal fast-path qui sotto, e _generateNicknames() (che ha già al
+      // suo interno il controllo corretto per-giocatore, vedi funzione) viene chiamata SEMPRE,
+      // una volta per ciclo di init, indipendentemente dal ramo tt/hof/prono che segue. La
+      // funzione stessa si ferma da sola con un log se non c'è nulla da aggiornare — nessun
+      // costo aggiuntivo quando davvero tutto è già a posto.
+      if (settings.value.apiKey) {
+        _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
+      }
+
+      if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto() && aiFlagValid('pronostico', _gid)) {
         // Carica da localStorage se non già in memoria
         const _lsKeyTT = 'amicifc_tt_' + _gid;
         if (!aiCardsTrashTalk.value.length) {
@@ -13338,25 +13366,8 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
 
       await _checkHallOfFame();
 
-      const _nickPlayers = groupPlayers.value.filter(p=>(p.partiteTotali||0)>=3);
-      const _nickKeys = Object.keys(aiNicknames.value);
-      const _nickMissing = _nickPlayers.filter(p => {
-        const _kNome = (p.nome||'').toLowerCase().trim();
-        const _kSop  = (p.soprannome||'').toLowerCase().trim();
-        const _kId   = String(p.id);
-        const _kUid  = String(p.uid||'');
-        return !aiNicknames.value[_kNome] &&
-               !aiNicknames.value[_kSop] &&
-               !aiNicknames.value[_kId] &&
-               !aiNicknames.value[_kUid] &&
-               !_nickKeys.some(k => k.toLowerCase() === _kNome || k.toLowerCase() === _kSop);
-      });
-      if (_nickMissing.length > 0 && settings.value.apiKey) {
-        _aiLog('Init','🔄 '+_nickMissing.length+'/'+_nickPlayers.length+' soprannomi mancanti: '+_nickMissing.map(p=>p.nome).join(','));
-        _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
-      } else {
-        _aiLog('Init','✅ Soprannomi OK ('+_nickKeys.length+' chiavi, '+_nickPlayers.length+' giocatori idonei)');
-      }
+      // (Nota: _generateNicknames() viene già chiamata sempre più sopra, prima del bivio
+      // fast-path/full-init — non serve ripeterla qui. Vedi commento vicino a _initAiCardsLastRun.)
 
       // ── Auto-rigenera Pronostico se flag scaduto ──────────────────────────────────────────────
       // Era l'unica card AI senza auto-rigenera nell'init: TrashTalk e Soprannomi la avevano già,
