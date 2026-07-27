@@ -7783,7 +7783,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.764',date:'2026-07-27',items:[
+    const changelogEntries = [{version:'v1.765',date:'2026-07-27',items:[
+      'FIX URGENTE a una regressione introdotta ieri (v1.763): il fix per i Soprannomi bloccati chiamava _generateNicknames() PRIMA che i 20 soprannomi fossero stati ricaricati in memoria da localStorage/Firebase (_loadAiNicknames(), che viveva più sotto nel codice) — quindi ogni avvio dell\'app vedeva la cache come vuota/incompleta e rigenerava tutti e 20 i soprannomi via AI, inutilmente e a costo di quota (segnalato subito da Alby: "continua a generare i Soprannomi a ogni avvio"). Sistemato invertendo l\'ordine: ora i dati vengono caricati PRIMA di controllare se serve rigenerare qualcosa. Mi scuso per la disattenzione: nel fix di ieri non avevo verificato che i dati fossero già disponibili nel punto in cui ho spostato il controllo.',
+    ]},{version:'v1.764',date:'2026-07-27',items:[
       'Pronostico — trovata la causa vera del blocco al 23/06 (segnalato da Alby: "scrive sempre le stesse cose"): durante il download da Firebase (syncFromCloud), il flag veniva riattivato SEMPRE appena c\'era un pronostico su Firebase, qualunque fosse la sua età — creando un loop che si autoalimenta (il contenuto vecchio non veniva mai rigenerato perché il flag risultava sempre valido, e ogni sync lo confermava di nuovo). Stesso principio già corretto il 18/7 per la cache locale, ma mai applicato al download da Firebase. Ora si riattiva solo se il contenuto è davvero ancora dentro i 7 giorni. Rimosso inoltre "pronostico" dal blocco fast-path dell\'init (stesso motivo del fix Soprannomi di ieri): il controllo di auto-rigenerazione ora viene sempre eseguito una volta per ciclo, indipendentemente dal ramo preso.',
     ]},{version:'v1.763',date:'2026-07-27',items:[
       'Trash Talk — trovata la VERA causa del nome mancante (dopo 3 tentativi falliti su v1.759/v1.761/v1.762): la funzione "Azzera e Rigenera" leggeva il nome del giocatore da statisticheGiocatori, che però non ha MAI avuto un campo nome/nomeGiocatore — solo playerId (vedi saveMatch()). Il codice leggeva quindi sempre "?" come nome, indipendentemente da come veniva gestito il campo target nei tentativi precedenti. Ora il nome viene cercato correttamente nell\'elenco giocatori tramite playerId, esattamente come fa la generazione normale. Confermato con un test che riproduce lo schema dati reale: prima "?" per ogni giocatore, ora il nome vero.',
@@ -8758,7 +8760,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.764');
+    const appVersion = ref('1.765');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13251,6 +13253,13 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       // una volta per ciclo di init, indipendentemente dal ramo tt/hof/prono che segue. La
       // funzione stessa si ferma da sola con un log se non c'è nulla da aggiornare — nessun
       // costo aggiuntivo quando davvero tutto è già a posto.
+      // BUG TROVATO 27/7/2026, PARTE 2 (segnalato subito da Alby: "continua a generare i
+      // Soprannomi ad ogni avvio"): il mio primo fix (sopra) chiamava _generateNicknames() PRIMA
+      // che aiNicknames.value fosse stato caricato da localStorage/Firebase (quel caricamento,
+      // _loadAiNicknames(), viveva più sotto nel ramo full-init) — quindi il controllo vedeva la
+      // cache come vuota/incompleta e credeva che mancassero quasi tutti i 20 soprannomi, anche
+      // se in realtà erano tutti presenti e freschi. Fix: carico prima i dati, poi controllo.
+      await _loadAiNicknames();
       if (settings.value.apiKey) {
         _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
       }
@@ -13317,7 +13326,6 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       try {
       const _lsKeyTT = 'amicifc_tt_' + _gid;
 
-      await _loadAiNicknames();
       _aiLog('Init','📥 Soprannomi: '+Object.keys(aiNicknames.value).length);
 
       await _loadHallOfFame();
