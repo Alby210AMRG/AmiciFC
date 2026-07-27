@@ -7769,7 +7769,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.756',date:'2026-07-26',items:[
+    const changelogEntries = [{version:'v1.757',date:'2026-07-27',items:[
+      'Fix CRITICO Trash Talk mancante: rimosso il gate "non generato negli ultimi 3 giorni" al salvataggio partita — leggeva un timestamp locale non legato alla data della partita specifica, bloccando silenziosamente la generazione se un altro Trash Talk era stato generato di recente. _generateTrashTalk ha già un controllo Firebase corretto per data specifica (con lock anti-doppia-generazione), quindi ora viene chiamata sempre, senza gate esterno ridondante.',
+      'Fix soglie ritorno in foreground (visibilitychange/pageshow): rimosse le soglie "solo se app nascosta da più di 10/15 minuti" prima di controllare aggiornamenti Firebase. checkSyncNeeded() ha già un freno interno (max una volta ogni 60s, legge solo 2 valori piccoli) che rende la soglia esterna ridondante — e impediva il controllo quando si torna sull\'app dopo pochi minuti, causa più probabile del Trash Talk mancante per la partita del 23/07/2026 segnalato da Alby (chi ha salvato la partita non aveva AI configurata; il controllo su un secondo dispositivo con AI, aperto pochi minuti dopo, non scattava per queste soglie).',
+    ]},{version:'v1.756',date:'2026-07-26',items:[
       'iOS — 2 fix a basso rischio dopo segnalazioni di utenti iOS (font non identici ad Android, barra di stato verde a tinta unita): 1) aggiunto un preconnect verso fonts.gstatic.com (dove risiedono i file font veri, non solo il CSS) accanto al preconnect già esistente verso fonts.googleapis.com, per ridurre il rischio di caricamento lento/fallito dei font su Safari iOS. 2) cambiato il meta tag apple-mobile-web-app-status-bar-style da "black-translucent" (deprecato da Apple, con comportamento documentato come incoerente su iOS moderni: a volte torna bianco/a tinta unita invece di restare trasparente) a "black" (barra di stato scura fissa, meno elegante ma prevedibile, coerente con il tema scuro dell\'app). Non risolvono con certezza al 100% (sono bug lato Apple/iOS non del nostro codice), ma sono modifiche minime e reversibili in pochi secondi se il risultato non convince. Il bug del bottom nav "a metà pagina" segnalato da un altro utente iOS resta aperto: non riprodotto direttamente, richiede più dettagli prima di intervenire (il fix vero comporterebbe cambiare la struttura position:fixed, rischio più alto).',
     ]},{version:'v1.755',date:'2026-07-26',items:[
       "PDF Riepilogo Stagione — fix segnalato da Alby con screenshot: restava visibile una sottile fetta del bordo superiore di un\\'immagine partita prima del taglio pagina, nonostante il fix precedente. Non riprodotto identico con dati sintetici (verificato che il calcolo delle zone protette è accurato al pixel in diversi test), ma il pattern (piccola fetta + spazio vuoto dopo) indica un piccolo scostamento di misura tra il DOM live e il canvas catturato. Aggiunto un margine di sicurezza di 8px attorno a ogni zona protetta. Provati anche un margine più ampio (40px) e una rifinitura basata sui pixel reali del canvas: entrambi scartati perché peggioravano lo spreco di spazio (il margine ampio fondeva le due immagini della stessa partita in un blocco unico; la rifinitura veniva ingannata da badge/emoji colorati vicini alle immagini, es. ⚽ 🅰️, scambiati per parte dell\\'immagine). Verificato: zero immagini tagliate su test con contenuti variabili (commenti di lunghezza diversa, MVP presente/assente, titolo assente, seconda immagine assente) e nessuna regressione sul dataset standard.",
@@ -8726,7 +8729,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.756');
+    const appVersion = ref('1.757');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13628,15 +13631,13 @@ Niente altro, nessuna spiegazione.`;
         // Non skippiamo se token sembra scaduto: potrebbe rinnovarsi automaticamente
         syncToCloudWithRetry('Partita');
       }
-      // Genera TrashTalk solo se non generato negli ultimi 3 giorni
-      const _lsKeyTT2 = 'amicifc_tt_' + (currentGroup.value?.id||'');
-      const _ttCached2 = JSON.parse(localStorage.getItem(_lsKeyTT2)||'null');
-      const _ttAge2 = Date.now() - (_ttCached2?.generatedAt || 0);
-      if (_ttAge2 > 3 * 24 * 60 * 60 * 1000) {
-        _generateTrashTalk(match).catch(e => console.warn('[TrashTalk]', e.message));
-      } else {
-        logEvent('info','ai','[TrashTalk] Generazione saltata — già generato negli ultimi 3 giorni');
-      }
+      // TrashTalk: chiamiamo sempre _generateTrashTalk, che internamente controlla già Firebase
+      // per QUESTA data specifica (con lock anti-doppia-generazione) prima di generare qualcosa —
+      // non serve un secondo controllo qui. Il precedente gate "non generato negli ultimi 3 giorni"
+      // leggeva un timestamp locale non legato alla data della partita: se un Trash Talk era stato
+      // generato di recente per una partita diversa, bloccava silenziosamente la generazione per
+      // questa partita nuova (bug segnalato da Alby il 27/7/2026 — Trash Talk mancante per il 23/07).
+      _generateTrashTalk(match).catch(e => console.warn('[TrashTalk]', e.message));
     };
 
     const confirmDeleteModal = reactive({ show: false, matchId: null, matchInfo: '' });
@@ -18968,8 +18969,12 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           _ptrActive = false; ptrVisible.value = false;
           _appHiddenAt = Date.now();
         } else {
-          const hiddenMs = Date.now() - (_appHiddenAt || 0);
-          if (hiddenMs > 10 * 60 * 1000 && groupCloudUrl.value) {
+          // Rimossa la soglia "solo se nascosta >10 minuti" (27/7/2026): checkSyncNeeded() ha
+          // già il proprio freno interno (non riparte se l'ultimo check è avvenuto <60s fa,
+          // e legge solo 2 valori piccoli, non l'intero DB) — la soglia esterna era ridondante
+          // e impediva il controllo quando si torna sull'app dopo pochi minuti (causa del
+          // Trash Talk mancante segnalato da Alby per la partita del 23/07/2026).
+          if (groupCloudUrl.value) {
             // Check leggero prima — sync completo solo se ci sono dati nuovi
             setTimeout(async () => {
               try {
@@ -18990,15 +18995,14 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       });
       window.addEventListener('pageshow', (e) => {
         if (e.persisted && groupCloudUrl.value) {
-          const hiddenMs = Date.now() - (_appHiddenAt || 0);
-          if (hiddenMs > 15 * 60 * 1000) {
-            setTimeout(async () => {
-              try {
-                const needed = await checkSyncNeeded();
-                if (needed) await syncFromCloud(false);
-              } catch(e) {}
-            }, 1000);
-          }
+          // Rimossa la soglia "solo se nascosta >15 minuti" (27/7/2026), stesso motivo del
+          // blocco visibilitychange sopra: checkSyncNeeded() ha già il proprio freno da 60s.
+          setTimeout(async () => {
+            try {
+              const needed = await checkSyncNeeded();
+              if (needed) await syncFromCloud(false);
+            } catch(e) {}
+          }, 1000);
         }
       });
       setInterval(() => { statsHeroIdx.value = (statsHeroIdx.value+1) % 4; }, 4000);
