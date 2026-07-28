@@ -3241,6 +3241,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           :style="p.infortunio?'border:1.5px solid rgba(248,113,113,.5);background:rgba(248,113,113,.05);position:relative':''">
           <!-- Badge infortunio in alto a destra -->
           <div v-if="p.infortunio" style="position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:#e53e3e;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid var(--bg);z-index:2;box-shadow:0 0 6px rgba(229,62,62,.5)">🏥</div>
+          <!-- Badge PIN di voto non impostato (Pagelle Multi-Utente), solo per admin loggati -->
+          <div v-if="firebaseUser && votePinStatusLoaded && !votePinStatus[p.uid]" style="position:absolute;top:6px;left:6px;width:20px;height:20px;border-radius:50%;background:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:11px;border:2px solid var(--bg);z-index:2" title="PIN di voto non impostato">🔑</div>
           <div class="player-avatar" :style="'border:2.5px solid '+(p.infortunio?'#f87171':(p.mediaVoto||0)>=7?'#4ade80':(p.mediaVoto||0)>=5?'#FFD93D':'var(--border)')">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
             <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
@@ -6209,6 +6211,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   </div>
 
   <!-- Player Detail Modal -->
+  <!-- Modale rivelazione PIN di voto (Pagelle Multi-Utente, Fase 2) -->
+  <div v-if="showPinRevealModal" class="modal-overlay" @click.self="showPinRevealModal=false">
+    <div class="modal" style="max-width:380px;text-align:center">
+      <div style="font-size:1.1rem;font-weight:800;margin-bottom:10px">🔑 PIN generato</div>
+      <div style="font-size:0.85rem;color:var(--text2);margin-bottom:14px">
+        Per <strong>{{ pinRevealData.playerName }}</strong> — comunicaglielo tu stesso (WhatsApp, ecc).
+        Non potrai più vederlo dopo aver chiuso questa finestra: se lo perde, si può solo rigenerare un PIN nuovo.
+      </div>
+      <div style="font-size:2rem;font-weight:900;letter-spacing:4px;color:var(--lime);background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:14px;user-select:all">{{ pinRevealData.pin }}</div>
+      <button class="btn btn-primary" style="width:100%" @click="showPinRevealModal=false">Ho preso nota, chiudi</button>
+    </div>
+  </div>
+
   <div v-if="showPlayerDetail && detailPlayer" class="modal-overlay" @click.self="showPlayerDetail=false">
     <div class="modal-sheet" style="position:relative">
       <div class="modal-handle"></div>
@@ -6398,6 +6413,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </template> <!-- fine tab storico -->
 
+      <div v-if="firebaseUser && !detailPlayerReadOnly" style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:6px">🔑 PIN di voto (Pagelle Multi-Utente)</div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span v-if="votePinStatus[detailPlayer.uid]" class="badge badge-lime">✅ Impostato</span>
+          <span v-else class="badge badge-orange">⚠️ Non impostato</span>
+          <button class="btn btn-ghost btn-sm" :disabled="pinLoading" @click="generateVotePin(detailPlayer)">
+            {{ pinLoading ? '⏳...' : (votePinStatus[detailPlayer.uid] ? '🔄 Rigenera' : '➕ Genera') }}
+          </button>
+        </div>
+      </div>
       <div v-if="!detailPlayerReadOnly" style="display:flex;flex-direction:column;gap:10px">
         <button class="btn btn-primary" style="width:100%" @click="sharePlayerCardPNG(detailPlayer)">📤 Condividi Card Giocatore</button>
         <div style="display:flex;gap:10px">
@@ -7783,7 +7808,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.765',date:'2026-07-27',items:[
+    const changelogEntries = [{version:'v1.766',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente — Fase 2: gestione PIN di voto dentro l\'app (nessuna funzione ancora nell\'Inspector, come deciso — solo gli admin dall\'app). Ogni giocatore ha un PIN a 6 cifre generabile/rigenerabile da qualsiasi dei 3 admin loggati, dalla schermata di dettaglio giocatore. Il PIN viene mostrato una sola volta al momento della generazione (in chiaro, per poterlo comunicare) e salvato su Firebase solo come impronta digitale SHA-256 (mai il numero in chiaro), verificata via Web Crypto API nel browser. Badge "🔑" nella lista Giocatori per chi non ha ancora un PIN impostato, visibile solo agli admin loggati. Nessuna funzione di voto vera e propria ancora — solo la gestione PIN, propedeutica alla Fase 3 (pagina di voto).',
+    ]},{version:'v1.765',date:'2026-07-27',items:[
       'FIX URGENTE a una regressione introdotta ieri (v1.763): il fix per i Soprannomi bloccati chiamava _generateNicknames() PRIMA che i 20 soprannomi fossero stati ricaricati in memoria da localStorage/Firebase (_loadAiNicknames(), che viveva più sotto nel codice) — quindi ogni avvio dell\'app vedeva la cache come vuota/incompleta e rigenerava tutti e 20 i soprannomi via AI, inutilmente e a costo di quota (segnalato subito da Alby: "continua a generare i Soprannomi a ogni avvio"). Sistemato invertendo l\'ordine: ora i dati vengono caricati PRIMA di controllare se serve rigenerare qualcosa. Mi scuso per la disattenzione: nel fix di ieri non avevo verificato che i dati fossero già disponibili nel punto in cui ho spostato il controllo.',
     ]},{version:'v1.764',date:'2026-07-27',items:[
       'Pronostico — trovata la causa vera del blocco al 23/06 (segnalato da Alby: "scrive sempre le stesse cose"): durante il download da Firebase (syncFromCloud), il flag veniva riattivato SEMPRE appena c\'era un pronostico su Firebase, qualunque fosse la sua età — creando un loop che si autoalimenta (il contenuto vecchio non veniva mai rigenerato perché il flag risultava sempre valido, e ogni sync lo confermava di nuovo). Stesso principio già corretto il 18/7 per la cache locale, ma mai applicato al download da Firebase. Ora si riattiva solo se il contenuto è davvero ancora dentro i 7 giorni. Rimosso inoltre "pronostico" dal blocco fast-path dell\'init (stesso motivo del fix Soprannomi di ieri): il controllo di auto-rigenerazione ora viene sempre eseguito una volta per ciclo, indipendentemente dal ramo preso.',
@@ -8760,7 +8787,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.765');
+    const appVersion = ref('1.766');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9482,6 +9509,7 @@ createApp({
       detailPlayerSeasonFilter.value = seasonFilter;
       showPlayerDetail.value = true;
       if (!hofStoricoLoaded.value) _loadHofStorico(); // non bloccante, per il contatore Re/Bidone del Mese
+      if (firebaseUser.value && !votePinStatusLoaded.value) loadVotePinStatus();
     };
 
     // Helper: trova il nick AI del giocatore cercando per tutte le chiavi possibili
@@ -13263,6 +13291,11 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       if (settings.value.apiKey) {
         _generateNicknames().catch(e=>_aiLog('Init','❌ Soprannomi: '+e.message,false));
       }
+
+      // Pagelle Multi-Utente: se già loggato da una sessione precedente (non un login fresco,
+      // già coperto separatamente), carica qui lo stato PIN — altrimenti i badge "PIN non
+      // impostato" nella lista Giocatori comparirebbero solo dopo aver aperto un dettaglio.
+      if (firebaseUser.value && !votePinStatusLoaded.value) loadVotePinStatus();
 
       // BUG TROVATO 27/7/2026 (segnalato da Alby: Pronostico fermo al 23/06 per oltre un mese):
       // questo controllo viveva nel ramo full-init, raggiungibile solo se il fast-path sopra
@@ -17751,6 +17784,60 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       }
     };
     const firebaseUser    = ref(JSON.parse(localStorage.getItem('amicifc_fb_user') || 'null'));
+
+    // ── Pagelle Multi-Utente: gestione PIN di voto (Fase 2, 28/7/2026) ──
+    const votePinStatus = ref({});        // {playerUid: true} se il PIN è impostato per quel giocatore
+    const votePinStatusLoaded = ref(false);
+    const pinLoading = ref(false);
+    const showPinRevealModal = ref(false);
+    const pinRevealData = ref({ playerName: '', pin: '' });
+
+    async function _sha256Hex(str) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+      return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+    }
+
+    async function loadVotePinStatus() {
+      if (!firebaseUser.value || !currentGroup.value?.firebaseUrl || !fbIdToken.value) return;
+      try {
+        const gKey = _aiCardGroupKey();
+        const base = currentGroup.value.firebaseUrl.replace(/\/$/,'');
+        const res = await fetch(`${base}/amicifc/votePins/${gKey}.json?auth=${fbIdToken.value}`, { cache:'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const status = {};
+        if (data) Object.keys(data).forEach(uid => { status[uid] = !!(data[uid] && data[uid].hash); });
+        votePinStatus.value = status;
+        votePinStatusLoaded.value = true;
+      } catch(e) { console.warn('[VotePin] load status:', e.message); }
+    }
+
+    async function generateVotePin(player) {
+      if (!firebaseUser.value || !fbIdToken.value) { toast('⚠️ Devi essere loggato per generare un PIN','error',3000); return; }
+      if (!currentGroup.value?.firebaseUrl) { toast('⚠️ Nessun database Firebase collegato','error',3000); return; }
+      if (!player?.uid) return;
+      pinLoading.value = true;
+      try {
+        const eraGiaImpostato = !!votePinStatus.value[player.uid];
+        const pin = String(Math.floor(100000 + Math.random()*900000)); // sempre 6 cifre, 100000-999999
+        const hash = await _sha256Hex(pin);
+        const gKey = _aiCardGroupKey();
+        const base = currentGroup.value.firebaseUrl.replace(/\/$/,'');
+        const payload = { hash, updatedAt: Date.now(), updatedBy: firebaseUser.value.email };
+        const res = await fetch(`${base}/amicifc/votePins/${gKey}/${player.uid}.json?auth=${fbIdToken.value}`, {
+          method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('HTTP '+res.status);
+        votePinStatus.value = { ...votePinStatus.value, [player.uid]: true };
+        pinRevealData.value = { playerName: player.soprannome || player.nome, pin };
+        showPinRevealModal.value = true;
+        logEvent('info','votes', `🔑 PIN ${eraGiaImpostato?'rigenerato':'generato'} per ${player.nome} da ${firebaseUser.value.email}`);
+      } catch(e) {
+        toast('❌ Errore generazione PIN: '+e.message, 'error', 4000);
+      } finally {
+        pinLoading.value = false;
+      }
+    }
     const fbLoginEmail    = ref('');
     const fbLoginPwd      = ref('');
     const fbAuthLoading   = ref(false);
@@ -17795,6 +17882,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         localStorage.setItem('amicifc_fb_token',   d.idToken);
         localStorage.setItem('amicifc_fb_apikey',  groupCloudApiKey.value || currentGroup.value?.firebaseApiKey || '');
         localStorage.setItem('amicifc_fb_refresh', d.refreshToken || ''); // store refresh token
+        loadVotePinStatus(); // non bloccante — popola i badge "PIN non impostato" nella lista giocatori
         fbLoginEmail.value = '';
         fbLoginPwd.value = '';
         showFbPwd.value = false;
@@ -20621,6 +20709,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
+      votePinStatus, votePinStatusLoaded, pinLoading, showPinRevealModal, pinRevealData, generateVotePin, loadVotePinStatus,
       showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
