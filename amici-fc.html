@@ -3247,7 +3247,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
             <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
           </div>
-          <div class="player-name">{{ p.nome }} {{ p.cognome }}</div>
+          <div class="player-name">{{ p.nome }} {{ p.cognome }}<span v-if="p.isAdminGruppo" title="Admin del gruppo" style="margin-left:4px">👑</span></div>
           <div v-if="p.soprannome" class="player-nick">"{{ p.soprannome }}"</div>
           <div class="player-role">{{ p.ruolo }}
             <span v-if="p.piede" style="margin-left:4px">
@@ -6201,6 +6201,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <div v-if="firebaseUser" class="input-group" style="background:var(--bg3);border-radius:10px;padding:10px 12px">
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:0.85rem">
+          <input type="checkbox" v-model="playerForm.isAdminGruppo" style="width:18px;height:18px">
+          👑 Questo giocatore è anche un admin del gruppo
+        </label>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
+          Gli admin hanno sempre diritto di voto nelle Pagelle Multi-Utente, anche per le partite in cui non hanno giocato.
+        </div>
+      </div>
+
       <div style="display:flex;gap:10px;margin-top:8px">
         <button class="btn btn-ghost" style="flex:1" @click="showPlayerForm=false">Annulla</button>
         <button class="btn btn-primary" style="flex:2" @click="savePlayer" :disabled="!playerForm.nome.trim()">
@@ -7808,7 +7818,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.767',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.768',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente: aggiunto un campo "👑 Questo giocatore è anche un admin del gruppo" nel form di modifica giocatore (visibile solo se loggato) — sostituisce l\'idea iniziale di una lista di uid admin scritta a mano nel codice (proposta di Alby). Da qui in poi il calcolo di chi ha diritto di voto per una partita (chi ha giocato + admin) si farà leggendo direttamente questo campo dai giocatori, senza bisogno di aggiornare il codice quando cambia la lista admin. Piccola corona 👑 accanto al nome nella lista giocatori per riconoscerli a colpo d\'occhio.',
+    ]},{version:'v1.767',date:'2026-07-28',items:[
       'Pagelle Multi-Utente: aggiunta una conferma esplicita prima di generare/rigenerare un PIN di voto (richiesta di Alby dopo il primo test reale) — un click per sbaglio non invalida più un PIN già funzionante senza avviso. Testo diverso a seconda che il giocatore abbia già un PIN o no.',
     ]},{version:'v1.766',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — Fase 2: gestione PIN di voto dentro l\'app (nessuna funzione ancora nell\'Inspector, come deciso — solo gli admin dall\'app). Ogni giocatore ha un PIN a 6 cifre generabile/rigenerabile da qualsiasi dei 3 admin loggati, dalla schermata di dettaglio giocatore. Il PIN viene mostrato una sola volta al momento della generazione (in chiaro, per poterlo comunicare) e salvato su Firebase solo come impronta digitale SHA-256 (mai il numero in chiaro), verificata via Web Crypto API nel browser. Badge "🔑" nella lista Giocatori per chi non ha ancora un PIN impostato, visibile solo agli admin loggati. Nessuna funzione di voto vera e propria ancora — solo la gestione PIN, propedeutica alla Fase 3 (pagina di voto).',
@@ -8789,7 +8801,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.767');
+    const appVersion = ref('1.768');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9328,8 +9340,8 @@ createApp({
     const openPlayerForm = p => {
       editingPlayer.value = p;
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'' }
-        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[], infortunio:'' };
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', isAdminGruppo: !!p.isAdminGruppo }
+        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[], infortunio:'', isAdminGruppo:false };
       showPlayerForm.value = true;
     };
 
@@ -9351,6 +9363,7 @@ createApp({
           infortunio:   f.infortunio?.trim() || '',
           rivali:      (f.rivali||[]).filter(Boolean),
           affinita:    (f.affinita||[]).filter(Boolean),
+          isAdminGruppo: !!f.isAdminGruppo,
           updatedAt:   Date.now(),
         });
         if (!updated) {
@@ -9361,6 +9374,7 @@ createApp({
               soprannome: f.soprannome?.trim()||'', ruolo: f.ruolo||'Jolly',
               piede: f.piede||'Destro', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', infortunio: f.infortunio?.trim()||'',
               rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean),
+              isAdminGruppo: !!f.isAdminGruppo,
             });
           }
         }
