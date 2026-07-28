@@ -7808,7 +7808,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.766',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.767',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente: aggiunta una conferma esplicita prima di generare/rigenerare un PIN di voto (richiesta di Alby dopo il primo test reale) — un click per sbaglio non invalida più un PIN già funzionante senza avviso. Testo diverso a seconda che il giocatore abbia già un PIN o no.',
+    ]},{version:'v1.766',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — Fase 2: gestione PIN di voto dentro l\'app (nessuna funzione ancora nell\'Inspector, come deciso — solo gli admin dall\'app). Ogni giocatore ha un PIN a 6 cifre generabile/rigenerabile da qualsiasi dei 3 admin loggati, dalla schermata di dettaglio giocatore. Il PIN viene mostrato una sola volta al momento della generazione (in chiaro, per poterlo comunicare) e salvato su Firebase solo come impronta digitale SHA-256 (mai il numero in chiaro), verificata via Web Crypto API nel browser. Badge "🔑" nella lista Giocatori per chi non ha ancora un PIN impostato, visibile solo agli admin loggati. Nessuna funzione di voto vera e propria ancora — solo la gestione PIN, propedeutica alla Fase 3 (pagina di voto).',
     ]},{version:'v1.765',date:'2026-07-27',items:[
       'FIX URGENTE a una regressione introdotta ieri (v1.763): il fix per i Soprannomi bloccati chiamava _generateNicknames() PRIMA che i 20 soprannomi fossero stati ricaricati in memoria da localStorage/Firebase (_loadAiNicknames(), che viveva più sotto nel codice) — quindi ogni avvio dell\'app vedeva la cache come vuota/incompleta e rigenerava tutti e 20 i soprannomi via AI, inutilmente e a costo di quota (segnalato subito da Alby: "continua a generare i Soprannomi a ogni avvio"). Sistemato invertendo l\'ordine: ora i dati vengono caricati PRIMA di controllare se serve rigenerare qualcosa. Mi scuso per la disattenzione: nel fix di ieri non avevo verificato che i dati fossero già disponibili nel punto in cui ho spostato il controllo.',
@@ -8787,7 +8789,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.766');
+    const appVersion = ref('1.767');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -17816,9 +17818,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (!firebaseUser.value || !fbIdToken.value) { toast('⚠️ Devi essere loggato per generare un PIN','error',3000); return; }
       if (!currentGroup.value?.firebaseUrl) { toast('⚠️ Nessun database Firebase collegato','error',3000); return; }
       if (!player?.uid) return;
+      const eraGiaImpostato = !!votePinStatus.value[player.uid];
+      const nomeMostrato = player.soprannome || player.nome;
+      const conferma = eraGiaImpostato
+        ? confirm(`🔑 ${nomeMostrato} ha già un PIN impostato.\n\nRigenerarlo crea un PIN nuovo e rende INVALIDO quello vecchio — se ${nomeMostrato} conosce già il vecchio PIN, non funzionerà più.\n\nProcedere con la rigenerazione?`)
+        : confirm(`🔑 Generare un nuovo PIN di voto per ${nomeMostrato}?`);
+      if (!conferma) return;
       pinLoading.value = true;
       try {
-        const eraGiaImpostato = !!votePinStatus.value[player.uid];
         const pin = String(Math.floor(100000 + Math.random()*900000)); // sempre 6 cifre, 100000-999999
         const hash = await _sha256Hex(pin);
         const gKey = _aiCardGroupKey();
@@ -17829,7 +17836,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         });
         if (!res.ok) throw new Error('HTTP '+res.status);
         votePinStatus.value = { ...votePinStatus.value, [player.uid]: true };
-        pinRevealData.value = { playerName: player.soprannome || player.nome, pin };
+        pinRevealData.value = { playerName: nomeMostrato, pin };
         showPinRevealModal.value = true;
         logEvent('info','votes', `🔑 PIN ${eraGiaImpostato?'rigenerato':'generato'} per ${player.nome} da ${firebaseUser.value.email}`);
       } catch(e) {
