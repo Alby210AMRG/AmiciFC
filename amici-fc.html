@@ -7041,6 +7041,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
   <!-- ═══ Pagelle Multi-Utente: pagina di voto pubblica (Fase 3, 28/7/2026) ═══ -->
   <div v-if="voteMode" style="position:fixed;inset:0;z-index:999999;background:var(--bg1,#0a0a0f);color:var(--text,#fff);overflow-y:auto;padding:20px 16px;font-family:inherit">
+    <!-- Badge identità confermata (richiesta di Alby 28/7/2026: capire subito se il PIN inserito
+         corrisponde davvero alla persona giusta) — visibile solo dopo che il PIN è stato verificato,
+         durante la votazione vera e propria, non prima. -->
+    <div v-if="(voteStep==='voting'||voteStep==='review') && voteSelectedVoter" style="position:fixed;top:10px;right:10px;z-index:1000000;background:var(--bg2,#111827);border:1px solid var(--lime,#a6ff4d);border-radius:20px;padding:6px 12px;font-size:0.72rem;max-width:60vw;text-align:right">
+      <div style="color:var(--text2,#9ca3af);font-size:0.62rem">Stai votando come:</div>
+      <div style="font-weight:700;color:var(--lime,#a6ff4d)">
+        {{ voteSelectedVoter.nomeCompleto }}{{ voteSelectedVoter.cognome ? ' '+voteSelectedVoter.cognome : '' }}<span v-if="voteSelectedVoter.soprannome"> ({{ voteSelectedVoter.soprannome }})</span>
+      </div>
+    </div>
     <div style="max-width:420px;margin:0 auto;min-height:90vh;display:flex;flex-direction:column;justify-content:center">
 
       <!-- LOADING -->
@@ -7996,7 +8005,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.772',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.773',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente: aggiunto un badge fisso in alto a destra ("Stai votando come: Nome Cognome (Soprannome)"), visibile durante la votazione e nel riepilogo — richiesta di Alby dopo il primo voto reale, per capire subito se il PIN inserito corrisponde davvero alla persona giusta.',
+    ]},{version:'v1.772',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — tre bug corretti dal test reale di Alby: (1) il bottone "Chiudi e Pubblica" usava una classe CSS ("btn-orange") che non esiste da nessuna parte nel file — risultato bottone bianco su bianco, illeggibile. Sostituita con "btn-red", una classe vera già usata per azioni significative; (2) il bottone "Link" non faceva nulla: un\'espressione inline con due istruzioni separate da ";" dentro @click non veniva eseguita da Vue, senza generare alcun errore — sostituita con una funzione dedicata; (3) il conteggio "voti ricevuti" contava anche chi aveva solo verificato il PIN (la scrittura di prova usata per identificare il votante) senza aver completato l\'invio del voto vero — ora conta solo le voci con voti effettivamente presenti.',
     ]},{version:'v1.771',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — sei correzioni dal primo giro di test reale di Alby: (1) rimossa la schermata "chi sei" (chiunque poteva scegliere il nome di un altro) — ora appare prima una schermata con i dettagli della partita (gruppo, data, luogo, squadre, risultato, marcatori, autogol, rigori), poi si inserisce direttamente il PIN, che identifica da solo il votante provando la scrittura di verifica su ciascun eleggibile finché una non viene accettata; (2) il campo voto parte vuoto, non più precompilato a 6 — bisogna inserire un valore per andare avanti; (3) validazione del voto: accetta "6.5" o "6,5", rifiuta "6.4"/"6,4" (o qualsiasi valore non multiplo di 0.5) con un messaggio di errore chiaro, blocca l\'avanzamento finché non è valido; (4) la votazione uno-alla-volta ora è ordinata per squadra poi per ruolo (con badge colorato coerente con il resto dell\'app); (5) stesso raggruppamento per squadra nel riepilogo finale; (6) BUG corretto (segnalato da Alby, partita test 11/06 con "Pirata" admin non in campo): i giocatori DA VOTARE ora sono solo chi ha giocato davvero la partita (squadraA+squadraB) — un admin che non ha giocato può votare gli altri ma non compare più come qualcuno da valutare lui stesso.',
@@ -8987,7 +8998,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.772');
+    const appVersion = ref('1.773');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -18226,7 +18237,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const eligible = eligibleUids
           .map(uid => playersArr.find(p => p && p.uid === uid))
           .filter(Boolean)
-          .map(p => ({ uid: p.uid, nome: p.soprannome || p.nome, foto: p.foto || '' }));
+          .map(p => ({ uid: p.uid, nome: p.soprannome || p.nome, foto: p.foto || '', nomeCompleto: p.nome, cognome: p.cognome || '', soprannome: p.soprannome || '' }));
         if (!eligible.length) { voteStep.value='error'; voteErrorMsg.value='Nessun giocatore risulta eleggibile per il voto.'; return; }
         voteEligiblePlayers.value = eligible;
 
