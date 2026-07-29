@@ -5287,6 +5287,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <!-- Pagelle Multi-Utente: soglia di scarto configurabile (solo admin) -->
+      <div v-if="firebaseUser" class="card">
+        <div class="card-title">🗳️ Pagelle Multi-Utente</div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Soglia di scarto voti anomali</div>
+            <div class="setting-sub">Alla chiusura di una votazione, i voti che si discostano dalla mediana più di questo valore vengono esclusi dalla media finale</div>
+          </div>
+        </div>
+        <input type="number" min="0.5" max="5" step="0.5" v-model.number="settings.voteDeviationThreshold" @change="saveSettings"
+          style="width:100%;text-align:center;font-size:1.1rem;font-weight:800;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px;color:var(--lime);margin-top:8px">
+      </div>
+
       <!-- Manuale del Campetto -->
       <div class="card" style="border-color:rgba(96,165,250,0.3)">
         <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0"
@@ -6475,6 +6488,30 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <button v-if="!detailMatchReadonly" class="btn btn-primary btn-full" style="font-size:1rem;padding:14px;margin-bottom:12px" @click="regenerateNewspaper(detailMatch)">
         📤 Condividi
       </button>
+
+      <!-- Pagelle Multi-Utente: gestione votazione condivisa (solo admin, partita non archiviata) -->
+      <div v-if="firebaseUser && !detailMatchReadonly" style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:8px">🗳️ Votazione Condivisa (Pagelle Multi-Utente)</div>
+        <div v-if="!voteAdminStatus">
+          <button class="btn btn-ghost btn-sm" @click="loadVoteAdminStatus(detailMatch)">🔍 Controlla stato votazione</button>
+        </div>
+        <div v-else>
+          <div v-if="!voteAdminStatus.exists" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge badge-gray">Mai aperta</span>
+            <button class="btn btn-primary btn-sm" :disabled="voteAdminLoading" @click="apriVotazione(detailMatch)">🗳️ Apri Votazione</button>
+          </div>
+          <div v-else style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge" :class="voteAdminStatus.closed?'badge-gray':'badge-lime'">
+              {{ voteAdminStatus.closed ? '🔒 Chiusa' : '🟢 Aperta' }}
+            </span>
+            <span class="badge badge-gray">{{ voteAdminStatus.entriesCount }} voti ricevuti</span>
+            <button v-if="!voteAdminStatus.closed" class="btn btn-ghost btn-sm" @click="voteShareLink=_buildVoteShareLink(detailMatch); showVoteLinkModal=true">🔗 Link</button>
+            <button v-if="!voteAdminStatus.closed" class="btn btn-orange btn-sm" :disabled="voteAdminLoading" @click="chiudiVotazione(detailMatch)">🔒 Chiudi e Pubblica</button>
+            <button v-else class="btn btn-ghost btn-sm" :disabled="voteAdminLoading" @click="riapriVotazione(detailMatch)">🔓 Riapri Votazione</button>
+          </div>
+        </div>
+      </div>
+
       <div v-if="detailMatch.commentoAI" class="ai-comment-box" style="margin:12px 0;font-size:0.8rem">
         {{ detailMatch.commentoAI }}
       </div>
@@ -6993,6 +7030,126 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
        si era sulla schermata Riepilogo Stagione con il PDF in corso/appena finito, si vedeva
        un flash di "Genero PDF...". z-index più alto di ogni altro overlay (99999 vs 9999 del
        PDF) così copre sempre tutto, qualunque fosse lo stato della schermata sotto. -->
+  <!-- Modale link condivisione votazione (Pagelle Multi-Utente, Fase 3) -->
+  <div v-if="showVoteLinkModal" class="modal-overlay" @click.self="showVoteLinkModal=false">
+    <div class="modal" style="max-width:420px;text-align:center">
+      <div style="font-size:1.1rem;font-weight:800;margin-bottom:10px">🔗 Link Votazione</div>
+      <div style="font-size:0.85rem;color:var(--text2);margin-bottom:14px">Condividi questo link su WhatsApp/Telegram con chi ha diritto di voto per questa partita.</div>
+      <textarea readonly style="width:100%;min-height:70px;font-size:0.75rem;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);margin-bottom:12px;resize:none" @click="$event.target.select()">{{ voteShareLink }}</textarea>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-primary" style="flex:1" @click="navigator.clipboard?.writeText(voteShareLink); toast('📋 Link copiato!','success',2000)">📋 Copia Link</button>
+        <button class="btn btn-ghost" @click="showVoteLinkModal=false">Chiudi</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Pagelle Multi-Utente: pagina di voto pubblica (Fase 3, 28/7/2026) ═══ -->
+  <div v-if="voteMode" style="position:fixed;inset:0;z-index:999999;background:var(--bg1,#0a0a0f);color:var(--text,#fff);overflow-y:auto;padding:20px 16px;font-family:inherit">
+    <div style="max-width:420px;margin:0 auto;min-height:90vh;display:flex;flex-direction:column;justify-content:center">
+
+      <!-- LOADING -->
+      <div v-if="voteStep==='loading'" style="text-align:center">
+        <div style="font-size:42px;margin-bottom:16px;animation:spin 1.2s linear infinite">⚽</div>
+        <div style="color:var(--lime,#a6ff4d);font-weight:800">Caricamento...</div>
+      </div>
+
+      <!-- ERRORE -->
+      <div v-if="voteStep==='error'" style="text-align:center">
+        <div style="font-size:42px;margin-bottom:16px">⚠️</div>
+        <div style="font-weight:800;font-size:1.1rem;margin-bottom:8px">Impossibile votare</div>
+        <div style="color:var(--text2,#9ca3af);font-size:0.9rem">{{ voteErrorMsg }}</div>
+      </div>
+
+      <!-- CHI SEI -->
+      <div v-if="voteStep==='chi-sei'">
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="font-size:1.3rem;font-weight:800;color:var(--lime,#a6ff4d);margin-bottom:4px">🗳️ Vota la partita</div>
+          <div style="font-size:0.85rem;color:var(--text2,#9ca3af)">
+            {{ voteMatchInfo?.nomeSquadraA }} {{ voteMatchInfo?.risultato?.goalA }} - {{ voteMatchInfo?.risultato?.goalB }} {{ voteMatchInfo?.nomeSquadraB }}
+          </div>
+          <div style="font-size:0.78rem;color:var(--text2,#9ca3af);margin-top:8px">Chi sei?</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div v-for="p in voteEligiblePlayers" :key="p.uid" @click="voteSelectVoter(p)"
+            style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2,#111827);border:1px solid var(--border,#1f2937);border-radius:12px;cursor:pointer">
+            <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:var(--bg3,#0d1117);flex-shrink:0">
+              <img v-if="p.foto" :src="p.foto" style="width:100%;height:100%;object-fit:cover">
+              <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem">⚽</div>
+            </div>
+            <div style="font-weight:700">{{ p.nome }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PIN -->
+      <div v-if="voteStep==='pin'" style="text-align:center">
+        <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">🔑 Ciao {{ voteSelectedVoter?.nome }}!</div>
+        <div style="font-size:0.85rem;color:var(--text2,#9ca3af);margin-bottom:20px">Inserisci il tuo PIN a 6 cifre</div>
+        <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="votePinDigits"
+          placeholder="••••••" style="width:100%;text-align:center;font-size:1.8rem;letter-spacing:8px;font-weight:800;background:var(--bg2,#111827);border:1px solid var(--border,#1f2937);border-radius:12px;padding:14px;color:var(--lime,#a6ff4d);margin-bottom:12px">
+        <div v-if="votePinErr" style="color:#ff4d4d;font-size:0.82rem;margin-bottom:12px">{{ votePinErr }}</div>
+        <button class="btn btn-primary" style="width:100%" :disabled="voteSubmitting" @click="voteSubmitPin">
+          {{ voteSubmitting ? '⏳...' : 'Continua →' }}
+        </button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" @click="voteStep='chi-sei'">← Non sono io</button>
+      </div>
+
+      <!-- VOTAZIONE UNO ALLA VOLTA -->
+      <div v-if="voteStep==='voting'">
+        <div style="font-size:0.78rem;color:var(--text2,#9ca3af);text-align:center;margin-bottom:8px">
+          {{ voteCurrentIdx+1 }} / {{ voteTargets.length }}
+        </div>
+        <div style="background:var(--bg3,#0d1117);border-radius:10px;height:5px;overflow:hidden;margin-bottom:24px">
+          <div :style="'width:'+((voteCurrentIdx)/voteTargets.length*100)+'%;height:100%;background:var(--lime,#a6ff4d);transition:width .3s;border-radius:10px'"></div>
+        </div>
+        <div style="text-align:center;margin-bottom:20px">
+          <div style="width:100px;height:100px;border-radius:50%;overflow:hidden;background:var(--bg2,#111827);margin:0 auto 12px;border:3px solid var(--lime,#a6ff4d)">
+            <img v-if="voteTargets[voteCurrentIdx]?.foto" :src="voteTargets[voteCurrentIdx].foto" style="width:100%;height:100%;object-fit:cover">
+            <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.2rem">⚽</div>
+          </div>
+          <div style="font-weight:800;font-size:1.2rem">{{ voteTargets[voteCurrentIdx]?.nome }}</div>
+          <div v-if="voteTargets[voteCurrentIdx]?.uid===voteSelectedVoter?.uid" style="font-size:0.75rem;color:var(--text2,#9ca3af);margin-top:2px">(sei tu)</div>
+        </div>
+        <div style="text-align:center;margin-bottom:24px">
+          <div style="font-size:0.78rem;color:var(--text2,#9ca3af);margin-bottom:8px">Che voto gli dai?</div>
+          <input type="number" min="1" max="10" step="0.5"
+            :value="voteScores[voteTargets[voteCurrentIdx]?.uid] ?? 6"
+            @input="voteScores[voteTargets[voteCurrentIdx].uid] = parseFloat($event.target.value)||6"
+            style="width:110px;text-align:center;font-size:2rem;font-weight:900;background:var(--bg2,#111827);border:2px solid var(--lime,#a6ff4d);border-radius:12px;padding:10px;color:var(--lime,#a6ff4d)">
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" style="flex:1" @click="votePrev">← Indietro</button>
+          <button class="btn btn-primary" style="flex:2" @click="voteNext">
+            {{ voteCurrentIdx===voteTargets.length-1 ? '✅ Riepilogo →' : 'Avanti →' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- RIEPILOGO -->
+      <div v-if="voteStep==='review'">
+        <div style="text-align:center;font-weight:800;font-size:1.1rem;margin-bottom:16px">📋 Riepilogo voti</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px">
+          <div v-for="t in voteTargets" :key="t.uid" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2,#111827);border-radius:8px">
+            <span>{{ t.nome }}</span>
+            <span style="font-weight:800;color:var(--lime,#a6ff4d)">{{ voteScores[t.uid] }}</span>
+          </div>
+        </div>
+        <button class="btn btn-primary" style="width:100%" :disabled="voteSubmitting" @click="voteFinalSubmit">
+          {{ voteSubmitting ? '⏳ Invio...' : '📤 Invia il mio voto' }}
+        </button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" @click="voteCurrentIdx=voteTargets.length-1; voteStep='voting'">← Modifica</button>
+      </div>
+
+      <!-- FATTO -->
+      <div v-if="voteStep==='done'" style="text-align:center">
+        <div style="font-size:52px;margin-bottom:16px">✅</div>
+        <div style="font-weight:800;font-size:1.2rem;color:var(--lime,#a6ff4d);margin-bottom:8px">Voto inviato!</div>
+        <div style="font-size:0.85rem;color:var(--text2,#9ca3af)">Grazie {{ voteSelectedVoter?.nome }}, puoi chiudere questa pagina.</div>
+      </div>
+
+    </div>
+  </div>
+
   <div v-if="appUpdateOverlay" style="position:fixed;inset:0;z-index:99999;background:var(--bg1,#0a0a0f);display:flex;align-items:center;justify-content:center;padding:24px">
     <div style="text-align:center">
       <div style="font-size:42px;margin-bottom:16px;animation:spin 1.2s linear infinite">⚽</div>
@@ -7818,7 +7975,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.768',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.769',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente — Fase 3 completa: meccanismo di voto vero e proprio. Link condiviso via WhatsApp/Telegram (?vota=matchUUID&db=...) apre una pagina di voto leggera (nessun login, nessun caricamento del resto dell\'app), con schermata "chi sei" (solo giocatori eleggibili per quella partita), PIN a 6 cifre verificato con una scrittura di prova su Firebase, votazione uno alla volta (stile card, coerente con lo stile giocoso dell\'app), riepilogo finale e conferma invio. Lato admin: nuova sezione nel dettaglio partita per aprire/chiudere/riaprire una votazione, con link generato e copiabile, avviso esplicito se la partita ha già voti significativi prima di aprirne una nuova. Alla chiusura: calcolo del voto finale per mediana ± soglia di scarto (configurabile da Impostazioni, default 2 punti) — scarta i voti anomali prima di fare la media, non un fixed-trim — poi ricalcolo di tutte le statistiche tramite la funzione "Ricalcola Statistiche" già esistente e testata (nessuna nuova logica di aggiustamento incrementale, più sicuro). Da usare per ora solo su partite di test o dove i voti non sono già stati presi sul serio, come discusso con Alby — l\'integrazione nel flusso "Gioca questa" per le partite nuove resta un passo successivo.',
+    ]},{version:'v1.768',date:'2026-07-28',items:[
       'Pagelle Multi-Utente: aggiunto un campo "👑 Questo giocatore è anche un admin del gruppo" nel form di modifica giocatore (visibile solo se loggato) — sostituisce l\'idea iniziale di una lista di uid admin scritta a mano nel codice (proposta di Alby). Da qui in poi il calcolo di chi ha diritto di voto per una partita (chi ha giocato + admin) si farà leggendo direttamente questo campo dai giocatori, senza bisogno di aggiornare il codice quando cambia la lista admin. Piccola corona 👑 accanto al nome nella lista giocatori per riconoscerli a colpo d\'occhio.',
     ]},{version:'v1.767',date:'2026-07-28',items:[
       'Pagelle Multi-Utente: aggiunta una conferma esplicita prima di generare/rigenerare un PIN di voto (richiesta di Alby dopo il primo test reale) — un click per sbaglio non invalida più un PIN già funzionante senza avviso. Testo diverso a seconda che il giocatore abbia già un PIN o no.',
@@ -8426,7 +8585,7 @@ createApp({
       'Fix: "Rigenera Soprannomi" non azzera più i soprannomi esistenti — genera solo quelli mancanti o scaduti',
     ]}
     ]
-    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
+    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, voteDeviationThreshold: 2, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -8801,7 +8960,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.768');
+    const appVersion = ref('1.769');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14064,6 +14223,7 @@ Niente altro, nessuna spiegazione.`;
         detailMatchPlayers.value = [];
       }
       showMatchDetail.value = true;
+      voteAdminStatus.value = null; // Pagelle Multi-Utente: azzero lo stato, non deve restare quello della partita precedente
     };
     // Risolve un pid nel modale: se ci sono giocatori dell'archivio li usa per primi (con fallback su
     // quelli correnti), così i giocatori eliminati vengono comunque risolti con il loro nome vero
@@ -17808,6 +17968,277 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const showPinRevealModal = ref(false);
     const pinRevealData = ref({ playerName: '', pin: '' });
 
+    // ── Pagelle Multi-Utente — Fase 3 (28/7/2026) ──────────────────────────────────────────
+    // Stato pagina di voto pubblica (nessun login, aperta da link ?vota=...)
+    const voteMode        = ref(false);
+    const voteStep        = ref('loading'); // loading | chi-sei | pin | voting | review | done | error
+    const voteErrorMsg    = ref('');
+    const voteMatchUUID   = ref(null);
+    const voteDbUrl       = ref('');
+    const voteGroupKey    = ref('');
+    const voteMatchInfo   = ref(null);
+    const voteEligiblePlayers = ref([]);
+    const voteSelectedVoter   = ref(null);
+    const votePinDigits   = ref('');
+    const votePinErr      = ref('');
+    const voteHashProof   = ref('');
+    const voteTargets     = ref([]);
+    const voteCurrentIdx  = ref(0);
+    const voteScores      = ref({});
+    const voteSubmitting  = ref(false);
+
+    // Stato lato admin: apertura/chiusura votazione per la partita nel dettaglio
+    const voteAdminStatus  = ref(null); // {exists, closed, eligibleVoters, entriesCount}
+    const voteAdminLoading = ref(false);
+    const voteShareLink    = ref('');
+    const showVoteLinkModal = ref(false);
+
+    // Calcola gli uid con diritto di voto per una partita: chi ha giocato + chi è admin del gruppo
+    // (campo isAdminGruppo sulla scheda giocatore, sostituisce l'idea iniziale di lista hardcoded)
+    function computeEligibleVoterUids(match) {
+      const set = new Set([...(match.squadraA||[]), ...(match.squadraB||[])].filter(Boolean));
+      groupPlayers.value.forEach(p => { if (p.isAdminGruppo && p.uid) set.add(p.uid); });
+      return [...set];
+    }
+
+    function _buildVoteShareLink(match) {
+      const dbUrl = (currentGroup.value?.firebaseUrl||'').replace(/\/$/,'');
+      const origin = window.location.origin + window.location.pathname;
+      return `${origin}?vota=${match.matchUUID}&db=${encodeURIComponent(dbUrl)}`;
+    }
+
+    async function loadVoteAdminStatus(match) {
+      voteAdminStatus.value = null;
+      if (!firebaseUser.value || !fbIdToken.value || !currentGroup.value?.firebaseUrl || !match?.matchUUID) return;
+      try {
+        const gKey = _aiCardGroupKey();
+        const base = getFirebaseBase();
+        const res = await fetch(`${base}/votes/${gKey}/${match.matchUUID}.json?auth=${fbIdToken.value}`, {cache:'no-store'});
+        if (!res.ok) return;
+        const data = await res.json();
+        voteAdminStatus.value = data
+          ? { exists:true, closed: !!(data._meta&&data._meta.closed), eligibleVoters: (data._meta&&data._meta.eligibleVoters)||{}, entriesCount: data.entries ? Object.keys(data.entries).length : 0 }
+          : { exists:false, closed:false, eligibleVoters:{}, entriesCount:0 };
+      } catch(e) { console.warn('[Vote] loadAdminStatus:', e.message); }
+    }
+
+    async function _fbPatchVoteMeta(gKey, matchUUID, metaPartial) {
+      const base = getFirebaseBase();
+      const res = await fetch(`${base}/votes/${gKey}/${matchUUID}/_meta.json?auth=${fbIdToken.value}`, {
+        method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(metaPartial)
+      });
+      return res.ok;
+    }
+
+    async function apriVotazione(match) {
+      if (!firebaseUser.value || !fbIdToken.value) { toast('⚠️ Devi essere loggato','error',3000); return; }
+      if (!currentGroup.value?.firebaseUrl) { toast('⚠️ Nessun database Firebase collegato','error',3000); return; }
+      const stats = match.statisticheGiocatori || [];
+      const votiNonDefault = stats.filter(s => s.voto != null && s.voto !== 6);
+      if (votiNonDefault.length > 0) {
+        const media = stats.length ? (stats.reduce((s,x)=>s+(x.voto||0),0) / stats.length).toFixed(1) : '—';
+        const ok = confirm(`⚠️ Questa partita ha già i voti inseriti (media attuale: ${media}).\n\nAprire e poi chiudere una votazione condivisa sovrascriverà questi voti con la media di quella nuova.\n\nProcedere?`);
+        if (!ok) return;
+      }
+      voteAdminLoading.value = true;
+      try {
+        const gKey = _aiCardGroupKey();
+        const eligible = computeEligibleVoterUids(match);
+        if (!eligible.length) { toast('⚠️ Nessun giocatore eleggibile per questa partita','error',3500); return; }
+        const eligibleMap = {}; eligible.forEach(uid => eligibleMap[uid] = true);
+        const meta = { eligibleVoters: eligibleMap, closed:false, openedAt: Date.now(), openedBy: firebaseUser.value.email };
+        const ok = await _fbWrite(`votes/${gKey}/${match.matchUUID}/_meta`, meta, fbIdToken.value);
+        if (!ok) throw new Error('scrittura fallita');
+        voteShareLink.value = _buildVoteShareLink(match);
+        showVoteLinkModal.value = true;
+        await loadVoteAdminStatus(match);
+        logEvent('info','votes', `🗳️ Votazione aperta per partita ${match.data} da ${firebaseUser.value.email} (${eligible.length} eleggibili)`);
+      } catch(e) {
+        toast('❌ Errore apertura votazione: '+e.message,'error',4000);
+      } finally { voteAdminLoading.value = false; }
+    }
+
+    async function riapriVotazione(match) {
+      if (!firebaseUser.value || !fbIdToken.value) return;
+      if (!confirm('🔓 Riaprire la votazione per questa partita? I giocatori potranno votare di nuovo.')) return;
+      voteAdminLoading.value = true;
+      try {
+        const gKey = _aiCardGroupKey();
+        const ok = await _fbPatchVoteMeta(gKey, match.matchUUID, { closed:false, reopenedAt: Date.now(), reopenedBy: firebaseUser.value.email });
+        if (!ok) throw new Error('scrittura fallita');
+        await loadVoteAdminStatus(match);
+        toast('🔓 Votazione riaperta','success',3000);
+        logEvent('info','votes', `🔓 Votazione riaperta per partita ${match.data} da ${firebaseUser.value.email}`);
+      } catch(e) { toast('❌ Errore: '+e.message,'error',4000); }
+      finally { voteAdminLoading.value = false; }
+    }
+
+    // Mediana ± soglia di scarto configurabile (non fixed-trim) — scarta i voti troppo lontani
+    // dalla mediana prima di fare la media, robusto anche con pochi votanti.
+    function aggregateVotesForTarget(allEntries, targetUid) {
+      const raw = [];
+      Object.values(allEntries||{}).forEach(entry => {
+        const v = entry && entry.votes ? entry.votes[targetUid] : undefined;
+        if (typeof v === 'number' && v >= 1 && v <= 10) raw.push(v);
+      });
+      if (!raw.length) return null;
+      const sorted = [...raw].sort((a,b)=>a-b);
+      const mid = Math.floor(sorted.length/2);
+      const mediana = sorted.length % 2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
+      const soglia = (settings.value.voteDeviationThreshold != null) ? settings.value.voteDeviationThreshold : 2;
+      const filtrati = raw.filter(v => Math.abs(v-mediana) <= soglia);
+      const usati = filtrati.length ? filtrati : raw; // fallback: se lo scarto elimina tutto, usa tutti i voti
+      const media = usati.reduce((s,v)=>s+v,0) / usati.length;
+      return Math.round(media*2)/2; // arrotonda a step 0.5, stessa scala usata ovunque nell'app
+    }
+
+    async function chiudiVotazione(match) {
+      if (!firebaseUser.value || !fbIdToken.value) return;
+      if (!confirm('🔒 Chiudere la votazione e pubblicare i voti finali?\n\nQuesta operazione calcola la media dei voti ricevuti (con scarto degli anomali) e aggiorna la partita — non sarà possibile votare ancora finché non riapri la votazione.')) return;
+      voteAdminLoading.value = true;
+      try {
+        const gKey = _aiCardGroupKey();
+        const base = getFirebaseBase();
+        const res = await fetch(`${base}/votes/${gKey}/${match.matchUUID}/entries.json?auth=${fbIdToken.value}`, {cache:'no-store'});
+        if (!res.ok) throw new Error('lettura voti fallita');
+        const entries = await res.json();
+        if (!entries || !Object.keys(entries).length) { toast('⚠️ Nessun voto ricevuto ancora','error',3500); voteAdminLoading.value=false; return; }
+
+        const targetUids = [...new Set([...(match.squadraA||[]), ...(match.squadraB||[])].filter(Boolean))];
+        const nuoviVoti = {};
+        targetUids.forEach(uid => {
+          const v = aggregateVotesForTarget(entries, uid);
+          if (v != null) nuoviVoti[uid] = v;
+        });
+
+        const localMatch = await db.matches.where('matchUUID').equals(match.matchUUID).first();
+        if (!localMatch) throw new Error('partita non trovata nel database locale');
+        const nuoveStat = (localMatch.statisticheGiocatori||[]).map(s => nuoviVoti[s.playerId] != null ? { ...s, voto: nuoviVoti[s.playerId] } : s);
+        await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, updatedAt: Date.now() });
+
+        await _fbPatchVoteMeta(gKey, match.matchUUID, { closed:true, closedAt: Date.now(), closedBy: firebaseUser.value.email });
+
+        await forceRecomputeStats(); // già esistente e testata: ricalcola tutto da zero e sincronizza
+
+        await loadVoteAdminStatus(match);
+        toast(`✅ Votazione chiusa, ${Object.keys(nuoviVoti).length} voti pubblicati!`,'success',4000);
+        logEvent('info','votes', `🔒 Votazione chiusa per partita ${match.data} da ${firebaseUser.value.email} — ${Object.keys(nuoviVoti).length} voti aggiornati`);
+      } catch(e) {
+        toast('❌ Errore chiusura votazione: '+e.message,'error',4500);
+      } finally { voteAdminLoading.value = false; }
+    }
+
+    // ── Pagina di voto pubblica (nessun login, aperta da link condiviso) ──
+    async function initVotingPage() {
+      voteMode.value = true;
+      voteStep.value = 'loading';
+      try {
+        const params = new URLSearchParams(window.location.search);
+        voteMatchUUID.value = params.get('vota');
+        voteDbUrl.value = decodeURIComponent(params.get('db')||'');
+        if (!voteMatchUUID.value || !voteDbUrl.value) { voteStep.value='error'; voteErrorMsg.value='Link non valido o incompleto.'; return; }
+
+        const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
+        const groupsRes = await fetch(`${base}/groups.json`, {cache:'no-store'});
+        if (!groupsRes.ok) throw new Error('Impossibile leggere i dati (HTTP '+groupsRes.status+')');
+        const groupsData = await groupsRes.json();
+        const groupsArr = Array.isArray(groupsData) ? groupsData : Object.values(groupsData||{});
+
+        let foundMatch = null, foundGroup = null;
+        for (const g of groupsArr) {
+          if (!g) continue;
+          const matchesArr = Array.isArray(g.matches) ? g.matches : Object.values(g.matches||{});
+          const m = matchesArr.find(mm => mm && mm.matchUUID === voteMatchUUID.value);
+          if (m) { foundMatch = m; foundGroup = g; break; }
+        }
+        if (!foundMatch) { voteStep.value='error'; voteErrorMsg.value='Partita non trovata.'; return; }
+        voteMatchInfo.value = foundMatch;
+
+        const gName = (foundGroup.group && foundGroup.group.nome) || foundGroup.nome || '';
+        voteGroupKey.value = gName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
+
+        const metaRes = await fetch(`${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/_meta.json`, {cache:'no-store'});
+        const meta = metaRes.ok ? await metaRes.json() : null;
+        if (!meta || !meta.eligibleVoters) { voteStep.value='error'; voteErrorMsg.value='La votazione per questa partita non è ancora stata aperta.'; return; }
+        if (meta.closed) { voteStep.value='error'; voteErrorMsg.value='La votazione per questa partita è chiusa.'; return; }
+        if (meta.deadline && Date.now() > meta.deadline) { voteStep.value='error'; voteErrorMsg.value='Il tempo per votare è scaduto.'; return; }
+
+        const playersArr = Array.isArray(foundGroup.players) ? foundGroup.players : Object.values(foundGroup.players||{});
+        const eligibleUids = Object.keys(meta.eligibleVoters).filter(uid => meta.eligibleVoters[uid] === true);
+        const eligible = eligibleUids
+          .map(uid => playersArr.find(p => p && p.uid === uid))
+          .filter(Boolean)
+          .map(p => ({ uid: p.uid, nome: p.soprannome || p.nome, foto: p.foto || '' }));
+        if (!eligible.length) { voteStep.value='error'; voteErrorMsg.value='Nessun giocatore risulta eleggibile per il voto.'; return; }
+        voteEligiblePlayers.value = eligible;
+
+        voteStep.value = 'chi-sei';
+      } catch(e) {
+        voteStep.value = 'error';
+        voteErrorMsg.value = 'Errore di caricamento: ' + e.message;
+      }
+    }
+
+    function voteSelectVoter(player) {
+      voteSelectedVoter.value = player;
+      votePinDigits.value = '';
+      votePinErr.value = '';
+      voteStep.value = 'pin';
+    }
+
+    async function voteSubmitPin() {
+      if (!/^\d{6}$/.test(votePinDigits.value)) { votePinErr.value = 'Inserisci le 6 cifre del PIN.'; return; }
+      votePinErr.value = '';
+      voteSubmitting.value = true;
+      try {
+        const hash = await _sha256Hex(votePinDigits.value);
+        const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
+        const probeUrl = `${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${voteSelectedVoter.value.uid}.json`;
+        const res = await fetch(probeUrl, {
+          method:'PUT', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({ pinHashProof: hash, votes:{}, submittedAt: Date.now() })
+        });
+        if (!res.ok) { votePinErr.value = '❌ PIN errato. Riprova.'; voteSubmitting.value=false; return; }
+        voteHashProof.value = hash;
+        voteTargets.value = [...voteEligiblePlayers.value]; // tutti, incluso se stesso (auto-voto consentito)
+        voteCurrentIdx.value = 0;
+        voteScores.value = {};
+        voteStep.value = 'voting';
+      } catch(e) {
+        votePinErr.value = 'Errore: ' + e.message;
+      } finally {
+        voteSubmitting.value = false;
+      }
+    }
+
+    function voteNext() {
+      const t = voteTargets.value[voteCurrentIdx.value];
+      if (voteScores.value[t.uid] == null) voteScores.value[t.uid] = 6;
+      if (voteCurrentIdx.value < voteTargets.value.length - 1) voteCurrentIdx.value++;
+      else voteStep.value = 'review';
+    }
+    function votePrev() {
+      if (voteCurrentIdx.value > 0) voteCurrentIdx.value--;
+      else voteStep.value = 'pin';
+    }
+
+    async function voteFinalSubmit() {
+      voteSubmitting.value = true;
+      try {
+        const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
+        const payload = { pinHashProof: voteHashProof.value, votes: voteScores.value, submittedAt: Date.now() };
+        const res = await fetch(`${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${voteSelectedVoter.value.uid}.json`, {
+          method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error('invio fallito (HTTP '+res.status+')');
+        voteStep.value = 'done';
+      } catch(e) {
+        alert('Errore invio voto: ' + e.message + '\nRiprova.');
+      } finally {
+        voteSubmitting.value = false;
+      }
+    }
+
     async function _sha256Hex(str) {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
@@ -19076,6 +19507,14 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
 
 
         onMounted(async () => {
+      // Pagelle Multi-Utente: se il link contiene ?vota=<matchUUID>, mostra SOLO la pagina di
+      // voto (nessun login, nessun caricamento pesante del resto dell'app) — controllo fatto
+      // come primissima cosa, prima di qualunque altra inizializzazione.
+      if (new URLSearchParams(window.location.search).has('vota')) {
+        initVotingPage();
+        return;
+      }
+
       _startHeroTicker();
 
       setTimeout(() => checkForUpdates(true), 2000); // silent at startup
@@ -19088,6 +19527,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         const _tutSaved = localStorage.getItem('amicifc_tutorial');
         if (_tutSaved !== null) tutorialEnabled.value = _tutSaved === '1';
         if (s.darkTheme === undefined) s.darkTheme = false; // Default: light
+        if (s.voteDeviationThreshold === undefined) s.voteDeviationThreshold = 2; // Pagelle Multi-Utente
         Object.assign(settings.value, s);
         if (s.apiKey && !s.apiKeyGemini && !s.apiKeyChatgpt && !s.apiKeyGroq) {
           const _p = s.aiProvider || 'gemini';
@@ -20731,6 +21171,11 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       votePinStatus, votePinStatusLoaded, pinLoading, showPinRevealModal, pinRevealData, generateVotePin, loadVotePinStatus,
+      voteMode, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteEligiblePlayers, voteSelectedVoter,
+      votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteSubmitting,
+      voteSelectVoter, voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
+      voteAdminStatus, voteAdminLoading, voteShareLink, showVoteLinkModal,
+      apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus,
       showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
