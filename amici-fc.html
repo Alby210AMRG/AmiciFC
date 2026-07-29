@@ -6728,8 +6728,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {{ voteAdminStatus.closed ? '🔒 Chiusa' : '🟢 Aperta' }}
             </span>
             <span class="badge badge-gray">{{ voteAdminStatus.entriesCount }} voti ricevuti</span>
-            <button v-if="!voteAdminStatus.closed" class="btn btn-ghost btn-sm" @click="voteShareLink=_buildVoteShareLink(editingMatch); showVoteLinkModal=true">🔗 Link</button>
-            <button v-if="!voteAdminStatus.closed" class="btn btn-orange btn-sm" :disabled="voteAdminLoading" @click="chiudiVotazione(editingMatch)">🔒 Chiudi e Pubblica</button>
+            <button v-if="!voteAdminStatus.closed" class="btn btn-ghost btn-sm" @click="openVoteLinkModal(editingMatch)">🔗 Link</button>
+            <button v-if="!voteAdminStatus.closed" class="btn btn-red btn-sm" :disabled="voteAdminLoading" @click="chiudiVotazione(editingMatch)">🔒 Chiudi e Pubblica</button>
             <button v-else class="btn btn-ghost btn-sm" :disabled="voteAdminLoading" @click="riapriVotazione(editingMatch)">🔓 Riapri Votazione</button>
           </div>
         </div>
@@ -7996,7 +7996,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.771',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.772',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente — tre bug corretti dal test reale di Alby: (1) il bottone "Chiudi e Pubblica" usava una classe CSS ("btn-orange") che non esiste da nessuna parte nel file — risultato bottone bianco su bianco, illeggibile. Sostituita con "btn-red", una classe vera già usata per azioni significative; (2) il bottone "Link" non faceva nulla: un\'espressione inline con due istruzioni separate da ";" dentro @click non veniva eseguita da Vue, senza generare alcun errore — sostituita con una funzione dedicata; (3) il conteggio "voti ricevuti" contava anche chi aveva solo verificato il PIN (la scrittura di prova usata per identificare il votante) senza aver completato l\'invio del voto vero — ora conta solo le voci con voti effettivamente presenti.',
+    ]},{version:'v1.771',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — sei correzioni dal primo giro di test reale di Alby: (1) rimossa la schermata "chi sei" (chiunque poteva scegliere il nome di un altro) — ora appare prima una schermata con i dettagli della partita (gruppo, data, luogo, squadre, risultato, marcatori, autogol, rigori), poi si inserisce direttamente il PIN, che identifica da solo il votante provando la scrittura di verifica su ciascun eleggibile finché una non viene accettata; (2) il campo voto parte vuoto, non più precompilato a 6 — bisogna inserire un valore per andare avanti; (3) validazione del voto: accetta "6.5" o "6,5", rifiuta "6.4"/"6,4" (o qualsiasi valore non multiplo di 0.5) con un messaggio di errore chiaro, blocca l\'avanzamento finché non è valido; (4) la votazione uno-alla-volta ora è ordinata per squadra poi per ruolo (con badge colorato coerente con il resto dell\'app); (5) stesso raggruppamento per squadra nel riepilogo finale; (6) BUG corretto (segnalato da Alby, partita test 11/06 con "Pirata" admin non in campo): i giocatori DA VOTARE ora sono solo chi ha giocato davvero la partita (squadraA+squadraB) — un admin che non ha giocato può votare gli altri ma non compare più come qualcuno da valutare lui stesso.',
     ]},{version:'v1.770',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — rifiniture su richiesta di Alby: (1) la gestione della votazione condivisa (apri/chiudi/riapri/link) spostata da "Dettaglio Partita" a "Modifica Partita", subito sotto "Rigenera Commento AI" — evita azioni accidentali mentre si sta solo guardando una partita; (2) la soglia di scarto voti anomali non è più un\'impostazione globale del dispositivo, ma un campo del GRUPPO (stesso identico schema già in uso per "Assist nelle Card AI": salvata su Firebase, sincronizzata su tutti i dispositivi, con SetAt/SetBy per audit) — visibile nelle opzioni di gruppo subito sotto il toggle Assist.',
@@ -8985,7 +8987,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.771');
+    const appVersion = ref('1.772');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -18064,7 +18066,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (!res.ok) return;
         const data = await res.json();
         voteAdminStatus.value = data
-          ? { exists:true, closed: !!(data._meta&&data._meta.closed), eligibleVoters: (data._meta&&data._meta.eligibleVoters)||{}, entriesCount: data.entries ? Object.keys(data.entries).length : 0 }
+          ? { exists:true, closed: !!(data._meta&&data._meta.closed), eligibleVoters: (data._meta&&data._meta.eligibleVoters)||{}, entriesCount: data.entries ? Object.values(data.entries).filter(e => e && e.votes && Object.keys(e.votes).length > 0).length : 0 }
           : { exists:false, closed:false, eligibleVoters:{}, entriesCount:0 };
       } catch(e) { console.warn('[Vote] loadAdminStatus:', e.message); }
     }
@@ -18075,6 +18077,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(metaPartial)
       });
       return res.ok;
+    }
+
+    // Bug trovato 28/7/2026 (segnalato da Alby: il bottone "Link" non faceva nulla): l'espressione
+    // inline con due istruzioni separate da ";" dentro @click non veniva eseguita — nessun errore,
+    // semplicemente ignorata. Funzione dedicata, più robusta di un'espressione inline multi-statement.
+    function openVoteLinkModal(match) {
+      voteShareLink.value = _buildVoteShareLink(match);
+      showVoteLinkModal.value = true;
     }
 
     async function apriVotazione(match) {
@@ -18149,7 +18159,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const res = await fetch(`${base}/votes/${gKey}/${match.matchUUID}/entries.json?auth=${fbIdToken.value}`, {cache:'no-store'});
         if (!res.ok) throw new Error('lettura voti fallita');
         const entries = await res.json();
-        if (!entries || !Object.keys(entries).length) { toast('⚠️ Nessun voto ricevuto ancora','error',3500); voteAdminLoading.value=false; return; }
+        const realEntries = entries ? Object.values(entries).filter(e => e && e.votes && Object.keys(e.votes).length > 0) : [];
+        if (!realEntries.length) { toast('⚠️ Nessun voto ricevuto ancora','error',3500); voteAdminLoading.value=false; return; }
 
         const targetUids = [...new Set([...(match.squadraA||[]), ...(match.squadraB||[])].filter(Boolean))];
         const nuoviVoti = {};
@@ -21287,7 +21298,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteSubmitting,
       voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
       voteAdminStatus, voteAdminLoading, voteShareLink, showVoteLinkModal,
-      apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus,
+      apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus, openVoteLinkModal,
       showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
