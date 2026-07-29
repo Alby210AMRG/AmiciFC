@@ -4942,6 +4942,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <span class="toggle-slider"></span>
               </label>
             </div>
+            <div style="margin-bottom:10px;padding:8px 0;border-bottom:1px solid var(--border)" @click.stop>
+              <div class="setting-label" style="font-size:0.78rem">🗳️ Soglia di scarto voti (Pagelle Multi-Utente)</div>
+              <div class="setting-sub" style="font-size:0.72rem;margin-bottom:6px">Alla chiusura di una votazione condivisa, i voti che si discostano dalla mediana più di questo valore vengono esclusi dalla media finale</div>
+              <input type="number" min="0.5" max="5" step="0.5" :value="g.voteDeviationThreshold ?? 2"
+                @change.stop="setVoteDeviationThreshold(g, $event.target.value)" @click.stop
+                style="width:100%;text-align:center;font-size:1rem;font-weight:800;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px;color:var(--lime)">
+            </div>
             <div style="display:flex;align-items:center;gap:8px">
               <button class="btn btn-ghost btn-sm" style="padding:5px 10px" @click.stop="renameGroup(g)" title="Rinomina">✏️</button>
               <button class="btn btn-red btn-sm" style="padding:5px 10px" @click.stop="confirmDeleteGroup(g)" title="Elimina gruppo">🗑️</button>
@@ -5285,19 +5292,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <span class="toggle-slider"></span>
           </label>
         </div>
-      </div>
-
-      <!-- Pagelle Multi-Utente: soglia di scarto configurabile (solo admin) -->
-      <div v-if="firebaseUser" class="card">
-        <div class="card-title">🗳️ Pagelle Multi-Utente</div>
-        <div class="setting-row">
-          <div>
-            <div class="setting-label">Soglia di scarto voti anomali</div>
-            <div class="setting-sub">Alla chiusura di una votazione, i voti che si discostano dalla mediana più di questo valore vengono esclusi dalla media finale</div>
-          </div>
-        </div>
-        <input type="number" min="0.5" max="5" step="0.5" v-model.number="settings.voteDeviationThreshold" @change="saveSettings"
-          style="width:100%;text-align:center;font-size:1.1rem;font-weight:800;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:8px;color:var(--lime);margin-top:8px">
       </div>
 
       <!-- Manuale del Campetto -->
@@ -6489,29 +6483,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         📤 Condividi
       </button>
 
-      <!-- Pagelle Multi-Utente: gestione votazione condivisa (solo admin, partita non archiviata) -->
-      <div v-if="firebaseUser && !detailMatchReadonly" style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:12px">
-        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:8px">🗳️ Votazione Condivisa (Pagelle Multi-Utente)</div>
-        <div v-if="!voteAdminStatus">
-          <button class="btn btn-ghost btn-sm" @click="loadVoteAdminStatus(detailMatch)">🔍 Controlla stato votazione</button>
-        </div>
-        <div v-else>
-          <div v-if="!voteAdminStatus.exists" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span class="badge badge-gray">Mai aperta</span>
-            <button class="btn btn-primary btn-sm" :disabled="voteAdminLoading" @click="apriVotazione(detailMatch)">🗳️ Apri Votazione</button>
-          </div>
-          <div v-else style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-            <span class="badge" :class="voteAdminStatus.closed?'badge-gray':'badge-lime'">
-              {{ voteAdminStatus.closed ? '🔒 Chiusa' : '🟢 Aperta' }}
-            </span>
-            <span class="badge badge-gray">{{ voteAdminStatus.entriesCount }} voti ricevuti</span>
-            <button v-if="!voteAdminStatus.closed" class="btn btn-ghost btn-sm" @click="voteShareLink=_buildVoteShareLink(detailMatch); showVoteLinkModal=true">🔗 Link</button>
-            <button v-if="!voteAdminStatus.closed" class="btn btn-orange btn-sm" :disabled="voteAdminLoading" @click="chiudiVotazione(detailMatch)">🔒 Chiudi e Pubblica</button>
-            <button v-else class="btn btn-ghost btn-sm" :disabled="voteAdminLoading" @click="riapriVotazione(detailMatch)">🔓 Riapri Votazione</button>
-          </div>
-        </div>
-      </div>
-
       <div v-if="detailMatch.commentoAI" class="ai-comment-box" style="margin:12px 0;font-size:0.8rem">
         {{ detailMatch.commentoAI }}
       </div>
@@ -6737,6 +6708,31 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           @click="regenAIComment(editingMatch)" :disabled="aiRegenLoading">
           {{ aiRegenLoading ? '⏳ Generando...' : '✨ Rigenera Commento AI' }}
         </button>
+      </div>
+
+      <!-- Pagelle Multi-Utente: gestione votazione condivisa (solo admin, spostata qui su richiesta
+           di Alby — dentro Modifica invece che nel Dettaglio, per evitare azioni accidentali sulla
+           partita mentre la si sta solo guardando) -->
+      <div v-if="firebaseUser" style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-size:0.78rem;color:var(--text2);margin-bottom:8px">🗳️ Votazione Condivisa (Pagelle Multi-Utente)</div>
+        <div v-if="!voteAdminStatus">
+          <button class="btn btn-ghost btn-sm" @click="loadVoteAdminStatus(editingMatch)">🔍 Controlla stato votazione</button>
+        </div>
+        <div v-else>
+          <div v-if="!voteAdminStatus.exists" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge badge-gray">Mai aperta</span>
+            <button class="btn btn-primary btn-sm" :disabled="voteAdminLoading" @click="apriVotazione(editingMatch)">🗳️ Apri Votazione</button>
+          </div>
+          <div v-else style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+            <span class="badge" :class="voteAdminStatus.closed?'badge-gray':'badge-lime'">
+              {{ voteAdminStatus.closed ? '🔒 Chiusa' : '🟢 Aperta' }}
+            </span>
+            <span class="badge badge-gray">{{ voteAdminStatus.entriesCount }} voti ricevuti</span>
+            <button v-if="!voteAdminStatus.closed" class="btn btn-ghost btn-sm" @click="voteShareLink=_buildVoteShareLink(editingMatch); showVoteLinkModal=true">🔗 Link</button>
+            <button v-if="!voteAdminStatus.closed" class="btn btn-orange btn-sm" :disabled="voteAdminLoading" @click="chiudiVotazione(editingMatch)">🔒 Chiudi e Pubblica</button>
+            <button v-else class="btn btn-ghost btn-sm" :disabled="voteAdminLoading" @click="riapriVotazione(editingMatch)">🔓 Riapri Votazione</button>
+          </div>
+        </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:4px">
         <button class="btn btn-ghost" style="flex:1" @click="showEditMatch=false">Annulla</button>
@@ -7975,7 +7971,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.769',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.770',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente — rifiniture su richiesta di Alby: (1) la gestione della votazione condivisa (apri/chiudi/riapri/link) spostata da "Dettaglio Partita" a "Modifica Partita", subito sotto "Rigenera Commento AI" — evita azioni accidentali mentre si sta solo guardando una partita; (2) la soglia di scarto voti anomali non è più un\'impostazione globale del dispositivo, ma un campo del GRUPPO (stesso identico schema già in uso per "Assist nelle Card AI": salvata su Firebase, sincronizzata su tutti i dispositivi, con SetAt/SetBy per audit) — visibile nelle opzioni di gruppo subito sotto il toggle Assist.',
+    ]},{version:'v1.769',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — Fase 3 completa: meccanismo di voto vero e proprio. Link condiviso via WhatsApp/Telegram (?vota=matchUUID&db=...) apre una pagina di voto leggera (nessun login, nessun caricamento del resto dell\'app), con schermata "chi sei" (solo giocatori eleggibili per quella partita), PIN a 6 cifre verificato con una scrittura di prova su Firebase, votazione uno alla volta (stile card, coerente con lo stile giocoso dell\'app), riepilogo finale e conferma invio. Lato admin: nuova sezione nel dettaglio partita per aprire/chiudere/riaprire una votazione, con link generato e copiabile, avviso esplicito se la partita ha già voti significativi prima di aprirne una nuova. Alla chiusura: calcolo del voto finale per mediana ± soglia di scarto (configurabile da Impostazioni, default 2 punti) — scarta i voti anomali prima di fare la media, non un fixed-trim — poi ricalcolo di tutte le statistiche tramite la funzione "Ricalcola Statistiche" già esistente e testata (nessuna nuova logica di aggiustamento incrementale, più sicuro). Da usare per ora solo su partite di test o dove i voti non sono già stati presi sul serio, come discusso con Alby — l\'integrazione nel flusso "Gioca questa" per le partite nuove resta un passo successivo.',
     ]},{version:'v1.768',date:'2026-07-28',items:[
       'Pagelle Multi-Utente: aggiunto un campo "👑 Questo giocatore è anche un admin del gruppo" nel form di modifica giocatore (visibile solo se loggato) — sostituisce l\'idea iniziale di una lista di uid admin scritta a mano nel codice (proposta di Alby). Da qui in poi il calcolo di chi ha diritto di voto per una partita (chi ha giocato + admin) si farà leggendo direttamente questo campo dai giocatori, senza bisogno di aggiornare il codice quando cambia la lista admin. Piccola corona 👑 accanto al nome nella lista giocatori per riconoscerli a colpo d\'occhio.',
@@ -8585,7 +8583,7 @@ createApp({
       'Fix: "Rigenera Soprannomi" non azzera più i soprannomi esistenti — genera solo quelli mancanti o scaduti',
     ]}
     ]
-    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, voteDeviationThreshold: 2, });
+    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -8960,7 +8958,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.769');
+    const appVersion = ref('1.770');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9428,7 +9426,7 @@ createApp({
     const createGroup = async () => {
       const n = newGroupName.value.trim();
       if (!n) return;
-      const id = await db.groups.add({ nome: n, firebaseUrl:'', firebaseApiKey:'', stagione:'Stagione 1', archivioStagioni:[], syncOnStartup:true, trackAssist:true });
+      const id = await db.groups.add({ nome: n, firebaseUrl:'', firebaseApiKey:'', stagione:'Stagione 1', archivioStagioni:[], syncOnStartup:true, trackAssist:true, voteDeviationThreshold:2 });
       await loadGroups();
       const g = groups.value.find(x => x.id === id);
       if (g) await selectGroup(g);
@@ -9453,6 +9451,18 @@ createApp({
       if (currentGroup.value?.id === g.id) currentGroup.value = groups.value.find(x => x.id === g.id);
       if (currentGroup.value?.firebaseUrl) syncToCloud().catch(() => {});
       toast(newVal ? "✅ Assist attivi nelle card AI" : "🔕 Assist esclusi dalle card AI", "info", 2500);
+    };
+
+    // Pagelle Multi-Utente: soglia di scarto a livello di GRUPPO (non impostazione globale del
+    // dispositivo, richiesta di Alby 28/7/2026) — stesso identico schema di toggleTrackAssist.
+    const setVoteDeviationThreshold = async (g, value) => {
+      const v = Math.max(0.5, Math.min(5, Number(value) || 2));
+      const _setBy = (JSON.parse(localStorage.getItem('amicifc_fb_user')||'null'))?.email || 'Utente locale';
+      await db.groups.update(g.id, { voteDeviationThreshold: v, voteDeviationThresholdSetAt: Date.now(), voteDeviationThresholdSetBy: _setBy });
+      await loadGroups();
+      if (currentGroup.value?.id === g.id) currentGroup.value = groups.value.find(x => x.id === g.id);
+      if (currentGroup.value?.firebaseUrl) syncToCloud().catch(() => {});
+      toast(`✅ Soglia di scarto impostata a ${v}`, "info", 2500);
     };
 
     const deleteGroup = async g => {
@@ -13974,6 +13984,7 @@ Niente altro, nessuna spiegazione.`;
       copy._rigori = rigori;
       editingMatch.value = copy;
       showEditMatch.value = true;
+      voteAdminStatus.value = null; // Pagelle Multi-Utente: azzero, non deve restare quello della partita precedente
     };
     const movePlayerInEdit = (pid, from, to) => {
       if (!editingMatch.value) return;
@@ -14223,7 +14234,6 @@ Niente altro, nessuna spiegazione.`;
         detailMatchPlayers.value = [];
       }
       showMatchDetail.value = true;
-      voteAdminStatus.value = null; // Pagelle Multi-Utente: azzero lo stato, non deve restare quello della partita precedente
     };
     // Risolve un pid nel modale: se ci sono giocatori dell'archivio li usa per primi (con fallback su
     // quelli correnti), così i giocatori eliminati vengono comunque risolti con il loro nome vero
@@ -17033,6 +17043,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
                   trackAssist: g.trackAssist !== false,
                   trackAssistSetAt: g.trackAssistSetAt||null,
                   trackAssistSetBy: g.trackAssistSetBy||null,
+                  voteDeviationThreshold: g.voteDeviationThreshold != null ? g.voteDeviationThreshold : 2,
+                  voteDeviationThresholdSetAt: g.voteDeviationThresholdSetAt||null,
+                  voteDeviationThresholdSetBy: g.voteDeviationThresholdSetBy||null,
                 });
               } else {
                 gid = existing.id;
@@ -17042,6 +17055,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
                   trackAssist: g.trackAssist !== false,
                   ...(g.trackAssistSetAt ? { trackAssistSetAt: g.trackAssistSetAt } : {}),
                   ...(g.trackAssistSetBy ? { trackAssistSetBy: g.trackAssistSetBy } : {}),
+                  voteDeviationThreshold: g.voteDeviationThreshold != null ? g.voteDeviationThreshold : 2,
+                  ...(g.voteDeviationThresholdSetAt ? { voteDeviationThresholdSetAt: g.voteDeviationThresholdSetAt } : {}),
+                  ...(g.voteDeviationThresholdSetBy ? { voteDeviationThresholdSetBy: g.voteDeviationThresholdSetBy } : {}),
                 });
               }
 
@@ -18085,7 +18101,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const sorted = [...raw].sort((a,b)=>a-b);
       const mid = Math.floor(sorted.length/2);
       const mediana = sorted.length % 2 ? sorted[mid] : (sorted[mid-1]+sorted[mid])/2;
-      const soglia = (settings.value.voteDeviationThreshold != null) ? settings.value.voteDeviationThreshold : 2;
+      const soglia = (currentGroup.value?.voteDeviationThreshold != null) ? currentGroup.value.voteDeviationThreshold : 2;
       const filtrati = raw.filter(v => Math.abs(v-mediana) <= soglia);
       const usati = filtrati.length ? filtrati : raw; // fallback: se lo scarto elimina tutto, usa tutti i voti
       const media = usati.reduce((s,v)=>s+v,0) / usati.length;
@@ -19527,7 +19543,6 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         const _tutSaved = localStorage.getItem('amicifc_tutorial');
         if (_tutSaved !== null) tutorialEnabled.value = _tutSaved === '1';
         if (s.darkTheme === undefined) s.darkTheme = false; // Default: light
-        if (s.voteDeviationThreshold === undefined) s.voteDeviationThreshold = 2; // Pagelle Multi-Utente
         Object.assign(settings.value, s);
         if (s.apiKey && !s.apiKeyGemini && !s.apiKeyChatgpt && !s.apiKeyGroq) {
           const _p = s.aiProvider || 'gemini';
