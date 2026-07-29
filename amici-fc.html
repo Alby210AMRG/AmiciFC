@@ -7056,41 +7056,53 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="color:var(--text2,#9ca3af);font-size:0.9rem">{{ voteErrorMsg }}</div>
       </div>
 
-      <!-- CHI SEI -->
-      <div v-if="voteStep==='chi-sei'">
-        <div style="text-align:center;margin-bottom:20px">
+      <!-- INFO PARTITA (sostituisce "Chi sei" — richiesta di Alby: prima capisci cosa voti,
+           poi il PIN identifica da solo chi sei, senza doverlo scegliere da una lista) -->
+      <div v-if="voteStep==='match-info'">
+        <div style="text-align:center;margin-bottom:16px">
           <div style="font-size:1.3rem;font-weight:800;color:var(--lime,#a6ff4d);margin-bottom:4px">🗳️ Vota la partita</div>
-          <div style="font-size:0.85rem;color:var(--text2,#9ca3af)">
-            {{ voteMatchInfo?.nomeSquadraA }} {{ voteMatchInfo?.risultato?.goalA }} - {{ voteMatchInfo?.risultato?.goalB }} {{ voteMatchInfo?.nomeSquadraB }}
-          </div>
-          <div style="font-size:0.78rem;color:var(--text2,#9ca3af);margin-top:8px">Chi sei?</div>
+          <div style="font-size:0.78rem;color:var(--text2,#9ca3af)">{{ voteMatchDetails?.groupName }}</div>
         </div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div v-for="p in voteEligiblePlayers" :key="p.uid" @click="voteSelectVoter(p)"
-            style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--bg2,#111827);border:1px solid var(--border,#1f2937);border-radius:12px;cursor:pointer">
-            <div style="width:42px;height:42px;border-radius:50%;overflow:hidden;background:var(--bg3,#0d1117);flex-shrink:0">
-              <img v-if="p.foto" :src="p.foto" style="width:100%;height:100%;object-fit:cover">
-              <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:1.2rem">⚽</div>
-            </div>
-            <div style="font-weight:700">{{ p.nome }}</div>
+        <div style="background:var(--bg2,#111827);border:1px solid var(--border,#1f2937);border-radius:12px;padding:16px;margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between;font-size:0.72rem;color:var(--text2,#9ca3af);margin-bottom:10px">
+            <span>📅 {{ voteMatchInfo?.data }}</span>
+            <span v-if="voteMatchInfo?.luogo">📍 {{ voteMatchInfo.luogo }}</span>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:12px">
+            <span style="color:#7ab0ff;font-weight:700">{{ voteMatchInfo?.nomeSquadraA||'A' }}</span>
+            <span style="font-size:1.4rem;font-weight:900">{{ voteMatchInfo?.risultato?.goalA }} - {{ voteMatchInfo?.risultato?.goalB }}</span>
+            <span style="color:#ff9090;font-weight:700">{{ voteMatchInfo?.nomeSquadraB||'B' }}</span>
+          </div>
+          <div v-if="voteMatchDetails?.marcatori?.length" style="font-size:0.78rem;margin-top:8px">
+            <strong>⚽ Marcatori:</strong> {{ voteMatchDetails.marcatori.join(', ') }}
+          </div>
+          <div v-if="voteMatchDetails?.autogol?.length" style="font-size:0.78rem;margin-top:4px;color:#f87171">
+            <strong>🙈 Autogol:</strong> {{ voteMatchDetails.autogol.join(', ') }}
+          </div>
+          <div v-if="voteMatchDetails?.rigoriParati?.length" style="font-size:0.78rem;margin-top:4px">
+            <strong>🧤 Rigori parati:</strong> {{ voteMatchDetails.rigoriParati.join(', ') }}
+          </div>
+          <div v-if="voteMatchDetails?.rigoriSbagliati?.length" style="font-size:0.78rem;margin-top:4px;color:#f87171">
+            <strong>❌ Rigori sbagliati:</strong> {{ voteMatchDetails.rigoriSbagliati.join(', ') }}
           </div>
         </div>
+        <button class="btn btn-primary" style="width:100%" @click="voteStep='pin'">Continua al PIN →</button>
       </div>
 
-      <!-- PIN -->
+      <!-- PIN (identifica da solo chi sta votando, nessuna scelta del nome) -->
       <div v-if="voteStep==='pin'" style="text-align:center">
-        <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">🔑 Ciao {{ voteSelectedVoter?.nome }}!</div>
-        <div style="font-size:0.85rem;color:var(--text2,#9ca3af);margin-bottom:20px">Inserisci il tuo PIN a 6 cifre</div>
+        <div style="font-weight:800;font-size:1.1rem;margin-bottom:6px">🔑 Inserisci il tuo PIN</div>
+        <div style="font-size:0.85rem;color:var(--text2,#9ca3af);margin-bottom:20px">Le 6 cifre personali che ti sono state comunicate</div>
         <input type="tel" inputmode="numeric" pattern="[0-9]*" maxlength="6" v-model="votePinDigits"
           placeholder="••••••" style="width:100%;text-align:center;font-size:1.8rem;letter-spacing:8px;font-weight:800;background:var(--bg2,#111827);border:1px solid var(--border,#1f2937);border-radius:12px;padding:14px;color:var(--lime,#a6ff4d);margin-bottom:12px">
         <div v-if="votePinErr" style="color:#ff4d4d;font-size:0.82rem;margin-bottom:12px">{{ votePinErr }}</div>
         <button class="btn btn-primary" style="width:100%" :disabled="voteSubmitting" @click="voteSubmitPin">
-          {{ voteSubmitting ? '⏳...' : 'Continua →' }}
+          {{ voteSubmitting ? '⏳ Verifica...' : 'Continua →' }}
         </button>
-        <button class="btn btn-ghost" style="width:100%;margin-top:8px" @click="voteStep='chi-sei'">← Non sono io</button>
+        <button class="btn btn-ghost" style="width:100%;margin-top:8px" @click="voteStep='match-info'">← Indietro</button>
       </div>
 
-      <!-- VOTAZIONE UNO ALLA VOLTA -->
+      <!-- VOTAZIONE UNO ALLA VOLTA (ordinata per squadra poi ruolo, solo chi ha giocato) -->
       <div v-if="voteStep==='voting'">
         <div style="font-size:0.78rem;color:var(--text2,#9ca3af);text-align:center;margin-bottom:8px">
           {{ voteCurrentIdx+1 }} / {{ voteTargets.length }}
@@ -7099,20 +7111,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div :style="'width:'+((voteCurrentIdx)/voteTargets.length*100)+'%;height:100%;background:var(--lime,#a6ff4d);transition:width .3s;border-radius:10px'"></div>
         </div>
         <div style="text-align:center;margin-bottom:20px">
+          <div :style="'display:inline-block;font-size:0.7rem;font-weight:700;padding:3px 10px;border-radius:10px;margin-bottom:10px;background:'+(voteTargets[voteCurrentIdx]?.squadra==='A'?'rgba(122,176,255,.15);color:#7ab0ff':'rgba(255,144,144,.15);color:#ff9090')">
+            {{ voteTargets[voteCurrentIdx]?.squadra==='A' ? '🔵 '+(voteMatchInfo?.nomeSquadraA||'Squadra A') : '🔴 '+(voteMatchInfo?.nomeSquadraB||'Squadra B') }}
+          </div>
           <div style="width:100px;height:100px;border-radius:50%;overflow:hidden;background:var(--bg2,#111827);margin:0 auto 12px;border:3px solid var(--lime,#a6ff4d)">
             <img v-if="voteTargets[voteCurrentIdx]?.foto" :src="voteTargets[voteCurrentIdx].foto" style="width:100%;height:100%;object-fit:cover">
             <div v-else style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.2rem">⚽</div>
           </div>
           <div style="font-weight:800;font-size:1.2rem">{{ voteTargets[voteCurrentIdx]?.nome }}</div>
-          <div v-if="voteTargets[voteCurrentIdx]?.uid===voteSelectedVoter?.uid" style="font-size:0.75rem;color:var(--text2,#9ca3af);margin-top:2px">(sei tu)</div>
+          <div style="font-size:0.75rem;color:var(--text2,#9ca3af);margin-top:2px">
+            {{ ROLE_EMOJI[voteTargets[voteCurrentIdx]?.ruolo]||'🃏' }} {{ voteTargets[voteCurrentIdx]?.ruolo }}
+            <span v-if="voteTargets[voteCurrentIdx]?.uid===voteSelectedVoter?.uid"> · (sei tu)</span>
+          </div>
         </div>
-        <div style="text-align:center;margin-bottom:24px">
-          <div style="font-size:0.78rem;color:var(--text2,#9ca3af);margin-bottom:8px">Che voto gli dai?</div>
-          <input type="number" min="1" max="10" step="0.5"
-            :value="voteScores[voteTargets[voteCurrentIdx]?.uid] ?? 6"
-            @input="voteScores[voteTargets[voteCurrentIdx].uid] = parseFloat($event.target.value)||6"
-            style="width:110px;text-align:center;font-size:2rem;font-weight:900;background:var(--bg2,#111827);border:2px solid var(--lime,#a6ff4d);border-radius:12px;padding:10px;color:var(--lime,#a6ff4d)">
+        <div style="text-align:center;margin-bottom:10px">
+          <div style="font-size:0.78rem;color:var(--text2,#9ca3af);margin-bottom:8px">Che voto gli dai? (es. 6 oppure 6,5)</div>
+          <input type="text" inputmode="decimal" v-model="voteRawInputs[voteTargets[voteCurrentIdx]?.uid]" placeholder="es. 6,5"
+            style="width:140px;text-align:center;font-size:2rem;font-weight:900;background:var(--bg2,#111827);border:2px solid var(--lime,#a6ff4d);border-radius:12px;padding:10px;color:var(--lime,#a6ff4d)">
         </div>
+        <div v-if="voteInputErr" style="color:#ff4d4d;font-size:0.8rem;text-align:center;margin-bottom:14px">⚠️ {{ voteInputErr }}</div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" style="flex:1" @click="votePrev">← Indietro</button>
           <button class="btn btn-primary" style="flex:2" @click="voteNext">
@@ -7121,12 +7138,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- RIEPILOGO -->
+      <!-- RIEPILOGO (raggruppato per squadra) -->
       <div v-if="voteStep==='review'">
         <div style="text-align:center;font-weight:800;font-size:1.1rem;margin-bottom:16px">📋 Riepilogo voti</div>
+        <div style="font-size:0.78rem;font-weight:700;color:#7ab0ff;margin-bottom:6px">🔵 {{ voteMatchInfo?.nomeSquadraA||'Squadra A' }}</div>
+        <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+          <div v-for="t in voteTargets.filter(x=>x.squadra==='A')" :key="t.uid" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2,#111827);border-radius:8px">
+            <span>{{ ROLE_EMOJI[t.ruolo]||'🃏' }} {{ t.nome }}</span>
+            <span style="font-weight:800;color:var(--lime,#a6ff4d)">{{ voteScores[t.uid] }}</span>
+          </div>
+        </div>
+        <div style="font-size:0.78rem;font-weight:700;color:#ff9090;margin-bottom:6px">🔴 {{ voteMatchInfo?.nomeSquadraB||'Squadra B' }}</div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:20px">
-          <div v-for="t in voteTargets" :key="t.uid" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2,#111827);border-radius:8px">
-            <span>{{ t.nome }}</span>
+          <div v-for="t in voteTargets.filter(x=>x.squadra==='B')" :key="t.uid" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2,#111827);border-radius:8px">
+            <span>{{ ROLE_EMOJI[t.ruolo]||'🃏' }} {{ t.nome }}</span>
             <span style="font-weight:800;color:var(--lime,#a6ff4d)">{{ voteScores[t.uid] }}</span>
           </div>
         </div>
@@ -7971,7 +7996,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.770',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.771',date:'2026-07-28',items:[
+      'Pagelle Multi-Utente — sei correzioni dal primo giro di test reale di Alby: (1) rimossa la schermata "chi sei" (chiunque poteva scegliere il nome di un altro) — ora appare prima una schermata con i dettagli della partita (gruppo, data, luogo, squadre, risultato, marcatori, autogol, rigori), poi si inserisce direttamente il PIN, che identifica da solo il votante provando la scrittura di verifica su ciascun eleggibile finché una non viene accettata; (2) il campo voto parte vuoto, non più precompilato a 6 — bisogna inserire un valore per andare avanti; (3) validazione del voto: accetta "6.5" o "6,5", rifiuta "6.4"/"6,4" (o qualsiasi valore non multiplo di 0.5) con un messaggio di errore chiaro, blocca l\'avanzamento finché non è valido; (4) la votazione uno-alla-volta ora è ordinata per squadra poi per ruolo (con badge colorato coerente con il resto dell\'app); (5) stesso raggruppamento per squadra nel riepilogo finale; (6) BUG corretto (segnalato da Alby, partita test 11/06 con "Pirata" admin non in campo): i giocatori DA VOTARE ora sono solo chi ha giocato davvero la partita (squadraA+squadraB) — un admin che non ha giocato può votare gli altri ma non compare più come qualcuno da valutare lui stesso.',
+    ]},{version:'v1.770',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — rifiniture su richiesta di Alby: (1) la gestione della votazione condivisa (apri/chiudi/riapri/link) spostata da "Dettaglio Partita" a "Modifica Partita", subito sotto "Rigenera Commento AI" — evita azioni accidentali mentre si sta solo guardando una partita; (2) la soglia di scarto voti anomali non è più un\'impostazione globale del dispositivo, ma un campo del GRUPPO (stesso identico schema già in uso per "Assist nelle Card AI": salvata su Firebase, sincronizzata su tutti i dispositivi, con SetAt/SetBy per audit) — visibile nelle opzioni di gruppo subito sotto il toggle Assist.',
     ]},{version:'v1.769',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — Fase 3 completa: meccanismo di voto vero e proprio. Link condiviso via WhatsApp/Telegram (?vota=matchUUID&db=...) apre una pagina di voto leggera (nessun login, nessun caricamento del resto dell\'app), con schermata "chi sei" (solo giocatori eleggibili per quella partita), PIN a 6 cifre verificato con una scrittura di prova su Firebase, votazione uno alla volta (stile card, coerente con lo stile giocoso dell\'app), riepilogo finale e conferma invio. Lato admin: nuova sezione nel dettaglio partita per aprire/chiudere/riaprire una votazione, con link generato e copiabile, avviso esplicito se la partita ha già voti significativi prima di aprirne una nuova. Alla chiusura: calcolo del voto finale per mediana ± soglia di scarto (configurabile da Impostazioni, default 2 punti) — scarta i voti anomali prima di fare la media, non un fixed-trim — poi ricalcolo di tutte le statistiche tramite la funzione "Ricalcola Statistiche" già esistente e testata (nessuna nuova logica di aggiustamento incrementale, più sicuro). Da usare per ora solo su partite di test o dove i voti non sono già stati presi sul serio, come discusso con Alby — l\'integrazione nel flusso "Gioca questa" per le partite nuove resta un passo successivo.',
@@ -8958,7 +8985,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.770');
+    const appVersion = ref('1.771');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -17993,7 +18020,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const voteDbUrl       = ref('');
     const voteGroupKey    = ref('');
     const voteMatchInfo   = ref(null);
-    const voteEligiblePlayers = ref([]);
+    const voteEligiblePlayers = ref([]); // chi PUÒ votare: chi ha giocato + admin
+    const voteMatchTargets = ref([]); // chi va VOTATO: solo chi ha giocato davvero (mai gli admin che non hanno giocato)
+    const voteMatchDetails = ref(null); // {groupName, marcatori:[], autogol:[], rigoriParati:[], rigoriSbagliati:[]}
+    const voteRawInputs = ref({}); // {uid: stringa grezza inserita, es "6,5"}
+    const voteInputErr = ref('');
     const voteSelectedVoter   = ref(null);
     const votePinDigits   = ref('');
     const votePinErr      = ref('');
@@ -18188,18 +18219,63 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (!eligible.length) { voteStep.value='error'; voteErrorMsg.value='Nessun giocatore risulta eleggibile per il voto.'; return; }
         voteEligiblePlayers.value = eligible;
 
-        voteStep.value = 'chi-sei';
+        // BUG TROVATO 28/7/2026 (segnalato da Alby, test partita 11/06 con "Pirata" admin che quel
+        // giorno non ha giocato): i bersagli DA VOTARE devono essere SOLO chi ha giocato davvero
+        // quella partita (squadraA+squadraB) — mai confusi con gli ELEGGIBILI A VOTARE (che include
+        // anche gli admin non in campo). Un admin che non ha giocato può votare gli altri, ma non ha
+        // senso che compaia lui stesso come qualcuno da valutare, non avendo una prestazione da votare.
+        const ROLE_ORDER_VOTE = {'Portiere':0,'Difensore':1,'Centrocampista':2,'Attaccante':3,'Jolly':4};
+        const _uidsA = new Set(foundMatch.squadraA||[]);
+        const buildTeamTargets = (uids, squadra) => uids
+          .map(uid => playersArr.find(p => p && p.uid === uid))
+          .filter(Boolean)
+          .map(p => ({ uid:p.uid, nome:p.soprannome||p.nome, foto:p.foto||'', ruolo:p.ruolo||'Jolly', squadra }))
+          .sort((a,b) => (ROLE_ORDER_VOTE[a.ruolo]??4) - (ROLE_ORDER_VOTE[b.ruolo]??4));
+        voteMatchTargets.value = [
+          ...buildTeamTargets(foundMatch.squadraA||[], 'A'),
+          ...buildTeamTargets(foundMatch.squadraB||[], 'B'),
+        ];
+        if (!voteMatchTargets.value.length) { voteStep.value='error'; voteErrorMsg.value='Questa partita non ha giocatori registrati.'; return; }
+
+        // Dettagli partita (marcatori/autogol/rigori) per la nuova schermata informativa iniziale,
+        // richiesta da Alby: si deve capire cosa si sta per votare PRIMA di inserire il PIN.
+        const _nomeOf = uid => { const p = playersArr.find(x => x && x.uid === uid); return p ? (p.soprannome||p.nome) : '?'; };
+        const stats = Array.isArray(foundMatch.statisticheGiocatori) ? foundMatch.statisticheGiocatori : Object.values(foundMatch.statisticheGiocatori||{});
+        const marcatori = [], autogol = [], rigoriParati = [], rigoriSbagliati = [];
+        stats.forEach(s => {
+          if (!s) return;
+          const n = _nomeOf(s.playerId);
+          for (let i=0;i<(s.goal||0);i++) marcatori.push(n);
+          for (let i=0;i<(s.autogol||0);i++) autogol.push(n);
+          if (s.rigoriParati) rigoriParati.push(n);
+          if (s.rigoriSbagliati) rigoriSbagliati.push(n);
+        });
+        voteMatchDetails.value = {
+          groupName: gName,
+          marcatori, autogol, rigoriParati, rigoriSbagliati,
+        };
+
+        voteStep.value = 'match-info';
       } catch(e) {
         voteStep.value = 'error';
         voteErrorMsg.value = 'Errore di caricamento: ' + e.message;
       }
     }
 
-    function voteSelectVoter(player) {
-      voteSelectedVoter.value = player;
-      votePinDigits.value = '';
-      votePinErr.value = '';
-      voteStep.value = 'pin';
+    // Normalizza e valida un voto inserito come testo: accetta "6.5" o "6,5", rifiuta "6.4"/"6,4"
+    // e qualsiasi valore che non sia un multiplo di 0.5 nell'intervallo 1-10 (richiesta di Alby,
+    // 28/7/2026 — coerente con la scala a step 0.5 già usata ovunque nell'app).
+    function _parseVotoInput(raw) {
+      if (raw == null || String(raw).trim() === '') return { valid:false, error:'Inserisci un voto per continuare.' };
+      const normalized = String(raw).trim().replace(',', '.');
+      const num = parseFloat(normalized);
+      if (isNaN(num)) return { valid:false, error:'"'+raw+'" non è un numero valido.' };
+      if (num < 1 || num > 10) return { valid:false, error:'Il voto deve essere tra 1 e 10.' };
+      const doubled = num * 2;
+      if (Math.abs(doubled - Math.round(doubled)) > 0.001) {
+        return { valid:false, error:'Puoi usare solo voti interi o con ",5" (es. 6 oppure 6,5) — "'+raw+'" non è valido.' };
+      }
+      return { valid:true, value: Math.round(doubled)/2 };
     }
 
     async function voteSubmitPin() {
@@ -18209,16 +18285,32 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       try {
         const hash = await _sha256Hex(votePinDigits.value);
         const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
-        const probeUrl = `${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${voteSelectedVoter.value.uid}.json`;
-        const res = await fetch(probeUrl, {
-          method:'PUT', headers:{'Content-Type':'application/json'},
-          body: JSON.stringify({ pinHashProof: hash, votes:{}, submittedAt: Date.now() })
-        });
-        if (!res.ok) { votePinErr.value = '❌ PIN errato. Riprova.'; voteSubmitting.value=false; return; }
+        // Il PIN identifica DA SOLO chi sta votando (richiesta di Alby: niente più schermata "chi
+        // sei", ridondante e poco sicura — chiunque poteva scegliere il nome di un altro). Si prova
+        // la scrittura di verifica su ciascun eleggibile finché una non viene accettata: solo chi
+        // conosce il PIN giusto per QUEL uid riesce a scrivere lì, per via delle regole di sicurezza.
+        let matched = null;
+        for (const candidate of voteEligiblePlayers.value) {
+          const probeUrl = `${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${candidate.uid}.json`;
+          try {
+            const res = await fetch(probeUrl, {
+              method:'PUT', headers:{'Content-Type':'application/json'},
+              body: JSON.stringify({ pinHashProof: hash, votes:{}, submittedAt: Date.now() })
+            });
+            if (res.ok) { matched = candidate; break; }
+          } catch(e) { /* prova il prossimo candidato */ }
+        }
+        if (!matched) { votePinErr.value = '❌ PIN errato. Riprova.'; voteSubmitting.value=false; return; }
+        voteSelectedVoter.value = matched;
         voteHashProof.value = hash;
-        voteTargets.value = [...voteEligiblePlayers.value]; // tutti, incluso se stesso (auto-voto consentito)
+        // Bersagli: SOLO chi ha giocato davvero questa partita (voteMatchTargets, già ordinato per
+        // squadra e ruolo) — mai gli eleggibili-a-votare nel loro complesso (fix bug "Pirata" admin
+        // non in campo che non deve comparire come qualcuno da valutare).
+        voteTargets.value = [...voteMatchTargets.value];
         voteCurrentIdx.value = 0;
         voteScores.value = {};
+        voteRawInputs.value = {};
+        voteInputErr.value = '';
         voteStep.value = 'voting';
       } catch(e) {
         votePinErr.value = 'Errore: ' + e.message;
@@ -18229,11 +18321,15 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 
     function voteNext() {
       const t = voteTargets.value[voteCurrentIdx.value];
-      if (voteScores.value[t.uid] == null) voteScores.value[t.uid] = 6;
+      const result = _parseVotoInput(voteRawInputs.value[t.uid]);
+      if (!result.valid) { voteInputErr.value = result.error; return; }
+      voteScores.value[t.uid] = result.value;
+      voteInputErr.value = '';
       if (voteCurrentIdx.value < voteTargets.value.length - 1) voteCurrentIdx.value++;
       else voteStep.value = 'review';
     }
     function votePrev() {
+      voteInputErr.value = '';
       if (voteCurrentIdx.value > 0) voteCurrentIdx.value--;
       else voteStep.value = 'pin';
     }
@@ -21187,8 +21283,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       votePinStatus, votePinStatusLoaded, pinLoading, showPinRevealModal, pinRevealData, generateVotePin, loadVotePinStatus,
       voteMode, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteEligiblePlayers, voteSelectedVoter,
+      voteMatchTargets, voteMatchDetails, voteRawInputs, voteInputErr, ROLE_EMOJI,
       votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteSubmitting,
-      voteSelectVoter, voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
+      voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
       voteAdminStatus, voteAdminLoading, voteShareLink, showVoteLinkModal,
       apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus,
       showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
