@@ -8005,7 +8005,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.773',date:'2026-07-28',items:[
+    const changelogEntries = [{version:'v1.774',date:'2026-07-29',items:[
+      'Pagelle Multi-Utente — BUG CRITICO corretto (segnalato da Alby dopo il primo test reale completo: la partita chiusa mostrava su Inspector esattamente gli stessi voti di PRIMA del voto, confermato confrontando col backup originale): "Chiudi e Pubblica" calcolava i voti finali correttamente e li scriveva in locale, ma la sincronizzazione verso Firebase passava per forceRecomputeStats(), che tenta UN solo sync in modo silenzioso — se getValidToken() non restituiva un token valido in quel preciso istante, il sync veniva saltato senza nessun avviso, lasciando il fix solo sul dispositivo che aveva chiuso la votazione mentre Firebase (e quindi tutti gli altri dispositivi + Inspector) restava con i dati vecchi. Ora "Chiudi e Pubblica" chiama esplicitamente syncToCloudWithRetry (3 tentativi automatici, flag di recupero persistente, la stessa funzione già usata per il salvataggio partite) e mostra un avviso esplicito se anche questo dovesse fallire, invece di far credere che tutto sia andato a buon fine quando non è così.',
+    ]},{version:'v1.773',date:'2026-07-28',items:[
       'Pagelle Multi-Utente: aggiunto un badge fisso in alto a destra ("Stai votando come: Nome Cognome (Soprannome)"), visibile durante la votazione e nel riepilogo — richiesta di Alby dopo il primo voto reale, per capire subito se il PIN inserito corrisponde davvero alla persona giusta.',
     ]},{version:'v1.772',date:'2026-07-28',items:[
       'Pagelle Multi-Utente — tre bug corretti dal test reale di Alby: (1) il bottone "Chiudi e Pubblica" usava una classe CSS ("btn-orange") che non esiste da nessuna parte nel file — risultato bottone bianco su bianco, illeggibile. Sostituita con "btn-red", una classe vera già usata per azioni significative; (2) il bottone "Link" non faceva nulla: un\'espressione inline con due istruzioni separate da ";" dentro @click non veniva eseguita da Vue, senza generare alcun errore — sostituita con una funzione dedicata; (3) il conteggio "voti ricevuti" contava anche chi aveva solo verificato il PIN (la scrittura di prova usata per identificare il votante) senza aver completato l\'invio del voto vero — ora conta solo le voci con voti effettivamente presenti.',
@@ -8998,7 +9000,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.773');
+    const appVersion = ref('1.774');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -18187,11 +18189,26 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 
         await _fbPatchVoteMeta(gKey, match.matchUUID, { closed:true, closedAt: Date.now(), closedBy: firebaseUser.value.email });
 
-        await forceRecomputeStats(); // già esistente e testata: ricalcola tutto da zero e sincronizza
+        await forceRecomputeStats(); // ricalcola tutto da zero (locale)
+
+        // BUG TROVATO 29/7/2026 (segnalato da Alby, confermato confrontando col backup pre-voto: i
+        // dati su Firebase risultavano invariati dopo la chiusura): forceRecomputeStats() prova a
+        // sincronizzare da sola, ma solo UN tentativo e in modo silenzioso — se getValidToken() non
+        // restituisce un token valido in quel preciso istante, il sync viene saltato senza nessun
+        // avviso, lasciando il fix SOLO in locale mentre Firebase (e quindi l'Inspector) resta con
+        // i dati vecchi. Qui chiamiamo esplicitamente syncToCloudWithRetry (3 tentativi automatici,
+        // flag di recupero persistente, avviso visibile in caso di fallimento reale) — la stessa
+        // funzione già usata per il salvataggio partite, per la stessa affidabilità.
+        const _syncOk = await syncToCloudWithRetry('Voti chiusura votazione');
+        if (!_syncOk) {
+          toast('⚠️ Voti calcolati ma non ancora sincronizzati su Firebase — controlla la connessione o il login e riprova a breve','error',5500);
+        }
 
         await loadVoteAdminStatus(match);
-        toast(`✅ Votazione chiusa, ${Object.keys(nuoviVoti).length} voti pubblicati!`,'success',4000);
-        logEvent('info','votes', `🔒 Votazione chiusa per partita ${match.data} da ${firebaseUser.value.email} — ${Object.keys(nuoviVoti).length} voti aggiornati`);
+        if (_syncOk) {
+          toast(`✅ Votazione chiusa, ${Object.keys(nuoviVoti).length} voti pubblicati su Firebase!`,'success',4000);
+        }
+        logEvent('info','votes', `🔒 Votazione chiusa per partita ${match.data} da ${firebaseUser.value.email} — ${Object.keys(nuoviVoti).length} voti aggiornati (sync ${_syncOk?'riuscito':'FALLITO'})`);
       } catch(e) {
         toast('❌ Errore chiusura votazione: '+e.message,'error',4500);
       } finally { voteAdminLoading.value = false; }
