@@ -8005,7 +8005,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.774',date:'2026-07-29',items:[
+    const changelogEntries = [{version:'v1.775',date:'2026-07-29',items:[
+      'Pagelle Multi-Utente — secondo BUG CRITICO trovato grazie al log fornito da Alby (il primo fix di oggi aveva reso il sync affidabile, ma qualcos\'altro lo vanificava lo stesso: il log mostrava "sync riuscito" eppure i dati su Firebase restavano quelli di prima del voto): syncToCloud ha una logica di risoluzione conflitti pensata per più dispositivi — se una partita esiste sia in locale che su Firebase, tiene quella con updatedAt più recente. In questo caso Firebase risultava "più recente" (per un test precedente sulla stessa partita) e la logica scartava il voto appena calcolato, silenziosamente. Per un\'azione deliberata come chiudere una votazione, questo non va mai lasciato al caso: ora "Chiudi e Pubblica" scrive il risultato DIRETTAMENTE sul percorso Firebase di quella specifica partita (stesso pattern già usato per correzioni mirate come Correggi ID Legacy), PRIMA e a prescindere dal sync generico con merge — garantito, non negoziabile. Testato: la scrittura diretta avviene sul percorso corretto con i voti calcolati giusti, verificato anche il caso in cui gruppo/partita non vengono trovati su Firebase (fallback con avviso, non un crash).',
+    ]},{version:'v1.774',date:'2026-07-29',items:[
       'Pagelle Multi-Utente — BUG CRITICO corretto (segnalato da Alby dopo il primo test reale completo: la partita chiusa mostrava su Inspector esattamente gli stessi voti di PRIMA del voto, confermato confrontando col backup originale): "Chiudi e Pubblica" calcolava i voti finali correttamente e li scriveva in locale, ma la sincronizzazione verso Firebase passava per forceRecomputeStats(), che tenta UN solo sync in modo silenzioso — se getValidToken() non restituiva un token valido in quel preciso istante, il sync veniva saltato senza nessun avviso, lasciando il fix solo sul dispositivo che aveva chiuso la votazione mentre Firebase (e quindi tutti gli altri dispositivi + Inspector) restava con i dati vecchi. Ora "Chiudi e Pubblica" chiama esplicitamente syncToCloudWithRetry (3 tentativi automatici, flag di recupero persistente, la stessa funzione già usata per il salvataggio partite) e mostra un avviso esplicito se anche questo dovesse fallire, invece di far credere che tutto sia andato a buon fine quando non è così.',
     ]},{version:'v1.773',date:'2026-07-28',items:[
       'Pagelle Multi-Utente: aggiunto un badge fisso in alto a destra ("Stai votando come: Nome Cognome (Soprannome)"), visibile durante la votazione e nel riepilogo — richiesta di Alby dopo il primo voto reale, per capire subito se il PIN inserito corrisponde davvero alla persona giusta.',
@@ -9000,7 +9002,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.774');
+    const appVersion = ref('1.775');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -18185,23 +18187,54 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const localMatch = await db.matches.where('matchUUID').equals(match.matchUUID).first();
         if (!localMatch) throw new Error('partita non trovata nel database locale');
         const nuoveStat = (localMatch.statisticheGiocatori||[]).map(s => nuoviVoti[s.playerId] != null ? { ...s, voto: nuoviVoti[s.playerId] } : s);
-        await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, updatedAt: Date.now() });
+        const _nuovoUpdatedAt = Date.now();
+        await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt });
+
+        // BUG TROVATO 29/7/2026 (secondo giro — segnalato da Alby col log alla mano: il primo fix
+        // aveva reso il sync affidabile, ma un ALTRO meccanismo lo vanificava lo stesso): syncToCloud
+        // ha una logica di risoluzione conflitti pensata per più dispositivi — se una partita esiste
+        // su entrambi i lati, tiene quella con updatedAt più recente, e in questo caso Firebase
+        // risultava "più recente" (per un test precedente sulla stessa partita), scartando così il
+        // voto appena calcolato. Per un'azione DELIBERATA come chiudere una votazione, questo non va
+        // mai lasciato al caso: scriviamo qui il risultato DIRETTAMENTE su questa specifica partita
+        // su Firebase (stesso pattern già usato altrove per correzioni mirate, es. Correggi ID
+        // Legacy), PRIMA e a prescindere dal sync generico — così è garantito, non negoziabile.
+        try {
+          const _base = getFirebaseBase();
+          const _groupsRes = await fetch(`${_base}/groups.json?auth=${fbIdToken.value}`, {cache:'no-store'});
+          if (_groupsRes.ok) {
+            const _fbGroups = await _groupsRes.json();
+            const _fbGroupsArr = Array.isArray(_fbGroups) ? _fbGroups : Object.values(_fbGroups||{});
+            const _gi = _fbGroupsArr.findIndex(g => g?.group?.nome === currentGroup.value?.nome);
+            if (_gi >= 0) {
+              const _fbMatchesArr = Array.isArray(_fbGroups[_gi]?.matches) ? _fbGroups[_gi].matches : Object.values(_fbGroups[_gi]?.matches||{});
+              const _mi = _fbMatchesArr.findIndex(m => m?.matchUUID === match.matchUUID);
+              if (_mi >= 0) {
+                await fetch(`${_base}/groups/${_gi}/matches/${_mi}.json?auth=${fbIdToken.value}`, {
+                  method:'PATCH', headers:{'Content-Type':'application/json'},
+                  body: JSON.stringify({ statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt })
+                });
+              } else {
+                logEvent('warn','votes','⚠️ Partita non trovata su Firebase per scrittura diretta — proseguo solo col sync generico');
+              }
+            } else {
+              logEvent('warn','votes','⚠️ Gruppo non trovato su Firebase per scrittura diretta — proseguo solo col sync generico');
+            }
+          }
+        } catch(e) {
+          logEvent('warn','votes','⚠️ Scrittura diretta partita fallita: '+e.message+' — proseguo col sync generico');
+        }
 
         await _fbPatchVoteMeta(gKey, match.matchUUID, { closed:true, closedAt: Date.now(), closedBy: firebaseUser.value.email });
 
         await forceRecomputeStats(); // ricalcola tutto da zero (locale)
 
-        // BUG TROVATO 29/7/2026 (segnalato da Alby, confermato confrontando col backup pre-voto: i
-        // dati su Firebase risultavano invariati dopo la chiusura): forceRecomputeStats() prova a
-        // sincronizzare da sola, ma solo UN tentativo e in modo silenzioso — se getValidToken() non
-        // restituisce un token valido in quel preciso istante, il sync viene saltato senza nessun
-        // avviso, lasciando il fix SOLO in locale mentre Firebase (e quindi l'Inspector) resta con
-        // i dati vecchi. Qui chiamiamo esplicitamente syncToCloudWithRetry (3 tentativi automatici,
-        // flag di recupero persistente, avviso visibile in caso di fallimento reale) — la stessa
-        // funzione già usata per il salvataggio partite, per la stessa affidabilità.
+        // Sync generico di rincalzo per il resto (statistiche giocatori aggregate, ecc.) — la
+        // partita specifica è già garantita dalla scrittura diretta qui sopra, indipendentemente
+        // da qualunque decisione di merge/conflitto prenda questo sync.
         const _syncOk = await syncToCloudWithRetry('Voti chiusura votazione');
         if (!_syncOk) {
-          toast('⚠️ Voti calcolati ma non ancora sincronizzati su Firebase — controlla la connessione o il login e riprova a breve','error',5500);
+          toast('⚠️ Voto della partita già garantito, ma altre statistiche non ancora sincronizzate — controlla la connessione o il login','error',5500);
         }
 
         await loadVoteAdminStatus(match);
