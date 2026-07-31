@@ -7115,6 +7115,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
            poi il PIN identifica da solo chi sei, senza doverlo scegliere da una lista) -->
       <div v-if="voteStep==='match-info'">
         <div style="text-align:center;margin-bottom:16px">
+          <img :src="voteAppLogo" alt="Amici FC" style="width:64px;height:64px;margin-bottom:8px;border-radius:14px">
+          <div style="font-size:0.7rem;color:var(--text2,#9ca3af);font-style:italic;margin-bottom:10px">Dove i campioni nascono… e litigano!</div>
           <div style="font-size:1.3rem;font-weight:800;color:var(--lime,#a6ff4d);margin-bottom:4px">🗳️ Vota la partita</div>
           <div style="font-size:0.78rem;color:var(--text2,#9ca3af)">{{ voteMatchDetails?.groupName }}</div>
         </div>
@@ -7220,7 +7222,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-if="voteStep==='done'" style="text-align:center">
         <div style="font-size:52px;margin-bottom:16px">✅</div>
         <div style="font-weight:800;font-size:1.2rem;color:var(--lime,#a6ff4d);margin-bottom:8px">Voto inviato!</div>
-        <div style="font-size:0.85rem;color:var(--text2,#9ca3af)">Grazie {{ voteSelectedVoter?.nome }}, puoi chiudere questa pagina.</div>
+        <div style="font-size:0.85rem;color:var(--text2,#9ca3af);margin-bottom:16px">Grazie {{ voteSelectedVoter?.nome }}, puoi chiudere questa pagina.</div>
+        <button class="btn btn-primary" style="width:100%" @click="closeVotePage">Chiudi</button>
       </div>
 
     </div>
@@ -8051,7 +8054,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.778',date:'2026-07-30',items:[
+    const changelogEntries = [{version:'v1.780',date:'2026-07-30',items:[
+      'BUG TROVATO E CORRETTO (segnalato da Alby: le foto dei giocatori mancavano sempre durante il voto): la pagina di voto leggeva la foto solo dal campo inline del giocatore (p.foto), ma dopo la migrazione delle foto in un nodo Firebase separato (playerPhotos/{uid} — stesso meccanismo già usato da syncFromCloud per il resto dell\'app) quel campo risulta quasi sempre vuoto. Aggiunta un\'unica richiesta in più per leggere questo nodo separato e usarlo come fallback, sia per i giocatori da votare sia per il riconoscimento del PIN. Testato: un giocatore con foto solo nel nodo separato ora la mostra correttamente, un giocatore senza foto da nessuna parte mostra correttamente il segnaposto ⚽.',
+    ]},{version:'v1.779',date:'2026-07-30',items:[
+      'Pagelle Multi-Utente — rifiniture sulla pagina di voto (richiesta di Alby): (1) logo e slogan dell\'app sopra "Vota la partita", per renderla più riconoscibile e meno "pagina anonima" (logo letto a runtime, stesso pattern già usato per il PDF Riepilogo Stagione); (2) aggiunto un bottone "Chiudi" dopo "Voto inviato!" invece di lasciare solo scritto "puoi chiudere questa pagina" — prova a chiudere la scheda e, se non ci riesce (il link arriva da WhatsApp, non da uno script, quindi window.close() spesso non funziona), porta all\'app normale invece di restare su una pagina morta; (3) messaggio di errore PIN reso più caloroso — nota tecnica: non è possibile distinguere con certezza "PIN sbagliato" da "PIN giusto ma senza diritto di voto per questa partita specifica", perché il PIN di chi non è eleggibile per quella partita non viene mai verificato — il messaggio ora copre onestamente entrambi i casi invece di affermare una causa che non possiamo conoscere con certezza.',
+    ]},{version:'v1.778',date:'2026-07-30',items:[
       'BUG TROVATO E CORRETTO (segnalato da Alby: flash di sintassi Vue grezza — tipo "{{ voteSelectedVoter.nomeCompleto }}" — visibile per un istante all\'apertura/aggiornamento dell\'app): mancava la protezione standard di Vue contro il "flash di template non compilato" (v-cloak) — probabilmente la stessa causa del flash "tipo voto" segnalato giorni fa. Aggiunta la regola CSS e l\'attributo mancanti.',
       'Pagelle Multi-Utente — tre bug nella modale "Link Votazione", trovati durante il test reale: (1) "Copia Link" non faceva nulla — stessa causa del bug "Link" di due giorni fa (espressione inline con più istruzioni separate da ";" che Vue non eseguiva), non l\'avevo corretta anche qui; (2) la modale appariva trasparente con il testo in basso a sinistra — usavo una classe CSS ("modal") che non esiste da nessuna parte nel file, invece di quella vera ("modal-sheet") — stesso errore trovato anche nella modale di rivelazione PIN, corretto in entrambe; (3) cliccare fuori dalla modale la chiudeva — ora si chiude solo con "Chiudi", come richiesto.',
       'Aggiunto il bottone "📤 Condividi" nella modale Link Votazione: genera un testo pronto per WhatsApp/Telegram con risultato, marcatori, e un promemoria chiaro del PIN — non più solo il link nudo da copiare.',
@@ -9057,7 +9064,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.778');
+    const appVersion = ref('1.780');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -18126,6 +18133,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // ── Pagelle Multi-Utente — Fase 3 (28/7/2026) ──────────────────────────────────────────
     // Stato pagina di voto pubblica (nessun login, aperta da link ?vota=...)
     const voteMode        = ref(false);
+    const voteAppLogo     = ref('');
     const voteStep        = ref('loading'); // loading | chi-sei | pin | voting | review | done | error
     const voteErrorMsg    = ref('');
     const voteMatchUUID   = ref(null);
@@ -18387,9 +18395,22 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     }
 
     // ── Pagina di voto pubblica (nessun login, aperta da link condiviso) ──
+    // Bottone "Chiudi" (richiesta di Alby, 30/7/2026): la scheda spesso non è stata aperta da
+    // script (arriva da un link WhatsApp), quindi window.close() non funziona nella maggior parte
+    // dei browser — in quel caso, invece di lasciare una pagina morta, si passa all'app normale.
+    function closeVotePage() {
+      window.close();
+      setTimeout(() => {
+        window.location.href = window.location.origin + window.location.pathname;
+      }, 200);
+    }
+
     async function initVotingPage() {
       voteMode.value = true;
       voteStep.value = 'loading';
+      // Logo letto a runtime da .splash-logo (stesso pattern già usato per il PDF Riepilogo
+      // Stagione) — mai duplicato/hardcoded qui, sempre l'unica fonte già presente nel DOM.
+      voteAppLogo.value = document.querySelector('.splash-logo')?.src || '';
       try {
         const params = new URLSearchParams(window.location.search);
         voteMatchUUID.value = params.get('vota');
@@ -18401,6 +18422,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (!groupsRes.ok) throw new Error('Impossibile leggere i dati (HTTP '+groupsRes.status+')');
         const groupsData = await groupsRes.json();
         const groupsArr = Array.isArray(groupsData) ? groupsData : Object.values(groupsData||{});
+
+        // BUG TROVATO 30/7/2026 (segnalato da Alby: foto sempre mancanti durante il voto): dopo la
+        // migrazione (playerPhotosMigrated=true) le foto non stanno più inline su ogni giocatore ma
+        // in questo nodo separato (stesso identico meccanismo già usato da syncFromCloud) — qui non
+        // veniva mai letto, quindi p.foto risultava sempre vuota. Un'unica richiesta in più, non per
+        // ogni giocatore.
+        let _photoByUid = {};
+        try {
+          const photosRes = await fetch(`${base}/playerPhotos.json`, {cache:'no-store'});
+          if (photosRes.ok) { _photoByUid = (await photosRes.json()) || {}; }
+        } catch(e) { /* le foto sono un extra, non blocchiamo il voto se questa chiamata fallisce */ }
+        const _fotoOf = p => p.foto || _photoByUid[p.uid]?.foto || '';
 
         let foundMatch = null, foundGroup = null;
         for (const g of groupsArr) {
@@ -18426,7 +18459,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const eligible = eligibleUids
           .map(uid => playersArr.find(p => p && p.uid === uid))
           .filter(Boolean)
-          .map(p => ({ uid: p.uid, nome: p.soprannome || p.nome, foto: p.foto || '', nomeCompleto: p.nome, cognome: p.cognome || '', soprannome: p.soprannome || '' }));
+          .map(p => ({ uid: p.uid, nome: p.soprannome || p.nome, foto: _fotoOf(p), nomeCompleto: p.nome, cognome: p.cognome || '', soprannome: p.soprannome || '' }));
         if (!eligible.length) { voteStep.value='error'; voteErrorMsg.value='Nessun giocatore risulta eleggibile per il voto.'; return; }
         voteEligiblePlayers.value = eligible;
 
@@ -18440,7 +18473,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const buildTeamTargets = (uids, squadra) => uids
           .map(uid => playersArr.find(p => p && p.uid === uid))
           .filter(Boolean)
-          .map(p => ({ uid:p.uid, nome:p.soprannome||p.nome, foto:p.foto||'', ruolo:p.ruolo||'Jolly', squadra }))
+          .map(p => ({ uid:p.uid, nome:p.soprannome||p.nome, foto:_fotoOf(p), ruolo:p.ruolo||'Jolly', squadra }))
           .sort((a,b) => (ROLE_ORDER_VOTE[a.ruolo]??4) - (ROLE_ORDER_VOTE[b.ruolo]??4));
         voteMatchTargets.value = [
           ...buildTeamTargets(foundMatch.squadraA||[], 'A'),
@@ -18511,7 +18544,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             if (res.ok) { matched = candidate; break; }
           } catch(e) { /* prova il prossimo candidato */ }
         }
-        if (!matched) { votePinErr.value = '❌ PIN errato. Riprova.'; voteSubmitting.value=false; return; }
+        if (!matched) { votePinErr.value = '❌ PIN non riconosciuto per questa partita. Se non hai giocato o non sei ancora amministratore di questo gruppo, non hai diritto di voto qui — ma ci vediamo alla prossima gara! Se pensi sia un errore, ricontrolla il PIN.'; voteSubmitting.value=false; return; }
         voteSelectedVoter.value = matched;
         voteHashProof.value = hash;
         // Bersagli: SOLO chi ha giocato davvero questa partita (voteMatchTargets, già ordinato per
@@ -21493,7 +21526,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       votePinStatus, votePinStatusLoaded, pinLoading, showPinRevealModal, pinRevealData, generateVotePin, loadVotePinStatus,
-      voteMode, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteEligiblePlayers, voteSelectedVoter,
+      voteMode, voteAppLogo, closeVotePage, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteEligiblePlayers, voteSelectedVoter,
       voteMatchTargets, voteMatchDetails, voteRawInputs, voteInputErr, ROLE_EMOJI,
       votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteSubmitting,
       voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
