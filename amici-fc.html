@@ -225,6 +225,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   0%, 100% { transform: translateY(0) scale(1); }
   50%      { transform: translateY(-6px) scale(1.06); }
 }
+@keyframes pulseAttn {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,183,0,0.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(255,183,0,0); }
+}
 
 /* ── Light mode color overrides ── */
 [data-theme="light"] .bottom-nav {
@@ -1845,6 +1849,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
         <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
           Tutti i giocatori in un'unica schermata. Veloce se hai già i dati pronti.
+        </div>
+      </div>
+      <!-- Vota con gli amici (Pagelle Multi-Utente, in test) -->
+      <div @click="startVoteWithFriendsMode"
+        style="border:1px dashed #a78bfa;border-radius:12px;padding:16px;margin-top:10px;cursor:pointer;background:rgba(167,139,250,0.06);transition:background .2s"
+        @mouseover="$event.currentTarget.style.background='rgba(167,139,250,0.12)'"
+        @mouseleave="$event.currentTarget.style.background='rgba(167,139,250,0.06)'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:1.4rem">🗳️</span>
+          <div>
+            <div style="font-weight:800;font-size:0.95rem;color:#a78bfa">Vota con gli amici</div>
+            <div style="font-size:0.68rem;color:#a78bfa;font-weight:700">🧪 Test — non ancora da usare</div>
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
+          Inserisci risultato/gol/assist, poi apri una votazione condivisa per i voti — invece di inserirli tu.
         </div>
       </div>
       <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showModeChoice=false">Annulla</button>
@@ -3867,13 +3887,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <!-- STEP 1: Statistiche + Risultato in fondo -->
       <template v-if="matchStep === 1">
 
-        <div class="card" style="padding:0;overflow:hidden">
+        <!-- Legenda icone spostata qui in alto (richiesta di Alby: prima era in fondo, poco utile) -->
+        <div style="padding:10px 14px;font-size:0.68rem;color:var(--text2);line-height:1.7;background:var(--bg3);border-radius:10px;margin-bottom:12px">
+          <span v-if="!matchIsVoteMode">⭐ Voto &nbsp;·&nbsp; </span>⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
+          <span style="color:var(--red)">OG = Autogol</span> &nbsp;·&nbsp;
+          <span style="color:var(--lime)">🥅 RP = Rigore Parato</span> &nbsp;·&nbsp;
+          <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span>
+        </div>
+
+        <div class="card" style="padding:0;overflow:hidden;border-left:4px solid var(--blue)">
           <!-- Header accordion Squadra A -->
-          <div @click="matchTeamOpen.A=!matchTeamOpen.A" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(58,123,255,0.06);border-bottom:1px solid rgba(58,123,255,0.2)">
+          <div @click="matchTeamOpen.A=!matchTeamOpen.A" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(58,123,255,0.1);border-bottom:1px solid rgba(58,123,255,0.25)">
             <div style="display:flex;align-items:center;gap:8px">
               <span style="color:var(--blue);font-weight:700;font-size:0.9rem">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</span>
               <span style="font-size:0.72rem;color:var(--text2)">{{ teamA.length }} giocatori</span>
-              <span v-if="teamA.some(pid=>playerStats[pid]?.goal>0||playerStats[pid]?.voto>0)" style="font-size:0.65rem;background:rgba(166,255,77,0.15);color:var(--lime);padding:2px 7px;border-radius:8px">✓ dati inseriti</span>
+              <span v-if="!matchIsVoteMode && teamA.some(pid=>playerStats[pid]?.goal>0||playerStats[pid]?.voto>0)" style="font-size:0.65rem;background:rgba(166,255,77,0.15);color:var(--lime);padding:2px 7px;border-radius:8px">✓ dati inseriti</span>
             </div>
             <span style="transition:transform .2s;color:var(--text2)" :style="matchTeamOpen.A?'transform:rotate(180deg)':''">▼</span>
           </div>
@@ -3887,7 +3915,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <!-- Riga 2: Voto + Gol -->
               <div style="display:flex;gap:6px;margin-bottom:5px">
-                <div class="counter-box" style="flex:1.3;justify-content:space-between">
+                <div v-if="!matchIsVoteMode" class="counter-box" style="flex:1.3;justify-content:space-between">
                   <span style="font-size:0.68rem;color:var(--text2)">Voto</span>
                   <div style="display:flex;align-items:center;background:var(--bg2);border-radius:6px;overflow:hidden">
                     <button style="background:none;border:none;color:var(--text2);font-size:1rem;padding:2px 8px;cursor:pointer"
@@ -3946,13 +3974,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
           </div>
+        </div>
 
+        <div style="height:14px"></div>
+
+        <div class="card" style="padding:0;overflow:hidden;border-left:4px solid #FF8C00">
           <!-- Header accordion Squadra B -->
-          <div @click="matchTeamOpen.B=!matchTeamOpen.B" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(255,77,77,0.06);border-top:1px solid rgba(255,77,77,0.15);border-bottom:1px solid rgba(255,77,77,0.15)">
+          <div @click="matchTeamOpen.B=!matchTeamOpen.B" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(255,140,0,0.1);border-bottom:1px solid rgba(255,140,0,0.25)">
             <div style="display:flex;align-items:center;gap:8px">
-              <span style="color:var(--red);font-weight:700;font-size:0.9rem">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</span>
+              <span style="color:#FF8C00;font-weight:700;font-size:0.9rem">🟠 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</span>
               <span style="font-size:0.72rem;color:var(--text2)">{{ teamB.length }} giocatori</span>
-              <span v-if="teamB.some(pid=>playerStats[pid]?.goal>0||playerStats[pid]?.voto>0)" style="font-size:0.65rem;background:rgba(166,255,77,0.15);color:var(--lime);padding:2px 7px;border-radius:8px">✓ dati inseriti</span>
+              <span v-if="!matchIsVoteMode && teamB.some(pid=>playerStats[pid]?.goal>0||playerStats[pid]?.voto>0)" style="font-size:0.65rem;background:rgba(166,255,77,0.15);color:var(--lime);padding:2px 7px;border-radius:8px">✓ dati inseriti</span>
             </div>
             <span style="transition:transform .2s;color:var(--text2)" :style="matchTeamOpen.B?'transform:rotate(180deg)':''">▼</span>
           </div>
@@ -3966,7 +3998,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
               <!-- Riga 2: Voto + Gol -->
               <div style="display:flex;gap:6px;margin-bottom:5px">
-                <div class="counter-box" style="flex:1.3;justify-content:space-between">
+                <div v-if="!matchIsVoteMode" class="counter-box" style="flex:1.3;justify-content:space-between">
                   <span style="font-size:0.68rem;color:var(--text2)">Voto</span>
                   <div style="display:flex;align-items:center;background:var(--bg2);border-radius:6px;overflow:hidden">
                     <button style="background:none;border:none;color:var(--text2);font-size:1rem;padding:2px 8px;cursor:pointer"
@@ -4025,18 +4057,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
           </div>
-          <div style="padding:10px 16px;font-size:0.7rem;color:var(--text2);line-height:1.8">
-            ⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
-            <span style="color:var(--red)">OG = Autogol</span> &nbsp;·&nbsp;
-            <span style="color:var(--lime)">🥅 RP = Rigore Parato</span> &nbsp;·&nbsp;
-            <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span> &nbsp;·&nbsp;
-            <span style="color:var(--yellow)">UoM = Uomo della Partita</span>
-          </div>
         </div>
 
         <!-- Risultato — in fondo -->
         <div class="card">
           <div class="card-title">🏆 Risultato</div>
+          <div v-if="statsGoalA>0 || statsGoalB>0"
+            :style="'display:flex;align-items:center;justify-content:center;gap:10px;padding:10px;border-radius:8px;margin-bottom:12px;' + (scoreMismatch ? 'background:rgba(255,183,0,0.14);border:2px solid var(--yellow);animation:pulseAttn 1.2s ease-in-out infinite' : 'background:rgba(166,255,77,0.06);border:1px solid rgba(166,255,77,0.15)')">
+            <span style="font-size:0.72rem;color:var(--text2)">⚡ Da statistiche:</span>
+            <span style="font-weight:700;color:var(--lime);font-size:0.9rem">{{ statsGoalA }} – {{ statsGoalB }}</span>
+            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:3px 10px;color:var(--lime);border-color:rgba(166,255,77,0.3)"
+              @click="matchGoalA=statsGoalA; matchGoalB=statsGoalB">
+              Usa →
+            </button>
+          </div>
+          <div v-if="scoreMismatch" style="font-size:0.7rem;color:var(--yellow);text-align:center;margin-bottom:10px">
+            ⚠️ Hai inserito gol/autogol ma il punteggio qui sotto è ancora 0-0 — premi "Usa" o imposta il punteggio a mano
+          </div>
           <div class="match-score" style="margin-bottom:12px">
             <div style="text-align:center">
               <div style="font-family:var(--font-title);color:var(--blue);margin-bottom:8px">{{ activeFormation?.nomeSquadraA || 'Squadra A' }}</div>
@@ -4056,23 +4093,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;justify-content:center;gap:10px;padding:8px;background:rgba(166,255,77,0.06);border-radius:8px;border:1px solid rgba(166,255,77,0.15)">
-            <span style="font-size:0.72rem;color:var(--text2)">⚡ Da statistiche:</span>
-            <span style="font-weight:700;color:var(--lime);font-size:0.9rem">
-              {{ (teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
-              –
-              {{ (teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)) }}
-            </span>
-            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;padding:3px 10px;color:var(--lime);border-color:rgba(166,255,77,0.3)"
-              @click="matchGoalA=teamA.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamB.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0); matchGoalB=teamB.reduce((s,p)=>(playerStats[p]?.goal||0)+s,0)+teamA.reduce((s,p)=>(playerStats[p]?.autogol||0)+s,0)">
-              Usa →
-            </button>
-          </div>
         </div>
 
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" @click="currentView='formations'">← Annulla</button>
-          <button class="btn btn-primary" style="flex:1" @click="matchStep=2;Vue.nextTick(()=>{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0})">Avanti →</button>
+          <button class="btn btn-primary" style="flex:1" :disabled="scoreMismatch" @click="matchStep=2;Vue.nextTick(()=>{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0})">Avanti →</button>
         </div>
       </template>
 
@@ -4104,11 +4129,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
-        <button class="btn btn-primary btn-full" style="font-size:1rem;padding:16px;margin-bottom:16px" @click="generateAndShareMatchPNG">
+        <button v-if="!matchIsVoteMode" class="btn btn-primary btn-full" style="font-size:1rem;padding:16px;margin-bottom:16px" @click="generateAndShareMatchPNG">
           📤 Condividi
         </button>
 
-        <div class="card">
+        <div v-if="!matchIsVoteMode" class="card">
           <div class="card-title">🤖 Articolo AI — Stile Giornale</div>
           <!-- Foto partita opzionale -->
           <div class="input-group">
@@ -4153,10 +4178,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </button>
           </div>
         </div>
+        <div v-else style="text-align:center;font-size:0.75rem;color:var(--text2);padding:10px;background:var(--bg3);border-radius:10px;margin-bottom:16px">
+          ⏳ L'articolo AI si potrà generare dopo la chiusura della votazione, quando i voti saranno noti
+        </div>
 
+        <div v-if="!computedUomoPartita" style="text-align:center;font-size:0.72rem;color:var(--yellow);margin-bottom:8px">
+          ⚠️ Seleziona l'Uomo Partita per continuare
+        </div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" @click="stepByStepDone?(currentView='stepbystep'):( matchStep=1);Vue.nextTick(()=>{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0})">← Indietro</button>
-          <button class="btn btn-primary" style="flex:1" @click="saveMatch">✅ Salva Partita</button>
+          <button class="btn btn-primary" style="flex:1" :disabled="!computedUomoPartita" @click="saveMatch">
+            {{ matchIsVoteMode ? '💾 Salva e Apri Voto' : '✅ Salva Partita' }}
+          </button>
         </div>
       </template>
     </template>
@@ -4198,6 +4231,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;justify-content:space-between;align-items:center">
               <span class="match-date">📅 {{ formatDate(m.data) }}</span>
               <div style="display:flex;gap:6px">
+                <span v-if="m.votazioneCondivisaPending" class="badge" style="background:rgba(167,139,250,0.15);color:#a78bfa;font-size:0.65rem">🗳️ Votazione in corso</span>
                 <span v-if="m.uomoPartita" class="match-mvp">🏅 {{ m.uomoPartita }}</span>
                 <span v-else-if="m.mvp" class="match-mvp">⭐ {{ m.mvp }}</span>
               </div>
@@ -4243,6 +4277,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                       <span style="color:var(--text2);margin:0 6px">–</span>
                       <span style="color:var(--red)">{{ m.risultato.goalB }}</span>
                     </div>
+                    <div v-if="m.votazioneCondivisaPending" style="font-size:0.65rem;color:#a78bfa;font-weight:700">🗳️ Votazione in corso</div>
                     <div v-if="m.uomoPartita || m.mvp" style="font-size:0.7rem;color:var(--text2)">
                       {{ m.uomoPartita ? '🏅 '+m.uomoPartita : '⭐ '+m.mvp }}
                     </div>
@@ -6704,10 +6739,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div style="margin-bottom:12px">
         <label class="input-label">🤖 Commento AI</label>
         <textarea class="input-field" v-model="editingMatch.commentoAI" rows="3" style="resize:none"></textarea>
-        <button class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--yellow);width:100%"
+        <button v-if="!editingMatch.votazioneCondivisaPending" class="btn btn-ghost btn-sm" style="margin-top:6px;color:var(--yellow);width:100%"
           @click="regenAIComment(editingMatch)" :disabled="aiRegenLoading">
           {{ aiRegenLoading ? '⏳ Generando...' : '✨ Rigenera Commento AI' }}
         </button>
+        <div v-else style="margin-top:6px;font-size:0.72rem;color:var(--text2);text-align:center;padding:8px;background:var(--bg3);border-radius:8px">
+          ⏳ Disponibile dopo la chiusura della votazione condivisa (mancano ancora i voti)
+        </div>
       </div>
 
       <!-- Pagelle Multi-Utente: gestione votazione condivisa (solo admin, spostata qui su richiesta
@@ -8005,7 +8043,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.775',date:'2026-07-29',items:[
+    const changelogEntries = [{version:'v1.777',date:'2026-07-30',items:[
+      'Flusso "Gioca questa" (Tutti Insieme + Uno alla Volta + Vota con gli amici) — sette rifiniture su segnalazione di Alby dopo il primo test: (1) legenda delle icone (Voto/Gol/Assist/OG/RP/RS) spostata in alto, subito sotto nome/squadre, invece che in fondo dove nessuno la notava; (2) badge "✓ dati inseriti" rimosso in "Vota con gli amici" (non più significativo senza il voto); (3) il riquadro "Da statistiche" con il bottone "Usa" spostato SOPRA il punteggio principale invece che sotto, con un bordo giallo pulsante quando ci sono gol/autogol inseriti ma il punteggio è ancora 0-0 — segno quasi certo che ci si è dimenticati di premere "Usa"; (4) in quello stesso caso, il bottone "Avanti" resta disabilitato finché non si sistema; (5) Uomo Partita ora obbligatorio per salvare, in tutte le modalità (prima si poteva salvare senza sceglierlo); (6) in "Vota con gli amici": nascosto il bottone "Condividi" (non ha senso condividere prima dei voti) e l\'intera sezione "Articolo AI" (serviranno i voti, arriverà da "Modifica Partita" dopo la chiusura — stesso principio già applicato al Commento AI); (7) etichetta del bottone finale cambiata in "💾 Salva e Apri Voto" quando si sta usando questa modalità, per riflettere cosa succede davvero.',
+    ]},{version:'v1.776',date:'2026-07-30',items:[
+      'Pagelle Multi-Utente — integrazione nel flusso "Gioca questa" per partite nuove (in test, non ancora da usare su partite reali). Terza opzione "🗳️ Vota con gli amici" nel menu di scelta modalità, con etichetta "🧪 Test". Riusa la schermata "Tutti Insieme" per inserire risultato/gol/assist/autogol/rigori, con il voto nascosto: al salvataggio il voto resta a 0/non impostato (le statistiche aggregate esistenti lo ignorano già correttamente, nessuna nuova logica necessaria) e si apre automaticamente la votazione condivisa. Il pulsante "Rigenera Commento AI" resta nascosto finché la votazione è in sospeso (non aveva senso generarlo senza i voti), sostituito da un messaggio esplicativo. Badge "🗳️ Votazione in corso" sulla card della partita nelle liste. Alla chiusura della votazione, suggerimento (non obbligo) di generare ora il commento AI, visto che i dati sono finalmente completi.',
+      'Migliorata la separazione visiva delle due squadre nella schermata "Tutti Insieme" (richiesta di Alby: "non si capisce molto") — due card separate invece di un\'unica card con due header colorati, ciascuna con un bordo laterale colorato su tutta l\'altezza e uno spazio reale tra le due. Corretto anche il colore: Squadra B ora arancione (#FF8C00, coerente con l\'unico altro punto dell\'app che già usava questo colore) invece di rosso, come segnalato da Alby.',
+    ]},{version:'v1.775',date:'2026-07-29',items:[
       'Pagelle Multi-Utente — secondo BUG CRITICO trovato grazie al log fornito da Alby (il primo fix di oggi aveva reso il sync affidabile, ma qualcos\'altro lo vanificava lo stesso: il log mostrava "sync riuscito" eppure i dati su Firebase restavano quelli di prima del voto): syncToCloud ha una logica di risoluzione conflitti pensata per più dispositivi — se una partita esiste sia in locale che su Firebase, tiene quella con updatedAt più recente. In questo caso Firebase risultava "più recente" (per un test precedente sulla stessa partita) e la logica scartava il voto appena calcolato, silenziosamente. Per un\'azione deliberata come chiudere una votazione, questo non va mai lasciato al caso: ora "Chiudi e Pubblica" scrive il risultato DIRETTAMENTE sul percorso Firebase di quella specifica partita (stesso pattern già usato per correzioni mirate come Correggi ID Legacy), PRIMA e a prescindere dal sync generico con merge — garantito, non negoziabile. Testato: la scrittura diretta avviene sul percorso corretto con i voti calcolati giusti, verificato anche il caso in cui gruppo/partita non vengono trovati su Firebase (fallback con avviso, non un crash).',
     ]},{version:'v1.774',date:'2026-07-29',items:[
       'Pagelle Multi-Utente — BUG CRITICO corretto (segnalato da Alby dopo il primo test reale completo: la partita chiusa mostrava su Inspector esattamente gli stessi voti di PRIMA del voto, confermato confrontando col backup originale): "Chiudi e Pubblica" calcolava i voti finali correttamente e li scriveva in locale, ma la sincronizzazione verso Firebase passava per forceRecomputeStats(), che tenta UN solo sync in modo silenzioso — se getValidToken() non restituiva un token valido in quel preciso istante, il sync veniva saltato senza nessun avviso, lasciando il fix solo sul dispositivo che aveva chiuso la votazione mentre Firebase (e quindi tutti gli altri dispositivi + Inspector) restava con i dati vecchi. Ora "Chiudi e Pubblica" chiama esplicitamente syncToCloudWithRetry (3 tentativi automatici, flag di recupero persistente, la stessa funzione già usata per il salvataggio partite) e mostra un avviso esplicito se anche questo dovesse fallire, invece di far credere che tutto sia andato a buon fine quando non è così.',
@@ -9002,7 +9045,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.775');
+    const appVersion = ref('1.777');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9023,6 +9066,16 @@ createApp({
     const sortedMatches = computed(() =>
       [...historySourceMatches.value].sort((a,b) => b.data.localeCompare(a.data))
     );
+
+    // Punteggio calcolato dalle statistiche individuali (gol + autogol avversari) — estratto in
+    // computed per non ripetere la stessa logica in più punti del template (display, bottone
+    // "Usa", blocco "Avanti"). Richiesta di Alby, 30/7/2026.
+    const statsGoalA = computed(() => teamA.value.reduce((s,p)=>(playerStats.value[p]?.goal||0)+s,0) + teamB.value.reduce((s,p)=>(playerStats.value[p]?.autogol||0)+s,0));
+    const statsGoalB = computed(() => teamB.value.reduce((s,p)=>(playerStats.value[p]?.goal||0)+s,0) + teamA.value.reduce((s,p)=>(playerStats.value[p]?.autogol||0)+s,0));
+    // true se le statistiche individuali indicano gol/autogol ma il punteggio principale è ancora
+    // 0-0 — quasi certamente il segno che ci si è dimenticati di premere "Usa" o di impostare il
+    // punteggio a mano. Usato per dare risalto al bottone "Usa" e per bloccare "Avanti".
+    const scoreMismatch = computed(() => (statsGoalA.value > 0 || statsGoalB.value > 0) && matchGoalA.value === 0 && matchGoalB.value === 0);
 
     const computedUomoPartita = computed(() => {
       const all = [...teamA.value, ...teamB.value];
@@ -10494,6 +10547,23 @@ Rispondi SOLO con questo JSON (niente altro testo):
       stepByStepDone.value = false;  // IMPORTANTE: reset flag SBS
       stepByStepIdx.value = 0;
       stepByStepPlayers.value = [];
+      matchIsVoteMode.value = false;
+      _initMatchData(f);
+      currentView.value = 'newmatch';
+    };
+
+    // Pagelle Multi-Utente (in test, 30/7/2026): riusa la stessa schermata "Tutti Insieme", ma
+    // nasconde il voto (resta non impostato — le statistiche aggregate esistenti ignorano già
+    // correttamente i voti a 0/non impostati, nessuna logica nuova necessaria per quello) e apre
+    // automaticamente la votazione subito dopo il salvataggio.
+    const matchIsVoteMode = ref(false);
+    const startVoteWithFriendsMode = () => {
+      const f = modeChoiceFormation.value;
+      showModeChoice.value = false;
+      stepByStepDone.value = false;
+      stepByStepIdx.value = 0;
+      stepByStepPlayers.value = [];
+      matchIsVoteMode.value = true;
       _initMatchData(f);
       currentView.value = 'newmatch';
     };
@@ -10501,6 +10571,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const startStepByStep = () => {
       const f = modeChoiceFormation.value;
       showModeChoice.value = false;
+      matchIsVoteMode.value = false;
       _initMatchData(f);
       // Ordine: prima squadra A poi squadra B
       stepByStepPlayers.value = [...teamA.value, ...teamB.value];
@@ -13911,7 +13982,10 @@ Niente altro, nessuna spiegazione.`;
           goal:            playerStats.value[pid]?.goal            || 0,
           assist:          playerStats.value[pid]?.assist          || 0,
           autogol:         playerStats.value[pid]?.autogol         || 0,
-          voto:            playerStats.value[pid]?.voto            || 0,
+          // Pagelle Multi-Utente (in test): con "Vota con gli amici" il voto resta 0/non
+          // impostato a prescindere da cosa c'è in playerStats — le statistiche aggregate
+          // esistenti ignorano già correttamente i voti a 0, nessuna logica nuova necessaria.
+          voto:            matchIsVoteMode.value ? 0 : (playerStats.value[pid]?.voto || 0),
           uomoPartita:     playerStats.value[pid]?.uomoPartita     || false,
           rigoriParati:    playerStats.value[pid]?.rigoriParati    || 0,
           rigoriSbagliati: playerStats.value[pid]?.rigoriSbagliati || 0,
@@ -13943,6 +14017,7 @@ Niente altro, nessuna spiegazione.`;
         squadraB:   [...teamB.value],
         risultato:  { goalA, goalB },
         statisticheGiocatori: statsArr,
+        votazioneCondivisaPending: matchIsVoteMode.value ? true : false,
         commentoAI:      aiComment.value,
         titoloGiornale:  articleTitle.value || '',
         fotoPartita:     matchPhoto.value || '',
@@ -14008,6 +14083,14 @@ Niente altro, nessuna spiegazione.`;
       // generato di recente per una partita diversa, bloccava silenziosamente la generazione per
       // questa partita nuova (bug segnalato da Alby il 27/7/2026 — Trash Talk mancante per il 23/07).
       _generateTrashTalk(match).catch(e => console.warn('[TrashTalk]', e.message));
+
+      // Pagelle Multi-Utente (in test): se la partita è stata salvata in modalità "Vota con gli
+      // amici", apri subito la votazione e mostra il link — stessa funzione già usata da
+      // "Modifica Partita", nessuna logica duplicata.
+      if (matchIsVoteMode.value) {
+        matchIsVoteMode.value = false;
+        apriVotazione(match).catch(e => console.warn('[Votazione]', e.message));
+      }
     };
 
     const confirmDeleteModal = reactive({ show: false, matchId: null, matchInfo: '' });
@@ -18106,7 +18189,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (!firebaseUser.value || !fbIdToken.value) { toast('⚠️ Devi essere loggato','error',3000); return; }
       if (!currentGroup.value?.firebaseUrl) { toast('⚠️ Nessun database Firebase collegato','error',3000); return; }
       const stats = match.statisticheGiocatori || [];
-      const votiNonDefault = stats.filter(s => s.voto != null && s.voto !== 6);
+      const votiNonDefault = match.votazioneCondivisaPending ? [] : stats.filter(s => s.voto > 0 && s.voto !== 6);
       if (votiNonDefault.length > 0) {
         const media = stats.length ? (stats.reduce((s,x)=>s+(x.voto||0),0) / stats.length).toFixed(1) : '—';
         const ok = confirm(`⚠️ Questa partita ha già i voti inseriti (media attuale: ${media}).\n\nAprire e poi chiudere una votazione condivisa sovrascriverà questi voti con la media di quella nuova.\n\nProcedere?`);
@@ -18188,7 +18271,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (!localMatch) throw new Error('partita non trovata nel database locale');
         const nuoveStat = (localMatch.statisticheGiocatori||[]).map(s => nuoviVoti[s.playerId] != null ? { ...s, voto: nuoviVoti[s.playerId] } : s);
         const _nuovoUpdatedAt = Date.now();
-        await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt });
+        await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, votazioneCondivisaPending: false, updatedAt: _nuovoUpdatedAt });
 
         // BUG TROVATO 29/7/2026 (secondo giro — segnalato da Alby col log alla mano: il primo fix
         // aveva reso il sync affidabile, ma un ALTRO meccanismo lo vanificava lo stesso): syncToCloud
@@ -18238,8 +18321,19 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         }
 
         await loadVoteAdminStatus(match);
+        // match è lo stesso oggetto reattivo di editingMatch (passato per riferimento dal
+        // bottone "Chiudi e Pubblica") — aggiornarlo qui si riflette subito nel form visibile.
+        match.votazioneCondivisaPending = false;
+        match.statisticheGiocatori = nuoveStat;
         if (_syncOk) {
           toast(`✅ Votazione chiusa, ${Object.keys(nuoviVoti).length} voti pubblicati su Firebase!`,'success',4000);
+          // Suggerimento (non obbligo): ora che i voti sono noti, è il momento naturale per il
+          // commento AI — prima non aveva senso, mancavano i dati (richiesta di Alby, 30/7/2026).
+          // regenAIComment scrive direttamente su "match" (già il form visibile), esattamente
+          // come farebbe l'admin premendo il bottone manuale — l'admin decide poi se salvare.
+          if (confirm('🤖 Voti pubblicati! Vuoi generare ora il commento AI per questa partita?')) {
+            regenAIComment(match).catch(e => console.warn('[CommentoAI]', e.message));
+          }
         }
         logEvent('info','votes', `🔒 Votazione chiusa per partita ${match.data} da ${firebaseUser.value.email} — ${Object.keys(nuoviVoti).length} voti aggiornati (sync ${_syncOk?'riuscito':'FALLITO'})`);
       } catch(e) {
@@ -21325,7 +21419,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName, previewPNGText,
-      totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita,
+      totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita, statsGoalA, statsGoalB, scoreMismatch,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
       statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsMediaVotoDinamica, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
@@ -21342,7 +21436,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       loadFormations, saveFormation, deleteFormation, editFormation,
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
-      playFormation, startClassicMode, startStepByStep, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
+      playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
