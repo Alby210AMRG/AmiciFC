@@ -3435,15 +3435,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- Lista formazioni salvate (stato=proposta o da giocare) -->
-      <div v-if="groupFormations.length === 0" class="empty-state">
+      <!-- Lista formazioni salvate (stato=proposta o da giocare) — le già giocate spariscono da
+           qui, restano consultabili nella partita corrispondente sotto "Partite" -->
+      <div v-if="activeFormations.length === 0" class="empty-state">
         <span class="emoji">⚽</span>
         <h3>Nessuna formazione ancora!</h3>
         <p>Crea la prima formazione, condividila su WhatsApp e poi giocate!</p>
         <button class="btn btn-primary" style="margin-top:16px" @click="startPlayerSelection">➕ Crea Formazione</button>
       </div>
 
-      <div v-for="(f,fIdx) in groupFormations" :key="f.id" class="formation-card"
+      <div v-for="(f,fIdx) in activeFormations" :key="f.id" class="formation-card"
         :style="{borderLeft:'4px solid '+['var(--lime)','#60a5fa','#fbbf24','#f87171','#c084fc'][fIdx%5]}">
         <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px">
           <div>
@@ -6978,16 +6979,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <button class="btn btn-blue btn-sm" style="padding:4px 10px;font-size:0.72rem" @click="movePlayerInEditor(pid,'squadraB','squadraA')">← A</button>
         <button class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.72rem" @click="removePlayerFromEditor(pid)">✕</button>
       </div>
-      <template v-if="groupPlayers.filter(p => !editingFormationData.squadraA.includes(p.id) && !editingFormationData.squadraB.includes(p.id)).length">
+      <template v-if="groupPlayers.filter(p => !editingFormationData.squadraA.includes(p.uid) && !editingFormationData.squadraB.includes(p.uid)).length">
         <div style="font-weight:700;color:var(--text2);margin:14px 0 8px;font-size:0.82rem">➕ Aggiungi</div>
-        <div v-for="p in groupPlayers.filter(p => !editingFormationData.squadraA.includes(p.id) && !editingFormationData.squadraB.includes(p.id))" :key="'ep-'+p.id" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
+        <div v-for="p in groupPlayers.filter(p => !editingFormationData.squadraA.includes(p.uid) && !editingFormationData.squadraB.includes(p.uid))" :key="'ep-'+p.id" style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid var(--border)">
           <div style="width:30px;height:30px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center">
             <img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" style="width:100%;height:100%;object-fit:cover" @error="onPhotoError($event, p.uid)">
             <img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6">
           </div>
           <div style="flex:1"><div style="font-size:0.82rem;font-weight:700">{{ p.soprannome||p.nome }}</div><div style="font-size:0.68rem;color:var(--text2)">{{ p.ruolo }}</div></div>
-          <button class="btn btn-blue btn-sm" style="padding:4px 10px;font-size:0.72rem" @click="addPlayerToEditorTeam(p.id,'squadraA')">+A</button>
-          <button class="btn btn-red btn-sm" style="padding:4px 10px;font-size:0.72rem" @click="addPlayerToEditorTeam(p.id,'squadraB')">+B</button>
+          <button class="btn btn-blue btn-sm" style="padding:4px 10px;font-size:0.72rem" @click="addPlayerToEditorTeam(p.uid,'squadraA')">+A</button>
+          <button class="btn btn-red btn-sm" style="padding:4px 10px;font-size:0.72rem" @click="addPlayerToEditorTeam(p.uid,'squadraB')">+B</button>
         </div>
       </template>
       <div style="display:flex;gap:10px;margin-top:16px">
@@ -7179,6 +7180,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="font-size:0.75rem;color:var(--text2,#9ca3af);margin-top:2px">
             {{ ROLE_EMOJI[voteTargets[voteCurrentIdx]?.ruolo]||'🃏' }} {{ voteTargets[voteCurrentIdx]?.ruolo }}
             <span v-if="voteTargets[voteCurrentIdx]?.uid===voteSelectedVoter?.uid"> · (sei tu)</span>
+          </div>
+          <!-- Cosa ha fatto in questa partita — per ricordarselo mentre si vota (richiesta di
+               Alby, 1/8/2026) -->
+          <div v-if="voteCurrentTargetStats?.uomoPartita" style="display:inline-block;margin-top:8px;font-size:0.72rem;font-weight:700;padding:4px 12px;border-radius:10px;background:rgba(255,211,61,0.15);color:var(--yellow,#ffd33d);border:1px solid rgba(255,211,61,0.35)">
+            ⭐ Uomo Partita
+          </div>
+          <div v-if="voteCurrentTargetStats && (voteCurrentTargetStats.goal||voteCurrentTargetStats.assist||voteCurrentTargetStats.autogol||voteCurrentTargetStats.rigoriParati||voteCurrentTargetStats.rigoriSbagliati)"
+            style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px">
+            <span v-if="voteCurrentTargetStats.goal" style="font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(166,255,77,0.15);color:var(--lime,#a6ff4d)">⚽ {{ voteCurrentTargetStats.goal }} gol</span>
+            <span v-if="voteCurrentTargetStats.assist" style="font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(122,176,255,0.15);color:#7ab0ff">🅰️ {{ voteCurrentTargetStats.assist }} assist</span>
+            <span v-if="voteCurrentTargetStats.autogol" style="font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(255,77,77,0.15);color:#ff4d4d">⚠️ {{ voteCurrentTargetStats.autogol }} autogol</span>
+            <span v-if="voteCurrentTargetStats.rigoriParati" style="font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(166,255,77,0.15);color:var(--lime,#a6ff4d)">🥅 {{ voteCurrentTargetStats.rigoriParati }} rig. parato</span>
+            <span v-if="voteCurrentTargetStats.rigoriSbagliati" style="font-size:0.72rem;font-weight:700;padding:3px 9px;border-radius:8px;background:rgba(255,107,53,0.15);color:#ff6b35">❌ {{ voteCurrentTargetStats.rigoriSbagliati }} rig. sbagliato</span>
           </div>
         </div>
         <div style="text-align:center;margin-bottom:10px">
@@ -8054,7 +8068,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.781',date:'2026-07-31',items:[
+    const changelogEntries = [{version:'v1.783',date:'2026-08-01',items:[
+      'Le formazioni già giocate ora spariscono dalla lista "Formazioni" invece di restarci con l\'etichetta "Già giocata" — restano comunque consultabili nella partita corrispondente, sotto "Partite" (richiesta di Alby).',
+      'Pagelle Multi-Utente — durante il voto ora si vede anche cosa ha fatto il giocatore in quella partita (⚽ gol, 🅰️ assist, ⚠️ autogol, 🥅 rigori parati, ❌ rigori sbagliati) e se è stato eletto ⭐ Uomo Partita — così chi vota se lo ricorda mentre dà il voto, non solo il nome del giocatore.',
+    ]},{version:'v1.782',date:'2026-08-01',items:[
+      'BUG STRUTTURALE TROVATO E CORRETTO (segnalato da Alby: dopo aver creato una formazione con "🤖 AI (3)" e scelto una delle tre proposte, TUTTI i giocatori della partita risultavano con id numerico locale invece di uid — confermato con Inspector: 12 uid orfani su 12). Non era un problema di "Vota con gli amici": riguardava direttamente i generatori di formazione "📊 Consigliata" e "🤖 AI", usati da tutte le modalità di gioco. Trovate e corrette 4 istanze dello stesso errore (usavano p.id invece di p.uid): (1) buildBalancedTeams (usata da entrambi i generatori) assegnava SEMPRE portiere e primi due attaccanti con l\'id numerico, non un ripiego occasionale; (2) generateFormationsWithAI, nella lettura della risposta dell\'AI, risolveva OGNI giocatore dal nome all\'id numerico invece che all\'uid — causa principale, colpiva il 100% dei giocatori; (3) l\'editor di una formazione già creata (aggiunta giocatori extra) passava anch\'esso l\'id numerico; (4) splitGK (bilanciamento portieri) confrontava id con uid, quindi non avrebbe più funzionato una volta corretti gli altri tre punti. Corretta anche una piccola incoerenza pre-esistente e scollegata nel calcolo "rivalità storica" delle Card AI (stesso errore di battitura .id/.uid). Testato: buildBalancedTeams ora assegna correttamente 8/8 giocatori di ruoli diversi con i loro uid, zero id numerici residui.',
+    ]},{version:'v1.781',date:'2026-07-31',items:[
       'Pagelle Multi-Utente — pulizia dati orfani (segnalato da Alby con un test reale: eliminando una partita con votazione in corso, i dati del voto restavano su Firebase senza più nessuna partita a cui riferirsi). Ora: (1) eliminando una partita con votazione condivisa in corso, viene mostrato un avviso specifico prima di procedere ("il link smetterà di funzionare, i voti raccolti finora andranno persi"); (2) i dati della votazione associata vengono eliminati automaticamente da Firebase insieme alla partita, invece di restare orfani; (3) in Inspector (Manutenzione → Votazioni), le sessioni già orfane vengono segnalate con un badge dedicato e si possono eliminare una alla volta o tutte insieme, per ripulire anche i casi già esistenti prima di questo fix.',
     ]},{version:'v1.780',date:'2026-07-30',items:[
       'BUG TROVATO E CORRETTO (segnalato da Alby: le foto dei giocatori mancavano sempre durante il voto): la pagina di voto leggeva la foto solo dal campo inline del giocatore (p.foto), ma dopo la migrazione delle foto in un nodo Firebase separato (playerPhotos/{uid} — stesso meccanismo già usato da syncFromCloud per il resto dell\'app) quel campo risulta quasi sempre vuoto. Aggiunta un\'unica richiesta in più per leggere questo nodo separato e usarlo come fallback, sia per i giocatori da votare sia per il riconoscimento del PIN. Testato: un giocatore con foto solo nel nodo separato ora la mostra correttamente, un giocatore senza foto da nessuna parte mostra correttamente il segnaposto ⚽.',
@@ -9026,6 +9045,9 @@ createApp({
     const activeFormation    = ref(null);  // formation being played
     const roleFilter         = ref('Tutti');
     const groupFormations    = ref([]);
+    // Formazioni già giocate spariscono dalla lista attiva (restano comunque consultabili nella
+    // partita corrispondente, sotto "Partite" — richiesta di Alby, 1/8/2026).
+    const activeFormations    = computed(() => groupFormations.value.filter(f => f.stato !== 'giocata'));
     const statsTab          = ref('overall');
     const showSendFormation = ref(false);
     const showNuovaMenu      = ref(false);   // modal invia formazione
@@ -9066,7 +9088,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.781');
+    const appVersion = ref('1.783');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9966,7 +9988,7 @@ createApp({
       return (pa?.piede==='Sinistro'?1:0)-(pb?.piede==='Sinistro'?1:0);
     });
     const splitGK = (a,b,players) => {
-      const gkIds=players.filter(p=>p.ruolo==='Portiere').map(p=>p.id);
+      const gkIds=players.filter(p=>p.ruolo==='Portiere').map(p=>p.uid);
       if(gkIds.length<2) return;
       const aH=a.some(id=>gkIds.includes(id)), bH=b.some(id=>gkIds.includes(id));
       if(aH&&bH) return;
@@ -10132,8 +10154,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
         const formazioni = parsed.formazioni || [];
         if (!formazioni.length) throw new Error('Nessuna formazione generata');
 
+        // BUG TROVATO 1/8/2026 (segnalato da Alby, confermato con Inspector: tutti i 12 giocatori
+        // di una formazione generata dall'AI finiti con id numerico locale invece di uid): questa
+        // mappa nome→identificativo usava p.id invece di p.uid — quindi OGNI giocatore risolto dal
+        // nome restituito dall'AI finiva con l'id sbagliato, sempre, non solo a volte. Causa
+        // principale del bug. Ora usa p.uid, come fa correttamente la creazione Manuale.
         const nameMap = {};
-        players.forEach(p => { nameMap[(p.soprannome||p.nome||'').toLowerCase()] = p.id; });
+        players.forEach(p => { nameMap[(p.soprannome||p.nome||'').toLowerCase()] = p.uid; });
         const resolveId = name => {
           const n = (name||'').toLowerCase();
           if (nameMap[n]) return nameMap[n];
@@ -10146,7 +10173,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           const aIds = (fz.squadraA?.giocatori||[]).map(resolveId).filter(Boolean);
           const bIds = (fz.squadraB?.giocatori||[]).map(resolveId).filter(Boolean);
           const assigned = new Set([...aIds,...bIds]);
-          players.forEach((p,idx) => { if(!assigned.has(p.id)) idx%2===0?aIds.push(p.id):bIds.push(p.id); });
+          players.forEach((p,idx) => { if(!assigned.has(p.uid)) idx%2===0?aIds.push(p.uid):bIds.push(p.uid); });
           splitGK(aIds, bIds, players);
           await db.formations.add({
             ...buildFormationBase(),
@@ -10183,20 +10210,25 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const jol  = players.filter(p => p.ruolo === 'Jolly');
       const other = [...mids, ...jol]; // midfielders + jolly
 
+      // BUG TROVATO 1/8/2026 (segnalato da Alby, confermato con Inspector: 12 giocatori su 12 in
+      // una formazione AI finiti con id numerico locale invece di uid): portiere e primi due
+      // attaccanti venivano SEMPRE assegnati con p.id (l'id numerico locale del database, mai
+      // corretto per squadraA/squadraB) — non un ripiego occasionale, succedeva ogni volta. Ora
+      // usa sempre p.uid, come fa correttamente la creazione Manuale.
       if (gks.length >= 2) {
-        a.push(gks[0].id); b.push(gks[1].id);
+        a.push(gks[0].uid); b.push(gks[1].uid);
       } else if (gks.length === 1) {
-        a.push(gks[0].id);
+        a.push(gks[0].uid);
       }
 
       if (atts.length >= 2) {
-        a.push(atts[0].id); b.push(atts[1].id);
+        a.push(atts[0].uid); b.push(atts[1].uid);
       } else if (atts.length === 1) {
-        a.push(atts[0].id);
+        a.push(atts[0].uid);
       }
 
       const usedIds = new Set([...a, ...b]);
-      const remaining = players.filter(p => !usedIds.has(p.id));
+      const remaining = players.filter(p => !usedIds.has(p.uid));
 
       let sortedRem;
       if (strategy === 'score') {
@@ -10221,8 +10253,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
       rotated.forEach((p, idx) => {
         const round = Math.floor(idx / 2);
         const pickA = round % 2 === 0 ? idx % 2 === 0 : idx % 2 === 1;
-        if (pickA && a.length < halfA) a.push(p.uid||String(p.id));
-        else b.push(p.uid||String(p.id));
+        if (pickA && a.length < halfA) a.push(p.uid);
+        else b.push(p.uid);
       });
       while (a.length > halfA) { b.push(a.pop()); }
       while (b.length > half + 1) { a.push(b.pop()); }
@@ -17804,7 +17836,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if(matches.length>=3){
           let bestRiv=null,maxMeet=0;
           for(let i=0;i<el3.length;i++) for(let j=i+1;j<el3.length;j++){
-            const meet=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(el3[i].id)),ib=(m.squadraB||[]).map(String).includes(String(el3[i].id)),ja=(m.squadraA||[]).map(String).includes(String(el3[j].id)),jb=(m.squadraB||[]).map(String).includes(String(el3[j].id));return(ia&&jb)||(ib&&ja);}).length;
+            const meet=matches.filter(m=>{const ia=(m.squadraA||[]).map(String).includes(String(el3[i].uid)),ib=(m.squadraB||[]).map(String).includes(String(el3[i].uid)),ja=(m.squadraA||[]).map(String).includes(String(el3[j].uid)),jb=(m.squadraB||[]).map(String).includes(String(el3[j].uid));return(ia&&jb)||(ib&&ja);}).length;
             if(meet>maxMeet){maxMeet=meet;bestRiv=[el3[i],el3[j],meet];}
           }
           if(bestRiv&&maxMeet>=2){const[ra,rb,meet]=bestRiv;items.push({uid:ra.uid,foto:ra.foto,emoji:'🥊',text:`Rivalità storica: ${ra.soprannome||ra.nome} vs ${rb.soprannome||rb.nome} si sono affrontati ${meet} volte! Il derby personale più acceso.`});}
@@ -18155,6 +18187,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const voteDbUrl       = ref('');
     const voteGroupKey    = ref('');
     const voteMatchInfo   = ref(null);
+    // Statistiche del giocatore attualmente da votare (gol/assist/autogol/rigori/uomo partita) —
+    // mostrate durante il voto perché chi vota possa ricordare cosa è successo, non solo il nome.
+    const voteCurrentTargetStats = computed(() => {
+      const t = voteTargets.value[voteCurrentIdx.value];
+      if (!t) return null;
+      const stats = voteMatchInfo.value?.statisticheGiocatori || [];
+      return stats.find(s => s && s.playerId === t.uid) || null;
+    });
     const voteEligiblePlayers = ref([]); // chi PUÒ votare: chi ha giocato + admin
     const voteMatchTargets = ref([]); // chi va VOTATO: solo chi ha giocato davvero (mai gli admin che non hanno giocato)
     const voteMatchDetails = ref(null); // {groupName, marcatori:[], autogol:[], rigoriParati:[], rigoriSbagliati:[]}
@@ -21507,7 +21547,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
       detailMatch, detailMatchReadonly, detailMatchPlayers, getPlayerForDetail, playerPhotoCacheByUid, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, teamA, teamB, matchGoalA, matchGoalB,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
-      activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, pngFormation, filteredPlayersForSelect,
+      activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
@@ -21541,7 +21581,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
       firebaseUser, fbAuthLoading, showFbPwd, fbLoginEmail, fbLoginPwd, fbIdToken,
       votePinStatus, votePinStatusLoaded, pinLoading, showPinRevealModal, pinRevealData, generateVotePin, loadVotePinStatus,
-      voteMode, voteAppLogo, closeVotePage, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteEligiblePlayers, voteSelectedVoter,
+      voteMode, voteAppLogo, closeVotePage, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteCurrentTargetStats, voteEligiblePlayers, voteSelectedVoter,
       voteMatchTargets, voteMatchDetails, voteRawInputs, voteInputErr, ROLE_EMOJI,
       votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteSubmitting,
       voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
