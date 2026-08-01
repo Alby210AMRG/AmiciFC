@@ -3207,7 +3207,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             @click="viewMatch(m)">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
               <span style="font-size:9px;color:var(--text2);font-weight:600">{{formatDate(m.data)}}</span>
-              <span v-if="m.uomoPartita||m.mvp" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FEF3C7;color:#92400E;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⭐ {{m.uomoPartita||m.mvp}}</span>
+              <span v-if="m.votazioneCondivisaPending" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:rgba(167,139,250,0.18);color:#a78bfa;flex-shrink:0">🗳️ Votazione in corso</span>
+              <span v-else-if="m.uomoPartita||m.mvp" style="font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;background:#FEF3C7;color:#92400E;flex-shrink:0;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">⭐ {{m.uomoPartita||m.mvp}}</span>
             </div>
             <div style="display:flex;flex-direction:column;gap:2px">
               <div style="display:flex;align-items:center;gap:8px">
@@ -8068,7 +8069,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.783',date:'2026-08-01',items:[
+    const changelogEntries = [{version:'v1.784',date:'2026-08-01',items:[
+      'Badge "🗳️ Votazione in corso" aggiunto anche nella card "Ultime Partite" in home (era già presente nella lista partite recenti e nel calendario, mancava qui — segnalato da Alby durante i test).',
+    ]},{version:'v1.783',date:'2026-08-01',items:[
       'Le formazioni già giocate ora spariscono dalla lista "Formazioni" invece di restarci con l\'etichetta "Già giocata" — restano comunque consultabili nella partita corrispondente, sotto "Partite" (richiesta di Alby).',
       'Pagelle Multi-Utente — durante il voto ora si vede anche cosa ha fatto il giocatore in quella partita (⚽ gol, 🅰️ assist, ⚠️ autogol, 🥅 rigori parati, ❌ rigori sbagliati) e se è stato eletto ⭐ Uomo Partita — così chi vota se lo ricorda mentre dà il voto, non solo il nome del giocatore.',
     ]},{version:'v1.782',date:'2026-08-01',items:[
@@ -9088,7 +9091,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.783');
+    const appVersion = ref('1.784');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
