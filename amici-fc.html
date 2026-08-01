@@ -8054,7 +8054,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.780',date:'2026-07-30',items:[
+    const changelogEntries = [{version:'v1.781',date:'2026-07-31',items:[
+      'Pagelle Multi-Utente — pulizia dati orfani (segnalato da Alby con un test reale: eliminando una partita con votazione in corso, i dati del voto restavano su Firebase senza più nessuna partita a cui riferirsi). Ora: (1) eliminando una partita con votazione condivisa in corso, viene mostrato un avviso specifico prima di procedere ("il link smetterà di funzionare, i voti raccolti finora andranno persi"); (2) i dati della votazione associata vengono eliminati automaticamente da Firebase insieme alla partita, invece di restare orfani; (3) in Inspector (Manutenzione → Votazioni), le sessioni già orfane vengono segnalate con un badge dedicato e si possono eliminare una alla volta o tutte insieme, per ripulire anche i casi già esistenti prima di questo fix.',
+    ]},{version:'v1.780',date:'2026-07-30',items:[
       'BUG TROVATO E CORRETTO (segnalato da Alby: le foto dei giocatori mancavano sempre durante il voto): la pagina di voto leggeva la foto solo dal campo inline del giocatore (p.foto), ma dopo la migrazione delle foto in un nodo Firebase separato (playerPhotos/{uid} — stesso meccanismo già usato da syncFromCloud per il resto dell\'app) quel campo risulta quasi sempre vuoto. Aggiunta un\'unica richiesta in più per leggere questo nodo separato e usarlo come fallback, sia per i giocatori da votare sia per il riconoscimento del PIN. Testato: un giocatore con foto solo nel nodo separato ora la mostra correttamente, un giocatore senza foto da nessuna parte mostra correttamente il segnaposto ⚽.',
     ]},{version:'v1.779',date:'2026-07-30',items:[
       'Pagelle Multi-Utente — rifiniture sulla pagina di voto (richiesta di Alby): (1) logo e slogan dell\'app sopra "Vota la partita", per renderla più riconoscibile e meno "pagina anonima" (logo letto a runtime, stesso pattern già usato per il PDF Riepilogo Stagione); (2) aggiunto un bottone "Chiudi" dopo "Voto inviato!" invece di lasciare solo scritto "puoi chiudere questa pagina" — prova a chiudere la scheda e, se non ci riesce (il link arriva da WhatsApp, non da uno script, quindi window.close() spesso non funziona), porta all\'app normale invece di restare su una pagina morta; (3) messaggio di errore PIN reso più caloroso — nota tecnica: non è possibile distinguere con certezza "PIN sbagliato" da "PIN giusto ma senza diritto di voto per questa partita specifica", perché il PIN di chi non è eleggibile per quella partita non viene mai verificato — il messaggio ora copre onestamente entrambi i casi invece di affermare una causa che non possiamo conoscere con certezza.',
@@ -9064,7 +9066,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.780');
+    const appVersion = ref('1.781');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14289,11 +14291,24 @@ Niente altro, nessuna spiegazione.`;
       toast('🗑️ Partita eliminata', 'error');
     };
     const deleteMatch = async id => {
-      if (!confirm('Eliminare questa partita?')) return;
       const _m = await db.matches.get(id);
+      const _hasVote = _m?.votazioneCondivisaPending === true;
+      const _confirmMsg = _hasVote
+        ? '🗳️ Questa partita ha una votazione condivisa in corso.\n\nEliminandola, il link già condiviso smetterà di funzionare e i voti raccolti finora andranno persi.\n\nEliminare comunque?'
+        : 'Eliminare questa partita?';
+      if (!confirm(_confirmMsg)) return;
       await db.matches.delete(id);
       await loadGroupData();
       await _pushDeletionToCloud(_m?.matchUUID);
+      // Pulizia della votazione condivisa associata, se presente — altrimenti resta orfana su
+      // Firebase (nessuna partita a cui più riferirsi). Tentativo best-effort: se fallisce, la
+      // partita è comunque stata eliminata correttamente, non blocchiamo l'utente per questo.
+      if (_m?.matchUUID) {
+        try {
+          const _tok = await getValidToken();
+          if (_tok) await _fbWrite(`votes/${_aiCardGroupKey()}/${_m.matchUUID}`, null, _tok);
+        } catch(e) { console.warn('[deleteMatch] pulizia votazione associata fallita:', e.message); }
+      }
       toast('🗑️ Partita eliminata', 'error');
     };
 
