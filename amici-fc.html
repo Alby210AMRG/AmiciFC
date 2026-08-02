@@ -6338,10 +6338,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="modal-handle"></div>
       <button class="modal-close" @click="showPlayerDetail=false" style="position:absolute;top:14px;right:16px;z-index:2">✕</button>
       <div style="text-align:center;margin-bottom:20px;position:relative;overflow:hidden">
-        <!-- Filigrana numero preferito: stesso stile watermark già usato nelle card Home
-             (font-weight 900, opacità bassa, dietro badge/foto, pointer-events:none) —
-             mostrata solo se il giocatore ha impostato un numero (2/8/2026) -->
-        <div v-if="detailPlayer.numeroMaglia" style="position:absolute;top:-14px;right:-8px;font-size:120px;font-weight:900;opacity:.10;line-height:1;letter-spacing:-4px;color:var(--text);pointer-events:none;z-index:0">{{ detailPlayer.numeroMaglia }}</div>
+        <!-- Filigrana numero preferito: grande, diagonale a 45°, ancorata al centro dell'intero
+             blocco header così attraversa da bordo a bordo passando anche dietro la foto
+             (photo/nome/nick hanno z-index:1 esplicito, la filigrana z-index:0 — richiesta di
+             Alby, 2/8/2026: molto più grande della versione precedente, non più confinata
+             all'angolo in alto a destra). Font-size diverso per 1 vs 2 cifre — verificato con
+             analisi pixel (Playwright+sharp) che entrambi i casi coprano da bordo a bordo del
+             box header (container 380px, header ~332px utili): 2 cifre 320px -> copertura ~98%,
+             1 cifra 440px -> ~80% (limite fisico: un singolo carattere è più "quadrato", a parità
+             di altezza disponibile non può allungarsi in orizzontale quanto due cifre affiancate). -->
+        <div v-if="detailPlayer.numeroMaglia" :style="'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(-45deg);font-size:'+(String(detailPlayer.numeroMaglia).length>1?'320px':'440px')+';font-weight:900;line-height:1;opacity:.12;color:var(--text);pointer-events:none;z-index:0;white-space:nowrap'">{{ detailPlayer.numeroMaglia }}</div>
         <!-- Badge infortunio in alto a destra -->
         <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:#e53e3e;border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px rgba(229,62,62,.4);z-index:1">
           <span style="font-size:16px">🏥</span>
@@ -6421,6 +6427,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
           <span style="font-size:0.82rem;color:var(--text2)">😬 Autogol</span>
           <span style="font-size:1.2rem;font-weight:700" :style="(detailPlayer.autogolTotali||0)>0?'color:var(--red)':''" >{{ detailPlayer.autogolTotali||0 }}</span>
+        </div>
+        <!-- Riga 6 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">✅ Vittorie</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--lime)">{{ detailPlayerRecord.vittorie }}</span>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">➖ Pareggi</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--yellow)">{{ detailPlayerRecord.pareggi }}</span>
+        </div>
+        <!-- Riga 7 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">❌ Sconfitte</span>
+          <span style="font-size:1.2rem;font-weight:700" :style="detailPlayerRecord.sconfitte>0?'color:var(--red)':'color:var(--text2)'">{{ detailPlayerRecord.sconfitte }}</span>
+        </div>
+        <div v-if="detailPlayer.numeroMaglia" style="display:flex;align-items:center;justify-content:space-between;background:var(--bg3);border-radius:10px;padding:10px 14px">
+          <span style="font-size:0.82rem;color:var(--text2)">🔢 Numero</span>
+          <span style="font-size:1.2rem;font-weight:700;color:var(--text)">{{ detailPlayer.numeroMaglia }}</span>
         </div>
       </div>
 
@@ -8121,7 +8145,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.787',date:'2026-08-02',items:[
+    const changelogEntries = [{version:'v1.788',date:'2026-08-02',items:[
+      'Maschera giocatore: filigrana numero preferito ridisegnata su richiesta di Alby — molto più grande, diagonale a 45°, attraversa tutta la larghezza della scheda passando anche dietro la foto (prima era piccola e confinata all\'angolo in alto a destra).',
+      'Scheda giocatore: aggiunte alle statistiche Vittorie/Pareggi/Sconfitte (stagione corrente) e il Numero Preferito, quando impostato.',
+    ]},{version:'v1.787',date:'2026-08-02',items:[
       'Nuovo campo "🔢 Numero Preferito" nella scheda giocatore (opzionale, 1-99, numeri ripetuti tra giocatori ammessi) — usato dall\'Identikit AI per personalizzare soprannome/confronto, e come filigrana grande in stile serigrafia sulla card PNG condivisibile del giocatore (sostituisce la filigrana pallone quando impostato) e sulla maschera giocatore in-app (angolo in alto a destra, dietro foto/badge).',
     ]},{version:'v1.786',date:'2026-08-01',items:[
       'Modalità "Uno alla Volta" — quattro rifiniture su segnalazione di Alby: (1) box colorato per squadra attorno ai dati di ogni giocatore durante l\'inserimento (blu/rosso), invece del solo colore sulla foto; (2) "Riepilogo Finale →" ora resta bloccato finché non selezioni l\'Uomo Partita E premi "Usa questo risultato" (o imposti il punteggio a mano) — prima si poteva proseguire senza nessuno dei due, scoprendo il problema solo dopo, nella schermata successiva; (3) rimosso il bottone "Salva senza AI" (bypassava il riepilogo finale); (4) la card successiva rinominata da "Articolo AI — Stile Giornale" a "Riepilogo Finale", con testo che chiarisce che tutto è opzionale — foto, titolo, note, e la generazione dell\'articolo stesso.',
@@ -8976,6 +9003,27 @@ createApp({
       detailPlayer.value?.uid || detailPlayer.value?.id ? playerFormHistory(detailPlayer.value.uid || detailPlayer.value.id, detailPlayerMatches.value || groupMatches.value) : []
     );
 
+    // Vittorie/Pareggi/Sconfitte del giocatore — stagione corrente (stesso set di dati di
+    // partiteTotali/goalTotali ecc., non risente del filtro stagione del tab Storico).
+    // Stessa logica di confronto squadraA/squadraB + risultato.goalA/goalB di playerFormHistory,
+    // ma su tutte le partite (non limitata alle ultime 10) e come conteggio totale, non serie.
+    const detailPlayerRecord = computed(() => {
+      const out = { vittorie: 0, pareggi: 0, sconfitte: 0 };
+      const p = detailPlayer.value;
+      if (!p) return out;
+      const uid = p.uid || String(p.id);
+      for (const m of groupMatches.value) {
+        const inA = (m.squadraA||[]).map(String).includes(uid);
+        const inB = (m.squadraB||[]).map(String).includes(uid);
+        if (!inA && !inB) continue;
+        const gA = m.risultato?.goalA||0, gB = m.risultato?.goalB||0;
+        if (gA === gB) out.pareggi++;
+        else if ((inA && gA>gB) || (inB && gB>gA)) out.vittorie++;
+        else out.sconfitte++;
+      }
+      return out;
+    });
+
     // Partite del giocatore filtrate per stagione — usate nel tab Storico
     const detailPlayerHistoryMatches = computed(() => {
       const p = detailPlayer.value;
@@ -9150,7 +9198,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.787');
+    const appVersion = ref('1.788');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -21644,7 +21692,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
       statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsMediaVotoDinamica, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
-      detailPlayerReadOnly, detailPlayerFormHistory, detailPlayerTab, detailPlayerSeasonFilter, detailPlayerHistoryMatches, openHistoryMatch, backToPlayer, detailMatchFromPlayer,
+      detailPlayerReadOnly, detailPlayerFormHistory, detailPlayerRecord, detailPlayerTab, detailPlayerSeasonFilter, detailPlayerHistoryMatches, openHistoryMatch, backToPlayer, detailMatchFromPlayer,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup, toggleTrackAssist,
