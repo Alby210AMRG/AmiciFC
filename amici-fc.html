@@ -1836,7 +1836,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="font-weight:800;font-size:0.95rem;color:var(--lime)">Uno alla Volta</div>
             <div style="font-size:0.72rem;color:var(--text2)">Step by Step</div>
           </div>
-          <span style="margin-left:auto;background:var(--lime);color:#000;font-size:0.65rem;font-weight:700;padding:3px 8px;border-radius:10px">CONSIGLIATO</span>
         </div>
         <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
           Un giocatore per schermata con foto grande. Inserisci i dati uno per volta, poi confermi il risultato.
@@ -1844,13 +1843,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
       <!-- Tutti Insieme -->
       <div @click="startClassicMode"
-        style="border:1px solid var(--border);border-radius:12px;padding:16px;cursor:pointer;background:rgba(255,255,255,0.03);transition:background .2s"
-        @mouseover="$event.currentTarget.style.background='rgba(255,255,255,0.06)'"
-        @mouseleave="$event.currentTarget.style.background='rgba(255,255,255,0.03)'">
+        style="border:2px solid var(--blue);border-radius:12px;padding:16px;cursor:pointer;background:rgba(58,123,255,0.06);transition:background .2s"
+        @mouseover="$event.currentTarget.style.background='rgba(58,123,255,0.12)'"
+        @mouseleave="$event.currentTarget.style.background='rgba(58,123,255,0.06)'">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <span style="font-size:1.4rem">📋</span>
           <div>
-            <div style="font-weight:800;font-size:0.95rem">Tutti Insieme</div>
+            <div style="font-weight:800;font-size:0.95rem;color:var(--blue)">Tutti Insieme</div>
             <div style="font-size:0.72rem;color:var(--text2)">Modalità Classica</div>
           </div>
         </div>
@@ -1858,16 +1857,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           Tutti i giocatori in un'unica schermata. Veloce se hai già i dati pronti.
         </div>
       </div>
-      <!-- Vota con gli amici (Pagelle Multi-Utente, in test) -->
+      <!-- Vota con gli amici (Pagelle Multi-Utente) -->
       <div @click="startVoteWithFriendsMode"
-        style="border:1px dashed #a78bfa;border-radius:12px;padding:16px;margin-top:10px;cursor:pointer;background:rgba(167,139,250,0.06);transition:background .2s"
+        style="border:2px solid #a78bfa;border-radius:12px;padding:16px;margin-top:10px;cursor:pointer;background:rgba(167,139,250,0.06);transition:background .2s"
         @mouseover="$event.currentTarget.style.background='rgba(167,139,250,0.12)'"
         @mouseleave="$event.currentTarget.style.background='rgba(167,139,250,0.06)'">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <span style="font-size:1.4rem">🗳️</span>
           <div>
             <div style="font-weight:800;font-size:0.95rem;color:#a78bfa">Vota con gli amici</div>
-            <div style="font-size:0.68rem;color:#a78bfa;font-weight:700">🧪 Test — non ancora da usare</div>
           </div>
         </div>
         <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
@@ -3673,6 +3671,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 {{ stepByStepIdx===stepByStepPlayers.length-1 ? '✅ Riepilogo →' : 'Avanti →' }}
               </button>
             </div>
+            <!-- Box colorato per squadra attorno a tutti i dati del giocatore (richiesta di Alby,
+                 1/8/2026: durante l'inserimento deve essere chiaro a colpo d'occhio in che
+                 squadra si trova) -->
+            <div style="border-radius:14px;padding:14px 12px 8px;border:2px solid"
+              :style="teamA.includes(pid)?'border-color:var(--blue);background:rgba(58,123,255,0.05)':'border-color:var(--red);background:rgba(255,77,77,0.05)'">
             <!-- 3. Foto -->
             <div style="display:flex;justify-content:center;margin-top:4px">
               <div style="width:90px;height:90px;border-radius:50%;overflow:hidden;border:3px solid"
@@ -3751,6 +3754,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
 
+          </div>
         </div>
 
         <!-- Schermata riepilogo finale -->
@@ -3863,16 +3867,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               ⭐ Top Scorer: {{ getPlayer(computedMVP)?.soprannome||getPlayer(computedMVP)?.nome }}
             </span>
           </div>
+          <div v-if="!computedUomoPartita || scoreMismatch" style="text-align:center;font-size:0.72rem;color:var(--yellow);margin-bottom:2px">
+            ⚠️ <span v-if="!computedUomoPartita">Seleziona l'Uomo Partita</span><span v-if="!computedUomoPartita && scoreMismatch"> e</span><span v-if="scoreMismatch"> premi "Usa questo risultato"</span> per continuare
+          </div>
           <!-- Bottoni -->
           <div style="display:flex;gap:10px">
             <button class="btn btn-ghost" style="flex:1" @click="stepByStepDone=false">← Indietro</button>
-            <button class="btn btn-primary" style="flex:2" @click="sbsGoAI">
-              📰 Articolo AI →
+            <button class="btn btn-primary" style="flex:2" :disabled="!computedUomoPartita||scoreMismatch" @click="sbsGoAI">
+              📝 Riepilogo Finale →
             </button>
           </div>
-          <button class="btn btn-ghost btn-full btn-sm" style="margin-top:-4px;color:var(--lime)" @click="saveMatch">
-            💾 Salva senza AI
-          </button>
         </div>
       </div>
     </template>
@@ -4143,7 +4147,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </button>
 
         <div v-if="!matchIsVoteMode" class="card">
-          <div class="card-title">🤖 Articolo AI — Stile Giornale</div>
+          <div class="card-title">📝 Riepilogo Finale</div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:12px">
+            Tutto qui sotto è opzionale — puoi salvare la partita senza compilare nulla. Se vuoi, aggiungi una foto, un titolo, delle note per aiutare l'AI, e genera un articolo in stile giornale sportivo.
+          </div>
           <!-- Foto partita opzionale -->
           <div class="input-group">
             <label class="input-label">📸 Foto partita (opzionale — apparirà nel giornale)</label>
@@ -8099,7 +8106,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.785',date:'2026-08-01',items:[
+    const changelogEntries = [{version:'v1.786',date:'2026-08-01',items:[
+      'Modalità "Uno alla Volta" — quattro rifiniture su segnalazione di Alby: (1) box colorato per squadra attorno ai dati di ogni giocatore durante l\'inserimento (blu/rosso), invece del solo colore sulla foto; (2) "Riepilogo Finale →" ora resta bloccato finché non selezioni l\'Uomo Partita E premi "Usa questo risultato" (o imposti il punteggio a mano) — prima si poteva proseguire senza nessuno dei due, scoprendo il problema solo dopo, nella schermata successiva; (3) rimosso il bottone "Salva senza AI" (bypassava il riepilogo finale); (4) la card successiva rinominata da "Articolo AI — Stile Giornale" a "Riepilogo Finale", con testo che chiarisce che tutto è opzionale — foto, titolo, note, e la generazione dell\'articolo stesso.',
+      'Menu di scelta modalità ("Gioca questa") — tolta l\'etichetta "CONSIGLIATO" da "Uno alla Volta" e "🧪 Test — non ancora da usare" da "Vota con gli amici"; le tre opzioni ora hanno tutte un bordo pieno con colori diversi e coerenti col resto dell\'app (verde/lime, blu, viola) invece del mix di bordo pieno/tratteggiato/neutro di prima.',
+    ]},{version:'v1.785',date:'2026-08-01',items:[
       'Pagelle Multi-Utente — in "Vota con gli amici", sotto Uomo Partita ora c\'è un box per inserire già foto/titolo/note dell\'articolo AI (senza il bottone Genera, che resta disponibile solo dopo la chiusura della votazione) — prima questi campi erano completamente nascosti fino a "Modifica Partita", ora si possono preparare subito invece di doverci tornare dopo (proposta di Alby).',
     ]},{version:'v1.784',date:'2026-08-01',items:[
       'Badge "🗳️ Votazione in corso" aggiunto anche nella card "Ultime Partite" in home (era già presente nella lista partite recenti e nel calendario, mancava qui — segnalato da Alby durante i test).',
@@ -9123,7 +9133,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.785');
+    const appVersion = ref('1.786');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
