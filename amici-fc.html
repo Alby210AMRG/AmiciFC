@@ -4187,8 +4187,38 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </button>
           </div>
         </div>
-        <div v-else style="text-align:center;font-size:0.75rem;color:var(--text2);padding:10px;background:var(--bg3);border-radius:10px;margin-bottom:16px">
-          ⏳ L'articolo AI si potrà generare dopo la chiusura della votazione, quando i voti saranno noti
+        <div v-else class="card">
+          <div class="card-title">📝 Prepara i dati per l'articolo AI</div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:12px">
+            L'articolo vero e proprio si potrà generare solo dopo la chiusura della votazione (serve il voto per scrivere un buon commento) — ma foto, titolo e note puoi già inserirli ora, così sono pronti e non c'è bisogno di tornare indietro.
+          </div>
+          <!-- Foto partita opzionale -->
+          <div class="input-group">
+            <label class="input-label">📸 Foto partita (opzionale — apparirà nel giornale)</label>
+            <div style="display:flex;gap:8px;align-items:center">
+              <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+                📷 Carica foto
+                <input type="file" accept="image/*" style="display:none" @change="handleMatchPhoto">
+              </label>
+              <span v-if="matchPhoto" style="font-size:0.75rem;color:var(--lime)">✅ Foto caricata</span>
+              <button v-if="matchPhoto" class="btn btn-ghost btn-sm" @click="matchPhoto=''">✕ Rimuovi</button>
+            </div>
+            <img v-if="matchPhoto" :src="matchPhoto" style="margin-top:8px;width:100%;max-height:140px;object-fit:cover;border-radius:10px;border:1px solid var(--border)">
+          </div>
+          <!-- Titolo articolo -->
+          <div class="input-group">
+            <label class="input-label">📰 Titolo dell'articolo (opzionale)</label>
+            <input class="input-field" v-model="articleTitle"
+              placeholder="Es. RIMONTA EPICA! Gli eroi della serata…">
+          </div>
+          <!-- Note per l'AI -->
+          <div class="input-group">
+            <label class="input-label">📝 Note per l'articolo AI (opzionale)</label>
+            <div style="font-size:0.68rem;color:var(--text2);margin-bottom:4px">Episodi particolari, battute, rimonte, arbitraggio... qualsiasi cosa vuoi che l'AI tenga presente scrivendo il commento</div>
+            <textarea class="input-field" v-model="matchNotes"
+              placeholder="Es. Partita intensa, molto fisica. Arbitraggio controverso nel secondo tempo..."
+              rows="2" style="resize:vertical;min-height:56px"></textarea>
+          </div>
         </div>
 
         <div v-if="!computedUomoPartita" style="text-align:center;font-size:0.72rem;color:var(--yellow);margin-bottom:8px">
@@ -8069,7 +8099,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.784',date:'2026-08-01',items:[
+    const changelogEntries = [{version:'v1.785',date:'2026-08-01',items:[
+      'Pagelle Multi-Utente — in "Vota con gli amici", sotto Uomo Partita ora c\'è un box per inserire già foto/titolo/note dell\'articolo AI (senza il bottone Genera, che resta disponibile solo dopo la chiusura della votazione) — prima questi campi erano completamente nascosti fino a "Modifica Partita", ora si possono preparare subito invece di doverci tornare dopo (proposta di Alby).',
+    ]},{version:'v1.784',date:'2026-08-01',items:[
       'Badge "🗳️ Votazione in corso" aggiunto anche nella card "Ultime Partite" in home (era già presente nella lista partite recenti e nel calendario, mancava qui — segnalato da Alby durante i test).',
     ]},{version:'v1.783',date:'2026-08-01',items:[
       'Le formazioni già giocate ora spariscono dalla lista "Formazioni" invece di restarci con l\'etichetta "Già giocata" — restano comunque consultabili nella partita corrispondente, sotto "Partite" (richiesta di Alby).',
@@ -9091,7 +9123,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.784');
+    const appVersion = ref('1.785');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
