@@ -6230,6 +6230,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <div class="input-group">
+        <label class="input-label">🔢 Numero Preferito</label>
+        <input class="input-field" type="number" min="1" max="99" step="1"
+          v-model.number="playerForm.numeroMaglia" placeholder="Es: 10 (opzionale)">
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
+          Usato per l'Identikit AI e come filigrana sulla card giocatore. Numeri ripetuti tra giocatori sono ammessi.
+        </div>
+      </div>
+
+
+
       <!-- Rivalità e Affinità -->
       <div style="margin-top:12px;padding:12px;background:var(--bg3);border-radius:12px;border:1px solid var(--border)">
         <div style="font-weight:700;font-size:0.85rem;margin-bottom:10px">⚔️ Rivalità &amp; 🤝 Affinità <span style="color:var(--text2);font-size:0.75rem">(max 3 ciascuna, dalla 2ª formazione in poi)</span></div>
@@ -6326,17 +6337,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <div class="modal-sheet" style="position:relative">
       <div class="modal-handle"></div>
       <button class="modal-close" @click="showPlayerDetail=false" style="position:absolute;top:14px;right:16px;z-index:2">✕</button>
-      <div style="text-align:center;margin-bottom:20px;position:relative">
+      <div style="text-align:center;margin-bottom:20px;position:relative;overflow:hidden">
+        <!-- Filigrana numero preferito: stesso stile watermark già usato nelle card Home
+             (font-weight 900, opacità bassa, dietro badge/foto, pointer-events:none) —
+             mostrata solo se il giocatore ha impostato un numero (2/8/2026) -->
+        <div v-if="detailPlayer.numeroMaglia" style="position:absolute;top:-14px;right:-8px;font-size:120px;font-weight:900;opacity:.10;line-height:1;letter-spacing:-4px;color:var(--text);pointer-events:none;z-index:0">{{ detailPlayer.numeroMaglia }}</div>
         <!-- Badge infortunio in alto a destra -->
-        <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:#e53e3e;border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px rgba(229,62,62,.4)">
+        <div v-if="detailPlayer.infortunio" style="position:absolute;top:0;right:0;background:#e53e3e;border-radius:20px;padding:5px 12px;display:flex;align-items:center;gap:5px;box-shadow:0 0 12px rgba(229,62,62,.4);z-index:1">
           <span style="font-size:16px">🏥</span>
           <span style="font-size:10px;font-weight:800;color:#fff;letter-spacing:.5px">INFORTUNATO</span>
         </div>
-        <div class="player-avatar" :style="'width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;cursor:zoom-in;border:4px solid '+(detailPlayer.infortunio?'#f87171':(detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+(detailPlayer.infortunio?'rgba(248,113,113,0.4)':(detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')" @click="showPhotoLightbox=true">
+        <div class="player-avatar" :style="'position:relative;z-index:1;width:130px;height:130px;font-size:3.5rem;margin:0 auto 14px;cursor:zoom-in;border:4px solid '+(detailPlayer.infortunio?'#f87171':(detailPlayer.mediaVoto||0)>=7?'#4ade80':(detailPlayer.mediaVoto||0)>=5?'#FFD93D':'#FF4D4D')+';box-shadow:0 0 0 4px var(--bg),0 0 24px '+(detailPlayer.infortunio?'rgba(248,113,113,0.4)':(detailPlayer.mediaVoto||0)>=7?'rgba(74,222,128,0.3)':(detailPlayer.mediaVoto||0)>=5?'rgba(255,217,61,0.3)':'rgba(255,77,77,0.2)')" @click="showPhotoLightbox=true">
           <img :src="getPlayerPhoto(detailPlayer.foto, detailPlayer.uid)" :alt="detailPlayer.nome" @error="onPhotoError($event, detailPlayer.uid)" style="width:100%;height:100%;object-fit:cover;border-radius:50%">
         </div>
-        <div class="player-name" style="font-size:1.2rem">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
-        <div class="player-nick" style="font-size:1rem">"{{ detailPlayer.soprannome || 'Nessun soprannome' }}"</div>
+        <div class="player-name" style="font-size:1.2rem;position:relative;z-index:1">{{ detailPlayer.nome }} {{ detailPlayer.cognome }}</div>
+        <div class="player-nick" style="font-size:1rem;position:relative;z-index:1">"{{ detailPlayer.soprannome || 'Nessun soprannome' }}"</div>
         <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:8px">
           <span class="badge badge-gray">{{ detailPlayer.ruolo }}</span>
           <span v-if="detailPlayer.piede" class="badge badge-blue">🦶 {{ detailPlayer.piede }}</span>
@@ -8106,7 +8121,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.786',date:'2026-08-01',items:[
+    const changelogEntries = [{version:'v1.787',date:'2026-08-02',items:[
+      'Nuovo campo "🔢 Numero Preferito" nella scheda giocatore (opzionale, 1-99, numeri ripetuti tra giocatori ammessi) — usato dall\'Identikit AI per personalizzare soprannome/confronto, e come filigrana grande in stile serigrafia sulla card PNG condivisibile del giocatore (sostituisce la filigrana pallone quando impostato) e sulla maschera giocatore in-app (angolo in alto a destra, dietro foto/badge).',
+    ]},{version:'v1.786',date:'2026-08-01',items:[
       'Modalità "Uno alla Volta" — quattro rifiniture su segnalazione di Alby: (1) box colorato per squadra attorno ai dati di ogni giocatore durante l\'inserimento (blu/rosso), invece del solo colore sulla foto; (2) "Riepilogo Finale →" ora resta bloccato finché non selezioni l\'Uomo Partita E premi "Usa questo risultato" (o imposti il punteggio a mano) — prima si poteva proseguire senza nessuno dei due, scoprendo il problema solo dopo, nella schermata successiva; (3) rimosso il bottone "Salva senza AI" (bypassava il riepilogo finale); (4) la card successiva rinominata da "Articolo AI — Stile Giornale" a "Riepilogo Finale", con testo che chiarisce che tutto è opzionale — foto, titolo, note, e la generazione dell\'articolo stesso.',
       'Menu di scelta modalità ("Gioca questa") — tolta l\'etichetta "CONSIGLIATO" da "Uno alla Volta" e "🧪 Test — non ancora da usare" da "Vota con gli amici"; le tre opzioni ora hanno tutte un bordo pieno con colori diversi e coerenti col resto dell\'app (verde/lime, blu, viola) invece del mix di bordo pieno/tratteggiato/neutro di prima.',
     ]},{version:'v1.785',date:'2026-08-01',items:[
@@ -9133,7 +9150,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.786');
+    const appVersion = ref('1.787');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9694,8 +9711,8 @@ createApp({
     const openPlayerForm = p => {
       editingPlayer.value = p;
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', isAdminGruppo: !!p.isAdminGruppo }
-        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', rivali:[], affinita:[], infortunio:'', isAdminGruppo:false };
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', numeroMaglia: p.numeroMaglia||null, rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', isAdminGruppo: !!p.isAdminGruppo }
+        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', numeroMaglia:null, rivali:[], affinita:[], infortunio:'', isAdminGruppo:false };
       showPlayerForm.value = true;
     };
 
@@ -9704,6 +9721,13 @@ createApp({
       if (!f.nome.trim()) return;
       if (!currentGroup.value) return toast('Seleziona un gruppo prima!', 'error');
 
+      // Numero preferito: intero 1-99, o null se non impostato/non valido — niente controllo
+      // di unicità (Alby ha confermato, 2/8/2026: numeri ripetuti tra giocatori sono ammessi).
+      const _numeroMaglia = (() => {
+        const n = parseInt(f.numeroMaglia, 10);
+        return (Number.isFinite(n) && n >= 1 && n <= 99) ? n : null;
+      })();
+
       if (editingPlayer.value) {
         const updated = await db.players.update(editingPlayer.value.id, {
           nome:        f.nome.trim(),
@@ -9711,6 +9735,7 @@ createApp({
           soprannome:  f.soprannome?.trim() || '',
           ruolo:       f.ruolo || 'Jolly',
           piede:       f.piede || 'Destro',
+          numeroMaglia: _numeroMaglia,
           foto:        f.foto || '',
           descrizione: f.descrizione || '',
           fraseCelebre: f.fraseCelebre?.trim() || '',
@@ -9726,7 +9751,7 @@ createApp({
             await db.players.put({ ...editingPlayer.value,
               nome: f.nome.trim(), cognome: f.cognome?.trim()||'',
               soprannome: f.soprannome?.trim()||'', ruolo: f.ruolo||'Jolly',
-              piede: f.piede||'Destro', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', infortunio: f.infortunio?.trim()||'',
+              piede: f.piede||'Destro', numeroMaglia: _numeroMaglia, foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', infortunio: f.infortunio?.trim()||'',
               rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean),
               isAdminGruppo: !!f.isAdminGruppo,
             });
@@ -9742,6 +9767,7 @@ createApp({
         const newUid = uuid();
         await db.players.add({
           groupId: currentGroup.value.id, uid: newUid, ...f,
+          numeroMaglia: _numeroMaglia,
           goalTotali:0, assistTotali:0, autogolTotali:0,
           puntiTotali:0, partiteTotali:0, mediaPunti:0,
           mediaVoto:0, votiTotali:0, uomoPartitaTotali:0,
@@ -11585,10 +11611,25 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
       cDark.addColorStop(0,'rgba(0,0,0,0.55)');cDark.addColorStop(1,'transparent');
       ctx.fillStyle=cDark;ctx.fillRect(0,0,W,350);
 
-      // ═══ FILIGRANA PALLONE: ancorata all'angolo in alto a destra, grande, metà
-      // dentro metà fuori — stesso stile "sticker" del watermark emoji della PNG formazione
-      // (il bordo del canvas la taglia naturalmente, nessun clip esplicito necessario) ═══
-      if(ballImg){
+      // ═══ FILIGRANA: numero preferito del giocatore quando impostato, altrimenti il pallone
+      // di default — SOSTITUISCE, non convivono (richiesta di Alby, 2/8/2026). Stesso stile
+      // "sticker" del pallone: ancorata all'angolo in alto a destra, grande, semi-trasparente,
+      // metà dentro metà fuori (il bordo del canvas la taglia naturalmente, nessun clip esplicito
+      // necessario) — coerente anche con lo stile watermark numero già usato in-app (Home). ═══
+      if(p.numeroMaglia){
+        const numStr = String(p.numeroMaglia);
+        const fSize = numStr.length>1 ? 380 : 480;
+        ctx.save();
+        ctx.globalAlpha=0.20;
+        ctx.textAlign='right';
+        ctx.textBaseline='alphabetic';
+        ctx.font=`900 ${fSize}px "Segoe UI",Arial`;
+        ctx.fillStyle='#ffffff';
+        ctx.translate(W-20,10);
+        ctx.rotate(0.07);
+        ctx.fillText(numStr, 0, fSize*0.82);
+        ctx.restore();
+      } else if(ballImg){
         const WM=600;
         ctx.save();
         ctx.globalAlpha=0.22;
@@ -13080,6 +13121,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
           if (p.rigoriSbagliatiTotali) obj.rigori_sbagliati = p.rigoriSbagliatiTotali;
           if (p.rigoriParatiTotali) obj.rigori_parati = p.rigoriParatiTotali;
           if (p.descrizione) obj.descrizione_qualita = p.descrizione;
+          if (p.numeroMaglia) obj.numero_preferito = p.numeroMaglia;
           return obj;
         });
 
@@ -13090,6 +13132,7 @@ NOTE CAMPI:
 - partite_giocate: quante partite ha disputato in totale (NON è un punteggio)
 - punti_medi_a_partita: rendimento medio (punti per presenza, scala calcistica)
 - descrizione_qualita (se presente): note personali su stile di gioco, pregi e difetti — usale per personalizzare il soprannome e il confronto
+- numero_preferito (se presente): il numero di maglia scelto dal giocatore — puoi citarlo con ironia se si presta (es. legato a un calciatore famoso con quel numero), ma non è obbligatorio
 - autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
 REGOLE OBBLIGATORIE:
 - Riporta SEMPRE il campo "n" come numero, esattamente uguale a numero_riferimento
