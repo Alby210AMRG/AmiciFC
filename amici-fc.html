@@ -5239,7 +5239,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title" style="margin-bottom:6px">📇 Annuario giocatori</div>
         <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
         <div style="display:flex;flex-direction:column;gap:16px">
-          <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" style="display:flex;gap:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" class="rp-annuario-row" style="display:flex;gap:12px;border-top:1px solid var(--border);padding-top:12px">
             <img :src="p.foto" @error="onPhotoError($event, p.uid)" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
             <div style="font-size:0.82rem;line-height:1.6">
               <div style="font-weight:700">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.ruolo }}{{ p.piede ? ' · '+p.piede : '' }}</span> <span style="font-weight:800;color:var(--lime)">· OVR {{ p.overall }}</span></div>
@@ -5380,6 +5380,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <span class="toggle-slider"></span>
           </label>
         </div>
+      </div>
+
+      <!-- Gruppo — stessa azione già presente premendo sul nome del gruppo → "Gestisci Gruppi" -->
+      <div class="card">
+        <div class="card-title">👥 Gruppo</div>
+        <button class="btn btn-ghost btn-full" @click="currentView='groups'">
+          ⚙️ Gestisci Gruppi
+        </button>
       </div>
 
       <!-- Manuale del Campetto -->
@@ -8164,7 +8172,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.791',date:'2026-08-02',items:[
+    const changelogEntries = [{version:'v1.792',date:'2026-08-03',items:[
+      'Impostazioni: aggiunta la voce "⚙️ Gestisci Gruppi" (stessa azione già presente premendo sul nome del gruppo).',
+      'Riepilogo Stagione PDF — fix segnalato da Alby con screenshot: la foto del giocatore nell\'Annuario poteva essere tagliata a metà tra una pagina e l\'altra. Ora l\'intera riga giocatore (foto+testo+sparkline) è protetta come blocco atomico nel taglio pagina, non solo la foto.',
+    ]},{version:'v1.791',date:'2026-08-02',items:[
       'Riepilogo Stagione — Annuario giocatori: aggiunte Vittorie/Pareggi/Sconfitte della stagione e uno sparkline (piccola linea che sale/scende) dell\'andamento partita per partita durante tutta la stagione — non solo le ultime 10 come nella scheda giocatore. Nuovo parametro opzionale "cap" su playerFormHistory (già esistente, usato dal grafico Andamento Forma e dal confronto H2H) per riusarla senza duplicare la logica di calcolo vittoria/pareggio/sconfitta.',
     ]},{version:'v1.790',date:'2026-08-02',items:[
       'Piccola correzione: esempio placeholder del campo Squadra del Cuore aggiornato (Juventus, Barcellona, Arsenal).',
@@ -9223,7 +9234,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.791');
+    const appVersion = ref('1.792');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16406,12 +16417,20 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           const PROTECTED_MARGIN = 8;
           const elRect = el.getBoundingClientRect();
           const scale = elRect.width > 0 ? canvas.width / elRect.width : 2;
-          const protectedRanges = [...el.querySelectorAll('img')].map(img => {
-            const r = img.getBoundingClientRect();
+          const _toRange = (r) => {
             const top = Math.round((r.top - elRect.top) * scale) - PROTECTED_MARGIN;
             const bottom = Math.round((r.bottom - elRect.top) * scale) + PROTECTED_MARGIN;
             return [Math.max(0, top), Math.min(canvas.height, bottom)];
-          }).filter(([t, b]) => b > t);
+          };
+          // Oltre alla singola <img>, protegge anche l'intera riga giocatore dell'Annuario
+          // (.rp-annuario-row) come blocco atomico — non solo la foto ma anche il testo e lo
+          // sparkline sotto: dopo l'aggiunta dello sparkline (v1.791) la riga è più alta e la sola
+          // protezione della foto non basta più a evitare che il taglio pagina cada a metà riga,
+          // segnalato da Alby con screenshot (foto giocatore tagliata tra una pagina e l'altra).
+          const protectedRanges = [
+            ...[...el.querySelectorAll('img')].map(img => _toRange(img.getBoundingClientRect())),
+            ...[...el.querySelectorAll('.rp-annuario-row')].map(row => _toRange(row.getBoundingClientRect()))
+          ].filter(([t, b]) => b > t);
           return { canvas, protectedRanges };
         };
         const _pushPiece = (piece, gapAfter) => {
