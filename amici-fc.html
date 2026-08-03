@@ -8172,7 +8172,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.792',date:'2026-08-03',items:[
+    const changelogEntries = [{version:'v1.793',date:'2026-08-03',items:[
+      'Riepilogo Stagione PDF — fix VERO del taglio riga nell\'Annuario (Alby ha mandato il PDF reale e trovato "Mister X" tagliato a metà: intestazione sola in fondo a una pagina, foto e testo ripartiti in cima alla successiva, nonostante il fix v1.792). Causa reale trovata con Playwright + html2canvas vero: 1) un ramo della logica di protezione non correggeva il taglio quando la riga era già "in corso" nella pagina corrente; 2) le righe dell\'Annuario sono perfettamente adiacenti (zero gap reale tra una riga e la successiva), quindi il margine di sicurezza usato per le immagini, applicato anche alle righe, le faceva sempre sovrapporre — causando un rimbalzo infinito nella scelta del taglio che lasciava il punto finale a metà riga. Corretto su entrambi i fronti: margine di sicurezza specifico per le righe (0, dato che il loro confine è già esatto) invece di riusare quello delle immagini, più una fusione di sicurezza per le sole sovrapposizioni vere residue (es. margine dell\'immagine che sconfina nella riga precedente).',
+    ]},{version:'v1.792',date:'2026-08-03',items:[
       'Impostazioni: aggiunta la voce "⚙️ Gestisci Gruppi" (stessa azione già presente premendo sul nome del gruppo).',
       'Riepilogo Stagione PDF — fix segnalato da Alby con screenshot: la foto del giocatore nell\'Annuario poteva essere tagliata a metà tra una pagina e l\'altra. Ora l\'intera riga giocatore (foto+testo+sparkline) è protetta come blocco atomico nel taglio pagina, non solo la foto.',
     ]},{version:'v1.791',date:'2026-08-02',items:[
@@ -9234,7 +9236,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.792');
+    const appVersion = ref('1.793');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16273,13 +16275,29 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             // sommavano (l'euristica vedeva il breve testo del punteggio partita appena sopra
             // un'immagine come un "titoletto orfano" e spingeva il taglio ancora più indietro,
             // sprecando spazio bianco inutilmente — segnalato da Alby con screenshot).
+            //
+            // Fix 3/8/2026 (segnalato da Alby con PDF reale: riga "Mister X" nell'Annuario tagliata
+            // a metà, intestazione sola in fondo a una pagina e foto/testo ripartiti in cima alla
+            // successiva): il ramo sopra spostava il taglio PRIMA della zona protetta solo se
+            // pTop > srcY (la zona non è ancora iniziata in questa pagina). Ma se pTop <= srcY —
+            // cioè la riga È GIÀ COMINCIATA nella pagina corrente (tipico: subito dopo la riga
+            // precedente, quindi il suo inizio coincide o precede l'inizio di quanto resta da
+            // disegnare) — il codice segnalava il problema (hitProtectedImage=true) ma NON
+            // correggeva safeCut, lasciandolo dove _findSafeCutY lo aveva trovato: spesso subito
+            // dopo la riga del nome/ruolo, perché quella riga di avatar segnaposto chiaro (nessuna
+            // foto reale caricata) è abbastanza simile al colore di sfondo della card da superare
+            // la tolleranza di _findSafeCutY, che quindi la scambia per "riga di solo sfondo" e
+            // sceglie un taglio proprio lì. In questo caso la riga va invece ESTESA fino alla sua
+            // fine (pBottom) sulla pagina corrente — non spinta prima (impossibile, sforerebbe
+            // all'indietro), ma inclusa per intero, anche a costo di sforare leggermente lo spazio
+            // ideale di pagina: mai e poi mai spezzata a metà.
             let hitProtectedImage = false;
-            for (const [pTop, pBottom] of protectedRanges) {
-              if (safeCut > pTop && safeCut < pBottom) {
-                if (pTop > srcY) safeCut = pTop;
-                hitProtectedImage = true;
-                break; // le immagini non si sovrappongono, la prima che tocca è quella giusta
-              }
+            for (let _guard = 0; _guard < protectedRanges.length + 1; _guard++) {
+              const hit = protectedRanges.find(([pTop, pBottom]) => safeCut > pTop && safeCut < pBottom);
+              if (!hit) break;
+              const [pTop, pBottom] = hit;
+              safeCut = (pTop > srcY) ? pTop : pBottom;
+              hitProtectedImage = true;
             }
 
             // Evita titoletti orfani (punto 4, Alby 26/7/2026) — solo se il taglio non è già stato
@@ -16294,8 +16312,12 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
                   safeCut = earlierCut;
                   // Ricontrolliamo le zone protette anche dopo l'aggiustamento anti-orfano, per
                   // sicurezza (raro, ma l'aggiustamento potrebbe in teoria ricadere in un'immagine).
-                  for (const [pTop, pBottom] of protectedRanges) {
-                    if (safeCut > pTop && safeCut < pBottom) { if (pTop > srcY) safeCut = pTop; break; }
+                  // Stessa correzione del 3/8/2026, iterativa: se pTop<=srcY estendi a pBottom
+                  // (mai lasciare il taglio a metà riga), ripetendo finché non si esce da ogni zona.
+                  for (let _guard2 = 0; _guard2 < protectedRanges.length + 1; _guard2++) {
+                    const hit2 = protectedRanges.find(([pTop, pBottom]) => safeCut > pTop && safeCut < pBottom);
+                    if (!hit2) break;
+                    safeCut = (hit2[0] > srcY) ? hit2[0] : hit2[1];
                   }
                 }
               }
@@ -16417,20 +16439,56 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           const PROTECTED_MARGIN = 8;
           const elRect = el.getBoundingClientRect();
           const scale = elRect.width > 0 ? canvas.width / elRect.width : 2;
-          const _toRange = (r) => {
-            const top = Math.round((r.top - elRect.top) * scale) - PROTECTED_MARGIN;
-            const bottom = Math.round((r.bottom - elRect.top) * scale) + PROTECTED_MARGIN;
+          const _toRangeMargin = (r, margin) => {
+            const top = Math.round((r.top - elRect.top) * scale) - margin;
+            const bottom = Math.round((r.bottom - elRect.top) * scale) + margin;
             return [Math.max(0, top), Math.min(canvas.height, bottom)];
           };
+          const _toRange = (r) => _toRangeMargin(r, PROTECTED_MARGIN);
           // Oltre alla singola <img>, protegge anche l'intera riga giocatore dell'Annuario
           // (.rp-annuario-row) come blocco atomico — non solo la foto ma anche il testo e lo
           // sparkline sotto: dopo l'aggiunta dello sparkline (v1.791) la riga è più alta e la sola
           // protezione della foto non basta più a evitare che il taglio pagina cada a metà riga,
           // segnalato da Alby con screenshot (foto giocatore tagliata tra una pagina e l'altra).
-          const protectedRanges = [
+          //
+          // Fix 3/8/2026 (Alby, PDF reale: riga "Mister X" tagliata a metà tra due pagine —
+          // indagato a fondo con Playwright + html2canvas vero). Causa reale, verificata misurando
+          // i bounding rect: le righe dell'Annuario sono PERFETTAMENTE ADIACENTI, zero gap reale —
+          // il border-top e il padding-top di ogni riga fanno parte del box DELLA RIGA STESSA (non
+          // sono uno spazio separato tra due righe), quindi il fondo della riga N coincide
+          // ESATTAMENTE con l'inizio della riga N+1. Un primo tentativo di fix ha aggiunto un
+          // margine di sicurezza anche alle righe (come già fatto per le immagini) — ma qualsiasi
+          // margine positivo, applicato a due box che già si toccano esattamente, li fa
+          // SOVRAPPORRE, e le zone protette di TUTTE le 70+ righe dell'Annuario finivano fuse in
+          // un'unica zona gigante che copriva l'intera sezione, bloccando la paginazione quasi del
+          // tutto (verificato: da decine di pagine attese a solo 3). La fusione delle zone
+          // sovrapposte, provata come rimedio, "risolveva" il rimbalzo ma nel modo sbagliato.
+          // Soluzione corretta: le righe NON hanno bisogno di alcun margine di sicurezza, perché
+          // non c'è imprecisione da assorbire — il loro confine è geometricamente esatto. Un taglio
+          // esattamente al bordo tra due righe (safeCut === pBottom di una === pTop dell'altra) è
+          // già escluso dal confronto con disuguaglianza stretta (safeCut > pTop && safeCut < pBottom)
+          // più sotto, quindi non serve margine per proteggerlo: è già un taglio valido di per sé.
+          const ROW_PROTECTED_MARGIN = 0;
+          const _rawProtectedRanges = [
             ...[...el.querySelectorAll('img')].map(img => _toRange(img.getBoundingClientRect())),
-            ...[...el.querySelectorAll('.rp-annuario-row')].map(row => _toRange(row.getBoundingClientRect()))
+            ...[...el.querySelectorAll('.rp-annuario-row')].map(row => _toRangeMargin(row.getBoundingClientRect(), ROW_PROTECTED_MARGIN))
           ].filter(([t, b]) => b > t);
+          // Fondiamo comunque le zone che si sovrappongono (non quelle che si toccano soltanto, es.
+          // due righe adiacenti con margine 0 — quello resta un confine valido) come rete di
+          // sicurezza per casi limite reali (es. un'immagine di Sezione D che genuinamente si
+          // sovrappone a una riga per via del suo margine di 8px). Con `t < last[1]` (non `<=`) due
+          // zone che si toccano esattamente NON vengono fuse, preservando il confine come taglio
+          // valido; solo una VERA sovrapposizione (t strettamente dentro l'altra) viene fusa.
+          const protectedRanges = (() => {
+            const sorted = [..._rawProtectedRanges].sort((a, b) => a[0] - b[0]);
+            const merged = [];
+            for (const [t, b] of sorted) {
+              const last = merged[merged.length - 1];
+              if (last && t < last[1]) last[1] = Math.max(last[1], b);
+              else merged.push([t, b]);
+            }
+            return merged;
+          })();
           return { canvas, protectedRanges };
         };
         const _pushPiece = (piece, gapAfter) => {
