@@ -5246,6 +5246,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div>{{ p.goalTotali }} gol{{ p.assistTotali!==null ? ' · '+p.assistTotali+' assist' : '' }} in {{ p.partiteTotali }} presenze · media voto {{ p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—' }} · {{ p.uomoPartitaTotali }} UoM</div>
               <div>{{ p.puntiTotali }} punti totali (media {{ p.mediaPunti.toFixed(2) }}/partita){{ p.autogolTotali>0 ? ' · '+p.autogolTotali+' autogol' : '' }}{{ p.rigoriParatiTotali>0 ? ' · '+p.rigoriParatiTotali+' rigori parati' : '' }}</div>
               <div>🥅 Max gol in una partita: {{ p.maxGolPartita }}</div>
+              <div>✅ {{ p.vittorie }}V · ➖ {{ p.pareggi }}P · ❌ {{ p.sconfitte }}S (su {{ p.partiteTotali }} presenze)</div>
+              <svg v-if="p.formHistory && p.formHistory.length >= 2" :viewBox="'0 0 200 36'" style="width:100%;max-width:220px;height:36px;overflow:visible;margin:2px 0">
+                <line x1="0" y1="18" x2="200" y2="18" stroke="rgba(128,128,128,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
+                <polyline
+                  :points="p.formHistory.map((v,i,arr)=>`${i*(200/(arr.length-1))},${18-v*1.4}`).join(' ')"
+                  fill="none" stroke="var(--lime)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
               <div v-if="p.vittima">😈 Vittima preferita: {{ p.vittima.nome }} ({{ p.vittima.vinte }}/{{ p.vittima.tot }})</div>
               <div v-if="p.incubo">☠️ Incubo personale: {{ p.incubo.nome }} ({{ p.incubo.perse }}/{{ p.incubo.tot }})</div>
               <div v-if="p.soprannomeAI" style="font-style:italic;color:var(--text2);margin-top:2px">🎭 {{ p.soprannomeAI }}{{ p.confrontoAI ? ' — '+p.confrontoAI : '' }}</div>
@@ -6241,7 +6248,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <div class="input-group">
         <label class="input-label">❤️ Squadra del Cuore</label>
-        <input class="input-field" v-model="playerForm.squadraCuore" placeholder="Es: Inter, Milan, Juventus... (opzionale)">
+        <input class="input-field" v-model="playerForm.squadraCuore" placeholder="Es: Juventus, Barcellona, Arsenal... (opzionale)">
         <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
           Usata dall'Identikit AI, dal Trash Talk e dal Pronostico per una battuta, quando pertinente.
         </div>
@@ -8157,7 +8164,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.789',date:'2026-08-02',items:[
+    const changelogEntries = [{version:'v1.791',date:'2026-08-02',items:[
+      'Riepilogo Stagione — Annuario giocatori: aggiunte Vittorie/Pareggi/Sconfitte della stagione e uno sparkline (piccola linea che sale/scende) dell\'andamento partita per partita durante tutta la stagione — non solo le ultime 10 come nella scheda giocatore. Nuovo parametro opzionale "cap" su playerFormHistory (già esistente, usato dal grafico Andamento Forma e dal confronto H2H) per riusarla senza duplicare la logica di calcolo vittoria/pareggio/sconfitta.',
+    ]},{version:'v1.790',date:'2026-08-02',items:[
+      'Piccola correzione: esempio placeholder del campo Squadra del Cuore aggiornato (Juventus, Barcellona, Arsenal).',
+    ]},{version:'v1.789',date:'2026-08-02',items:[
       'Nuovo campo "❤️ Squadra del Cuore" nella scheda giocatore (testo libero, opzionale) — usato da Identikit AI, Trash Talk e Pronostico per una battuta quando pertinente (non obbligatorio), e mostrato nella maschera giocatore in-app accanto a Numero Preferito/Vittorie/Pareggi/Sconfitte.',
     ]},{version:'v1.788',date:'2026-08-02',items:[
       'Maschera giocatore: filigrana numero preferito ridisegnata su richiesta di Alby — molto più grande, diagonale a 45°, attraversa tutta la larghezza della scheda passando anche dietro la foto (prima era piccola e confinata all\'angolo in alto a destra).',
@@ -9212,7 +9223,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.789');
+    const appVersion = ref('1.791');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10439,7 +10450,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
     const setAffinita  = (i,v) => { if(!playerForm.value.affinita) playerForm.value.affinita=[]; playerForm.value.affinita[i]=Number(v)||v; };
 
         // ── Player form history for chart (last 10 matches: +1 win, 0 draw, -1 loss) ──
-    const playerFormHistory = (pid, matches = groupMatches.value) => {
+    const playerFormHistory = (pid, matches = groupMatches.value, cap = 10) => {
       if (!pid) return [];
       const sorted = [...matches].sort((a,b) => b.data.localeCompare(a.data));
       const results = [];
@@ -10451,7 +10462,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         const won = (inA && gA>gB) || (inB && gB>gA);
         const draw = gA===gB;
         results.push(won ? 6 : draw ? 0 : -6);
-        if (results.length >= 10) break;
+        if (results.length >= cap) break;
       }
       return results.reverse(); // oldest left → newest right
     };
@@ -15165,6 +15176,10 @@ Niente altro, nessuna spiegazione.`;
             uomoPartitaTotali: st.uomoPartitaTotali||0,
             rigoriParatiTotali: st.rigoriParatiTotali||0, rigoriSbagliatiTotali: st.rigoriSbagliatiTotali||0
           };
+          const formHistory = playerFormHistory(uid, matches, 9999); // intera stagione, non solo ultime 10
+          const vittorie  = formHistory.filter(v => v === 6).length;
+          const pareggi   = formHistory.filter(v => v === 0).length;
+          const sconfitte = formHistory.filter(v => v === -6).length;
           return {
             uid, nome: p.soprannome || p.nome, ruolo: p.ruolo || '', piede: p.piede || '',
             foto: getPlayerPhoto(p.foto, uid),
@@ -15180,7 +15195,8 @@ Niente altro, nessuna spiegazione.`;
             vittima: rivalries[uid]?.vittima || null,
             incubo: rivalries[uid]?.incubo || null,
             soprannomeAI: nick?.soprannome_ai || null,
-            confrontoAI: nick?.confronto || null
+            confrontoAI: nick?.confronto || null,
+            vittorie, pareggi, sconfitte, formHistory
           };
         })
         .filter(Boolean)
@@ -16573,6 +16589,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           out += `   ${p.goalTotali} gol${p.assistTotali!==null ? ` · ${p.assistTotali} assist` : ''} in ${p.partiteTotali} presenze · media voto ${p.votiTotali>0 ? p.mediaVoto.toFixed(2) : '—'} (${p.votiTotali} voti) · ${p.uomoPartitaTotali} Uomo Partita\n`;
           out += `   ${p.puntiTotali} punti totali (media ${p.mediaPunti.toFixed(2)}/partita)${p.autogolTotali>0 ? ` · ${p.autogolTotali} autogol` : ''}${p.rigoriParatiTotali>0 ? ` · ${p.rigoriParatiTotali} rigori parati` : ''}\n`;
           out += `   🥅 Massimo gol in una partita: ${p.maxGolPartita}\n`;
+          out += `   ✅ ${p.vittorie}V · ➖ ${p.pareggi}P · ❌ ${p.sconfitte}S (su ${p.partiteTotali} presenze)\n`;
           out += `   😈 Vittima preferita: ${p.vittima ? `${p.vittima.nome} (${p.vittima.vinte}/${p.vittima.tot} vittorie)` : '— (nessun avversario con almeno 3 scontri diretti)'}\n`;
           out += `   ☠️ Incubo personale: ${p.incubo ? `${p.incubo.nome} (${p.incubo.perse}/${p.incubo.tot} sconfitte)` : '— (nessun avversario con almeno 3 scontri diretti)'}\n`;
           if (p.soprannomeAI) out += `   🎭 ${p.soprannomeAI}${p.confrontoAI ? ' — '+p.confrontoAI : ''}\n`;
