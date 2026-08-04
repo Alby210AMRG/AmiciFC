@@ -8186,7 +8186,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.799',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.800',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — struttura a capitoli (richiesta di Alby): ogni sezione (Numeri, Oscar, Classifiche, Partite, Annuario, Gabbione, Formazioni, Curiosità) ha ora una copertina a tutta pagina, stesso stile della copertina iniziale, e parte sempre da una pagina nuova invece di scorrere nella sezione precedente.',
+    ]},{version:'v1.799',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — trovata la vera causa dei tagli residui in Formazioni/Oscar/Classifiche (la ricerca del punto di taglio falliva sui blocchi a colore pieno come il campo verde e usava comunque un punto arbitrario): ora questi blocchi vengono spostati per intero alla pagina successiva PRIMA di provare qualunque ricerca, mai più a rischio taglio. Aggiunto anche il padding mancante a testi/intestazioni catturati singolarmente, uno spazio riservato in alto su ogni pagina (mai più contenuto sopra l\'intestazione), e una nuova intestazione con badge verde+logo a destra e pallone in filigrana a sinistra.',
     ]},{version:'v1.798',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — stesso fix già applicato ad Annuario e Formazioni ora esteso anche a Gli Oscar e Classifiche: ogni blocco categoria (es. "Scarpa d\'Oro", "Marcatori") viene catturato singolarmente e non viene mai spezzato tra due pagine.',
@@ -9262,7 +9264,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.799');
+    const appVersion = ref('1.800');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16003,6 +16005,27 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return canvas;
     };
 
+    // Copertina di capitolo (richiesta di Alby 4/8/2026): una pagina a tutta pagina, stesso stile
+    // della copertina iniziale (sfondo verde scuro sfumato, filigrane emoji), prima di ogni sezione
+    // del Riepilogo — dà al PDF una struttura "a capitoli" chiara, ognuno che parte da una pagina
+    // nuova invece di scorrere l'uno nell'altro.
+    const _buildChapterCoverHTML = (emoji, title) => {
+      const t = _escapeHtml(title);
+      const titleFontSize = title.length > 20 ? 44 : 56;
+      return `
+        <div style="width:794px;height:1123px;position:relative;overflow:hidden;background:linear-gradient(160deg,#0a2818 0%,#1a4a30 45%,#166534 100%);font-family:'Nunito','Segoe UI',sans-serif;box-sizing:border-box">
+          <div style="position:absolute;top:-60px;left:-80px;font-size:280px;opacity:.07;transform:rotate(-15deg);line-height:1">⚽</div>
+          <div style="position:absolute;bottom:-90px;right:-90px;font-size:320px;opacity:.06;transform:rotate(10deg);line-height:1">🏆</div>
+          <div style="position:relative;z-index:2;display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;padding:0 80px;box-sizing:border-box">
+            <div style="font-size:110px;line-height:1;margin-bottom:28px;filter:drop-shadow(0 8px 20px rgba(0,0,0,.35))">${emoji}</div>
+            <div style="width:90px;height:3px;background:#A6FF4D;border-radius:2px;margin-bottom:28px"></div>
+            <div style="font-family:'Fredoka One',cursive;font-size:${titleFontSize}px;font-weight:400;color:#fff;line-height:1.15">${t}</div>
+            <div style="width:90px;height:3px;background:#A6FF4D;border-radius:2px;margin-top:28px"></div>
+          </div>
+          <div style="position:absolute;bottom:34px;left:0;right:0;text-align:center;font-size:13px;color:rgba(255,255,255,.3);z-index:2">Amici FC — Riepilogo Stagione</div>
+        </div>`;
+    };
+
     // Copertina — logo letto a runtime da .splash-logo (mai duplicato/hardcoded, vedi Regola
     // d'Oro sui base64 embedded), sfondo con filigrana di emoji sparse in stile hero card del
     // carosello (grandi, ruotate, opacità bassa), palette brand (verde scuro + lime).
@@ -16490,6 +16513,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       'rp-pdf-sezD': 'Le partite', 'rp-pdf-sezE': 'Annuario', 'rp-pdf-gabbione': 'Il Gabbione',
       'rp-pdf-formazioni': 'Formazioni della Stagione', 'rp-pdf-curiosita': 'Curiosità',
     };
+    // Emoji per la copertina di ogni capitolo (richiesta di Alby 4/8/2026) — stessa emoji già usata
+    // nel titolo di ciascuna sezione in-app, per coerenza visiva.
+    const _seasonSummaryPdfChapterEmoji = {
+      'rp-pdf-sezA': '🔢', 'rp-pdf-sezB': '🏆', 'rp-pdf-sezC': '📊',
+      'rp-pdf-sezD': '🗞️', 'rp-pdf-sezE': '📇', 'rp-pdf-gabbione': '🥊',
+      'rp-pdf-formazioni': '📐', 'rp-pdf-curiosita': '🎲',
+    };
+    // Titolo per la copertina di ogni capitolo — quasi identico all'etichetta sopra, ma con
+    // "Annuario giocatori" per esteso (in _seasonSummaryPdfSectionLabels è solo "Annuario" per
+    // stare corto nell'indicatore di avanzamento).
+    const _seasonSummaryPdfChapterTitle = {
+      'rp-pdf-sezA': 'Numeri della Stagione', 'rp-pdf-sezB': 'Gli Oscar', 'rp-pdf-sezC': 'Classifiche',
+      'rp-pdf-sezD': 'Le Partite', 'rp-pdf-sezE': 'Annuario Giocatori', 'rp-pdf-gabbione': 'Il Gabbione',
+      'rp-pdf-formazioni': 'Formazioni della Stagione', 'rp-pdf-curiosita': 'Curiosità',
+    };
 
     const generateSeasonSummaryPDF = async () => {
       if (!seasonSummarySnapshot.value || !window.jspdf?.jsPDF) {
@@ -16630,6 +16668,26 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         for (const id of presentSectionIds) {
           seasonSummaryPdfStep.current++;
           seasonSummaryPdfStep.label = _seasonSummaryPdfSectionLabels[id] || 'Sezione...';
+
+          // Struttura "a capitoli" (richiesta di Alby 4/8/2026): una copertina a tutta pagina prima
+          // di ogni sezione, e ogni sezione che parte sempre da una pagina nuova — invece di un
+          // flusso continuo dove le sezioni si susseguono senza soluzione di continuità. Ogni
+          // sezione viene ora processata ed "esaurita" (composta in pagine, aggiunta ad allPages)
+          // per intero prima di passare alla successiva, invece di accumulare tutti i pezzi di
+          // tutte le sezioni insieme e comporli in un colpo solo alla fine.
+          const chapterEmoji = _seasonSummaryPdfChapterEmoji[id] || '📄';
+          const chapterTitle = _seasonSummaryPdfChapterTitle[id] || _seasonSummaryPdfSectionLabels[id] || 'Sezione';
+          const chapterCoverCanvas = await _capturePdfPage(_buildChapterCoverHTML(chapterEmoji, chapterTitle));
+          allPages.push({ canvas: chapterCoverCanvas, heightMM: 297, isDark: true });
+          sectionCanvases.length = 0;
+          sectionGaps.length = 0;
+          const _flushCurrentSection = () => {
+            const flowed = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', sectionGaps);
+            flowed.forEach(p => allPages.push({ canvas: p.canvas, heightMM: p.heightMM, isDark: false }));
+            sectionCanvases.length = 0;
+            sectionGaps.length = 0;
+          };
+
           if (id === 'rp-pdf-sezB' || id === 'rp-pdf-sezC') {
             // Fix 4/8/2026, CORRETTO dopo nuova segnalazione di Alby con screenshot (il primo
             // tentativo non bastava): "Gli Oscar"/"Classifiche" condividono la stessa struttura a
@@ -16654,6 +16712,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             const footerEl = document.getElementById(id + '-footer');
             if (footerEl) _pushPiece(await _captureOneEl(footerEl), 32);
             else if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
+            _flushCurrentSection();
             continue;
           }
           if (id === 'rp-pdf-formazioni') {
@@ -16670,6 +16729,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             for (let bi = 0; bi < blockEls.length; bi++) {
               _pushPiece(await _captureOneEl(blockEls[bi]), bi === blockEls.length - 1 ? 32 : 0, true, true);
             }
+            _flushCurrentSection();
             continue;
           }
           if (id === 'rp-pdf-sezE') {
@@ -16688,6 +16748,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
               if (rowEls.length > 1) seasonSummaryPdfStep.label = `Annuario (giocatore ${ri + 1}/${rowEls.length})...`;
               _pushPiece(await _captureOneEl(rowEls[ri]), 32, true, true);
             }
+            _flushCurrentSection();
             continue;
           }
           if (id === 'rp-pdf-sezD') {
@@ -16715,13 +16776,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
               }
               if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
             }
+            _flushCurrentSection();
             continue;
           }
           const el = document.getElementById(id);
           _pushPiece(await _captureOneEl(el), 32);
+          _flushCurrentSection();
         }
-        const flowedPages = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', sectionGaps);
-        flowedPages.forEach(p => allPages.push({ canvas: p.canvas, heightMM: p.heightMM, isDark: false }));
 
         seasonSummaryPdfStep.current++;
         seasonSummaryPdfStep.label = 'Chiusura...';
