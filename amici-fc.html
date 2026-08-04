@@ -5105,7 +5105,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Sezione B — Gli Oscar: foto+nome del vincitore, come le Classifiche (richiesta Alby) -->
       <div class="card" id="rp-pdf-sezB">
-        <div class="card-title" style="margin-bottom:6px">🏆 Gli Oscar</div>
+        <div id="rp-pdf-sezB-header">
+          <div class="card-title" style="margin-bottom:6px">🏆 Gli Oscar</div>
+        </div>
 
         <template v-for="cat in [
           {key:'palloneDoro', label:'🏆 Pallone d\'Oro', suffix: seasonSummarySnapshot.sezioneB.palloneDoro.valore ? seasonSummarySnapshot.sezioneB.palloneDoro.valore.toFixed(2) : ''},
@@ -5115,30 +5117,36 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           {key:'bidoneDellAnno', label:'🪣 Il Bidone d\'Oro', suffix:''}
         ]" :key="cat.key">
           <template v-if="seasonSummarySnapshot.sezioneB[cat.key].giocatori.length">
-            <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
-            <div class="rp-hero-row">
-              <div class="rp-hero-card rp-hero-gold" v-for="p in seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(0,3)" :key="p.uid">
-                <div class="rp-hero-avatar">
-                  <img :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
+            <div class="rp-category-block" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
+              <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
+              <div class="rp-hero-row">
+                <div class="rp-hero-card rp-hero-gold" v-for="p in seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(0,3)" :key="p.uid">
+                  <div class="rp-hero-avatar">
+                    <img :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.nome" @error="onPhotoError($event, p.uid)">
+                  </div>
+                  <div class="rp-hero-name">🥇 {{ p.nome }}</div>
+                  <div v-if="cat.suffix" class="rp-hero-value">{{ cat.suffix }}</div>
                 </div>
-                <div class="rp-hero-name">🥇 {{ p.nome }}</div>
-                <div v-if="cat.suffix" class="rp-hero-value">{{ cat.suffix }}</div>
               </div>
-            </div>
-            <div v-if="seasonSummarySnapshot.sezioneB[cat.key].giocatori.length>3" style="font-size:0.76rem;color:var(--text2);padding:0 4px 10px">
-              🤝 Anche a pari merito: {{ seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(3).map(g=>g.nome).join(', ') }}
+              <div v-if="seasonSummarySnapshot.sezioneB[cat.key].giocatori.length>3" style="font-size:0.76rem;color:var(--text2);padding:0 4px 10px">
+                🤝 Anche a pari merito: {{ seasonSummarySnapshot.sezioneB[cat.key].giocatori.slice(3).map(g=>g.nome).join(', ') }}
+              </div>
             </div>
           </template>
         </template>
 
-        <div v-if="seasonSummarySnapshot.sezioneB.kryptonite.length" style="font-size:0.85rem;margin-top:6px">☠️ <strong>Kryptonite</strong>: <span v-for="(k,ki) in seasonSummarySnapshot.sezioneB.kryptonite" :key="ki">{{ k.vittima }} vs {{ k.incubo }} ({{ k.persi }}/{{ k.tot }})<span v-if="ki<seasonSummarySnapshot.sezioneB.kryptonite.length-1"> · </span></span></div>
+        <div id="rp-pdf-sezB-footer">
+          <div v-if="seasonSummarySnapshot.sezioneB.kryptonite.length" style="font-size:0.85rem;margin-top:6px">☠️ <strong>Kryptonite</strong>: <span v-for="(k,ki) in seasonSummarySnapshot.sezioneB.kryptonite" :key="ki">{{ k.vittima }} vs {{ k.incubo }} ({{ k.persi }}/{{ k.tot }})<span v-if="ki<seasonSummarySnapshot.sezioneB.kryptonite.length-1"> · </span></span></div>
 
-        <div v-if="seasonSummarySnapshot.aiTexts?.commentoB" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoB }}</div>
+          <div v-if="seasonSummarySnapshot.aiTexts?.commentoB" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoB }}</div>
+        </div>
       </div>
 
       <!-- Sezione C — Classifiche: foto+nome del primo, poi elenco compatto per gli altri (richiesta Alby 20/7/2026) -->
       <div class="card" id="rp-pdf-sezC">
-        <div class="card-title" style="margin-bottom:6px">📊 Classifiche</div>
+        <div id="rp-pdf-sezC-header">
+          <div class="card-title" style="margin-bottom:6px">📊 Classifiche</div>
+        </div>
 
         <template v-for="cat in [
           {key:'topOverall', label:'🥇 Overall (OVR)', unit:'', field:'_score'},
@@ -5152,26 +5160,28 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           {key:'topAutogol', label:'❌ Autogol', unit:'', field:'autogolTotali'}
         ]" :key="cat.key">
           <template v-if="(cat.guard===undefined || cat.guard) && seasonSummarySnapshot.sezioneC[cat.key]?.length">
-            <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
-            <div class="rp-hero-row">
-              <div class="rp-hero-card" v-for="p in catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).heroList" :key="p.uid">
-                <div class="rp-hero-avatar">
-                  <img :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.soprannome || p.nome" @error="onPhotoError($event, p.uid)">
+            <div class="rp-category-block" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
+              <div style="font-weight:700;font-size:0.82rem;margin:12px 0 6px">{{ cat.label }}</div>
+              <div class="rp-hero-row">
+                <div class="rp-hero-card" v-for="p in catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).heroList" :key="p.uid">
+                  <div class="rp-hero-avatar">
+                    <img :src="getPlayerPhoto(p.foto, p.uid)" :alt="p.soprannome || p.nome" @error="onPhotoError($event, p.uid)">
+                  </div>
+                  <div class="rp-hero-name">🥇 {{ p.soprannome || p.nome }}</div>
+                  <div class="rp-hero-value">{{ catValueDisplay(cat, p) }} {{ cat.unit }}</div>
                 </div>
-                <div class="rp-hero-name">🥇 {{ p.soprannome || p.nome }}</div>
-                <div class="rp-hero-value">{{ catValueDisplay(cat, p) }} {{ cat.unit }}</div>
               </div>
-            </div>
-            <div v-if="catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).restList.length" class="rp-classifica-rest">
-              <div v-for="(p,pi) in catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).restList" :key="p.uid">
-                <span>{{ pi + catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).startIndex + 1 }}. {{ p.soprannome || p.nome }}</span>
-                <span>{{ catValueDisplay(cat, p) }} {{ cat.unit }}</span>
+              <div v-if="catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).restList.length" class="rp-classifica-rest">
+                <div v-for="(p,pi) in catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).restList" :key="p.uid">
+                  <span>{{ pi + catSplit(cat, seasonSummarySnapshot.sezioneC[cat.key]).startIndex + 1 }}. {{ p.soprannome || p.nome }}</span>
+                  <span>{{ catValueDisplay(cat, p) }} {{ cat.unit }}</span>
+                </div>
               </div>
             </div>
           </template>
         </template>
 
-        <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" id="rp-pdf-sezC-footer" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
       </div>
 
       <!-- Sezione D — Partite (accordion: collassate di default, si aprono singolarmente — in
@@ -5278,10 +5288,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Formazioni della Stagione — sezione separata dal Gabbione: i più forti in assoluto per taglia -->
       <div v-if="seasonSummarySnapshot.formazioniTop" class="card" id="rp-pdf-formazioni">
-        <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
+        <div id="rp-pdf-formazioni-header">
+          <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
+        </div>
         <template v-for="size in [5,6,7,8,9,10,11]" :key="'ft-'+size">
-          <div v-if="formazioneRows(size)" style="margin-bottom:14px">
+          <div v-if="formazioneRows(size)" class="rp-formazione-block" :style="{marginBottom:'14px', padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
             <div style="font-weight:700;font-size:0.85rem;margin-bottom:6px">{{ size }}vs{{ size }}</div>
             <div class="rp-pitch">
               <div class="rp-row" v-for="rowKey in ['Attaccante','Centrocampista','Difensore','Portiere']" :key="rowKey">
@@ -8174,7 +8186,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.796',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.798',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — stesso fix già applicato ad Annuario e Formazioni ora esteso anche a Gli Oscar e Classifiche: ogni blocco categoria (es. "Scarpa d\'Oro", "Marcatori") viene catturato singolarmente e non viene mai spezzato tra due pagine.',
+    ]},{version:'v1.797',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — stesso identico problema segnalato da Alby nell\'Annuario (blocco tagliato a metà tra due pagine) risolto anche nelle Formazioni della Stagione: ogni blocco formazione (5vs5...11vs11, col relativo campo verde) viene ora catturato singolarmente e non viene mai spezzato — se non entra nello spazio rimasto va per intero alla pagina successiva.',
+    ]},{version:'v1.796',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — Annuario ristrutturato alla radice su richiesta di Alby dopo ripetuti problemi di paginazione: ogni giocatore ha ora SEMPRE una pagina propria, catturata singolarmente — niente più ricerca del punto di taglio, niente più logica di protezione anti-spezzamento. Aggiunta anche un\'intestazione in alto su ogni pagina di contenuto, con il logo del gioco allineato a destra.',
     ]},{version:'v1.795',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — fix del problema introdotto ieri: il fix per il riempimento pagina (v1.794) poteva disegnare un giocatore esteso oltre lo spazio rimasto sulla pagina, finendo sopra la zona del piè di pagina (dati/grafici che sembravano tagliati o mal posizionati). Ora, se un pezzo non entra nello spazio rimasto, la pagina si chiude PRIMA di disegnarlo e il pezzo viene ritentato per intero su una pagina nuova. Verificato con test end-to-end: nessuno sconfinamento, nessuna riga tagliata, 9 pagine per 45 giocatori (86% di riempimento medio).',
@@ -9244,7 +9260,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.796');
+    const appVersion = ref('1.798');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16559,6 +16575,43 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         for (const id of presentSectionIds) {
           seasonSummaryPdfStep.current++;
           seasonSummaryPdfStep.label = _seasonSummaryPdfSectionLabels[id] || 'Sezione...';
+          if (id === 'rp-pdf-sezB' || id === 'rp-pdf-sezC') {
+            // Fix 4/8/2026 (Alby: stesso identico problema di Formazioni/Annuario, segnalato con
+            // screenshot su "Gli Oscar" — un blocco categoria, es. "Scarpa d'Oro" con la sua card
+            // foto+nome, rischiava di finire tagliato a metà tra due pagine). Oscar e Classifiche
+            // condividono la stessa struttura a blocchi ripetuti (etichetta + card vincitore/i +
+            // eventuale elenco extra) — stesso fix: ogni blocco catturato singolarmente, mai
+            // spezzato, mai forzato su una pagina propria (più blocchi piccoli possono benissimo
+            // stare insieme sulla stessa pagina).
+            const headerEl = document.getElementById(id + '-header');
+            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
+            const blockEls = [...document.querySelectorAll('#' + id + ' .rp-category-block')];
+            for (let bi = 0; bi < blockEls.length; bi++) {
+              _pushPiece(await _captureOneEl(blockEls[bi]), 0);
+            }
+            const footerEl = document.getElementById(id + '-footer');
+            if (footerEl) _pushPiece(await _captureOneEl(footerEl), 32);
+            else if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
+            continue;
+          }
+          if (id === 'rp-pdf-formazioni') {
+            // Fix 4/8/2026 (Alby: stesso identico problema già risolto nell'Annuario — un blocco
+            // formazione (es. "7vs7" col relativo campo verde) veniva tagliato a metà tra due
+            // pagine dalla logica di taglio "intelligente" condivisa da tutte le sezioni). Stesso
+            // approccio robusto: ogni blocco formazione catturato SINGOLARMENTE come pezzo a sé,
+            // mai spezzato — se non entra nello spazio rimasto sulla pagina corrente, il controllo
+            // già esistente (v1.795, "sliceHeight > available") lo sposta per intero alla pagina
+            // successiva invece di tagliarlo. Non serve forzare una pagina nuova per forza (a
+            // differenza dell'Annuario): più formazioni piccole possono stare benissimo sulla
+            // stessa pagina, l'importante è che nessuna venga mai spezzata.
+            const headerEl = document.getElementById('rp-pdf-formazioni-header');
+            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
+            const blockEls = [...document.querySelectorAll('#rp-pdf-formazioni .rp-formazione-block')];
+            for (let bi = 0; bi < blockEls.length; bi++) {
+              _pushPiece(await _captureOneEl(blockEls[bi]), bi === blockEls.length - 1 ? 32 : 0);
+            }
+            continue;
+          }
           if (id === 'rp-pdf-sezE') {
             // Fix 4/8/2026 (Alby, dopo 4 round di problemi di paginazione nell'Annuario — taglio a
             // metà riga, spazio sprecato, sconfinamento sopra il piè di pagina: "basta ora, fai una
