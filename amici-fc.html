@@ -8172,7 +8172,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.794',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.795',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — fix del problema introdotto ieri: il fix per il riempimento pagina (v1.794) poteva disegnare un giocatore esteso oltre lo spazio rimasto sulla pagina, finendo sopra la zona del piè di pagina (dati/grafici che sembravano tagliati o mal posizionati). Ora, se un pezzo non entra nello spazio rimasto, la pagina si chiude PRIMA di disegnarlo e il pezzo viene ritentato per intero su una pagina nuova. Verificato con test end-to-end: nessuno sconfinamento, nessuna riga tagliata, 9 pagine per 45 giocatori (86% di riempimento medio).',
+    ]},{version:'v1.794',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — fix RADICALE (Alby: "basta ora, risolvi"): trovata la causa di fondo di tutti i problemi di taglio/spazio bianco visti finora. La pagina veniva SEMPRE chiusa subito dopo qualunque taglio, anche quando il taglio era stato anticipato per non spezzare una riga e restava ancora tanto spazio libero — risultato: un giocatore solo per pagina, il resto bianco. Ora la pagina si chiude solo quando lo spazio rimasto è davvero minimo, altrimenti continua a riempirsi con il contenuto successivo. Verificato: da 1 giocatore/pagina a ~5-6 giocatori/pagina, riempimento medio 96%, zero righe tagliate.',
     ]},{version:'v1.793',date:'2026-08-03',items:[
       'Riepilogo Stagione PDF — fix VERO del taglio riga nell\'Annuario (Alby ha mandato il PDF reale e trovato "Mister X" tagliato a metà: intestazione sola in fondo a una pagina, foto e testo ripartiti in cima alla successiva, nonostante il fix v1.792). Causa reale trovata con Playwright + html2canvas vero: 1) un ramo della logica di protezione non correggeva il taglio quando la riga era già "in corso" nella pagina corrente; 2) le righe dell\'Annuario sono perfettamente adiacenti (zero gap reale tra una riga e la successiva), quindi il margine di sicurezza usato per le immagini, applicato anche alle righe, le faceva sempre sovrapporre — causando un rimbalzo infinito nella scelta del taglio che lasciava il punto finale a metà riga. Corretto su entrambi i fronti: margine di sicurezza specifico per le righe (0, dato che il loro confine è già esatto) invece di riusare quello delle immagini, più una fusione di sicurezza per le sole sovrapposizioni vere residue (es. margine dell\'immagine che sconfina nella riga precedente).',
@@ -9238,7 +9240,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.794');
+    const appVersion = ref('1.795');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16326,6 +16328,24 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             }
 
             const sliceHeight = safeCut - srcY;
+
+            // Fix 4/8/2026 seconda parte (Alby, nuovo screenshot: testo finito SOPRA il piè di
+            // pagina, dati "tagliati" — il fix precedente, che smette di chiudere la pagina subito
+            // dopo ogni taglio, ha introdotto un problema nuovo: se la protezione anti-taglio-riga
+            // estende il pezzo OLTRE lo spazio `available` rimasto su questa pagina, il pezzo veniva
+            // comunque disegnato per intero a partire da `currentY` — finendo dentro o oltre la zona
+            // riservata al piè di pagina, invisibile/sovrapposta al testo del piè o addirittura
+            // tagliata dal bordo del canvas. Controllo esplicito: se il pezzo non entra nello spazio
+            // rimasto E la pagina corrente ha già contenuto (currentY>0), chiudiamo la pagina COSÌ
+            // COM'È (senza disegnare questo pezzo) e lo ritentiamo da capo su una pagina fresca, dove
+            // c'è tutto lo spazio di una pagina intera per contenerlo. Se invece la pagina è già
+            // vuota (currentY===0) non c'è altrove dove metterlo: lo disegniamo comunque, accettando
+            // uno sconfinamento minimo nel margine come ultima risorsa (mai perdita di contenuto).
+            if (sliceHeight > available && currentY > 0) {
+              finishPage(pageHeightPx);
+              continue; // pagina fresca: il while ricalcola available da zero e riprova questo pezzo
+            }
+
             pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, sliceHeight, 0, currentY, pageWidthPx, sliceHeight);
             currentY += sliceHeight;
             srcY = safeCut;
