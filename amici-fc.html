@@ -8172,7 +8172,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.793',date:'2026-08-03',items:[
+    const changelogEntries = [{version:'v1.794',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — fix RADICALE (Alby: "basta ora, risolvi"): trovata la causa di fondo di tutti i problemi di taglio/spazio bianco visti finora. La pagina veniva SEMPRE chiusa subito dopo qualunque taglio, anche quando il taglio era stato anticipato per non spezzare una riga e restava ancora tanto spazio libero — risultato: un giocatore solo per pagina, il resto bianco. Ora la pagina si chiude solo quando lo spazio rimasto è davvero minimo, altrimenti continua a riempirsi con il contenuto successivo. Verificato: da 1 giocatore/pagina a ~5-6 giocatori/pagina, riempimento medio 96%, zero righe tagliate.',
+    ]},{version:'v1.793',date:'2026-08-03',items:[
       'Riepilogo Stagione PDF — fix VERO del taglio riga nell\'Annuario (Alby ha mandato il PDF reale e trovato "Mister X" tagliato a metà: intestazione sola in fondo a una pagina, foto e testo ripartiti in cima alla successiva, nonostante il fix v1.792). Causa reale trovata con Playwright + html2canvas vero: 1) un ramo della logica di protezione non correggeva il taglio quando la riga era già "in corso" nella pagina corrente; 2) le righe dell\'Annuario sono perfettamente adiacenti (zero gap reale tra una riga e la successiva), quindi il margine di sicurezza usato per le immagini, applicato anche alle righe, le faceva sempre sovrapporre — causando un rimbalzo infinito nella scelta del taglio che lasciava il punto finale a metà riga. Corretto su entrambi i fronti: margine di sicurezza specifico per le righe (0, dato che il loro confine è già esatto) invece di riusare quello delle immagini, più una fusione di sicurezza per le sole sovrapposizioni vere residue (es. margine dell\'immagine che sconfina nella riga precedente).',
     ]},{version:'v1.792',date:'2026-08-03',items:[
       'Impostazioni: aggiunta la voce "⚙️ Gestisci Gruppi" (stessa azione già presente premendo sul nome del gruppo).',
@@ -9236,7 +9238,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.793');
+    const appVersion = ref('1.794');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16326,8 +16328,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             const sliceHeight = safeCut - srcY;
             pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, sliceHeight, 0, currentY, pageWidthPx, sliceHeight);
             currentY += sliceHeight;
-            finishPage(pageHeightPx); // pagina piena: lo spazio riservato in fondo resta sfondo puro
             srcY = safeCut;
+            // Fix 4/8/2026 (segnalato da Alby con PDF reale — "basta ora, risolvi": nell'Annuario
+            // ogni giocatore finiva SOLO su una pagina quasi interamente bianca, invece di stare in
+            // più d'uno per pagina come prima). Causa: PRIMA di questo fix, `finishPage` veniva
+            // chiamato SEMPRE subito dopo ogni taglio, come se la pagina fosse sempre piena — ma da
+            // quando (3/8/2026) il taglio può essere anticipato per proteggere una riga dall'essere
+            // spezzata, spesso restava ancora TANTO spazio libero sulla pagina corrente quando
+            // succedeva. Finalizzarla comunque sprecava quello spazio intero. Ora la pagina si
+            // finalizza solo se lo spazio rimasto è davvero poco (sotto MIN_USEFUL_SPACE): altrimenti
+            // il ciclo continua sulla STESSA pagina (senza azzerare currentY) e il prossimo giro
+            // ricalcola da capo quanto spazio resta, provando a inserirci altro contenuto.
+            const MIN_USEFUL_SPACE = 150; // px canvas (scale 2) — sotto questa soglia non vale la pena continuare
+            if (contentLimitPx - currentY < MIN_USEFUL_SPACE) {
+              finishPage(pageHeightPx);
+            }
           }
         }
         // Spazio tra una sezione e la successiva (stesso margin-bottom delle card a schermo) — se
