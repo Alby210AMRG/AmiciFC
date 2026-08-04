@@ -5105,7 +5105,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Sezione B — Gli Oscar: foto+nome del vincitore, come le Classifiche (richiesta Alby) -->
       <div class="card" id="rp-pdf-sezB">
-        <div id="rp-pdf-sezB-header">
+        <div id="rp-pdf-sezB-header" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
           <div class="card-title" style="margin-bottom:6px">🏆 Gli Oscar</div>
         </div>
 
@@ -5135,7 +5135,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </template>
         </template>
 
-        <div id="rp-pdf-sezB-footer">
+        <div id="rp-pdf-sezB-footer" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
           <div v-if="seasonSummarySnapshot.sezioneB.kryptonite.length" style="font-size:0.85rem;margin-top:6px">☠️ <strong>Kryptonite</strong>: <span v-for="(k,ki) in seasonSummarySnapshot.sezioneB.kryptonite" :key="ki">{{ k.vittima }} vs {{ k.incubo }} ({{ k.persi }}/{{ k.tot }})<span v-if="ki<seasonSummarySnapshot.sezioneB.kryptonite.length-1"> · </span></span></div>
 
           <div v-if="seasonSummarySnapshot.aiTexts?.commentoB" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoB }}</div>
@@ -5144,7 +5144,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Sezione C — Classifiche: foto+nome del primo, poi elenco compatto per gli altri (richiesta Alby 20/7/2026) -->
       <div class="card" id="rp-pdf-sezC">
-        <div id="rp-pdf-sezC-header">
+        <div id="rp-pdf-sezC-header" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
           <div class="card-title" style="margin-bottom:6px">📊 Classifiche</div>
         </div>
 
@@ -5181,7 +5181,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </template>
         </template>
 
-        <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" id="rp-pdf-sezC-footer" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-top:10px">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
+        <div v-if="seasonSummarySnapshot.aiTexts?.commentoC" id="rp-pdf-sezC-footer" :style="{fontSize:'0.82rem',color:'var(--text2)',lineHeight:1.6,marginTop:'10px',padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">{{ seasonSummarySnapshot.aiTexts.commentoC }}</div>
       </div>
 
       <!-- Sezione D — Partite (accordion: collassate di default, si aprono singolarmente — in
@@ -5246,7 +5246,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Sezione E — Annuario -->
       <div class="card" id="rp-pdf-sezE">
-        <div id="rp-pdf-sezE-header">
+        <div id="rp-pdf-sezE-header" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
           <div class="card-title" style="margin-bottom:6px">📇 Annuario giocatori</div>
           <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
         </div>
@@ -5288,7 +5288,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Formazioni della Stagione — sezione separata dal Gabbione: i più forti in assoluto per taglia -->
       <div v-if="seasonSummarySnapshot.formazioniTop" class="card" id="rp-pdf-formazioni">
-        <div id="rp-pdf-formazioni-header">
+        <div id="rp-pdf-formazioni-header" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
           <div class="card-title" style="margin-bottom:6px">📐 Formazioni della Stagione</div>
           <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">La migliore formazione per taglia, per overall (mostrate solo le taglie con abbastanza giocatori idonei).</div>
         </div>
@@ -8186,7 +8186,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.798',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.799',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — trovata la vera causa dei tagli residui in Formazioni/Oscar/Classifiche (la ricerca del punto di taglio falliva sui blocchi a colore pieno come il campo verde e usava comunque un punto arbitrario): ora questi blocchi vengono spostati per intero alla pagina successiva PRIMA di provare qualunque ricerca, mai più a rischio taglio. Aggiunto anche il padding mancante a testi/intestazioni catturati singolarmente, uno spazio riservato in alto su ogni pagina (mai più contenuto sopra l\'intestazione), e una nuova intestazione con badge verde+logo a destra e pallone in filigrana a sinistra.',
+    ]},{version:'v1.798',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — stesso fix già applicato ad Annuario e Formazioni ora esteso anche a Gli Oscar e Classifiche: ogni blocco categoria (es. "Scarpa d\'Oro", "Marcatori") viene catturato singolarmente e non viene mai spezzato tra due pagine.',
     ]},{version:'v1.797',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — stesso identico problema segnalato da Alby nell\'Annuario (blocco tagliato a metà tra due pagine) risolto anche nelle Formazioni della Stagione: ogni blocco formazione (5vs5...11vs11, col relativo campo verde) viene ora catturato singolarmente e non viene mai spezzato — se non entra nello spazio rimasto va per intero alla pagina successiva.',
@@ -9260,7 +9262,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.798');
+    const appVersion = ref('1.799');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16198,19 +16200,53 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       ctx.restore();
     };
 
-    // Intestazione in alto su ogni pagina, richiesta da Alby (4/8/2026): logo del gioco allineato a
-    // destra, stesso margine della firma in fondo pagina — dà a ogni pagina un riferimento visivo
-    // superiore oltre al piè di pagina, utile soprattutto ora che l'Annuario ha una pagina per
-    // giocatore (tante pagine "corte" di contenuto, il logo in alto aiuta a orientarsi sfogliando).
+    // Intestazione in alto su ogni pagina, richiesta da Alby (4/8/2026, poi rifinita su sua
+    // indicazione precisa): un quadrato verde (stesso verde del campo/app) con il logo dentro, a
+    // destra; un pallone in filigrana in stile "serigrafia" (semi-trasparente, ruotato — stesso
+    // principio della filigrana grande già usata in fondo pagina) tutto a sinistra. Dà a ogni
+    // pagina un riferimento visivo superiore oltre al piè di pagina, utile soprattutto ora che
+    // l'Annuario/Formazioni hanno una pagina per elemento (tante pagine "corte", il logo in alto
+    // aiuta a orientarsi sfogliando).
     const _drawPageHeader = (canvas, logoImg) => {
-      if (!logoImg) return; // se il logo non è riuscito a caricare, nessuna intestazione — mai bloccare il PDF per questo
       const ctx = canvas.getContext('2d');
       const scale = canvas.width / 210; // px per mm
-      const marginRight = Math.round(scale * 10);
       const marginTop = Math.round(scale * 7);
-      const logoSize = Math.round(scale * 12);
+
+      // Pallone in filigrana, tutto a sinistra, stile serigrafia (semi-trasparente, ruotato) —
+      // stesso trattamento della filigrana grande di fondo pagina, qui in piccolo e in alto.
       ctx.save();
-      ctx.drawImage(logoImg, canvas.width - marginRight - logoSize, marginTop, logoSize, logoSize);
+      ctx.globalAlpha = 0.16;
+      ctx.font = `${Math.round(scale * 16)}px sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.translate(Math.round(scale * 8), marginTop + Math.round(scale * 6));
+      ctx.rotate(-10 * Math.PI / 180);
+      ctx.fillText('⚽', 0, 0);
+      ctx.restore();
+
+      if (!logoImg) return; // se il logo non è riuscito a caricare, niente badge — mai bloccare il PDF per questo
+      // Quadrato verde (colore del campo) con il logo dentro, a destra.
+      const marginRight = Math.round(scale * 10);
+      const badgeSize = Math.round(scale * 14);
+      const badgeX = canvas.width - marginRight - badgeSize;
+      const badgeY = marginTop;
+      const radius = Math.round(scale * 3);
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(badgeX + radius, badgeY);
+      ctx.arcTo(badgeX + badgeSize, badgeY, badgeX + badgeSize, badgeY + badgeSize, radius);
+      ctx.arcTo(badgeX + badgeSize, badgeY + badgeSize, badgeX, badgeY + badgeSize, radius);
+      ctx.arcTo(badgeX, badgeY + badgeSize, badgeX, badgeY, radius);
+      ctx.arcTo(badgeX, badgeY, badgeX + badgeSize, badgeY, radius);
+      ctx.closePath();
+      const grad = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeSize);
+      grad.addColorStop(0, '#3aaa4a');
+      grad.addColorStop(1, '#2F8F2F');
+      ctx.fillStyle = grad;
+      ctx.fill();
+      ctx.clip();
+      const logoPad = Math.round(badgeSize * 0.14);
+      ctx.drawImage(logoImg, badgeX + logoPad, badgeY + logoPad, badgeSize - logoPad * 2, badgeSize - logoPad * 2);
       ctx.restore();
     };
 
@@ -16252,12 +16288,17 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // (es. "87"/"86" di una classifica scritti sopra "Pagina X di Y"). Ora si riserva SEMPRE uno
     // spazio vuoto in fondo a ogni pagina (footerReserveMM), dentro cui il contenuto non entra mai
     // — il piè di pagina viene poi disegnato in quello spazio, garantito libero.
-    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gaps = 32, footerReserveMM = 16) => {
+    // Fix 4/8/2026 su segnalazione di Alby: il contenuto poteva partire da y=0 (il bordissimo
+    // superiore della pagina), rischiando di sovrapporsi all'intestazione con il logo aggiunta in
+    // v1.796. Stessa soluzione già usata per il piè di pagina: riserviamo SEMPRE uno spazio vuoto
+    // anche in ALTO (headerReserveMM), dentro cui il contenuto non entra mai.
+    const _flowSectionsIntoPages = (sectionCanvases, pageWidthPx, bgHex = '#EBF6EB', gaps = 32, footerReserveMM = 16, headerReserveMM = 24) => {
       // gaps può essere un numero fisso (comportamento originale) o un array con un gap diverso
       // dopo ogni pezzo — usato per Sezione D (26/7/2026): 0 tra una partita e l'altra (hanno già
       // il loro bordo/padding), il gap normale (32, come tra due card) solo verso la sezione dopo.
       const gapAfter = (idx) => Array.isArray(gaps) ? (gaps[idx] ?? 32) : gaps;
       const pageHeightPx = Math.round(pageWidthPx * (297 / 210));
+      const headerReservePx = Math.round(pageWidthPx * (headerReserveMM / 210));
       const footerReservePx = Math.round(pageWidthPx * (footerReserveMM / 210));
       const contentLimitPx = pageHeightPx - footerReservePx; // il contenuto non deve mai superare questo limite
       const pages = [];
@@ -16268,7 +16309,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       let pageCtx = currentPage.getContext('2d');
       pageCtx.fillStyle = bgHex;
       pageCtx.fillRect(0, 0, pageWidthPx, pageHeightPx);
-      let currentY = 0;
+      let currentY = headerReservePx;
 
       // finalHeight: quanto alto rendere il canvas della pagina finita. Le pagine "piene" restano
       // sempre a piena altezza (pageHeightPx, che include già lo spazio riservato in fondo, mai
@@ -16287,20 +16328,33 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         pageCtx = currentPage.getContext('2d');
         pageCtx.fillStyle = bgHex;
         pageCtx.fillRect(0, 0, pageWidthPx, pageHeightPx);
-        currentY = 0;
+        currentY = headerReservePx;
       };
 
       sectionCanvases.forEach((piece, sIdx) => {
         // Fix 4/8/2026 (Alby: "fai una pagina per giocatore" per l'Annuario): se questo pezzo
         // richiede di iniziare su una pagina nuova (es. ogni riga giocatore dell'Annuario, catturata
         // singolarmente) e la pagina corrente ha già del contenuto, la chiudiamo prima di procedere.
-        if (piece.forceNewPage && currentY > 0) finishPage(pageHeightPx);
+        if (piece.forceNewPage && currentY > headerReservePx) finishPage(pageHeightPx);
         const sectionCanvas = piece.canvas;
         const protectedRanges = piece.protectedRanges || [];
         let srcY = 0;
         while (srcY < sectionCanvas.height) {
           const available = contentLimitPx - currentY;
           const remaining = sectionCanvas.height - srcY;
+          // Fix 4/8/2026, seconda correzione (Alby, nuovo screenshot: formazioni/blocchi ancora
+          // tagliati a metà nonostante il fix precedente). Causa reale: per i pezzi "atomici"
+          // (blocco formazione, blocco categoria Oscar/Classifiche — mai spezzabili per design) il
+          // controllo esistente scattava solo DOPO aver già provato a cercare un punto di taglio
+          // sicuro al loro interno — ma un blocco a colore pieno (il campo verde) non ha righe di
+          // sfondo puro dove tagliare, quindi quella ricerca falliva e il codice usava comunque un
+          // punto arbitrario come ultima risorsa, tagliando a metà esattamente come prima. Fix vero:
+          // per i pezzi atomici, se non entrano nello spazio rimasto, la pagina si chiude SUBITO,
+          // PRIMA di provare qualunque ricerca — mai il rischio di un taglio arbitrario.
+          if (piece.atomic && remaining > available && currentY > headerReservePx) {
+            finishPage(pageHeightPx);
+            continue;
+          }
           if (remaining <= available) {
             pageCtx.drawImage(sectionCanvas, 0, srcY, pageWidthPx, remaining, 0, currentY, pageWidthPx, remaining);
             currentY += remaining;
@@ -16381,7 +16435,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             // c'è tutto lo spazio di una pagina intera per contenerlo. Se invece la pagina è già
             // vuota (currentY===0) non c'è altrove dove metterlo: lo disegniamo comunque, accettando
             // uno sconfinamento minimo nel margine come ultima risorsa (mai perdita di contenuto).
-            if (sliceHeight > available && currentY > 0) {
+            if (sliceHeight > available && currentY > headerReservePx) {
               finishPage(pageHeightPx);
               continue; // pagina fresca: il while ricalcola available da zero e riprova questo pezzo
             }
@@ -16416,7 +16470,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       });
       // Ultima pagina (parziale): accorciata al contenuto reale + lo spazio riservato per il piè
       // di pagina (mai solo currentY, altrimenti il piè finirebbe appiccicato all'ultima riga).
-      if (currentY > 0) finishPage(Math.min(currentY + footerReservePx, pageHeightPx));
+      if (currentY > headerReservePx) finishPage(Math.min(currentY + footerReservePx, pageHeightPx));
       return pages;
     };
 
@@ -16566,8 +16620,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           })();
           return { canvas, protectedRanges };
         };
-        const _pushPiece = (piece, gapAfter, forceNewPage = false) => {
+        const _pushPiece = (piece, gapAfter, forceNewPage = false, atomic = false) => {
           piece.forceNewPage = forceNewPage;
+          piece.atomic = atomic;
           sectionCanvases.push(piece);
           sectionGaps.push(gapAfter);
           if (!pageWidthPx) pageWidthPx = piece.canvas.width;
@@ -16576,18 +16631,25 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           seasonSummaryPdfStep.current++;
           seasonSummaryPdfStep.label = _seasonSummaryPdfSectionLabels[id] || 'Sezione...';
           if (id === 'rp-pdf-sezB' || id === 'rp-pdf-sezC') {
-            // Fix 4/8/2026 (Alby: stesso identico problema di Formazioni/Annuario, segnalato con
-            // screenshot su "Gli Oscar" — un blocco categoria, es. "Scarpa d'Oro" con la sua card
-            // foto+nome, rischiava di finire tagliato a metà tra due pagine). Oscar e Classifiche
-            // condividono la stessa struttura a blocchi ripetuti (etichetta + card vincitore/i +
-            // eventuale elenco extra) — stesso fix: ogni blocco catturato singolarmente, mai
-            // spezzato, mai forzato su una pagina propria (più blocchi piccoli possono benissimo
-            // stare insieme sulla stessa pagina).
+            // Fix 4/8/2026, CORRETTO dopo nuova segnalazione di Alby con screenshot (il primo
+            // tentativo non bastava): "Gli Oscar"/"Classifiche" condividono la stessa struttura a
+            // blocchi ripetuti di Formazioni/Annuario — ogni blocco catturato singolarmente, MA
+            // qui sotto era stato lasciato senza forzare una pagina propria, assumendo che bastasse
+            // il controllo "non entra nello spazio rimasto" (v1.795) a spostarlo intero alla pagina
+            // dopo. Sbagliato: quel controllo scatta solo quando la protezione ALLUNGA il taglio
+            // oltre lo spazio disponibile — ma se lo spazio rimasto è poco e la ricerca del punto
+            // di taglio "sicuro" (basata su righe di solo colore di sfondo) non ne trova nessuno
+            // dentro il blocco (es. una card colorata piena, senza righe di sfondo puro al suo
+            // interno), il codice usa comunque un punto arbitrario come ultima risorsa — tagliando
+            // a metà esattamente come prima. Fix vero: ogni blocco forza sempre una pagina propria
+            // (`forceNewPage`), come già fatto per l'Annuario — un blocco da solo è sempre più
+            // corto di una pagina intera, quindi la ricerca del taglio non serve mai per questi
+            // pezzi (entrano sempre in un solo colpo).
             const headerEl = document.getElementById(id + '-header');
-            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
+            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0, false, true);
             const blockEls = [...document.querySelectorAll('#' + id + ' .rp-category-block')];
             for (let bi = 0; bi < blockEls.length; bi++) {
-              _pushPiece(await _captureOneEl(blockEls[bi]), 0);
+              _pushPiece(await _captureOneEl(blockEls[bi]), 0, false, true);
             }
             const footerEl = document.getElementById(id + '-footer');
             if (footerEl) _pushPiece(await _captureOneEl(footerEl), 32);
@@ -16595,20 +16657,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             continue;
           }
           if (id === 'rp-pdf-formazioni') {
-            // Fix 4/8/2026 (Alby: stesso identico problema già risolto nell'Annuario — un blocco
-            // formazione (es. "7vs7" col relativo campo verde) veniva tagliato a metà tra due
-            // pagine dalla logica di taglio "intelligente" condivisa da tutte le sezioni). Stesso
-            // approccio robusto: ogni blocco formazione catturato SINGOLARMENTE come pezzo a sé,
-            // mai spezzato — se non entra nello spazio rimasto sulla pagina corrente, il controllo
-            // già esistente (v1.795, "sliceHeight > available") lo sposta per intero alla pagina
-            // successiva invece di tagliarlo. Non serve forzare una pagina nuova per forza (a
-            // differenza dell'Annuario): più formazioni piccole possono stare benissimo sulla
-            // stessa pagina, l'importante è che nessuna venga mai spezzata.
+            // Fix 4/8/2026, CORRETTO dopo nuova segnalazione di Alby con screenshot ("mettine una
+            // per ogni pagina" — richiesta esplicita, ripetuta). Stesso errore di sopra: senza
+            // `forceNewPage` il campo verde (tutto colorato, nessuna riga di sfondo puro al suo
+            // interno) mandava in crisi la ricerca del punto di taglio sicuro, che finiva per
+            // tagliare comunque a un punto arbitrario. Ora ogni formazione forza una pagina propria
+            // (`forceNewPage`, richiesta esplicita di Alby) ed è anche marcata `atomic` come rete di
+            // sicurezza aggiuntiva.
             const headerEl = document.getElementById('rp-pdf-formazioni-header');
-            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
+            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0, false, true);
             const blockEls = [...document.querySelectorAll('#rp-pdf-formazioni .rp-formazione-block')];
             for (let bi = 0; bi < blockEls.length; bi++) {
-              _pushPiece(await _captureOneEl(blockEls[bi]), bi === blockEls.length - 1 ? 32 : 0);
+              _pushPiece(await _captureOneEl(blockEls[bi]), bi === blockEls.length - 1 ? 32 : 0, true, true);
             }
             continue;
           }
@@ -16626,7 +16686,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             const rowEls = [...document.querySelectorAll('#rp-pdf-sezE .rp-annuario-row')];
             for (let ri = 0; ri < rowEls.length; ri++) {
               if (rowEls.length > 1) seasonSummaryPdfStep.label = `Annuario (giocatore ${ri + 1}/${rowEls.length})...`;
-              _pushPiece(await _captureOneEl(rowEls[ri]), 32, true);
+              _pushPiece(await _captureOneEl(rowEls[ri]), 32, true, true);
             }
             continue;
           }
