@@ -5236,10 +5236,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- Sezione E — Annuario -->
       <div class="card" id="rp-pdf-sezE">
-        <div class="card-title" style="margin-bottom:6px">📇 Annuario giocatori</div>
-        <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
+        <div id="rp-pdf-sezE-header">
+          <div class="card-title" style="margin-bottom:6px">📇 Annuario giocatori</div>
+          <div v-if="seasonSummarySnapshot.aiTexts?.commentoE" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoE }}</div>
+        </div>
         <div style="display:flex;flex-direction:column;gap:16px">
-          <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" class="rp-annuario-row" style="display:flex;gap:12px;border-top:1px solid var(--border);padding-top:12px">
+          <div v-for="p in seasonSummarySnapshot.sezioneE" :key="p.uid" class="rp-annuario-row" :style="{display:'flex',gap:'12px',borderTop:'1px solid var(--border)',padding: seasonSummaryPdfPrintMode ? '20px' : '12px 0 0'}">
             <img :src="p.foto" @error="onPhotoError($event, p.uid)" style="width:56px;height:56px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
             <div style="font-size:0.82rem;line-height:1.6">
               <div style="font-weight:700">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.ruolo }}{{ p.piede ? ' · '+p.piede : '' }}</span> <span style="font-weight:800;color:var(--lime)">· OVR {{ p.overall }}</span></div>
@@ -8172,7 +8174,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.795',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.796',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF — Annuario ristrutturato alla radice su richiesta di Alby dopo ripetuti problemi di paginazione: ogni giocatore ha ora SEMPRE una pagina propria, catturata singolarmente — niente più ricerca del punto di taglio, niente più logica di protezione anti-spezzamento. Aggiunta anche un\'intestazione in alto su ogni pagina di contenuto, con il logo del gioco allineato a destra.',
+    ]},{version:'v1.795',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — fix del problema introdotto ieri: il fix per il riempimento pagina (v1.794) poteva disegnare un giocatore esteso oltre lo spazio rimasto sulla pagina, finendo sopra la zona del piè di pagina (dati/grafici che sembravano tagliati o mal posizionati). Ora, se un pezzo non entra nello spazio rimasto, la pagina si chiude PRIMA di disegnarlo e il pezzo viene ritentato per intero su una pagina nuova. Verificato con test end-to-end: nessuno sconfinamento, nessuna riga tagliata, 9 pagine per 45 giocatori (86% di riempimento medio).',
     ]},{version:'v1.794',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — fix RADICALE (Alby: "basta ora, risolvi"): trovata la causa di fondo di tutti i problemi di taglio/spazio bianco visti finora. La pagina veniva SEMPRE chiusa subito dopo qualunque taglio, anche quando il taglio era stato anticipato per non spezzare una riga e restava ancora tanto spazio libero — risultato: un giocatore solo per pagina, il resto bianco. Ora la pagina si chiude solo quando lo spazio rimasto è davvero minimo, altrimenti continua a riempirsi con il contenuto successivo. Verificato: da 1 giocatore/pagina a ~5-6 giocatori/pagina, riempimento medio 96%, zero righe tagliate.',
@@ -9240,7 +9244,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.795');
+    const appVersion = ref('1.796');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16178,6 +16182,22 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       ctx.restore();
     };
 
+    // Intestazione in alto su ogni pagina, richiesta da Alby (4/8/2026): logo del gioco allineato a
+    // destra, stesso margine della firma in fondo pagina — dà a ogni pagina un riferimento visivo
+    // superiore oltre al piè di pagina, utile soprattutto ora che l'Annuario ha una pagina per
+    // giocatore (tante pagine "corte" di contenuto, il logo in alto aiuta a orientarsi sfogliando).
+    const _drawPageHeader = (canvas, logoImg) => {
+      if (!logoImg) return; // se il logo non è riuscito a caricare, nessuna intestazione — mai bloccare il PDF per questo
+      const ctx = canvas.getContext('2d');
+      const scale = canvas.width / 210; // px per mm
+      const marginRight = Math.round(scale * 10);
+      const marginTop = Math.round(scale * 7);
+      const logoSize = Math.round(scale * 12);
+      ctx.save();
+      ctx.drawImage(logoImg, canvas.width - marginRight - logoSize, marginTop, logoSize, logoSize);
+      ctx.restore();
+    };
+
     // Attende che tutte le <img> dentro un elemento abbiano finito di caricare (con un timeout di
     // sicurezza: alcune foto giocatore possono essere link esterni — es. Google Drive — e non
     // vogliamo bloccare il PDF a tempo indeterminato se una è lenta o irraggiungibile).
@@ -16255,6 +16275,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       };
 
       sectionCanvases.forEach((piece, sIdx) => {
+        // Fix 4/8/2026 (Alby: "fai una pagina per giocatore" per l'Annuario): se questo pezzo
+        // richiede di iniziare su una pagina nuova (es. ogni riga giocatore dell'Annuario, catturata
+        // singolarmente) e la pagina corrente ha già del contenuto, la chiudiamo prima di procedere.
+        if (piece.forceNewPage && currentY > 0) finishPage(pageHeightPx);
         const sectionCanvas = piece.canvas;
         const protectedRanges = piece.protectedRanges || [];
         let srcY = 0;
@@ -16526,7 +16550,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           })();
           return { canvas, protectedRanges };
         };
-        const _pushPiece = (piece, gapAfter) => {
+        const _pushPiece = (piece, gapAfter, forceNewPage = false) => {
+          piece.forceNewPage = forceNewPage;
           sectionCanvases.push(piece);
           sectionGaps.push(gapAfter);
           if (!pageWidthPx) pageWidthPx = piece.canvas.width;
@@ -16534,6 +16559,24 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         for (const id of presentSectionIds) {
           seasonSummaryPdfStep.current++;
           seasonSummaryPdfStep.label = _seasonSummaryPdfSectionLabels[id] || 'Sezione...';
+          if (id === 'rp-pdf-sezE') {
+            // Fix 4/8/2026 (Alby, dopo 4 round di problemi di paginazione nell'Annuario — taglio a
+            // metà riga, spazio sprecato, sconfinamento sopra il piè di pagina: "basta ora, fai una
+            // pagina per giocatore"). Invece di catturare l'intera sezione come UN canvas alto da
+            // tagliare con la logica "intelligente" (fragile, causa di tutti i problemi precedenti),
+            // ogni riga giocatore viene catturata SINGOLARMENTE, con una pagina propria forzata:
+            // niente più ricerca del punto di taglio, niente più protezione anti-spezzamento —
+            // un giocatore è sempre più corto di una pagina intera, quindi entra sempre per intero
+            // senza bisogno di alcuna logica di taglio.
+            const headerEl = document.getElementById('rp-pdf-sezE-header');
+            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 32);
+            const rowEls = [...document.querySelectorAll('#rp-pdf-sezE .rp-annuario-row')];
+            for (let ri = 0; ri < rowEls.length; ri++) {
+              if (rowEls.length > 1) seasonSummaryPdfStep.label = `Annuario (giocatore ${ri + 1}/${rowEls.length})...`;
+              _pushPiece(await _captureOneEl(rowEls[ri]), 32, true);
+            }
+            continue;
+          }
           if (id === 'rp-pdf-sezD') {
             // Fix 26/7/2026 (segnalato da Alby: con "Includi immagini" e molte partite la sezione
             // risultava vuota, poi troppo lenta con la cattura partita-per-partita): due percorsi.
@@ -16580,6 +16623,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         allPages.forEach((p, i) => {
           _drawPageFooter(p.canvas, i + 1, allPages.length,
             p.isDark ? 'rgba(255,255,255,0.78)' : 'rgba(27,43,27,0.72)', !p.isDark);
+        });
+
+        // Intestazione in alto con logo a destra (richiesto da Alby 4/8/2026) — solo sulle pagine di
+        // contenuto, non su Copertina/Chiusura che hanno già il logo, grande e centrale, nel design.
+        const _li = (src) => new Promise(res => {
+          if (!src) return res(null);
+          const img = new Image();
+          img.onload = () => res(img);
+          img.onerror = () => res(null);
+          img.src = src;
+          setTimeout(() => res(null), 6000);
+        });
+        const _headerLogoImg = await _li(LOGO_EMBEDDED);
+        allPages.forEach(p => {
+          if (!p.isDark) _drawPageHeader(p.canvas, _headerLogoImg);
         });
 
         allPages.forEach((p, i) => {
