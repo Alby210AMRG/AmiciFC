@@ -5206,7 +5206,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
         <div style="display:flex;flex-direction:column">
           <div v-for="(batch, bi) in seasonSummaryPdfMatchBatches" :key="bi" :id="'rp-pdf-sezD-batch'+bi">
-          <div v-for="mi in batch" :key="mi" :id="'rp-pdf-sezD-m'+mi" style="border-top:1px solid var(--border);padding:0 20px">
+          <div v-for="mi in batch" :key="mi" :id="'rp-pdf-sezD-m'+mi" class="rp-match-row" style="border-top:1px solid var(--border);padding:0 20px">
             <button style="width:100%;display:flex;flex-direction:column;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
               @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
               <div style="display:flex;align-items:center;justify-content:space-between">
@@ -5259,12 +5259,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div>{{ p.puntiTotali }} punti totali (media {{ p.mediaPunti.toFixed(2) }}/partita){{ p.autogolTotali>0 ? ' · '+p.autogolTotali+' autogol' : '' }}{{ p.rigoriParatiTotali>0 ? ' · '+p.rigoriParatiTotali+' rigori parati' : '' }}</div>
               <div>🥅 Max gol in una partita: {{ p.maxGolPartita }}</div>
               <div>✅ {{ p.vittorie }}V · ➖ {{ p.pareggi }}P · ❌ {{ p.sconfitte }}S (su {{ p.partiteTotali }} presenze)</div>
-              <svg v-if="p.formHistory && p.formHistory.length >= 2" :viewBox="'0 0 200 36'" style="width:100%;max-width:220px;height:36px;overflow:visible;margin:2px 0">
-                <line x1="0" y1="18" x2="200" y2="18" stroke="rgba(128,128,128,0.25)" stroke-width="1" stroke-dasharray="3,3"/>
-                <polyline
-                  :points="p.formHistory.map((v,i,arr)=>`${i*(200/(arr.length-1))},${18-v*1.4}`).join(' ')"
-                  fill="none" stroke="var(--lime)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <div v-if="p.formHistory && p.formHistory.length >= 2" style="margin:6px 0 8px">
+                <div style="font-size:0.72rem;color:var(--text2);font-weight:700;margin-bottom:3px">📈 Andamento stagionale (V/P/S)</div>
+                <svg :viewBox="'0 0 240 74'" style="width:100%;max-width:260px;height:56px;overflow:visible;display:block">
+                  <rect x="1" y="1" width="238" height="72" rx="8" fill="var(--card)" stroke="var(--border)" stroke-width="1"/>
+                  <line x1="34" y1="14" x2="234" y2="14" stroke="rgba(128,128,128,0.15)" stroke-width="1"/>
+                  <line x1="34" y1="37" x2="234" y2="37" stroke="rgba(128,128,128,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
+                  <line x1="34" y1="60" x2="234" y2="60" stroke="rgba(128,128,128,0.15)" stroke-width="1"/>
+                  <text x="30" y="14" text-anchor="end" dominant-baseline="middle" font-size="8" font-weight="700" fill="var(--lime)">V</text>
+                  <text x="30" y="37" text-anchor="end" dominant-baseline="middle" font-size="8" fill="var(--text2)">P</text>
+                  <text x="30" y="60" text-anchor="end" dominant-baseline="middle" font-size="8" font-weight="700" fill="var(--red)">S</text>
+                  <polyline
+                    :points="p.formHistory.map((v,i,arr)=>`${34+i*(200/(arr.length-1))},${37-v*3.83}`).join(' ')"
+                    fill="none" stroke="var(--lime)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                  <text x="34" y="71" text-anchor="start" font-size="7" fill="var(--text2)">Inizio stagione</text>
+                  <text x="234" y="71" text-anchor="end" font-size="7" fill="var(--text2)">Ultima partita</text>
+                </svg>
+              </div>
               <div v-if="p.vittima">😈 Vittima preferita: {{ p.vittima.nome }} ({{ p.vittima.vinte }}/{{ p.vittima.tot }})</div>
               <div v-if="p.incubo">☠️ Incubo personale: {{ p.incubo.nome }} ({{ p.incubo.perse }}/{{ p.incubo.tot }})</div>
               <div v-if="p.soprannomeAI" style="font-style:italic;color:var(--text2);margin-top:2px">🎭 {{ p.soprannomeAI }}{{ p.confrontoAI ? ' — '+p.confrontoAI : '' }}</div>
@@ -8186,7 +8197,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.801',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.802',date:'2026-08-04',items:[
+      '4 miglioramenti al Riepilogo Stagione PDF: 1) intestazione più lunga (circa il doppio) e con verde molto più tenue; 2) aggiunto un indice subito dopo la copertina, con titoli dei capitoli e sottocapitoli (taglie delle Formazioni) e numeri di pagina corretti; 3) protezione anti-taglio estesa anche alle immagini della sezione Le Partite (titolo giornale + foto partita), verificata come per le altre sezioni; 4) il grafico andamento vittorie/pareggi/sconfitte nell\'Annuario ora ha un riquadro, un titolo, le etichette V/P/S sull\'asse verticale e "Inizio stagione"/"Ultima partita" sull\'asse orizzontale.',
+    ]},{version:'v1.801',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF: la filigrana e il piè di pagina ora coprono sempre l\'intera pagina A4, anche quando una sezione finisce a metà pagina (prima si vedeva tagliata a metà, e il piè di pagina finiva al centro invece che in fondo). Intestazione ridisegnata: non più un quadrato con logo a destra e pallone separato a sinistra, ma un unico rettangolo che sfuma dal pallone (a sinistra) al logo (a destra).',
     ]},{version:'v1.800',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — struttura a capitoli (richiesta di Alby): ogni sezione (Numeri, Oscar, Classifiche, Partite, Annuario, Gabbione, Formazioni, Curiosità) ha ora una copertina a tutta pagina, stesso stile della copertina iniziale, e parte sempre da una pagina nuova invece di scorrere nella sezione precedente.',
@@ -9266,7 +9279,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.801');
+    const appVersion = ref('1.802');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16007,6 +16020,38 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return canvas;
     };
 
+    // Indice (richiesto da Alby 4/8/2026): pagina con titoli dei capitoli (in grassetto) e dei
+    // sottocapitoli (indentati, solo per le Formazioni — le uniche con una pagina propria per
+    // ciascuna voce, quindi un numero di pagina davvero significativo; le categorie di Oscar e
+    // Classifiche condividono spesso la stessa pagina tra loro, listarle tutte avrebbe affollato
+    // l'indice senza aggiungere informazione utile), con puntini guida fino al numero di pagina.
+    const _buildTocPageHTML = (entries) => {
+      const rows = entries.map(e => {
+        if (e.level === 0) {
+          return `
+            <div style="display:flex;align-items:baseline;gap:8px;margin-top:18px;margin-bottom:2px">
+              <span style="font-family:'Fredoka One',cursive;font-size:22px;color:#166534;white-space:nowrap">${_escapeHtml(e.title)}</span>
+              <span style="flex:1;border-bottom:2px dotted rgba(22,101,52,0.3);transform:translateY(-5px)"></span>
+              <span style="font-size:18px;font-weight:700;color:#166534">${e.pageNumber}</span>
+            </div>`;
+        }
+        return `
+          <div style="display:flex;align-items:baseline;gap:8px;margin:3px 0 3px 26px">
+            <span style="font-size:14px;color:#4a5a4a;white-space:nowrap">${_escapeHtml(e.title)}</span>
+            <span style="flex:1;border-bottom:1px dotted rgba(74,90,74,0.3);transform:translateY(-4px)"></span>
+            <span style="font-size:13px;color:#4a5a4a">${e.pageNumber}</span>
+          </div>`;
+      }).join('');
+      return `
+        <div style="width:794px;height:1123px;position:relative;overflow:hidden;background:#EBF6EB;font-family:'Nunito','Segoe UI',sans-serif;box-sizing:border-box;padding:90px 80px 0 80px">
+          <div style="display:flex;align-items:center;gap:14px;margin-bottom:36px">
+            <div style="font-size:38px">📑</div>
+            <div style="font-family:'Fredoka One',cursive;font-size:34px;color:#166534">Indice</div>
+          </div>
+          ${rows}
+        </div>`;
+    };
+
     // Copertina di capitolo (richiesta di Alby 4/8/2026): una pagina a tutta pagina, stesso stile
     // della copertina iniziale (sfondo verde scuro sfumato, filigrane emoji), prima di ogni sezione
     // del Riepilogo — dà al PDF una struttura "a capitoli" chiara, ognuno che parte da una pagina
@@ -16238,7 +16283,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const marginTop = Math.round(scale * 7);
       const marginRight = Math.round(scale * 10);
       const badgeSize = Math.round(scale * 14); // altezza del rettangolo
-      const badgeWidth = Math.round(badgeSize * 2.4); // largo ~2.4x l'altezza, non un quadrato
+      const badgeWidth = Math.round(badgeSize * 4.8); // circa il doppio di prima (era 2.4x), richiesta di Alby
       const badgeX = canvas.width - marginRight - badgeWidth;
       const badgeY = marginTop;
       const radius = Math.round(scale * 3);
@@ -16253,18 +16298,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       ctx.closePath();
       ctx.clip();
 
-      // Sfondo verde pieno (sfumatura semplice chiaro→scuro, sempre opaca — niente trasparenze
-      // complesse che rischiano di "bucare" il rettangolo su alcuni browser/motori di rendering).
+      // Sfondo verde MOLTO più tenue di prima (richiesta di Alby: era troppo acceso) — sfumatura
+      // chiaro→leggermente meno chiaro, sempre opaca.
       const bgGrad = ctx.createLinearGradient(badgeX, 0, badgeX + badgeWidth, 0);
-      bgGrad.addColorStop(0, '#4fbf5f');
-      bgGrad.addColorStop(1, '#2F8F2F');
+      bgGrad.addColorStop(0, '#e4f5e2');
+      bgGrad.addColorStop(1, '#bfe3bc');
       ctx.fillStyle = bgGrad;
       ctx.fillRect(badgeX, badgeY, badgeWidth, badgeSize);
 
       // Il pallone, semi-trasparente, sovrapposto sulla parte sinistra del rettangolo — dà l'idea
       // di "sfumare" nel verde senza dover erodere il colore di sfondo (più semplice e affidabile).
       ctx.save();
-      ctx.globalAlpha = 0.45;
+      ctx.globalAlpha = 0.35;
       ctx.font = `${Math.round(badgeSize * 0.8)}px sans-serif`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'center';
@@ -16332,6 +16377,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const footerReservePx = Math.round(pageWidthPx * (footerReserveMM / 210));
       const contentLimitPx = pageHeightPx - footerReservePx; // il contenuto non deve mai superare questo limite
       const pages = [];
+      // Indice (richiesto da Alby 4/8/2026): tocMarks traccia a quale pagina LOCALE (0-indicizzata,
+      // dentro l'array pages di QUESTA chiamata) inizia ogni pezzo con .tocLabel — permette di
+      // costruire l'indice con i numeri di pagina corretti senza un secondo passaggio o l'ispezione
+      // dei pixel: lo sappiamo già con certezza qui, nel punto esatto in cui ogni pezzo comincia.
+      const tocMarks = [];
       let watermarkIdx = 0;
       let currentPage = document.createElement('canvas');
       currentPage.width = pageWidthPx;
@@ -16370,6 +16420,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // richiede di iniziare su una pagina nuova (es. ogni riga giocatore dell'Annuario, catturata
         // singolarmente) e la pagina corrente ha già del contenuto, la chiudiamo prima di procedere.
         if (piece.forceNewPage && currentY > headerReservePx) finishPage(pageHeightPx);
+        if (piece.tocLabel) tocMarks.push({ label: piece.tocLabel, level: piece.tocLevel || 1, pageIndex: pages.length });
         const sectionCanvas = piece.canvas;
         const protectedRanges = piece.protectedRanges || [];
         let srcY = 0;
@@ -16516,7 +16567,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       // sfondo pieno (già disegnato all'apertura di ogni pagina), la filigrana lo copre per intero,
       // e il piè di pagina è sempre ancorato al vero fondo pagina.
       if (currentY > headerReservePx) finishPage(pageHeightPx);
-      return pages;
+      return { pages, tocMarks };
     };
 
     // Ordine delle sezioni vere catturate dalla vista (id assegnati nel template). Chiusura NON è
@@ -16597,12 +16648,15 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         });
 
         const presentSectionIds = seasonSummaryPdfSectionIds.filter(id => document.getElementById(id));
-        seasonSummaryPdfStep.total = 1 /* copertina */ + presentSectionIds.length + 1 /* chiusura */ + 1 /* finalizzazione */;
+        seasonSummaryPdfStep.total = 1 /* copertina */ + presentSectionIds.length + 1 /* indice */ + 1 /* chiusura */ + 1 /* finalizzazione */;
 
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF({ unit: 'mm', format: 'a4' });
 
         const allPages = []; // { canvas, heightMM, isDark }
+        // Indice (richiesto da Alby 4/8/2026): raccoglie titolo+pagina di ogni capitolo e
+        // sotto-capitolo man mano che vengono composti, per costruire poi la pagina dell'indice.
+        const globalTocEntries = []; // { level: 0=capitolo/1=sotto-capitolo, title, rawPageIndex }
 
         seasonSummaryPdfStep.current = 1;
         seasonSummaryPdfStep.label = 'Copertina...';
@@ -16660,7 +16714,15 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           const ROW_PROTECTED_MARGIN = 0;
           const _rawProtectedRanges = [
             ...[...el.querySelectorAll('img')].map(img => _toRange(img.getBoundingClientRect())),
-            ...[...el.querySelectorAll('.rp-annuario-row')].map(row => _toRangeMargin(row.getBoundingClientRect(), ROW_PROTECTED_MARGIN))
+            ...[...el.querySelectorAll('.rp-annuario-row')].map(row => _toRangeMargin(row.getBoundingClientRect(), ROW_PROTECTED_MARGIN)),
+            // Fix 4/8/2026 (Alby: verifica esplicita richiesta sulle immagini di Sezione D — "Includi
+            // immagini" inserisce anche il titolo giornale e la foto della partita, non solo le
+            // formazioni). Prima usavano solo la protezione per singola immagine (fix 26/7/2026),
+            // sufficiente per evitare che UNA foto venisse tagliata a metà, ma non per garantire che
+            // il taglio non cadesse comunque tra il testo di una partita e le sue immagini. Stessa
+            // tecnica già validata per l'Annuario: ogni riga partita (`.rp-match-row`) è perfettamente
+            // adiacente alla successiva (solo un border-top, zero padding verticale) quindi margine 0.
+            ...[...el.querySelectorAll('.rp-match-row')].map(row => _toRangeMargin(row.getBoundingClientRect(), ROW_PROTECTED_MARGIN))
           ].filter(([t, b]) => b > t);
           // Fondiamo comunque le zone che si sovrappongono (non quelle che si toccano soltanto, es.
           // due righe adiacenti con margine 0 — quello resta un confine valido) come rete di
@@ -16680,9 +16742,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           })();
           return { canvas, protectedRanges };
         };
-        const _pushPiece = (piece, gapAfter, forceNewPage = false, atomic = false) => {
+        const _pushPiece = (piece, gapAfter, forceNewPage = false, atomic = false, tocLabel = null, tocLevel = 1) => {
           piece.forceNewPage = forceNewPage;
           piece.atomic = atomic;
+          piece.tocLabel = tocLabel;
+          piece.tocLevel = tocLevel;
           sectionCanvases.push(piece);
           sectionGaps.push(gapAfter);
           if (!pageWidthPx) pageWidthPx = piece.canvas.width;
@@ -16699,12 +16763,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           // tutte le sezioni insieme e comporli in un colpo solo alla fine.
           const chapterEmoji = _seasonSummaryPdfChapterEmoji[id] || '📄';
           const chapterTitle = _seasonSummaryPdfChapterTitle[id] || _seasonSummaryPdfSectionLabels[id] || 'Sezione';
+          // Indice (richiesto da Alby 4/8/2026): registriamo qui la voce di capitolo con la pagina
+          // "grezza" (0-indicizzata, calcolata come se l'indice stesso non occupasse ancora nessuna
+          // pagina) — l'offset per le pagine dell'indice viene aggiunto dopo, una volta note.
+          globalTocEntries.push({ level: 0, title: chapterTitle, rawPageIndex: allPages.length });
           const chapterCoverCanvas = await _capturePdfPage(_buildChapterCoverHTML(chapterEmoji, chapterTitle));
           allPages.push({ canvas: chapterCoverCanvas, heightMM: 297, isDark: true });
           sectionCanvases.length = 0;
           sectionGaps.length = 0;
           const _flushCurrentSection = () => {
-            const flowed = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', sectionGaps);
+            const basePageIndex = allPages.length;
+            const { pages: flowed, tocMarks } = _flowSectionsIntoPages(sectionCanvases, pageWidthPx, '#EBF6EB', sectionGaps);
+            tocMarks.forEach(m => globalTocEntries.push({ level: m.level, title: m.label, rawPageIndex: basePageIndex + m.pageIndex }));
             flowed.forEach(p => allPages.push({ canvas: p.canvas, heightMM: p.heightMM, isDark: false }));
             sectionCanvases.length = 0;
             sectionGaps.length = 0;
@@ -16749,7 +16819,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0, false, true);
             const blockEls = [...document.querySelectorAll('#rp-pdf-formazioni .rp-formazione-block')];
             for (let bi = 0; bi < blockEls.length; bi++) {
-              _pushPiece(await _captureOneEl(blockEls[bi]), bi === blockEls.length - 1 ? 32 : 0, true, true);
+              const sizeLabel = blockEls[bi].querySelector('div')?.textContent?.trim() || null;
+              _pushPiece(await _captureOneEl(blockEls[bi]), bi === blockEls.length - 1 ? 32 : 0, true, true, sizeLabel, 1);
             }
             _flushCurrentSection();
             continue;
@@ -16805,6 +16876,19 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           _pushPiece(await _captureOneEl(el), 32);
           _flushCurrentSection();
         }
+
+        // Indice (richiesto da Alby 4/8/2026): ora che tutti i capitoli sono stati composti,
+        // conosciamo la pagina "grezza" (senza contare l'indice stesso) di ognuno. Costruiamo la
+        // pagina dell'indice con i numeri finali (grezzo + 1 pagina di copertina + il numero di
+        // pagine dell'indice stesso, che inseriamo SUBITO DOPO la copertina) e la inseriamo lì.
+        seasonSummaryPdfStep.current++;
+        seasonSummaryPdfStep.label = 'Indice...';
+        const TOC_PAGE_COUNT = 1; // gli elementi tipici (8 capitoli + fino a 7 sottocapitoli
+        // Formazioni) stanno comodamente su una pagina sola — se in futuro le voci diventassero
+        // molte di più, qui è il punto da rivedere per eventualmente spezzare su più pagine.
+        const tocEntriesFinal = globalTocEntries.map(e => ({ ...e, pageNumber: e.rawPageIndex + 1 + TOC_PAGE_COUNT }));
+        const tocCanvas = await _capturePdfPage(_buildTocPageHTML(tocEntriesFinal));
+        allPages.splice(1, 0, { canvas: tocCanvas, heightMM: 297, isDark: false });
 
         seasonSummaryPdfStep.current++;
         seasonSummaryPdfStep.label = 'Chiusura...';
