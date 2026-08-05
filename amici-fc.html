@@ -5192,14 +5192,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
              sezione risultava completamente vuota nel PDF): un'unica cattura html2canvas di TUTTA
              la sezione con decine di partite e le loro immagini può superare i limiti di dimensione
              canvas del browser, che allora restituisce un canvas vuoto SENZA errore. Con le
-             immagini attive, la generazione cattura ora un LOTTO di partite alla volta (vedi
-             rp-pdf-sezD-batch{i} sotto, PDF_MATCH_BATCH_SIZE per lotto) invece di tutta la sezione
-             insieme — abbastanza piccolo da restare sotto i limiti del browser, abbastanza grande
-             da restare ragionevolmente veloce (html2canvas clona l'intero documento a ogni singola
-             chiamata, quindi tante chiamate piccolissime sono lente). Senza immagini si passa
-             invece dal percorso veloce (tutta la sezione in una sola cattura, mai stato un
-             problema). Il padding qui sotto (20px ai lati) replica manualmente quello della card,
-             dato che le catture a lotti non hanno più il wrapper .card intorno. -->
+        <!-- Fix 5/8/2026 (Alby: "basta tagli", richiesta esplicita di una partita per pagina):
+             ogni partita viene ora catturata SINGOLARMENTE (vedi generateSeasonSummaryPDF) e forza
+             sempre una pagina propria, come già l'Annuario e le Formazioni — non più a lotti. I
+             div batch qui sotto restano solo come raggruppamento visivo nel template (v-for
+             annidato), non hanno più alcun ruolo nella cattura/paginazione del PDF. -->
         <div id="rp-pdf-sezD-header" style="padding:0 20px">
           <div class="card-title" style="margin-bottom:6px;padding-top:20px">🗞️ Le partite</div>
           <div v-if="seasonSummarySnapshot.aiTexts?.commentoD" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:10px">{{ seasonSummarySnapshot.aiTexts.commentoD }}</div>
@@ -8197,7 +8194,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.804',date:'2026-08-05',items:[
+    const changelogEntries = [{version:'v1.805',date:'2026-08-05',items:[
+      'Riepilogo Stagione PDF — Le Partite ristrutturata alla radice (richiesta esplicita e definitiva di Alby: "basta tagli"): ogni partita ha ora sempre una pagina propria, come già l\'Annuario e le Formazioni — non più a lotti che potevano ancora impacchettare più partite sulla stessa pagina. Elimina l\'intera classe di rischio, non solo la riduce.',
+    ]},{version:'v1.804',date:'2026-08-05',items:[
       'Riepilogo Stagione PDF: Alby ha confermato di essere già in v1.803 e di vedere ancora sia il grafico Annuario tagliato sia rischio di taglio immagini partita. Grafico ridisegnato con viewBox e dimensioni ESATTAMENTE identiche (220x80, nessuno scaling) — elimina ogni possibile ambiguità nel modo in cui html2canvas gestisce lo scaling degli SVG, causa più probabile del taglio persistente. Immagini partita rese più robuste (width/height auto espliciti) per gestire meglio proporzioni insolite nei dati reali.',
     ]},{version:'v1.803',date:'2026-08-05',items:[
       'Riepilogo Stagione PDF, 3 fix: 1) titolo partita tagliato con molti giornate — causa probabile: senza immagini tutte le partite venivano catturate in un unico canvas gigante, a rischio di superare i limiti del browser con centinaia di partite; ora usa sempre lotti (40 partite senza immagini, 6 con immagini); 2) grafico andamento Annuario — mancavano la S e la fine del grafico per un\'incoerenza tra le proporzioni dichiarate e quelle effettive, ora corretta; 3) immagini partita (titolo giornale + foto) ridotte (da 72% a 45% di larghezza, più un\'altezza massima di sicurezza) per non sconfinare più sopra il piè di pagina quando c\'è anche un commento AI lungo.',
@@ -9283,7 +9282,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.804');
+    const appVersion = ref('1.805');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16857,22 +16856,25 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             continue;
           }
           if (id === 'rp-pdf-sezD') {
-            // Fix 26/7/2026 + fix 4/8/2026 (Alby, PDF reale da 115 pagine: titolo partita tagliato a
-            // metà). PRIMA: senza immagini si catturava l'intera sezione in un colpo solo (assunto
-            // "ben sotto i limiti anche con decine di partite" — assunzione sbagliata con centinaia
-            // di partite su più stagioni, come nel caso reale di Alby). Ora si usa SEMPRE la cattura
-            // a lotti (dimensione dinamica: 40 partite per lotto senza immagini, 6 con immagini,
-            // vedi PDF_MATCH_BATCH_SIZE) — mai più una cattura unica potenzialmente gigante.
+            // Fix 5/8/2026 (Alby: "basta tagli" — richiesta esplicita e definitiva: se il giornale
+            // non ci sta deve andare sulla pagina dopo, e la partita successiva deve ripartire da
+            // una pagina nuova). La cattura a lotti (fix precedenti) riduceva il rischio ma non lo
+            // eliminava: più partite nello stesso lotto potevano ancora impacchettarsi sulla stessa
+            // pagina, lasciando aperta la stessa classe di rischio già vista in Formazioni/Annuario.
+            // Stesso approccio robusto, applicato qui per lo stesso motivo: ogni partita viene ora
+            // catturata SINGOLARMENTE e forza sempre una pagina propria (`forceNewPage`+`atomic`) —
+            // una partita da sola è sempre più corta di una pagina intera, quindi non serve alcuna
+            // ricerca del punto di taglio: elimina l'intera classe di bug alla radice, non solo la
+            // riduce.
             const headerEl = document.getElementById('rp-pdf-sezD-header');
             if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
-            const totalBatches = seasonSummaryPdfMatchBatches.value.length;
-            for (let bi = 0; bi < totalBatches; bi++) {
-              const batchEl = document.getElementById('rp-pdf-sezD-batch' + bi);
-              if (!batchEl) continue;
-              if (totalBatches > 1) seasonSummaryPdfStep.label = `Le partite (lotto ${bi + 1}/${totalBatches})...`;
-              _pushPiece(await _captureOneEl(batchEl), 0);
+            const numMatches = (seasonSummarySnapshot.value?.sezioneD || []).length;
+            for (let mi = 0; mi < numMatches; mi++) {
+              const matchEl = document.getElementById('rp-pdf-sezD-m' + mi);
+              if (!matchEl) continue;
+              if (numMatches > 1 && mi % 10 === 0) seasonSummaryPdfStep.label = `Le partite (${mi + 1}/${numMatches})...`;
+              _pushPiece(await _captureOneEl(matchEl), mi === numMatches - 1 ? 32 : 0, true, true);
             }
-            if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
             _flushCurrentSection();
             continue;
           }
