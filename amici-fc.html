@@ -8186,7 +8186,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.800',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.801',date:'2026-08-04',items:[
+      'Riepilogo Stagione PDF: la filigrana e il piè di pagina ora coprono sempre l\'intera pagina A4, anche quando una sezione finisce a metà pagina (prima si vedeva tagliata a metà, e il piè di pagina finiva al centro invece che in fondo). Intestazione ridisegnata: non più un quadrato con logo a destra e pallone separato a sinistra, ma un unico rettangolo che sfuma dal pallone (a sinistra) al logo (a destra).',
+    ]},{version:'v1.800',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — struttura a capitoli (richiesta di Alby): ogni sezione (Numeri, Oscar, Classifiche, Partite, Annuario, Gabbione, Formazioni, Curiosità) ha ora una copertina a tutta pagina, stesso stile della copertina iniziale, e parte sempre da una pagina nuova invece di scorrere nella sezione precedente.',
     ]},{version:'v1.799',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF — trovata la vera causa dei tagli residui in Formazioni/Oscar/Classifiche (la ricerca del punto di taglio falliva sui blocchi a colore pieno come il campo verde e usava comunque un punto arbitrario): ora questi blocchi vengono spostati per intero alla pagina successiva PRIMA di provare qualunque ricerca, mai più a rischio taglio. Aggiunto anche il padding mancante a testi/intestazioni catturati singolarmente, uno spazio riservato in alto su ogni pagina (mai più contenuto sopra l\'intestazione), e una nuova intestazione con badge verde+logo a destra e pallone in filigrana a sinistra.',
@@ -9264,7 +9266,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.800');
+    const appVersion = ref('1.801');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16223,53 +16225,58 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       ctx.restore();
     };
 
-    // Intestazione in alto su ogni pagina, richiesta da Alby (4/8/2026, poi rifinita su sua
-    // indicazione precisa): un quadrato verde (stesso verde del campo/app) con il logo dentro, a
-    // destra; un pallone in filigrana in stile "serigrafia" (semi-trasparente, ruotato — stesso
-    // principio della filigrana grande già usata in fondo pagina) tutto a sinistra. Dà a ogni
-    // pagina un riferimento visivo superiore oltre al piè di pagina, utile soprattutto ora che
-    // l'Annuario/Formazioni hanno una pagina per elemento (tante pagine "corte", il logo in alto
+    // Intestazione in alto su ogni pagina, richiesta da Alby (4/8/2026, rifinita una seconda volta
+    // su sua indicazione precisa): NON due elementi separati (pallone a sinistra + quadrato a
+    // destra, versione precedente) ma UN unico elemento coeso — un rettangolo verde (più largo che
+    // alto, non un quadrato) col logo a destra, che sfuma gradualmente in un pallone sulla sinistra.
+    // Dà a ogni pagina un riferimento visivo superiore oltre al piè di pagina, utile soprattutto ora
+    // che l'Annuario/Formazioni hanno una pagina per elemento (tante pagine "corte", il logo in alto
     // aiuta a orientarsi sfogliando).
     const _drawPageHeader = (canvas, logoImg) => {
       const ctx = canvas.getContext('2d');
       const scale = canvas.width / 210; // px per mm
       const marginTop = Math.round(scale * 7);
-
-      // Pallone in filigrana, tutto a sinistra, stile serigrafia (semi-trasparente, ruotato) —
-      // stesso trattamento della filigrana grande di fondo pagina, qui in piccolo e in alto.
-      ctx.save();
-      ctx.globalAlpha = 0.16;
-      ctx.font = `${Math.round(scale * 16)}px sans-serif`;
-      ctx.textBaseline = 'middle';
-      ctx.textAlign = 'left';
-      ctx.translate(Math.round(scale * 8), marginTop + Math.round(scale * 6));
-      ctx.rotate(-10 * Math.PI / 180);
-      ctx.fillText('⚽', 0, 0);
-      ctx.restore();
-
-      if (!logoImg) return; // se il logo non è riuscito a caricare, niente badge — mai bloccare il PDF per questo
-      // Quadrato verde (colore del campo) con il logo dentro, a destra.
       const marginRight = Math.round(scale * 10);
-      const badgeSize = Math.round(scale * 14);
-      const badgeX = canvas.width - marginRight - badgeSize;
+      const badgeSize = Math.round(scale * 14); // altezza del rettangolo
+      const badgeWidth = Math.round(badgeSize * 2.4); // largo ~2.4x l'altezza, non un quadrato
+      const badgeX = canvas.width - marginRight - badgeWidth;
       const badgeY = marginTop;
       const radius = Math.round(scale * 3);
+
       ctx.save();
       ctx.beginPath();
       ctx.moveTo(badgeX + radius, badgeY);
-      ctx.arcTo(badgeX + badgeSize, badgeY, badgeX + badgeSize, badgeY + badgeSize, radius);
-      ctx.arcTo(badgeX + badgeSize, badgeY + badgeSize, badgeX, badgeY + badgeSize, radius);
+      ctx.arcTo(badgeX + badgeWidth, badgeY, badgeX + badgeWidth, badgeY + badgeSize, radius);
+      ctx.arcTo(badgeX + badgeWidth, badgeY + badgeSize, badgeX, badgeY + badgeSize, radius);
       ctx.arcTo(badgeX, badgeY + badgeSize, badgeX, badgeY, radius);
-      ctx.arcTo(badgeX, badgeY, badgeX + badgeSize, badgeY, radius);
+      ctx.arcTo(badgeX, badgeY, badgeX + badgeWidth, badgeY, radius);
       ctx.closePath();
-      const grad = ctx.createLinearGradient(badgeX, badgeY, badgeX, badgeY + badgeSize);
-      grad.addColorStop(0, '#3aaa4a');
-      grad.addColorStop(1, '#2F8F2F');
-      ctx.fillStyle = grad;
-      ctx.fill();
       ctx.clip();
-      const logoPad = Math.round(badgeSize * 0.14);
-      ctx.drawImage(logoImg, badgeX + logoPad, badgeY + logoPad, badgeSize - logoPad * 2, badgeSize - logoPad * 2);
+
+      // Sfondo verde pieno (sfumatura semplice chiaro→scuro, sempre opaca — niente trasparenze
+      // complesse che rischiano di "bucare" il rettangolo su alcuni browser/motori di rendering).
+      const bgGrad = ctx.createLinearGradient(badgeX, 0, badgeX + badgeWidth, 0);
+      bgGrad.addColorStop(0, '#4fbf5f');
+      bgGrad.addColorStop(1, '#2F8F2F');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(badgeX, badgeY, badgeWidth, badgeSize);
+
+      // Il pallone, semi-trasparente, sovrapposto sulla parte sinistra del rettangolo — dà l'idea
+      // di "sfumare" nel verde senza dover erodere il colore di sfondo (più semplice e affidabile).
+      ctx.save();
+      ctx.globalAlpha = 0.45;
+      ctx.font = `${Math.round(badgeSize * 0.8)}px sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'center';
+      ctx.fillText('⚽', badgeX + badgeSize * 0.5, badgeY + badgeSize / 2);
+      ctx.restore();
+
+      // Il logo, a destra, dove il rettangolo resta più scuro e ben leggibile.
+      if (logoImg) {
+        const logoPad = Math.round(badgeSize * 0.16);
+        const logoSize = badgeSize - logoPad * 2;
+        ctx.drawImage(logoImg, badgeX + badgeWidth - logoSize - logoPad, badgeY + logoPad, logoSize, logoSize);
+      }
       ctx.restore();
     };
 
@@ -16334,10 +16341,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       pageCtx.fillRect(0, 0, pageWidthPx, pageHeightPx);
       let currentY = headerReservePx;
 
-      // finalHeight: quanto alto rendere il canvas della pagina finita. Le pagine "piene" restano
-      // sempre a piena altezza (pageHeightPx, che include già lo spazio riservato in fondo, mai
-      // toccato dal contenuto). L'ultima pagina (parziale) viene invece accorciata, ma SEMPRE
-      // lasciando sotto il contenuto reale lo spazio riservato per il piè di pagina.
+      // finalHeight: quanto alto rendere il canvas della pagina finita. Fix 4/8/2026 (Alby: "la
+      // trama con la filigrana deve essere in tutta la pagina e non tagliata, il piè di pagina è al
+      // centro e non in basso"): ogni pagina, compresa l'ultima (parziale) di ogni sezione/capitolo,
+      // viene ora SEMPRE finalizzata a piena altezza A4 (pageHeightPx) — mai più accorciata al
+      // contenuto reale. Lo spazio in eccedenza resta semplicemente sfondo pieno (già disegnato
+      // sopra), la filigrana lo copre per intero, e il piè di pagina risulta sempre ancorato al vero
+      // fondo pagina invece che al fondo di un'immagine più corta. Il parametro finalHeight esiste
+      // ancora per compatibilità di firma, ma i chiamanti passano sempre pageHeightPx.
       const finishPage = (finalHeight) => {
         const trimmed = document.createElement('canvas');
         trimmed.width = pageWidthPx;
@@ -16491,9 +16502,20 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           else finishPage(pageHeightPx);
         }
       });
-      // Ultima pagina (parziale): accorciata al contenuto reale + lo spazio riservato per il piè
-      // di pagina (mai solo currentY, altrimenti il piè finirebbe appiccicato all'ultima riga).
-      if (currentY > headerReservePx) finishPage(Math.min(currentY + footerReservePx, pageHeightPx));
+      // Fix 4/8/2026 (Alby: "la trama con la filigrana deve essere in tutta la pagina e non
+      // tagliata a metà, il piè di pagina è al centro e non in basso"): l'ultima pagina di ogni
+      // sezione/capitolo veniva accorciata all'altezza del contenuto reale — corretto quando c'era
+      // UN solo "ultimo pezzo" per l'intero PDF, ma con la struttura a capitoli (v1.800) ogni
+      // sezione viene ora composta separatamente, quindi QUESTA riga scattava alla fine di ogni
+      // singolo capitolo, non solo una volta alla fine di tutto. Un canvas più corto di una pagina
+      // piena fa sì che: 1) la filigrana (disegnata in proporzione alle dimensioni del canvas)
+      // copra solo quello spazio ridotto, apparendo "tagliata" a metà pagina; 2) il piè di pagina
+      // (ancorato al fondo del canvas) non coincida più col fondo della vera pagina A4 quando quel
+      // canvas più corto viene inserito nel PDF finale, finendo a metà pagina invece che in fondo.
+      // Ora ogni pagina resta SEMPRE a piena altezza A4 — lo spazio in eccedenza resta semplicemente
+      // sfondo pieno (già disegnato all'apertura di ogni pagina), la filigrana lo copre per intero,
+      // e il piè di pagina è sempre ancorato al vero fondo pagina.
+      if (currentY > headerReservePx) finishPage(pageHeightPx);
       return pages;
     };
 
