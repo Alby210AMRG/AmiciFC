@@ -5235,8 +5235,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <template v-if="!seasonSummaryPdfPrintMode || seasonSummaryPdfIncludeImages">
-                <img v-if="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :src="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :style="{maxWidth: seasonSummaryPdfPrintMode ? '72%' : '100%', borderRadius:'10px', display:'block', margin: seasonSummaryPdfPrintMode ? '0 auto 6px auto' : '0 0 6px 0'}">
-                <img v-if="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :src="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :style="{maxWidth: seasonSummaryPdfPrintMode ? '72%' : '100%', borderRadius:'10px', display:'block', margin: seasonSummaryPdfPrintMode ? '0 auto' : '0'}">
+                <img v-if="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :src="seasonSummarySnapshot.sezioneD[mi].pngGiornale" :style="{maxWidth: seasonSummaryPdfPrintMode ? '45%' : '100%', maxHeight: seasonSummaryPdfPrintMode ? '420px' : 'none', objectFit:'contain', borderRadius:'10px', display:'block', margin: seasonSummaryPdfPrintMode ? '0 auto 6px auto' : '0 0 6px 0'}">
+                <img v-if="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :src="seasonSummarySnapshot.sezioneD[mi].fotoPartita" :style="{maxWidth: seasonSummaryPdfPrintMode ? '45%' : '100%', maxHeight: seasonSummaryPdfPrintMode ? '420px' : 'none', objectFit:'contain', borderRadius:'10px', display:'block', margin: seasonSummaryPdfPrintMode ? '0 auto' : '0'}">
               </template>
             </div>
           </div>
@@ -5261,7 +5261,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div>✅ {{ p.vittorie }}V · ➖ {{ p.pareggi }}P · ❌ {{ p.sconfitte }}S (su {{ p.partiteTotali }} presenze)</div>
               <div v-if="p.formHistory && p.formHistory.length >= 2" style="margin:6px 0 8px">
                 <div style="font-size:0.72rem;color:var(--text2);font-weight:700;margin-bottom:3px">📈 Andamento stagionale (V/P/S)</div>
-                <svg :viewBox="'0 0 240 74'" style="width:100%;max-width:260px;height:56px;overflow:visible;display:block">
+                <svg :viewBox="'0 0 240 74'" width="220" height="68" style="overflow:visible;display:block">
                   <rect x="1" y="1" width="238" height="72" rx="8" fill="var(--card)" stroke="var(--border)" stroke-width="1"/>
                   <line x1="34" y1="14" x2="234" y2="14" stroke="rgba(128,128,128,0.15)" stroke-width="1"/>
                   <line x1="34" y1="37" x2="234" y2="37" stroke="rgba(128,128,128,0.3)" stroke-width="1" stroke-dasharray="3,3"/>
@@ -8197,7 +8197,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.802',date:'2026-08-04',items:[
+    const changelogEntries = [{version:'v1.803',date:'2026-08-05',items:[
+      'Riepilogo Stagione PDF, 3 fix: 1) titolo partita tagliato con molti giornate — causa probabile: senza immagini tutte le partite venivano catturate in un unico canvas gigante, a rischio di superare i limiti del browser con centinaia di partite; ora usa sempre lotti (40 partite senza immagini, 6 con immagini); 2) grafico andamento Annuario — mancavano la S e la fine del grafico per un\'incoerenza tra le proporzioni dichiarate e quelle effettive, ora corretta; 3) immagini partita (titolo giornale + foto) ridotte (da 72% a 45% di larghezza, più un\'altezza massima di sicurezza) per non sconfinare più sopra il piè di pagina quando c\'è anche un commento AI lungo.',
+    ]},{version:'v1.802',date:'2026-08-04',items:[
       '4 miglioramenti al Riepilogo Stagione PDF: 1) intestazione più lunga (circa il doppio) e con verde molto più tenue; 2) aggiunto un indice subito dopo la copertina, con titoli dei capitoli e sottocapitoli (taglie delle Formazioni) e numeri di pagina corretti; 3) protezione anti-taglio estesa anche alle immagini della sezione Le Partite (titolo giornale + foto partita), verificata come per le altre sezioni; 4) il grafico andamento vittorie/pareggi/sconfitte nell\'Annuario ora ha un riquadro, un titolo, le etichette V/P/S sull\'asse verticale e "Inizio stagione"/"Ultima partita" sull\'asse orizzontale.',
     ]},{version:'v1.801',date:'2026-08-04',items:[
       'Riepilogo Stagione PDF: la filigrana e il piè di pagina ora coprono sempre l\'intera pagina A4, anche quando una sezione finisce a metà pagina (prima si vedeva tagliata a metà, e il piè di pagina finiva al centro invece che in fondo). Intestazione ridisegnata: non più un quadrato con logo a destra e pallone separato a sinistra, ma un unico rettangolo che sfuma dal pallone (a sinistra) al logo (a destra).',
@@ -9279,7 +9281,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.802');
+    const appVersion = ref('1.803');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15641,12 +15643,20 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // singole possono richiedere oltre un minuto). Raggruppando 6 partite per cattura si riduce il
     // numero di chiamate di ~6x restando comunque ben sotto i limiti di dimensione canvas del
     // browser anche con le immagini incluse.
-    const PDF_MATCH_BATCH_SIZE = 6;
+    // Fix 4/8/2026 (Alby, PDF reale da 115 pagine: titolo partita tagliato a metà — causa probabile
+    // individuata: senza immagini, TUTTE le partite venivano catturate in un unico canvas gigante,
+    // che con molte partite può superare i limiti di dimensione canvas del browser (html2canvas
+    // produce risultati parziali/corrotti senza sollevare errori in quel caso — rischio già noto e
+    // documentato per il percorso CON immagini, ma qui sottovalutato per quello senza). Ora la
+    // dimensione del lotto è dinamica: molto più grande senza immagini (righe di solo testo, molto
+    // più corte) rispetto a con immagini, ma sempre a lotti — mai più una cattura unica gigante.
+    const PDF_MATCH_BATCH_SIZE = computed(() => seasonSummaryPdfIncludeImages.value ? 6 : 40);
     const seasonSummaryPdfMatchBatches = computed(() => {
       const matches = seasonSummarySnapshot.value?.sezioneD || [];
       const batches = [];
-      for (let i = 0; i < matches.length; i += PDF_MATCH_BATCH_SIZE) {
-        batches.push(Array.from({ length: Math.min(PDF_MATCH_BATCH_SIZE, matches.length - i) }, (_, j) => i + j));
+      const batchSize = PDF_MATCH_BATCH_SIZE.value;
+      for (let i = 0; i < matches.length; i += batchSize) {
+        batches.push(Array.from({ length: Math.min(batchSize, matches.length - i) }, (_, j) => i + j));
       }
       return batches;
     });
@@ -16845,30 +16855,22 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             continue;
           }
           if (id === 'rp-pdf-sezD') {
-            // Fix 26/7/2026 (segnalato da Alby: con "Includi immagini" e molte partite la sezione
-            // risultava vuota, poi troppo lenta con la cattura partita-per-partita): due percorsi.
-            if (!seasonSummaryPdfIncludeImages.value) {
-              // Senza immagini: tutte le partite insieme restano ben sotto i limiti di dimensione
-              // canvas anche con decine di partite (solo testo) — una sola cattura, più veloce
-              // (html2canvas clona l'intero documento ad OGNI chiamata: poche chiamate = più veloce).
-              const el = document.getElementById('rp-pdf-sezD');
-              _pushPiece(await _captureOneEl(el), 32);
-            } else {
-              // Con immagini: l'intera sezione può superare i limiti di dimensione canvas del
-              // browser (canvas vuoto, senza errore). Catturata a LOTTI di PDF_MATCH_BATCH_SIZE
-              // partite alla volta — abbastanza piccolo da restare sotto i limiti, abbastanza
-              // grande da restare ragionevolmente veloce.
-              const headerEl = document.getElementById('rp-pdf-sezD-header');
-              if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
-              const totalBatches = seasonSummaryPdfMatchBatches.value.length;
-              for (let bi = 0; bi < totalBatches; bi++) {
-                const batchEl = document.getElementById('rp-pdf-sezD-batch' + bi);
-                if (!batchEl) continue;
-                if (totalBatches > 1) seasonSummaryPdfStep.label = `Le partite (lotto ${bi + 1}/${totalBatches})...`;
-                _pushPiece(await _captureOneEl(batchEl), 0);
-              }
-              if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
+            // Fix 26/7/2026 + fix 4/8/2026 (Alby, PDF reale da 115 pagine: titolo partita tagliato a
+            // metà). PRIMA: senza immagini si catturava l'intera sezione in un colpo solo (assunto
+            // "ben sotto i limiti anche con decine di partite" — assunzione sbagliata con centinaia
+            // di partite su più stagioni, come nel caso reale di Alby). Ora si usa SEMPRE la cattura
+            // a lotti (dimensione dinamica: 40 partite per lotto senza immagini, 6 con immagini,
+            // vedi PDF_MATCH_BATCH_SIZE) — mai più una cattura unica potenzialmente gigante.
+            const headerEl = document.getElementById('rp-pdf-sezD-header');
+            if (headerEl) _pushPiece(await _captureOneEl(headerEl), 0);
+            const totalBatches = seasonSummaryPdfMatchBatches.value.length;
+            for (let bi = 0; bi < totalBatches; bi++) {
+              const batchEl = document.getElementById('rp-pdf-sezD-batch' + bi);
+              if (!batchEl) continue;
+              if (totalBatches > 1) seasonSummaryPdfStep.label = `Le partite (lotto ${bi + 1}/${totalBatches})...`;
+              _pushPiece(await _captureOneEl(batchEl), 0);
             }
+            if (sectionGaps.length) sectionGaps[sectionGaps.length - 1] = 32;
             _flushCurrentSection();
             continue;
           }
