@@ -5424,12 +5424,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- Firebase vs solo locale (JSON) -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#7ab0ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">☁️ Firebase o solo locale (JSON)?</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>L'app funziona benissimo anche <strong>senza configurare nulla</strong> — tutti i dati restano solo su questo dispositivo (IndexedDB del browser)</div>
+            <div>💾 <strong>Solo locale</strong>: nessun account da creare, funziona sempre offline. Per portare i dati su un altro telefono, o per un backup di sicurezza, usi <strong>Impostazioni → Import/Export</strong> — esporti un file JSON e lo reimporti dove serve, manualmente</div>
+            <div>☁️ <strong>Con Firebase</strong>: i dati si sincronizzano automaticamente tra tutti i telefoni del gruppo, in tempo reale, senza dover scambiarsi file. Serve un progetto Firebase gratuito (guida passo-passo inclusa) e un login (email/password) per chi deve poter scrivere dati</div>
+            <div>⚙️ Si configura toccando l'icona <strong>☁️</strong> in alto accanto al nome del gruppo — ogni gruppo ha il proprio Firebase indipendente, si può aggiungere o togliere in qualsiasi momento senza perdere dati</div>
+            <div>⚠️ <strong>Alcune funzioni richiedono Firebase attivo</strong> e non funzionano in modalità solo locale: Vota con gli amici (Pagelle Multi-Utente) e la sincronizzazione multi-dispositivo. Tutto il resto (statistiche, card AI, Riepilogo Stagione, PDF) funziona identico in entrambe le modalità</div>
+          </div>
+        </div>
+
         <!-- Vota con gli amici / Pagelle Multi-Utente -->
         <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
           <div style="font-weight:700;font-size:0.78rem;color:#c084fc;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🗳️ Vota con gli amici</div>
           <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
             <div>Invece dei voti inseriti da un admin, ogni giocatore che ha partecipato (+ gli admin) può votare i compagni dal proprio telefono</div>
-            <div>🔑 Si vota con il proprio <strong>PIN personale</strong> — nessun account o login richiesto</div>
+            <div>⚠️ Richiede <strong>Firebase attivo</strong> per il gruppo (vedi sopra) — in modalità solo locale questa funzione non è disponibile</div>
+            <div>🔑 Si vota con il proprio <strong>PIN personale</strong> — nessun account o login richiesto per chi vota</div>
+            <div>👑 Il PIN può generarlo/rigenerarlo <strong>solo un admin del gruppo</strong>, loggato su Firebase, dalla scheda del giocatore — poi va comunicato al giocatore (WhatsApp, ecc.), si vede una sola volta</div>
             <div>🔗 Si apre da "Gioca questa" → <strong>Vota con gli amici</strong>, o da "Modifica Partita" per una già giocata</div>
             <div>📲 Il link si condivide su WhatsApp/Telegram — funziona su qualsiasi telefono, anche senza l'app installata</div>
             <div>📊 Il voto finale è la <strong>media</strong> di tutti i voti ricevuti, con uno scarto automatico di quelli anomali</div>
@@ -5479,9 +5493,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- Come configurare e usare l'AI -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🤖 Come configurare e usare l'AI</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>L'AI genera in automatico soprannomi, commenti, pronostici e Trash Talk basati sui dati reali del tuo gruppo — nessuna delle statistiche vere dipende dall'AI, è solo un tocco in più</div>
+            <div>⚙️ Si configura in <strong>Impostazioni → Configurazione AI</strong>: scegli un servizio (Gemini o Groq sono gratuiti, senza carta di credito) e incolla la tua API key personale</div>
+            <div>🔑 Prendere una API key gratuita richiede 2 minuti — la guida passo-passo con i link diretti è già dentro la stessa schermata di Impostazioni</div>
+            <div>🎯 Una volta configurata, l'AI genera da sola: nessun bottone da premere ogni volta, si attiva secondo la sua tempistica (vedi il catalogo qui sotto — "ogni 3 giorni", "ogni 7 giorni", ecc.)</div>
+            <div>✋ Puoi anche rigenerare manualmente una card AI quando vuoi, dalla Zona Pericolo in Impostazioni</div>
+            <div>💡 Senza una API key configurata, l'app funziona comunque perfettamente — semplicemente non vedrai le card contrassegnate come "AI" qui sotto</div>
+          </div>
+        </div>
+
         <!-- Card AI -->
         <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
-          <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🤖 Card AI — richiedono API key</div>
+          <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🎴 Catalogo Card AI — richiedono API key</div>
           <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
             <div>🧬 <strong>Identikit AI</strong> — soprannome e profilo · ogni 7 giorni</div>
             <div>💬 <strong>Trash Talk</strong> — commento provocatorio · ogni 3 giorni</div>
@@ -8254,7 +8281,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.809',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.810',date:'2026-08-06',items:[
+      'Manuale del Campetto — 2 nuovi capitoli: "🤖 Come configurare e usare l\'AI" (dove configurarla, come prendere una API key gratuita, quando si attiva da sola, cosa succede senza) e "☁️ Firebase o solo locale (JSON)?" (differenze tra le due modalità, dove si configura, quali funzioni richiedono Firebase).',
+      'Manuale — sezione "Vota con gli amici" completata: ora specifica che il PIN può generarlo solo un admin del gruppo loggato su Firebase, e che l\'intera funzione richiede Firebase attivo (non disponibile in modalità solo locale).',
+      'Card tutorial "Crea le squadre" corretta: il testo citava solo "generatore AI... o trascinale manualmente", mancava l\'opzione "Consigliata" (algoritmo statistico) — ora menziona tutte e 3 le vere opzioni disponibili.',
+      'Nuova card tutorial "☁️ Firebase o solo locale?" (12ª card, prima di "Vota con gli amici" di cui è un prerequisito) — spiega la differenza in breve e dove attivare Firebase.',
+    ]},{version:'v1.809',date:'2026-08-06',items:[
       'Box "Manuale del Campetto" in home: ora visibile solo se "Card Tutorial" è attivo (stessa logica di visibilità delle card tutorial) — prima appariva sempre, anche a chi aveva già disattivato la guida rapida.',
       'Manuale del Campetto — sezione "Come Iniziare" riscritta: il riferimento al vecchio tasto "▶ Play" verde (non esiste più da diverse versioni) sostituito con il flusso reale attuale (pallone colorato al centro della barra in basso → "Nuova Formazione" → scelta tra AI/Consigliata/Manuale → "Gioca questa" con le 3 modalità).',
       'Manuale del Campetto — rimossa "Rivalità Reale" da Card Sfide: verificato nel codice che è la stessa identica card già descritta come "Testa a Testa" in Card Statistiche (stesso generatore, stesso tipo h2hCard), solo con un nome diverso — era una voce duplicata, non una card realmente distinta.',
@@ -9248,8 +9280,9 @@ createApp({
     // con apostrofi e caratteri speciali dentro attributi Vue con apici singoli e doppi innestati.
     const tutorialCards = [
       { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici, più il Numero Preferito e la Squadra del Cuore: più dettagli metti, più le card AI diventano divertenti e su misura per ognuno.', cta: 'Vai ai Giocatori', view: 'players' },
-      { icon: '⚽', titolo: 'Crea le squadre', testo: 'Prima di ogni partita usa il generatore AI per squadre bilanciate, oppure trascinale manualmente.', cta: 'Genera squadre', view: 'formations' },
+      { icon: '⚽', titolo: 'Crea le squadre', testo: 'Tocca il pallone colorato in basso, seleziona chi gioca e scegli come dividere le squadre: AI (bilanciate dall\'intelligenza artificiale), Consigliata (algoritmo statistico), oppure Manuale (le trascini tu).', cta: 'Genera squadre', view: 'formations' },
       { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'formations' },
+      { icon: '☁️', titolo: 'Firebase o solo locale?', testo: 'Funziona anche senza configurare nulla — tutto resta sul telefono, backup a mano con Import/Export. Se vuoi la sincronizzazione automatica tra più telefoni (e "Vota con gli amici"), attiva Firebase toccando l\'icona ☁️ accanto al nome del gruppo.', cta: null, view: null },
       { icon: '🗳️', titolo: 'Vota con gli amici', testo: 'Invece di inserire tu i voti, apri una votazione condivisa: ogni giocatore vota i compagni dal proprio telefono con un PIN personale, tramite un link su WhatsApp — il voto finale è la media di tutti.', cta: null, view: null },
       { icon: '🏆', titolo: 'Scopri le Statistiche', testo: 'In Stats trovi classifiche, medie, Overall, Top Team e tanto altro — chi segna di più, chi vince sempre, e chi invece ne vedrà delle belle.', cta: 'Vai alle Statistiche', view: 'stats' },
       { icon: '🅰️', titolo: 'Gli assist contano!', testo: 'Chi serve il gol decisivo è un eroe silenzioso. Attiva il tracciamento assist nelle impostazioni gruppo per sbloccare classifiche, card AI dedicate e sfottò mirati per chi non passa mai.', cta: null, view: null },
@@ -9357,7 +9390,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.809');
+    const appVersion = ref('1.810');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
