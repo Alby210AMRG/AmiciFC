@@ -5432,7 +5432,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>💾 <strong>Solo locale</strong>: nessun account da creare, funziona sempre offline. Per portare i dati su un altro telefono, o per un backup di sicurezza, usi <strong>Impostazioni → Import/Export</strong> — esporti un file JSON e lo reimporti dove serve, manualmente</div>
             <div>☁️ <strong>Con Firebase</strong>: i dati si sincronizzano automaticamente tra tutti i telefoni del gruppo, in tempo reale, senza dover scambiarsi file. Serve un progetto Firebase gratuito (guida passo-passo inclusa) e un login (email/password) per chi deve poter scrivere dati</div>
             <div>⚙️ Si configura toccando l'icona <strong>☁️</strong> in alto accanto al nome del gruppo — ogni gruppo ha il proprio Firebase indipendente, si può aggiungere o togliere in qualsiasi momento senza perdere dati</div>
+            <div>📋 Dentro quella schermata trovi il bottone <strong>"❓ Come configurare Firebase?"</strong> — la guida passo-passo completa (progetto, database, autenticazione, regole di sicurezza da incollare) è lì, non serve cercarla altrove</div>
             <div>⚠️ <strong>Alcune funzioni richiedono Firebase attivo</strong> e non funzionano in modalità solo locale: Vota con gli amici (Pagelle Multi-Utente) e la sincronizzazione multi-dispositivo. Tutto il resto (statistiche, card AI, Riepilogo Stagione, PDF) funziona identico in entrambe le modalità</div>
+            <div>🔍 <strong>Inspector</strong> (facoltativo): se usi Firebase, esiste un file separato — <code style="background:var(--bg2);padding:1px 4px;border-radius:3px">firebase-inspector-v6.html</code> — che funziona come un pannello di controllo per guardare/correggere i dati direttamente su Firebase e verificare che tutto sia in ordine. Non serve per l'uso di tutti i giorni (quello si fa sempre dall'app), è utile solo per diagnostica o correzioni manuali quando qualcosa non torna</div>
           </div>
         </div>
 
@@ -7019,22 +7021,47 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-show="showFbHelp" style="background:rgba(58,123,255,0.06);border:1px solid rgba(58,123,255,0.2);border-radius:10px;padding:14px;margin-bottom:14px;font-size:0.78rem;color:var(--text2);line-height:1.7">
         <div style="font-weight:800;color:var(--blue);margin-bottom:8px">📋 Guida rapida Firebase</div>
         <div><strong style="color:var(--text)">1. Crea il progetto</strong><br>Vai su <span style="color:var(--lime)">firebase.google.com</span> → Nuovo progetto → dai un nome (es. calcetto-giovedi)</div>
-        <div style="margin-top:6px"><strong style="color:var(--text)">2. Crea il Database</strong><br>Menu sinistra → Realtime Database → Crea database → Modalità test → scegli la regione più vicina</div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">2. Crea il Database</strong><br>Menu sinistra → Realtime Database → Crea database → scegli la regione più vicina (qualsiasi va bene) → <strong style="color:var(--yellow)">Modalità bloccata</strong> (non "test": le regole vere le incolli subito dopo al punto 6, meglio non lasciare il database aperto nemmeno per un istante)</div>
         <div style="margin-top:6px"><strong style="color:var(--text)">3. URL Database</strong><br>Copia l'URL che appare (es. https://calcetto-giovedi-rtdb.europe-west1.firebasedatabase.app) e incollalo sopra</div>
         <div style="margin-top:6px"><strong style="color:var(--text)">4. Abilita autenticazione</strong><br>Authentication → Inizia → Email/Password → Abilita → Aggiungi utenti con email e password</div>
         <div style="margin-top:6px"><strong style="color:var(--text)">5. API Key</strong><br>Impostazioni progetto (⚙️) → Generali → La tua app web → copia <code style="background:var(--bg2);padding:1px 4px;border-radius:3px">apiKey</code></div>
-        <div style="margin-top:6px"><strong style="color:var(--text)">6. Regole Database</strong><br>Realtime Database → Regole → incolla questo:</div>
-        <pre v-pre style="background:var(--bg2);border-radius:6px;padding:8px;font-size:0.7rem;color:var(--lime);overflow-x:auto;margin:4px 0">{
+        <div style="margin-top:6px"><strong style="color:var(--text)">6. Regole Database</strong><br>Realtime Database → Regole → incolla questo (include già il supporto a "Vota con gli amici" — se non ti interessa quella funzione va bene comunque, i rami in più restano semplicemente inutilizzati):</div>
+        <pre v-pre style="background:var(--bg2);border-radius:6px;padding:8px;font-size:0.68rem;color:var(--lime);overflow-x:auto;margin:4px 0">{
   "rules": {
     ".read": true,
-    ".write": "auth != null"
+    ".write": "auth != null",
+
+    "amicifc": {
+      "votePins": {
+        "$groupKey": {
+          "$playerUid": {
+            ".read": "auth != null",
+            ".write": "auth != null"
+          }
+        }
+      },
+      "votes": {
+        "$groupKey": {
+          "$matchId": {
+            "_meta": { ".write": "auth != null" },
+            "entries": {
+              ".read": "auth != null",
+              "$voterUid": {
+                ".write": "root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/eligibleVoters/'+$voterUid).val() === true && root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/closed').val() !== true && (!root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/deadline').exists() || now < root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/deadline').val()) && newData.child('pinHashProof').val() === root.child('amicifc/votePins/'+$groupKey+'/'+$voterUid+'/hash').val() && newData.child('pinHashProof').val() !== null"
+              }
+            }
+          }
+        }
+      }
+    }
   }
 }</pre>
               <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
                 💡 <strong style="color:var(--lime)">.read: true</strong> = tutti possono vedere i dati (consigliato per il gruppo).<br>
-                <strong style="color:var(--yellow)">.write: auth != null</strong> = solo chi ha le credenziali può modificare.
+                <strong style="color:var(--yellow)">.write: auth != null</strong> = solo chi ha le credenziali (punto 4) può modificare.<br>
+                🗳️ I rami <strong style="color:var(--text)">votePins</strong>/<strong style="color:var(--text)">votes</strong> sono quelli che rendono possibile "Vota con gli amici" — il ramo <code style="background:var(--bg2);padding:0 3px;border-radius:3px">$voterUid</code> è scritto apposta per funzionare SENZA login (chi vota non ha credenziali), verificando solo che il PIN corrisponda.
               </div>
-        <div style="margin-top:6px"><strong style="color:var(--text)">7. Aggiungere altri utenti scrittori</strong><br>Authentication → Users → Aggiungi utente → inserisci email e password dell'amico che può modificare</div>
+        <div style="margin-top:6px"><strong style="color:var(--text)">7. Aggiungere altri utenti scrittori</strong><br>Authentication → Users → Aggiungi utente → inserisci email e password dell'amico che può modificare (con queste regole, chiunque abbia fatto login può scrivere ovunque — se vuoi restringere la scrittura solo ad alcune email specifiche, sostituisci ogni <code style="background:var(--bg2);padding:0 3px;border-radius:3px">auth != null</code> con <code style="background:var(--bg2);padding:0 3px;border-radius:3px">auth != null && auth.token.email === 'tua@email.com'</code>, aggiungendo un <code style="background:var(--bg2);padding:0 3px;border-radius:3px">||</code> per ogni email in più)</div>
       </div>
       <div class="input-group">
         <label class="input-label">URL Realtime Database Firebase</label>
@@ -8281,7 +8308,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.810',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.812',date:'2026-08-06',items:[
+      'Manuale del Campetto — capitolo Firebase: aggiunta menzione dell\'Inspector (verificato assente ovunque nel Manuale, segnalato da Alby). Spiegato cos\'è (pannello di controllo/verifica dati Firebase separato dall\'app), che è facoltativo, e che serve solo per diagnostica/correzioni manuali, non per l\'uso quotidiano.',
+    ]},{version:'v1.811',date:'2026-08-06',items:[
+      'Guida rapida Firebase (dentro l\'icona ☁️ del gruppo) aggiornata: 1) "Modalità test" sostituita con "Modalità bloccata" al punto 2 — coerente con FIREBASE-SETUP.md, evita di lasciare il database aperto anche solo per un istante prima di incollare le regole vere; 2) le regole di sicurezza da incollare ora includono di default i rami votePins/votes necessari per "Vota con gli amici" (prima la guida dava solo le regole base, senza voto condiviso — chi la seguiva alla lettera si ritrovava con Firebase funzionante ma senza le fondamenta per quella funzione specifica); 3) aggiunta nota su come restringere la scrittura a email specifiche per chi vuole maggiore sicurezza.',
+      'Manuale del Campetto — capitolo "Firebase o solo locale" ora indica esplicitamente dove si trovano le istruzioni di configurazione (bottone "❓ Come configurare Firebase?" dentro la stessa schermata aperta dall\'icona ☁️), non solo che esistono.',
+    ]},{version:'v1.810',date:'2026-08-06',items:[
       'Manuale del Campetto — 2 nuovi capitoli: "🤖 Come configurare e usare l\'AI" (dove configurarla, come prendere una API key gratuita, quando si attiva da sola, cosa succede senza) e "☁️ Firebase o solo locale (JSON)?" (differenze tra le due modalità, dove si configura, quali funzioni richiedono Firebase).',
       'Manuale — sezione "Vota con gli amici" completata: ora specifica che il PIN può generarlo solo un admin del gruppo loggato su Firebase, e che l\'intera funzione richiede Firebase attivo (non disponibile in modalità solo locale).',
       'Card tutorial "Crea le squadre" corretta: il testo citava solo "generatore AI... o trascinale manualmente", mancava l\'opzione "Consigliata" (algoritmo statistico) — ora menziona tutte e 3 le vere opzioni disponibili.',
@@ -9390,7 +9422,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.810');
+    const appVersion = ref('1.812');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
