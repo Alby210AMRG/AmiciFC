@@ -229,6 +229,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   0%, 100% { box-shadow: 0 0 0 0 rgba(255,183,0,0.5); }
   50%      { box-shadow: 0 0 0 6px rgba(255,183,0,0); }
 }
+@keyframes seasonSummaryGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(166,255,77,.55), inset 0 0 24px rgba(166,255,77,.12); }
+  50%      { box-shadow: 0 0 34px rgba(166,255,77,.85), inset 0 0 30px rgba(166,255,77,.2); }
+}
 
 /* BUG TROVATO 30/7/2026 (segnalato da Alby: flash di sintassi Vue grezza tipo
    "{{ voteSelectedVoter.nomeCompleto }}" visibile per un istante all'apertura/aggiornamento
@@ -3162,7 +3166,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </transition>
       </div>
 
-      <div v-if="currentGroup && seasonSummarySnapshot && !groupMatches.length" class="hero-card" style="background:linear-gradient(135deg,#1a2e05,#3a5c0a 60%,#C8FF00);cursor:pointer" @click="currentView='seasonSummary'">
+      <!-- Richiamo al Manuale del Campetto (6/8/2026): visibile solo se "Card Tutorial" è attivo
+           (stessa logica di visibilità delle card tutorial — Alby, 6/8/2026) — sempre subito sotto
+           il carosello; quando esiste anche il box Riepilogo Stagione (sotto), questo si trova
+           naturalmente sopra di esso. -->
+      <div v-if="currentGroup && tutorialEnabled" class="hero-card" style="background:linear-gradient(135deg,#0a1628,#1e3a5f 60%,#3a7bff);cursor:pointer" @click="currentView='manuale'">
+        <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
+        <div style="flex:1;text-align:left;position:relative;z-index:1">
+          <div class="hero-title">Manuale del Campetto</div>
+          <div class="hero-sub">Come funziona tutto — card, voti, statistiche</div>
+        </div>
+      </div>
+
+      <div v-if="currentGroup && seasonSummarySnapshot && !groupMatches.length" class="hero-card" style="background:linear-gradient(135deg,#1a2e05,#3a5c0a 60%,#C8FF00);cursor:pointer;border:3px solid #A6FF4D;border-radius:20px;box-sizing:border-box;animation:seasonSummaryGlow 2.2s ease-in-out infinite" @click="currentView='seasonSummary'">
         <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
           <div class="hero-title">Riepilogo Stagione</div>
@@ -5377,6 +5393,120 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </template>
 
     <!-- ════ IMPOSTAZIONI ════ -->
+    <!-- ════ MANUALE DEL CAMPETTO (vista propria, spostato da Impostazioni il 6/8/2026) ════ -->
+    <template v-if="currentView === 'manuale'">
+      <div class="card-title">📖 Manuale del Campetto</div>
+
+      <div class="card" style="border-color:rgba(96,165,250,0.3)">
+
+        <!-- Come iniziare -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:var(--lime);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🚀 Come Iniziare</div>
+          <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+            <li>Vai in <strong>Giocatori</strong> e aggiungi i tuoi amici — foto, ruolo, soprannome, Numero Preferito e Squadra del Cuore</li>
+            <li>Tocca il <strong>pallone colorato</strong> al centro della barra in basso, poi "➕ Nuova" → "⚽ Nuova Formazione"</li>
+            <li>Seleziona chi gioca oggi e genera le squadre: <strong>AI</strong> (bilanciate dall'intelligenza artificiale), <strong>Consigliata</strong> (algoritmo statistico), oppure <strong>Manuale</strong> (le trascini tu)</li>
+            <li>Quando è ora di giocare, apri la formazione e premi <strong>"⚽ Gioca questa"</strong> — scegli tra Uno alla Volta, Tutti Insieme, o Vota con gli amici per registrare voti, gol e assist</li>
+            <li>Le <strong>statistiche</strong> e le <strong>card AI</strong> si aggiornano automaticamente</li>
+            <li>Configura una <strong>API key AI</strong> per le card intelligenti</li>
+          </ol>
+        </div>
+
+        <!-- Profilo Giocatore -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#fb923c;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">👤 Profilo Giocatore</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>📸 <strong>Foto, ruolo, soprannome</strong> — i dati base di ogni giocatore</div>
+            <div>🔢 <strong>Numero Preferito</strong> — usato nell'Identikit AI, nella filigrana della card giocatore e nella maschera in-app</div>
+            <div>❤️ <strong>Squadra del Cuore</strong> — testo libero, usato da Identikit AI, Trash Talk e Pronostico</div>
+            <div>🔑 <strong>PIN di voto</strong> — dalla scheda giocatore, serve per votare nelle Pagelle Multi-Utente (vedi sotto). Si vede una sola volta alla generazione</div>
+            <div>👑 <strong>Admin del gruppo</strong> — chi ha accesso Firebase in scrittura, ha sempre diritto di voto nelle Pagelle Multi-Utente anche senza aver giocato</div>
+          </div>
+        </div>
+
+        <!-- Vota con gli amici / Pagelle Multi-Utente -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#c084fc;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🗳️ Vota con gli amici</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>Invece dei voti inseriti da un admin, ogni giocatore che ha partecipato (+ gli admin) può votare i compagni dal proprio telefono</div>
+            <div>🔑 Si vota con il proprio <strong>PIN personale</strong> — nessun account o login richiesto</div>
+            <div>🔗 Si apre da "Gioca questa" → <strong>Vota con gli amici</strong>, o da "Modifica Partita" per una già giocata</div>
+            <div>📲 Il link si condivide su WhatsApp/Telegram — funziona su qualsiasi telefono, anche senza l'app installata</div>
+            <div>📊 Il voto finale è la <strong>media</strong> di tutti i voti ricevuti, con uno scarto automatico di quelli anomali</div>
+            <div>🗳️ La card "Votazione in corso" appare ovunque nelle liste partite finché la votazione resta aperta</div>
+          </div>
+        </div>
+
+        <!-- Card Statistiche -->
+        <div style="margin-bottom:12px">
+          <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📊 Card Statistiche</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>🏅 <strong>Overall Rating</strong> — podio top 3 OVR · ad ogni sync</div>
+            <div>⚽ <strong>Classifica Gol</strong> — podio top 3 marcatori · ad ogni sync</div>
+            <div>🏅 <strong>Classifica Punti</strong> — podio top 3 · ad ogni sync</div>
+            <div>📈 <strong>Forma Recente</strong> — top vs flop ultime 3 partite · ad ogni sync</div>
+            <div>⚖️ <strong>La Bilancia</strong> — confronto voti 2 giocatori · ogni 30 min</div>
+            <div>🏆 <strong>Record Personale</strong> — record gol/assist/voto · ogni 30 min</div>
+            <div>🎂 <strong>Il Gruppo nel Tempo</strong> — anniversary prima partita · statica</div>
+            <div>⚔️ <strong>Testa a Testa</strong> — H2H tra 2 giocatori · ogni 30 min</div>
+            <div>🔥 <strong>Trending Ora</strong> — giocatore in forma · ad ogni sync</div>
+            <div>🏟️ <strong>Rivivi la Partita</strong> — riepilogo ultima partita · ad ogni sync</div>
+            <div>🌟 <strong>Dream Team</strong> — formazione ideale · ogni giorno</div>
+            <div>📊 <strong>Stagione</strong> — totale partite e giocatori · ad ogni sync</div>
+          </div>
+        </div>
+
+        <!-- Card Cronaca -->
+        <div style="margin-bottom:12px">
+          <div style="font-weight:700;font-size:0.78rem;color:#fbbf24;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📰 Card Cronaca</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>📰 <strong>Cronaca</strong> — evento saliente ultima partita · ogni ora</div>
+            <div>😰 <strong>Crisi di Forma</strong> — sconfitte consecutive · ogni ora</div>
+            <div>🎯 <strong>L'Infallibile</strong> — alta media gol · ogni ora</div>
+            <div>🤝 <strong>Re del Pareggio</strong> — striscia pareggi · ogni ora</div>
+            <div>💪 <strong>Il Guascone</strong> — striscia vittorie · ogni ora</div>
+          </div>
+        </div>
+
+        <!-- Card Sfide -->
+        <div style="margin-bottom:12px">
+          <div style="font-weight:700;font-size:0.78rem;color:#f87171;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">⚡ Card Sfide</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>⚡ <strong>Sfida della Settimana</strong> — 2 giocatori a confronto, titolo a rotazione (Sfida/Derby/Duello/Rivalità) · ogni ora</div>
+            <div>📊 <strong>Classifica Marcatori</strong> — confronto top 2 scorer · ogni ora</div>
+            <div>⚡ <strong>Rivali Dichiarati</strong> — coppia configurata · ogni ora</div>
+            <div>🤝 <strong>Coppia Affiatata</strong> — coppia con affinità · ogni ora</div>
+          </div>
+        </div>
+
+        <!-- Card AI -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🤖 Card AI — richiedono API key</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>🧬 <strong>Identikit AI</strong> — soprannome e profilo · ogni 7 giorni</div>
+            <div>💬 <strong>Trash Talk</strong> — commento provocatorio · ogni 3 giorni</div>
+            <div>🏆 <strong>Hall of Fame</strong> — MVP del mese · ogni 30 giorni</div>
+            <div>😈 <strong>Hall of Shame</strong> — peggiore del mese · ogni 30 giorni</div>
+            <div>🔮 <strong>Pronostico</strong> — previsione prossima partita · ogni 7 giorni</div>
+            <div>💡 <strong>Frase Celebre</strong> — citazione di un giocatore · statica</div>
+            <div>📰 <strong>Telecronista</strong> — commento AI ultima partita · ad ogni partita</div>
+          </div>
+        </div>
+
+        <!-- Riepilogo Stagione -->
+        <div>
+          <div style="font-weight:700;font-size:0.78rem;color:#2dd4bf;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📖 Riepilogo Stagione</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>A fine stagione, durante l'Archiviazione, viene generato un PDF completo e scaricabile</div>
+            <div>📕 Copertina, numeri della stagione, Gli Oscar, classifiche, Le Partite, Annuario giocatori, Formazioni, curiosità</div>
+            <div>📂 Si trova sempre in "Altro" → <strong>Riepilogo Stagione</strong>, o tra i <strong>Riepiloghi Stagionali</strong> per le stagioni passate</div>
+            <div>🎉 Un box in home lo segnala appena pronto — basta toccarlo per aprirlo</div>
+          </div>
+        </div>
+
+      </div>
+    </template>
+
     <template v-if="currentView === 'settings'">
       <div class="card-title">⚙️ Impostazioni</div>
 
@@ -5422,86 +5552,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </button>
       </div>
 
-      <!-- Manuale del Campetto -->
+      <!-- Manuale del Campetto — ora vista propria richiamabile da "Altro" (6/8/2026) -->
       <div class="card" style="border-color:rgba(96,165,250,0.3)">
-        <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:2px 0"
-          @click="manualeExpanded=!manualeExpanded">
-          <div class="card-title" style="margin:0">📖 Manuale del Campetto</div>
-          <span style="font-size:1.3rem;transition:transform .3s;color:var(--text2)" :style="manualeExpanded?'transform:rotate(180deg)':''">▾</span>
-        </div>
-        <div v-if="manualeExpanded" style="margin-top:14px">
-
-          <!-- Come iniziare (ex Tutorial) -->
-          <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
-            <div style="font-weight:700;font-size:0.78rem;color:var(--lime);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🚀 Come Iniziare</div>
-            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
-              <li>Vai in <strong>Giocatori</strong> e aggiungi i tuoi amici con foto e ruolo</li>
-              <li>Premi il tasto <strong>▶ Play</strong> verde per creare una formazione</li>
-              <li>Scegli <strong>AI</strong> per formazioni bilanciate o <strong>Manuale</strong></li>
-              <li>A fine partita inserisci voti, gol e assist per ogni giocatore</li>
-              <li>Le <strong>statistiche</strong> e le <strong>card AI</strong> si aggiornano automaticamente</li>
-              <li>Configura una <strong>API key AI</strong> per le card intelligenti</li>
-            </ol>
-          </div>
-
-          <!-- Card Statistiche -->
-          <div style="margin-bottom:12px">
-            <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📊 Card Statistiche</div>
-            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
-              <div>🏅 <strong>Overall Rating</strong> — podio top 3 OVR · ad ogni sync</div>
-              <div>⚽ <strong>Classifica Gol</strong> — podio top 3 marcatori · ad ogni sync</div>
-              <div>🏅 <strong>Classifica Punti</strong> — podio top 3 · ad ogni sync</div>
-              <div>📈 <strong>Forma Recente</strong> — top vs flop ultime 3 partite · ad ogni sync</div>
-              <div>⚖️ <strong>La Bilancia</strong> — confronto voti 2 giocatori · ogni 30 min</div>
-              <div>🏆 <strong>Record Personale</strong> — record gol/assist/voto · ogni 30 min</div>
-              <div>🎂 <strong>Il Gruppo nel Tempo</strong> — anniversary prima partita · statica</div>
-              <div>⚔️ <strong>Testa a Testa</strong> — H2H tra 2 giocatori · ogni 30 min</div>
-              <div>🔥 <strong>Trending Ora</strong> — giocatore in forma · ad ogni sync</div>
-              <div>🏟️ <strong>Rivivi la Partita</strong> — riepilogo ultima partita · ad ogni sync</div>
-              <div>🌟 <strong>Dream Team</strong> — formazione ideale · ogni giorno</div>
-              <div>📊 <strong>Stagione</strong> — totale partite e giocatori · ad ogni sync</div>
-            </div>
-          </div>
-
-          <!-- Card Cronaca -->
-          <div style="margin-bottom:12px">
-            <div style="font-weight:700;font-size:0.78rem;color:#fbbf24;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📰 Card Cronaca</div>
-            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
-              <div>📰 <strong>Cronaca</strong> — evento saliente ultima partita · ogni ora</div>
-              <div>😰 <strong>Crisi di Forma</strong> — sconfitte consecutive · ogni ora</div>
-              <div>🎯 <strong>L'Infallibile</strong> — alta media gol · ogni ora</div>
-              <div>🤝 <strong>Re del Pareggio</strong> — striscia pareggi · ogni ora</div>
-              <div>💪 <strong>Il Guascone</strong> — striscia vittorie · ogni ora</div>
-            </div>
-          </div>
-
-          <!-- Card Sfide -->
-          <div style="margin-bottom:12px">
-            <div style="font-weight:700;font-size:0.78rem;color:#f87171;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">⚡ Card Sfide</div>
-            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
-              <div>⚡ <strong>Sfida della Settimana</strong> — 2 giocatori a confronto · ogni ora</div>
-              <div>⚔️ <strong>Rivalità Reale</strong> — H2H con barre · ogni ora</div>
-              <div>📊 <strong>Classifica Marcatori</strong> — confronto top 2 scorer · ogni ora</div>
-              <div>⚡ <strong>Rivali Dichiarati</strong> — coppia configurata · ogni ora</div>
-              <div>🤝 <strong>Coppia Affiatata</strong> — coppia con affinità · ogni ora</div>
-            </div>
-          </div>
-
-          <!-- Card AI -->
-          <div>
-            <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🤖 Card AI — richiedono API key</div>
-            <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
-              <div>🧬 <strong>Identikit AI</strong> — soprannome e profilo · ogni 7 giorni</div>
-              <div>💬 <strong>Trash Talk</strong> — commento provocatorio · ogni 3 giorni</div>
-              <div>🏆 <strong>Hall of Fame</strong> — MVP del mese · ogni 30 giorni</div>
-              <div>😈 <strong>Hall of Shame</strong> — peggiore del mese · ogni 30 giorni</div>
-              <div>🔮 <strong>Pronostico</strong> — previsione prossima partita · ogni 7 giorni</div>
-              <div>💡 <strong>Frase Celebre</strong> — citazione di un giocatore · statica</div>
-              <div>📰 <strong>Telecronista</strong> — commento AI ultima partita · ad ogni partita</div>
-            </div>
-          </div>
-
-        </div>
+        <div class="card-title">📖 Manuale del Campetto</div>
+        <button class="btn btn-ghost btn-full" @click="currentView='manuale'">
+          📖 Apri il Manuale
+        </button>
       </div>
 
       <div class="card">
@@ -6111,6 +6167,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
       <button v-if="seasonSummarySnapshot" class="more-menu-item" @click="openSeasonSummaryHistory();showMoreMenu=false">
         <span class="more-icon">🗂️</span> Riepiloghi Stagionali
+      </button>
+      <button class="more-menu-item" @click="currentView='manuale';showMoreMenu=false">
+        <span class="more-icon">📖</span> Manuale del Campetto
       </button>
       <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
         <span class="more-icon">⚙️</span> Impostazioni
@@ -8195,7 +8254,17 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.806',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.809',date:'2026-08-06',items:[
+      'Box "Manuale del Campetto" in home: ora visibile solo se "Card Tutorial" è attivo (stessa logica di visibilità delle card tutorial) — prima appariva sempre, anche a chi aveva già disattivato la guida rapida.',
+      'Manuale del Campetto — sezione "Come Iniziare" riscritta: il riferimento al vecchio tasto "▶ Play" verde (non esiste più da diverse versioni) sostituito con il flusso reale attuale (pallone colorato al centro della barra in basso → "Nuova Formazione" → scelta tra AI/Consigliata/Manuale → "Gioca questa" con le 3 modalità).',
+      'Manuale del Campetto — rimossa "Rivalità Reale" da Card Sfide: verificato nel codice che è la stessa identica card già descritta come "Testa a Testa" in Card Statistiche (stesso generatore, stesso tipo h2hCard), solo con un nome diverso — era una voce duplicata, non una card realmente distinta.',
+      'Fix minore: le card tutorial "Crea le squadre" e "Inserisci il risultato" avevano un riferimento CTA a una vista `generate` che non esiste più da tempo (dato mai realmente collegato a un bottone visibile, quindi innocuo, ma corretto per coerenza in vista di un futuro utilizzo) — ora punta a `formations`, la vista reale.',
+    ]},{version:'v1.808',date:'2026-08-06',items:[
+      'Box "Riepilogo Stagione" in home reso più invitante: bordo fluo lime + glow pulsante (stesso stile della card "Si riparte!", con l\'aggiunta di un\'animazione di pulsazione dedicata) per farlo notare ed invogliare a toccarlo.',
+    ]},{version:'v1.807',date:'2026-08-06',items:[
+      'Manuale del Campetto — diventa una vista propria (prima era dentro Impostazioni, collassabile): richiamabile da "Altro" → 📖 Manuale del Campetto, e con due box di richiamo in home (subito sotto il carosello — che si trova naturalmente anche sopra al box Riepilogo Stagione, quando presente).',
+      'Manuale del Campetto — contenuto aggiornato con le sezioni che mancavano: 👤 Profilo Giocatore (Numero Preferito, Squadra del Cuore, PIN di voto, Admin gruppo), 🗳️ Vota con gli amici (Pagelle Multi-Utente: come funziona, PIN, link condiviso, aggregazione media), 📖 Riepilogo Stagione (cosa contiene il PDF, dove si trova).',
+    ]},{version:'v1.806',date:'2026-08-06',items:[
       'Card Tutorial — ricostruite da zero: da 8 a 11 card (aggiunte "Vota con gli amici", "Riepilogo Stagione" e una che spiega il funzionamento del tutorial stesso; la card "Aggiungi i giocatori" ora menziona anche Numero Preferito e Squadra del Cuore). Fix del contatore in basso a sinistra (mostrava sbagliato, es. "2/9" invece di "1/8" — contava anche le card non-tutorial del carosello). Identità visiva unica: un solo colore/gradiente coerente (prima ne ruotavano 5 diversi) e una filigrana fissa 🎓 dedicata, per riconoscerle subito come gruppo.',
       'Nuovo toggle "Card Tutorial" in Impostazioni→Aspetto (il vecchio toggle dentro "Manuale del Campetto" non aveva mai funzionato realmente): si disattiva da solo al salvataggio della primissima partita del gruppo, e si può riattivare in qualsiasi momento — in quel caso le card tutorial si mescolano al carosello normale (stats/AI) invece di sostituirlo del tutto, come invece accade ancora per un gruppo che non ha mai giocato. Migrazione automatica e silenziosa per chi ha già partite: il tutorial resta disattivato di default, non ricompare per errore con questo aggiornamento.',
     ]},{version:'v1.805',date:'2026-08-05',items:[
@@ -8941,7 +9010,6 @@ createApp({
     const ovrExpandedId     = ref(null); // id del giocatore con la scomposizione OVR aperta (13/7/2026)
     const showAISection     = ref(false); // collassato di default
     const tutorialEnabled   = ref(true); // tutorial attivo di default
-    const manualeExpanded   = ref(false);
     watch(tutorialEnabled, v => {
       localStorage.setItem('amicifc_tutorial', v ? '1' : '0');
     });
@@ -9180,8 +9248,8 @@ createApp({
     // con apostrofi e caratteri speciali dentro attributi Vue con apici singoli e doppi innestati.
     const tutorialCards = [
       { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici, più il Numero Preferito e la Squadra del Cuore: più dettagli metti, più le card AI diventano divertenti e su misura per ognuno.', cta: 'Vai ai Giocatori', view: 'players' },
-      { icon: '⚽', titolo: 'Crea le squadre', testo: 'Prima di ogni partita usa il generatore AI per squadre bilanciate, oppure trascinale manualmente.', cta: 'Genera squadre', view: 'generate' },
-      { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'generate' },
+      { icon: '⚽', titolo: 'Crea le squadre', testo: 'Prima di ogni partita usa il generatore AI per squadre bilanciate, oppure trascinale manualmente.', cta: 'Genera squadre', view: 'formations' },
+      { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'formations' },
       { icon: '🗳️', titolo: 'Vota con gli amici', testo: 'Invece di inserire tu i voti, apri una votazione condivisa: ogni giocatore vota i compagni dal proprio telefono con un PIN personale, tramite un link su WhatsApp — il voto finale è la media di tutti.', cta: null, view: null },
       { icon: '🏆', titolo: 'Scopri le Statistiche', testo: 'In Stats trovi classifiche, medie, Overall, Top Team e tanto altro — chi segna di più, chi vince sempre, e chi invece ne vedrà delle belle.', cta: 'Vai alle Statistiche', view: 'stats' },
       { icon: '🅰️', titolo: 'Gli assist contano!', testo: 'Chi serve il gol decisivo è un eroe silenzioso. Attiva il tracciamento assist nelle impostazioni gruppo per sbloccare classifiche, card AI dedicate e sfottò mirati per chi non passa mai.', cta: null, view: null },
@@ -9289,7 +9357,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.806');
+    const appVersion = ref('1.809');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -22248,7 +22316,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
       voteAdminStatus, voteAdminLoading, voteShareLink, voteShareMatch, showVoteLinkModal, copyVoteLink, shareVoteLink,
       apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus, openVoteLinkModal,
-      showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, manualeExpanded, testAI,
+      showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
       precachePlayerPhotos,
