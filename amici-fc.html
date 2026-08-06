@@ -2482,10 +2482,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <template v-else-if="s.type==='tutorial'">
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1;padding:20px 18px 16px">
                 <div style="font-size:2.6rem;margin-bottom:10px;line-height:1;display:inline-block;animation:heroIconBounce 2s ease-in-out infinite;width:fit-content">{{s.icon}}</div>
-                <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(166,255,77,0.7);margin-bottom:6px">GUIDA RAPIDA</div>
+                <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(45,212,191,0.8);margin-bottom:6px">GUIDA RAPIDA</div>
                 <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.25">{{s.titolo}}</div>
                 <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);line-height:1.55">{{s.testo}}</div>
-                <div style="margin-top:auto;padding-top:12px;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.25)">{{i}}/{{heroUnifiedData.length-1}}</div>
+                <div style="margin-top:auto;padding-top:12px;font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,255,255,0.25)">{{s.tutIdx}}/{{s.tutTotal}}</div>
               </div>
             </template>
             <template v-else-if="s.type==='newSeason'">
@@ -5402,6 +5402,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <span class="toggle-slider"></span>
           </label>
         </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Card Tutorial</div>
+            <div class="setting-sub">Guide rapide in home — si disattivano da sole dopo la prima partita</div>
+          </div>
+          <label class="toggle">
+            <input type="checkbox" v-model="tutorialEnabled">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
       </div>
 
       <!-- Gruppo — stessa azione già presente premendo sul nome del gruppo → "Gestisci Gruppi" -->
@@ -5423,16 +5433,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
           <!-- Come iniziare (ex Tutorial) -->
           <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-              <div style="font-weight:700;font-size:0.78rem;color:var(--lime);text-transform:uppercase;letter-spacing:1px">🚀 Come Iniziare</div>
-              <label class="toggle" style="flex-shrink:0" @click.stop>
-                <input type="checkbox" v-model="tutorialEnabled">
-                <span class="toggle-slider"></span>
-              </label>
-            </div>
-            <div style="font-size:0.7rem;color:var(--text2);margin-bottom:8px;opacity:.8">
-              Mostra suggerimenti contestuali durante l'uso dell'app
-            </div>
+            <div style="font-weight:700;font-size:0.78rem;color:var(--lime);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🚀 Come Iniziare</div>
             <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
               <li>Vai in <strong>Giocatori</strong> e aggiungi i tuoi amici con foto e ruolo</li>
               <li>Premi il tasto <strong>▶ Play</strong> verde per creare una formazione</li>
@@ -8194,7 +8195,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.805',date:'2026-08-05',items:[
+    const changelogEntries = [{version:'v1.806',date:'2026-08-06',items:[
+      'Card Tutorial — ricostruite da zero: da 8 a 11 card (aggiunte "Vota con gli amici", "Riepilogo Stagione" e una che spiega il funzionamento del tutorial stesso; la card "Aggiungi i giocatori" ora menziona anche Numero Preferito e Squadra del Cuore). Fix del contatore in basso a sinistra (mostrava sbagliato, es. "2/9" invece di "1/8" — contava anche le card non-tutorial del carosello). Identità visiva unica: un solo colore/gradiente coerente (prima ne ruotavano 5 diversi) e una filigrana fissa 🎓 dedicata, per riconoscerle subito come gruppo.',
+      'Nuovo toggle "Card Tutorial" in Impostazioni→Aspetto (il vecchio toggle dentro "Manuale del Campetto" non aveva mai funzionato realmente): si disattiva da solo al salvataggio della primissima partita del gruppo, e si può riattivare in qualsiasi momento — in quel caso le card tutorial si mescolano al carosello normale (stats/AI) invece di sostituirlo del tutto, come invece accade ancora per un gruppo che non ha mai giocato. Migrazione automatica e silenziosa per chi ha già partite: il tutorial resta disattivato di default, non ricompare per errore con questo aggiornamento.',
+    ]},{version:'v1.805',date:'2026-08-05',items:[
       'Riepilogo Stagione PDF — Le Partite ristrutturata alla radice (richiesta esplicita e definitiva di Alby: "basta tagli"): ogni partita ha ora sempre una pagina propria, come già l\'Annuario e le Formazioni — non più a lotti che potevano ancora impacchettare più partite sulla stessa pagina. Elimina l\'intera classe di rischio, non solo la riduce.',
     ]},{version:'v1.804',date:'2026-08-05',items:[
       'Riepilogo Stagione PDF: Alby ha confermato di essere già in v1.803 e di vedere ancora sia il grafico Annuario tagliato sia rischio di taglio immagini partita. Grafico ridisegnato con viewBox e dimensioni ESATTAMENTE identiche (220x80, nessuno scaling) — elimina ogni possibile ambiguità nel modo in cui html2canvas gestisce lo scaling degli SVG, causa più probabile del taglio persistente. Immagini partita rese più robuste (width/height auto espliciti) per gestire meglio proporzioni insolite nei dati reali.',
@@ -9175,14 +9179,17 @@ createApp({
     // Dati per le tutorial cards: definiti qui in JS (non inline nel template HTML) per evitare problemi
     // con apostrofi e caratteri speciali dentro attributi Vue con apici singoli e doppi innestati.
     const tutorialCards = [
-      { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici.', cta: 'Vai ai Giocatori', view: 'players' },
+      { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici, più il Numero Preferito e la Squadra del Cuore: più dettagli metti, più le card AI diventano divertenti e su misura per ognuno.', cta: 'Vai ai Giocatori', view: 'players' },
       { icon: '⚽', titolo: 'Crea le squadre', testo: 'Prima di ogni partita usa il generatore AI per squadre bilanciate, oppure trascinale manualmente.', cta: 'Genera squadre', view: 'generate' },
       { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'generate' },
+      { icon: '🗳️', titolo: 'Vota con gli amici', testo: 'Invece di inserire tu i voti, apri una votazione condivisa: ogni giocatore vota i compagni dal proprio telefono con un PIN personale, tramite un link su WhatsApp — il voto finale è la media di tutti.', cta: null, view: null },
       { icon: '🏆', titolo: 'Scopri le Statistiche', testo: 'In Stats trovi classifiche, medie, Overall, Top Team e tanto altro — chi segna di più, chi vince sempre, e chi invece ne vedrà delle belle.', cta: 'Vai alle Statistiche', view: 'stats' },
       { icon: '🅰️', titolo: 'Gli assist contano!', testo: 'Chi serve il gol decisivo è un eroe silenzioso. Attiva il tracciamento assist nelle impostazioni gruppo per sbloccare classifiche, card AI dedicate e sfottò mirati per chi non passa mai.', cta: null, view: null },
       { icon: '📰', titolo: 'Condividi il Giornale', testo: 'Genera il PNG del giornale con il resoconto della partita e mandalo nel gruppo — ogni partita diventa un articolo.', cta: null, view: null },
       { icon: '✨', titolo: "L'AI conosce il gruppo", testo: 'TrashTalk, pronostici e soprannomi generati dall\'AI in base ai dati reali del tuo gruppo — preparati a essere presi in giro con cognizione di causa.', cta: null, view: null },
+      { icon: '📖', titolo: 'Riepilogo Stagione', testo: 'A fine stagione trovi in "Altro" un PDF completo e scaricabile — copertina, numeri della stagione, Oscar, classifiche, annuario giocatori e curiosità: il ricordo di tutto l\'anno in un unico file.', cta: null, view: null },
       { icon: '📦', titolo: 'Fine stagione — Archivia', testo: 'Quando la stagione finisce, usa Archivia Stagione per conservare tutto lo storico e ripartire con statistiche a zero.', cta: null, view: null },
+      { icon: '🎓', titolo: 'A cosa servono queste guide', testo: 'Queste card spariscono da sole dopo la prima partita registrata. Se vuoi rivederle in qualsiasi momento, basta riattivare "Card Tutorial" in Impostazioni → Aspetto.', cta: null, view: null },
     ];
 
     const matchStep          = ref(1);
@@ -9282,7 +9289,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.805');
+    const appVersion = ref('1.806');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14250,6 +14257,11 @@ Niente altro, nessuna spiegazione.`;
     const saveMatch = async () => {
       if (!currentGroup.value) return;
 
+      // Catturato PRIMA di qualsiasi await/scrittura (Regola 6/8/2026): se questa è la primissima
+      // partita del gruppo e "Card Tutorial" è ancora attivo, va disattivato automaticamente a
+      // salvataggio riuscito — l'utente può sempre riattivarlo da Impostazioni→Aspetto.
+      const _wasFirstMatchForTutorial = tutorialEnabled.value && groupMatches.value.length === 0;
+
       const goalA = matchGoalA.value, goalB = matchGoalB.value;
       const teamAWon = goalA > goalB, isDraw = goalA === goalB;
 
@@ -14312,6 +14324,8 @@ Niente altro, nessuna spiegazione.`;
       };
 
       await db.matches.add(match);
+
+      if (_wasFirstMatchForTutorial) tutorialEnabled.value = false;
 
       if (activeFormation.value?.id) {
         await db.formations.update(activeFormation.value.id, { stato: 'giocata', matchId: match.id });
@@ -19447,6 +19461,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // badge/emoji dedicato) — cosi la filigrana è sempre coerente col contenuto mostrato; 2) fallback
     // fisso per tipo, concordato con Alby, per i tipi che non hanno mai un'emoji propria nel testo.
     const heroWatermarkEmoji = (s) => {
+      if (s.type === 'tutorial') return '🎓'; // identità unica e fissa per tutte le card tutorial (6/8/2026, richiesta Alby) — non l'icona per-card, che varia
       if (s.badge) return s.badge;   // news/news2: badge è già un'emoji (n.emoji||'💬')
       if (s.emoji) return s.emoji;   // trashTalk-style: campo emoji dedicato
       if (s.icon) return s.icon;     // tutorial/newSeason: icona già scelta a mano per la card
@@ -20638,7 +20653,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         _heroRebuildTimer = setTimeout(() => {
           const newData = _heroRawData.value;
           if (newData.length) {
-            _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(newData)];
+            _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(_mixTutorial(newData))];
             logEvent('info','app','🎴 Hero cards aggiornate');
           }
         }, 800);
@@ -20656,7 +20671,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         if (!_heroLaunched || !groupMatches.value.length) return; // stessa guardia, vedi sopra
         const freshData = _heroRawData.value;
         if (freshData.length) {
-          _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(freshData)];
+          _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(_mixTutorial(freshData))];
           logEvent('info','app','🎴 Hero cards aggiornate (refresh periodico 45min)');
         }
       }, 45 * 60 * 1000);
@@ -21741,13 +21756,44 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     let _heroLaunched = false;
     let _skipNextArchivedPull = false; // true dopo un import — impedisce che Firebase ricontamini il locale
 
+    // Colore/gradiente UNICO e coerente per tutte le card tutorial (6/8/2026, richiesta Alby —
+    // prima ruotavano su 5 gradienti diversi e non si riconoscevano come "famiglia"). Teal, per
+    // non sovrapporsi ai colori già usati da altri tipi di card (lime=trend, oro=hallFame,
+    // rosso=trashTalk/duel, blu=recap/h2h, verde scuro=newSeason).
+    const _TUTORIAL_BG = 'linear-gradient(145deg,#062b2e,#0e4b4d 55%,#14b8a6)';
+
+    const _buildTutorialSlides = () => tutorialCards.map((t, idx) => ({
+      type: 'tutorial',
+      dur: 6000,
+      icon: t.icon,
+      titolo: t.titolo,
+      testo: t.testo,
+      bg: _TUTORIAL_BG,
+      tutIdx: idx + 1,          // posizione tra le SOLE tutorial (fix contatore, non più indice globale)
+      tutTotal: tutorialCards.length,
+    }));
+
+    // Inserisce le tutorial slides in coda a un array di card normali, SOLO se l'utente ha
+    // riattivato "Card Tutorial" (Impostazioni→Aspetto) dopo aver già giocato partite — la
+    // modalità "solo tutorial a schermo intero" resta riservata al gruppo senza ancora partite.
+    const _mixTutorial = (arr) => (tutorialEnabled.value && groupMatches.value.length) ? [...arr, ..._buildTutorialSlides()] : arr;
+
     const _heroLaunch = () => {
       if (_heroLaunched) return;
       _heroLaunched = true;
       _stopHeroTicker();
 
+      // Migrazione one-time (6/8/2026): se il toggle "Card Tutorial" non è mai stato impostato
+      // esplicitamente dall'utente (localStorage mai scritto) E il gruppo ha già partite, va
+      // disattivato subito e silenziosamente — altrimenti chi ha già "graduato" l'onboarding in
+      // passato vedrebbe ricomparire le card tutorial per errore con questo aggiornamento.
+      if (localStorage.getItem('amicifc_tutorial') === null && groupMatches.value.length > 0) {
+        tutorialEnabled.value = false; // il watch esistente lo persiste subito su localStorage
+      }
+
       // Nessuna partita ancora: mostra le tutorial slides invece delle card statistiche
-      if (!groupMatches.value.length && currentGroup.value) {
+      // (solo se l'utente non le ha disattivate dalle Impostazioni)
+      if (!groupMatches.value.length && currentGroup.value && tutorialEnabled.value) {
         // Card "buona nuova stagione", solo se questo gruppo ha già archiviato una stagione (esiste
         // uno snapshot) — un gruppo nuovo di zecca senza mai archiviato non la vede, solo le tutorial.
         // Aggiunta PRIMA delle tutorial slides, deciso con Alby 18/7/2026.
@@ -21759,21 +21805,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           testo: `La ${seasonSummarySnapshot.value.stagione} è ora negli archivi: niente è andato perso — statistiche e Partite restano consultabili scegliendo la stagione passata dal menu, e il Riepilogo con tutti i dati ti aspetta in "Altro". In bocca al lupo per questa nuova stagione!`,
           bg: 'linear-gradient(145deg,#0d1f0d,#1a4a1a 60%,#166534)',
         }] : [];
-        const _tutorialSlides = tutorialCards.map((t, idx) => ({
-          type: 'tutorial',
-          dur: 6000,
-          icon: t.icon,
-          titolo: t.titolo,
-          testo: t.testo,
-          bg: [
-            'linear-gradient(145deg,#0a1628,#1e3a5f 60%,#1a56db)',
-            'linear-gradient(145deg,#0d1f0d,#1a4a1a 60%,#166534)',
-            'linear-gradient(145deg,#1a0a28,#3b1a6b 60%,#7c3aed)',
-            'linear-gradient(145deg,#1a1200,#3d2e00 60%,#92400e)',
-            'linear-gradient(145deg,#1a0505,#4a1010 60%,#b91c1c)',
-          ][idx % 5],
-        }));
-        _heroCards.value = [_heroWelcomeCard, ..._welcomeSeasonSlide, ..._tutorialSlides];
+        _heroCards.value = [_heroWelcomeCard, ..._welcomeSeasonSlide, ..._buildTutorialSlides()];
         nextTick(() => { clearTimeout(_heroTimerRef); heroGo(0); });
         return;
       }
@@ -21784,13 +21816,13 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         setTimeout(() => {
           const all2 = _heroRawData.value;
           if (all2.length) {
-            _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(all2)];
+            _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(_mixTutorial(all2))];
             nextTick(() => { clearTimeout(_heroTimerRef); heroGo(0); });
           }
         }, 1000);
         return;
       }
-      const shuffled = _fyShuffle(all);
+      const shuffled = _fyShuffle(_mixTutorial(all));
       _heroCards.value = [_heroWelcomeCard, ...shuffled];
       nextTick(() => {
         clearTimeout(_heroTimerRef);
