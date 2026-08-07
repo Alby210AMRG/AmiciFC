@@ -1880,6 +1880,52 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </div>
 
+  <!-- ── MODAL SOSTITUZIONE PER INFORTUNIO (Modalità Sostituzioni, Consegna B — 6/8/2026) ── -->
+  <div v-if="showSostituzioneModal" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:210;display:flex;align-items:center;justify-content:center;padding:16px" @click.self="showSostituzioneModal=false">
+    <div style="background:var(--bg1);border:1px solid rgba(255,140,0,0.4);border-radius:16px;width:100%;max-width:420px;padding:20px">
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:1.5rem;margin-bottom:6px">🩹</div>
+        <div style="font-weight:800;font-size:1.05rem">Sostituzione per infortunio</div>
+        <div style="font-size:0.75rem;color:var(--text2);margin-top:4px">Il sostituto prende voti/gol/assist come un giocatore normale</div>
+      </div>
+
+      <label class="input-label">Squadra</label>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn" style="flex:1" :class="sostituzioneForm.squadra==='A'?'btn-blue':'btn-ghost'" @click="sostituzioneForm.squadra='A';sostituzioneForm.infortunatoUid=''">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</button>
+        <button class="btn" style="flex:1" :class="sostituzioneForm.squadra==='B'?'btn-red':'btn-ghost'" @click="sostituzioneForm.squadra='B';sostituzioneForm.infortunatoUid=''">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</button>
+      </div>
+
+      <label class="input-label">Giocatore infortunato (uscito)</label>
+      <select class="input-field" v-model="sostituzioneForm.infortunatoUid" style="margin-bottom:12px">
+        <option value="">— scegli chi è uscito —</option>
+        <option v-for="pid in (sostituzioneForm.squadra==='A'?teamA:teamB)" :key="pid" :value="pid">
+          {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}
+        </option>
+      </select>
+
+      <label class="input-label">Sostituto (entrato)</label>
+      <select class="input-field" v-model="sostituzioneForm.sostitutoUid" style="margin-bottom:16px">
+        <option value="">— scegli chi è entrato —</option>
+        <option v-for="p in sostitutoOptions" :key="p.uid" :value="p.uid">
+          {{ p.soprannome || p.nome }}
+        </option>
+      </select>
+
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-yellow" style="flex:1" @click="addSostituzione">🩹 Aggiungi</button>
+        <button class="btn btn-ghost" @click="showSostituzioneModal=false">Annulla</button>
+      </div>
+
+      <div v-if="matchSostituzioni.length" style="margin-top:16px;padding-top:14px;border-top:1px solid var(--border)">
+        <div style="font-size:0.72rem;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">Sostituzioni già registrate</div>
+        <div v-for="(s,idx) in matchSostituzioni" :key="idx" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:0.8rem">
+          <span>{{ s.squadra==='A'?'🔵':'🔴' }} {{ getPlayer(s.infortunatoUid)?.soprannome||getPlayer(s.infortunatoUid)?.nome }} → {{ getPlayer(s.sostitutoUid)?.soprannome||getPlayer(s.sostitutoUid)?.nome }}</span>
+          <button class="btn btn-ghost btn-sm" style="padding:2px 8px" @click="removeSostituzione(idx)">✕</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- ── MODAL CONFERMA ELIMINA GRUPPO ── -->
   <div v-if="deleteGroupTarget" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:16px">
     <div style="background:var(--bg1);border:1px solid rgba(255,77,77,0.4);border-radius:16px;width:100%;max-width:400px;padding:20px">
@@ -3705,6 +3751,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {{ teamA.includes(stepByStepPlayers[stepByStepIdx]) ? '🔵 '+( activeFormation?.nomeSquadraA||'Squadra A') : '🔴 '+(activeFormation?.nomeSquadraB||'Squadra B') }}
             </span>
           </div>
+          <!-- Sostituzioni per infortunio (Modalità Sostituzioni, Consegna B — 6/8/2026): qui in
+               cima, come richiesto da Alby, prima di valutare i giocatori -->
+          <button class="btn btn-ghost btn-sm btn-full" style="margin-top:8px;border-color:rgba(255,140,0,0.4);color:#FF8C00"
+            @click="openSostituzioneModal">
+            🩹 Sostituzioni per infortunio{{ matchSostituzioni.length ? ' ('+matchSostituzioni.length+')' : '' }}
+          </button>
         </div>
 
         <!-- Schermata giocatore corrente -->
@@ -3961,6 +4013,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span>
         </div>
 
+        <!-- Sostituzioni per infortunio (Modalità Sostituzioni, Consegna B — 6/8/2026): in "Vota
+             con gli amici" qui in cima, identico a Uno alla Volta (richiesta di Alby) -->
+        <button v-if="matchIsVoteMode" class="btn btn-ghost btn-sm btn-full" style="margin-bottom:12px;border-color:rgba(255,140,0,0.4);color:#FF8C00"
+          @click="openSostituzioneModal">
+          🩹 Sostituzioni per infortunio{{ matchSostituzioni.length ? ' ('+matchSostituzioni.length+')' : '' }}
+        </button>
+
         <div class="card" style="padding:0;overflow:hidden;border-left:4px solid var(--blue)">
           <!-- Header accordion Squadra A -->
           <div @click="matchTeamOpen.A=!matchTeamOpen.A" style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;cursor:pointer;background:rgba(58,123,255,0.1);border-bottom:1px solid rgba(58,123,255,0.25)">
@@ -4124,6 +4183,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
         </div>
+
+        <!-- Sostituzioni per infortunio (Modalità Sostituzioni, Consegna B — 6/8/2026): in "Tutti
+             Insieme" qui in fondo all'elenco delle formazioni, come richiesto da Alby -->
+        <button v-if="!matchIsVoteMode" class="btn btn-ghost btn-sm btn-full" style="margin-bottom:12px;border-color:rgba(255,140,0,0.4);color:#FF8C00"
+          @click="openSostituzioneModal">
+          🩹 Sostituzioni per infortunio{{ matchSostituzioni.length ? ' ('+matchSostituzioni.length+')' : '' }}
+        </button>
 
         <!-- Risultato — in fondo -->
         <div class="card">
@@ -5260,7 +5326,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <button style="width:100%;display:flex;flex-direction:column;background:none;border:none;padding:12px 0;cursor:pointer;color:var(--text1);font-size:0.82rem;text-align:left"
               @click="seasonSummaryExpandedMatches[mi] = !seasonSummaryExpandedMatches[mi]">
               <div style="display:flex;align-items:center;justify-content:space-between">
-                <span>{{ seasonSummarySnapshot.sezioneD[mi].data }} · {{ seasonSummarySnapshot.sezioneD[mi].squadraANome }} {{ seasonSummarySnapshot.sezioneD[mi].golA }}-{{ seasonSummarySnapshot.sezioneD[mi].golB }} {{ seasonSummarySnapshot.sezioneD[mi].squadraBNome }}</span>
+                <span>{{ seasonSummarySnapshot.sezioneD[mi].data }} · {{ seasonSummarySnapshot.sezioneD[mi].squadraANome }} {{ seasonSummarySnapshot.sezioneD[mi].golA }}-{{ seasonSummarySnapshot.sezioneD[mi].golB }} {{ seasonSummarySnapshot.sezioneD[mi].squadraBNome }}<span v-if="seasonSummarySnapshot.sezioneD[mi].formato" style="color:var(--text2);font-size:0.72rem"> · 🏟️ {{ seasonSummarySnapshot.sezioneD[mi].formato }}</span></span>
                 <span v-if="!seasonSummaryPdfPrintMode" style="color:var(--text2)">{{ seasonSummaryExpandedMatches[mi] ? '▲' : '▼' }}</span>
               </div>
               <div v-if="seasonSummarySnapshot.sezioneD[mi].uomoPartita" style="text-align:right;font-size:0.72rem;color:var(--text2);margin-top:2px">🏅 {{ seasonSummarySnapshot.sezioneD[mi].uomoPartita }}</div>
@@ -5274,13 +5340,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;margin-bottom:4px">{{ seasonSummarySnapshot.sezioneD[mi].squadraANome }}</div>
                   <div v-for="(p,pi) in seasonSummarySnapshot.sezioneD[mi].formazioneA" :key="'a'+pi" style="color:var(--text2)">
-                    {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span>
+                    {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span><span v-if="p.sostituto" style="color:#FF8C00"> · 🩹 sostituto</span><span v-if="p.infortunato" style="opacity:.7"> · 🩹 uscito</span>
                   </div>
                 </div>
                 <div style="flex:1;min-width:0">
                   <div style="font-weight:700;margin-bottom:4px">{{ seasonSummarySnapshot.sezioneD[mi].squadraBNome }}</div>
                   <div v-for="(p,pi) in seasonSummarySnapshot.sezioneD[mi].formazioneB" :key="'b'+pi" style="color:var(--text2)">
-                    {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span>
+                    {{ p.nome }}<span v-if="p.voto!=null"> · {{ Number(p.voto).toFixed(1) }}</span><span v-if="p.gol>0"> · ⚽x{{ p.gol }}</span><span v-if="p.assist>0"> · 🅰️x{{ p.assist }}</span><span v-if="p.autogol>0"> · ❌x{{ p.autogol }}</span><span v-if="p.sostituto" style="color:#FF8C00"> · 🩹 sostituto</span><span v-if="p.infortunato" style="opacity:.7"> · 🩹 uscito</span>
                   </div>
                 </div>
               </div>
@@ -6773,6 +6839,15 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0">
         <span v-if="detailMatch.uomoPartita" class="badge badge-yellow">🏅 {{ detailMatch.uomoPartita }}</span>
         <span v-if="detailMatch.mvp" class="badge badge-lime">⚽ {{ detailMatch.mvp }}</span>
+        <span v-if="detailMatch.formato" class="badge" style="background:rgba(58,123,255,0.15);color:var(--blue)">🏟️ {{ detailMatch.formato }}</span>
+      </div>
+
+      <!-- Sostituzioni per infortunio (Modalità Sostituzioni, Consegna C — 6/8/2026) -->
+      <div v-if="detailMatch.sostituzioni && detailMatch.sostituzioni.length" style="background:rgba(255,140,0,0.08);border:1px solid rgba(255,140,0,0.25);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:700;color:#FF8C00;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🩹 Sostituzioni per infortunio</div>
+        <div v-for="(s,idx) in detailMatch.sostituzioni" :key="idx" style="font-size:0.8rem;color:var(--text);padding:2px 0">
+          {{ s.squadra==='A'?'🟠':'🔵' }} {{ getPlayerForDetail(s.infortunatoUid)?.soprannome||getPlayerForDetail(s.infortunatoUid)?.nome }} ➜ {{ getPlayerForDetail(s.sostitutoUid)?.soprannome||getPlayerForDetail(s.sostitutoUid)?.nome }}
+        </div>
       </div>
       <button v-if="!detailMatchReadonly" class="btn btn-primary btn-full" style="font-size:1rem;padding:14px;margin-bottom:12px" @click="regenerateNewspaper(detailMatch)">
         📤 Condividi
@@ -6798,6 +6873,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
             {{ getPlayerForDetail(pid)?.soprannome || getPlayerForDetail(pid)?.nome || pid }}
             <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
+            <span v-if="isSostituto(detailMatch,pid)" style="color:#FF8C00" title="Sostituto"> 🩹</span>
+            <span v-if="isInfortunato(detailMatch,pid)" style="color:var(--text2);opacity:.7" title="Uscito infortunato"> 🩹</span>
           </div>
           <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayerForDetail(pid)?.ruolo }}</div>
         </div>
@@ -6826,6 +6903,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div style="font-size:0.85rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
             {{ getPlayerForDetail(pid)?.soprannome || getPlayerForDetail(pid)?.nome || pid }}
             <span v-if="getStatForMatch(detailMatch,pid,'uomoPartita')" style="color:var(--yellow)"> 🏅</span>
+            <span v-if="isSostituto(detailMatch,pid)" style="color:#FF8C00" title="Sostituto"> 🩹</span>
+            <span v-if="isInfortunato(detailMatch,pid)" style="color:var(--text2);opacity:.7" title="Uscito infortunato"> 🩹</span>
           </div>
           <div style="font-size:0.68rem;color:var(--text2)">{{ getPlayerForDetail(pid)?.ruolo }}</div>
         </div>
@@ -6910,6 +6989,33 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
       </div>
+
+      <!-- ── Sostituzioni per infortunio (Modalità Sostituzioni, Consegna B — 6/8/2026) ── -->
+      <div style="margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:8px">🩹 Sostituzioni per infortunio</div>
+        <div v-if="editingMatch.sostituzioni && editingMatch.sostituzioni.length" style="margin-bottom:8px">
+          <div v-for="(s,idx) in editingMatch.sostituzioni" :key="idx" style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg3);border-radius:8px;margin-bottom:4px;font-size:0.78rem">
+            <span>{{ s.squadra==='A'?'🔵':'🔴' }} {{ getPlayer(s.infortunatoUid)?.soprannome||getPlayer(s.infortunatoUid)?.nome }} → {{ getPlayer(s.sostitutoUid)?.soprannome||getPlayer(s.sostitutoUid)?.nome }}</span>
+            <button style="background:none;border:none;cursor:pointer;color:var(--red);font-size:0.85rem;font-weight:700" @click="removeSostituzioneFromEditingMatch(idx)">✕</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <button class="btn btn-sm" style="flex:1" :class="editSostForm.squadra==='A'?'btn-blue':'btn-ghost'" @click="editSostForm.squadra='A';editSostForm.infortunatoUid=''">🔵 A</button>
+          <button class="btn btn-sm" style="flex:1" :class="editSostForm.squadra==='B'?'btn-red':'btn-ghost'" @click="editSostForm.squadra='B';editSostForm.infortunatoUid=''">🔴 B</button>
+        </div>
+        <select v-model="editSostForm.infortunatoUid" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:0.8rem;margin-bottom:6px">
+          <option value="">— chi è uscito infortunato —</option>
+          <option v-for="pid in (editSostForm.squadra==='A'?editingMatch.squadraA:editingMatch.squadraB)||[]" :key="pid" :value="pid">
+            {{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}
+          </option>
+        </select>
+        <select v-model="editSostForm.sostitutoUid" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:0.8rem;margin-bottom:8px">
+          <option value="">— chi è entrato —</option>
+          <option v-for="p in editSostitutoOptions" :key="p.uid" :value="p.uid">{{ p.soprannome||p.nome }}</option>
+        </select>
+        <button class="btn btn-ghost btn-sm btn-full" style="border-color:rgba(255,140,0,0.4);color:#FF8C00" @click="addSostituzioneToEditingMatch">🩹 Aggiungi sostituto</button>
+      </div>
+
       <div class="card-title" style="margin-bottom:8px">📊 Statistiche Giocatori</div>
       <div style="overflow-x:auto;margin-bottom:14px">
         <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
@@ -8347,7 +8453,14 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.814',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.816',date:'2026-08-06',items:[
+      'Modalità Sostituzioni — Consegna C (ULTIMA): infortunato e sostituto ora visibili ovunque. PNG del giornale: badge 🩹 disegnato sull\'avatar di chi è entrato come sostituto e di chi è uscito infortunato (angolo opposto alla corona MVP, per non sovrapporsi). Testo di condivisione WhatsApp: nuova riga "🩹 Sostituzioni" con l\'elenco. Dettaglio partita: badge formato (es. "6v6"), box dedicato con le sostituzioni, e icona 🩹 accanto al nome di ogni giocatore coinvolto nell\'elenco squadra. Riepilogo Stagione: formato e sostituzioni salvati in Sezione D, mostrati sia a schermo che nel PDF (che cattura la stessa vista HTML via html2canvas, quindi eredita tutto automaticamente senza codice aggiuntivo). Prompt AI (commento iniziale e rigenerazione) informati delle sostituzioni per poterle raccontare.',
+      'Bug reale trovato e corretto prima della consegna: le funzioni `isSostituto`/`isInfortunato`, usate nel template del dettaglio partita, non erano esposte nel return di `setup()` — avrebbero causato un errore silenzioso a runtime (mai un crash visibile, solo il badge mancante). Trovato con un controllo incrociato tra ciò che il template usa e ciò che viene effettivamente esposto, non dal solo `node --check` (che verifica solo la sintassi, non i riferimenti Vue).',
+    ]},{version:'v1.815',date:'2026-08-06',items:[
+      'Modalità Sostituzioni — Consegna B: aggiunta sostituto per infortunio durante l\'inserimento risultato. Bottone "🩹 Sostituzioni per infortunio" in tutte e 3 le modalità: Uno alla Volta e Vota con gli amici (in cima, prima di valutare i giocatori), Tutti Insieme (in fondo all\'elenco formazioni). A differenza delle riserve (Consegna A), qui il collegamento infortunato↔sostituto viene tracciato — mostrato ovunque compaia quella partita. Il sostituto entra a far parte della squadra e prende voti/gol/assist come chiunque altro.',
+      'Modifica Partita — colmato un vuoto reale trovato durante l\'analisi: prima si poteva solo spostare un giocatore già presente tra le due squadre, mai aggiungerne uno nuovo. Ora ha la stessa funzione di sostituzione delle altre 3 modalità, per registrare un infortunio scoperto solo dopo aver già salvato la partita.',
+      'Nota tecnica: il salvataggio della partita (formato Firebase) usa uno spread generico che porta con sé qualsiasi campo nuovo automaticamente — ma "Modifica Partita" salva un elenco esplicito di campi, quindi il nuovo campo `sostituzioni` è stato aggiunto lì a mano, altrimenti ogni correzione da quella schermata avrebbe cancellato in silenzio le sostituzioni già registrate.',
+    ]},{version:'v1.814',date:'2026-08-06',items:[
       'Modalità Sostituzioni — Consegna A: formato e riserve in creazione formazione. Nuovo selettore "🪑 Riserve per squadra" (0-4) in "Chi gioca oggi?". Generatore Consigliata: le riserve vengono scelte tra i giocatori con punteggio più basso (stesso criterio di bilanciamento già usato per le squadre), il formato dichiarato (es. "6v6") viene calcolato e salvato per la prima volta — prima non esisteva come dato, era solo dedotto al volo in un messaggio. Generatore AI: prompt esteso per chiedere le riserve quando dichiarate, con rete di sicurezza automatica se l\'AI non le restituisce nel numero giusto. Formazione Manuale ed editor "✏️ Modifica Formazione": nuovo pulsante 🪑 per segnare/togliere lo stato di riserva a ciascun giocatore già assegnato, con etichetta visibile ovunque. Lista formazioni: nuovo badge con formato e conteggio riserve su ogni card.',
       'Nota tecnica: squadraA/squadraB continuano a contenere TUTTI i giocatori di una squadra (titolari+riserve) — riserveA/riserveB sono solo un elenco di quali, tra quelli, sono riserve. Nessuna struttura dati duplicata, nessun impatto su codice esistente che legge squadraA/squadraB.',
     ]},{version:'v1.813',date:'2026-08-06',items:[
@@ -9471,7 +9584,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.814');
+    const appVersion = ref('1.816');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11061,6 +11174,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       matchGoalA.value = 0;
       matchGoalB.value = 0;
       playerStats.value = {};
+      matchSostituzioni.value = [];
       aiComment.value = '';
       generatedPNG.value = '';
       matchStep.value = 1;
@@ -11089,6 +11203,60 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // correttamente i voti a 0/non impostati, nessuna logica nuova necessaria per quello) e apre
     // automaticamente la votazione subito dopo il salvataggio.
     const matchIsVoteMode = ref(false);
+
+    // ══════════════════════════════════════════════════════════════
+    // ── Modalità Sostituzioni, Consegna B (6/8/2026) — infortuni a partita in corso ──
+    // A differenza delle riserve (Consegna A, dichiarate PRIMA in fase di formazione, senza
+    // collegamento), qui il sostituto si aggiunge DURANTE l'inserimento del risultato (si scopre
+    // solo a partita in corso/finita) e IL COLLEGAMENTO infortunato↔sostituto va tracciato,
+    // confermato esplicitamente da Alby — usato per mostrare l'icona nel dettaglio partita.
+    const matchSostituzioni = ref([]); // [{squadra:'A'|'B', infortunatoUid, sostitutoUid}]
+    const showSostituzioneModal = ref(false);
+    const sostituzioneForm = ref({ squadra: 'A', infortunatoUid: '', sostitutoUid: '' });
+
+    const openSostituzioneModal = () => {
+      sostituzioneForm.value = { squadra: 'A', infortunatoUid: '', sostitutoUid: '' };
+      showSostituzioneModal.value = true;
+    };
+
+    // Giocatori disponibili come sostituto: censiti nel gruppo, non già in nessuna delle due
+    // squadre (senza questo filtro si potrebbe scegliere due volte lo stesso giocatore).
+    const sostitutoOptions = computed(() => {
+      const inTeam = new Set([...teamA.value, ...teamB.value]);
+      return groupPlayers.value.filter(p => !inTeam.has(p.uid));
+    });
+
+    const addSostituzione = () => {
+      const f = sostituzioneForm.value;
+      if (!f.infortunatoUid || !f.sostitutoUid) { toast('Seleziona sia l\'infortunato che il sostituto!', 'error'); return; }
+      const teamRef = f.squadra === 'A' ? teamA : teamB;
+      if (!teamRef.value.includes(f.sostitutoUid)) teamRef.value.push(f.sostitutoUid);
+      ensureStats(f.sostitutoUid);
+      // In "Uno alla Volta" i giocatori da valutare sono un elenco fisso costruito all'avvio
+      // (stepByStepPlayers) — un sostituto aggiunto a metà flusso va accodato lì, altrimenti
+      // entra in squadra ma non viene mai valutato.
+      if (currentView.value === 'stepbystep' && !stepByStepPlayers.value.includes(f.sostitutoUid)) {
+        stepByStepPlayers.value.push(f.sostitutoUid);
+      }
+      matchSostituzioni.value.push({ squadra: f.squadra, infortunatoUid: f.infortunatoUid, sostitutoUid: f.sostitutoUid });
+      toast(`🩹 ${getPlayer(f.sostitutoUid)?.soprannome || getPlayer(f.sostitutoUid)?.nome} aggiunto come sostituto`, 'success');
+      showSostituzioneModal.value = false;
+    };
+
+    // Toglie una sostituzione già registrata — rimuove anche il sostituto dalla squadra, dato che
+    // ci è entrato SOLO grazie a questa sostituzione (non era tra i selezionati originari).
+    const removeSostituzione = (idx) => {
+      const s = matchSostituzioni.value[idx];
+      if (!s) return;
+      const teamRef = s.squadra === 'A' ? teamA : teamB;
+      teamRef.value = teamRef.value.filter(id => id !== s.sostitutoUid);
+      delete playerStats.value[s.sostitutoUid];
+      if (currentView.value === 'stepbystep') {
+        stepByStepPlayers.value = stepByStepPlayers.value.filter(id => id !== s.sostitutoUid);
+      }
+      matchSostituzioni.value.splice(idx, 1);
+    };
+
     const startVoteWithFriendsMode = () => {
       const f = modeChoiceFormation.value;
       showModeChoice.value = false;
@@ -11762,6 +11930,19 @@ Rispondi SOLO con questo JSON (niente altro testo):
           if(isMvp){
             ctx.font=`${Math.max(20,R*0.5)}px ${EMOJI},Arial`;ctx.textAlign='center';
             ctx.fillText('👑',px,py-R-6);
+          }
+          // Modalità Sostituzioni, Consegna C (6/8/2026): badge 🩹 su chi è entrato come sostituto
+          // e su chi è uscito infortunato — angoli opposti dell'avatar per non sovrapporsi alla
+          // corona MVP (che sta in alto al centro).
+          const _sostInfo=(md.sostituzioni||[]).find(s=>String(s.sostitutoUid)===String(pid)||String(s.sostitutoUid)===String(p.uid||p.id));
+          const _infInfo=(md.sostituzioni||[]).find(s=>String(s.infortunatoUid)===String(pid)||String(s.infortunatoUid)===String(p.uid||p.id));
+          if(_sostInfo||_infInfo){
+            const badgeR=Math.max(16,R*0.36);
+            const bx=px+R*0.68, by=py-R*0.68;
+            ctx.save();ctx.beginPath();ctx.arc(bx,by,badgeR,0,Math.PI*2);ctx.fillStyle='#fff';ctx.fill();ctx.restore();
+            ctx.font=`${Math.round(badgeR*1.5)}px ${EMOJI},Arial`;ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.fillText('🩹',bx,by+1);
+            ctx.textBaseline='alphabetic';
           }
           // Nome: wrap su 2 righe se necessario invece di sovrapporre o uscire dai bordi
           const ns=(p.soprannome||p.nome||'').toUpperCase();
@@ -14321,6 +14502,10 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
         _ogs.length ? `Autogol: ${_ogs.join(', ')}` : '',
         _uomSection ? `Uomo della partita: ${_uomName}` : '',
         mvpName !== 'nessuno' ? `MVP: ${mvpName}` : '',
+        (matchSostituzioni.value||[]).length ? `Sostituzioni per infortunio: ${matchSostituzioni.value.map(s => {
+          const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
+          return (inf?.soprannome||inf?.nome||'?') + ' esce infortunato, entra ' + (sos?.soprannome||sos?.nome||'?');
+        }).join('; ')}` : '',
         '',
         'Pagelle e statistiche giocatori:',
         ...allPlayers.map(pid => {
@@ -14360,6 +14545,7 @@ LINEE GUIDA IMPORTANTI:
 - Usa i soprannomi dei giocatori presenti nei dati, arricchendoli con epiteti creativi (es: "il bomber di periferia", "il muro invalicabile", "l'ombra silenziosa del centrocampo")
 - Enfatizza momenti chiave: gol, errori clamorosi, giocate decisive, l'uomo partita
 - Se presenti, integra le "Note dal campo" nel racconto in modo naturale
+- Se presente una "Sostituzione per infortunio", raccontala con un tocco drammatico-ironico (es. "il dramma si consuma al 30esimo minuto...") — solo se il dato è presente, non inventarla mai
 - Puoi esagerare leggermente per effetto comico
 - Evita tono cronachistico puro: deve essere storytelling
 - Usa esclamazioni italiane: "Mamma mia!", "Incredibile!", "Che serata!", "Roba da matti!"
@@ -14573,6 +14759,13 @@ Niente altro, nessuna spiegazione.`;
         nomeSquadraB: activeFormation.value?.nomeSquadraB || matchInfo.value.nomeSquadraB || 'Squadra B',
         squadraA:   [...teamA.value],
         squadraB:   [...teamB.value],
+        // Modalità Sostituzioni (6/8/2026): formato dichiarato e riserve ereditati dalla
+        // formazione (Consegna A), sostituzioni per infortunio raccolte durante l'inserimento
+        // (Consegna B) — collegamento infortunato↔sostituto tracciato, a differenza delle riserve.
+        formato:    activeFormation.value?.formato || '',
+        riserveA:   [...(activeFormation.value?.riserveA || [])],
+        riserveB:   [...(activeFormation.value?.riserveB || [])],
+        sostituzioni: [...matchSostituzioni.value],
         risultato:  { goalA, goalB },
         statisticheGiocatori: statsArr,
         votazioneCondivisaPending: matchIsVoteMode.value ? true : false,
@@ -14685,6 +14878,43 @@ Niente altro, nessuna spiegazione.`;
         editingMatch.value.squadraA.push(pid);
       }
     };
+
+    // ── Sostituzioni per infortunio dentro "Modifica Partita" (Modalità Sostituzioni, Consegna
+    // B — 6/8/2026). Colma un vuoto reale: l'editor prima permetteva solo di SPOSTARE un giocatore
+    // già presente tra le due squadre, mai di aggiungerne uno nuovo — necessario per registrare un
+    // infortunio scoperto solo dopo aver già salvato la partita.
+    const editSostForm = ref({ squadra: 'A', infortunatoUid: '', sostitutoUid: '' });
+    const editSostitutoOptions = computed(() => {
+      if (!editingMatch.value) return [];
+      const inTeam = new Set([...(editingMatch.value.squadraA||[]), ...(editingMatch.value.squadraB||[])]);
+      return groupPlayers.value.filter(p => !inTeam.has(p.uid));
+    });
+    const addSostituzioneToEditingMatch = () => {
+      const f = editSostForm.value;
+      const em = editingMatch.value;
+      if (!em || !f.infortunatoUid || !f.sostitutoUid) { toast('Seleziona sia l\'infortunato che il sostituto!', 'error'); return; }
+      const teamKey = f.squadra === 'A' ? 'squadraA' : 'squadraB';
+      if (!em[teamKey]) em[teamKey] = [];
+      if (!em[teamKey].includes(f.sostitutoUid)) em[teamKey].push(f.sostitutoUid);
+      if (!em.statisticheGiocatori) em.statisticheGiocatori = [];
+      if (!em.statisticheGiocatori.some(s => s.playerId === f.sostitutoUid)) {
+        em.statisticheGiocatori.push({ playerId: f.sostitutoUid, goal:0, assist:0, voto:6, autogol:0, rigoriParati:0, rigoriSbagliati:0, punti:0, uomoPartita:false });
+      }
+      if (!em.sostituzioni) em.sostituzioni = [];
+      em.sostituzioni.push({ squadra: f.squadra, infortunatoUid: f.infortunatoUid, sostitutoUid: f.sostitutoUid });
+      editSostForm.value = { squadra: 'A', infortunatoUid: '', sostitutoUid: '' };
+      toast('🩹 Sostituto aggiunto — ricordati di salvare', 'success');
+    };
+    const removeSostituzioneFromEditingMatch = (idx) => {
+      const em = editingMatch.value;
+      if (!em || !em.sostituzioni) return;
+      const s = em.sostituzioni[idx];
+      if (!s) return;
+      const teamKey = s.squadra === 'A' ? 'squadraA' : 'squadraB';
+      em[teamKey] = (em[teamKey]||[]).filter(id => id !== s.sostitutoUid);
+      em.statisticheGiocatori = (em.statisticheGiocatori||[]).filter(x => x.playerId !== s.sostitutoUid);
+      em.sostituzioni.splice(idx, 1);
+    };
     const saveEditMatch = async () => {
       if (!editingMatch.value) return;
       const m = JSON.parse(JSON.stringify(editingMatch.value));
@@ -14732,6 +14962,11 @@ Niente altro, nessuna spiegazione.`;
           nomeSquadraB:           m.nomeSquadraB,
           squadraA:               m.squadraA,
           squadraB:               m.squadraB,
+          // Modalità Sostituzioni (6/8/2026): senza questa riga esplicita, ogni modifica fatta da
+          // "Modifica Partita" avrebbe cancellato in silenzio le sostituzioni già registrate — qui
+          // NON si fa spread generico dell'oggetto, ogni campo va elencato a mano (a differenza del
+          // sync Firebase, che invece è generico).
+          sostituzioni:           m.sostituzioni || [],
           risultato:              m.risultato,
           statisticheGiocatori:   m.statisticheGiocatori,
           notePartita:            m.notePartita,
@@ -14903,6 +15138,10 @@ Niente altro, nessuna spiegazione.`;
       matchInfo.value.data = m.data || '';
       teamA.value = m.squadraA || [];
       teamB.value = m.squadraB || [];
+      // Modalità Sostituzioni, Consegna C (6/8/2026): senza questa riga, riaprire il giornale di
+      // una partita già salvata (es. da "Condividi" nello storico) perderebbe le sostituzioni —
+      // sia il PNG che il testo WhatsApp le leggono da questo stesso ref condiviso.
+      matchSostituzioni.value = m.sostituzioni || [];
       playerStats.value = {};
       for (const s of m.statisticheGiocatori || []) {
         playerStats.value[s.playerId] = { goal: s.goal||0, assist: s.assist||0, voto: s.voto||0, autogol: s.autogol||0, uomoPartita: s.uomoPartita||false };
@@ -14967,6 +15206,12 @@ Niente altro, nessuna spiegazione.`;
       const s = m.statisticheGiocatori?.find(x => x.playerId === pid);
       return s?.[field] ?? (field==='voto' ? 6 : 0);
     };
+
+    // Modalità Sostituzioni, Consegna C (6/8/2026): helper condivisi per marcare nel dettaglio
+    // partita chi è entrato come sostituto e chi è uscito infortunato — stesso array m.sostituzioni
+    // già usato per il PNG giornale e il testo WhatsApp.
+    const isSostituto = (m, pid) => (m?.sostituzioni||[]).some(s => String(s.sostitutoUid) === String(pid));
+    const isInfortunato = (m, pid) => (m?.sostituzioni||[]).some(s => String(s.infortunatoUid) === String(pid));
 
     // ── Firebase Cloud Sync ──
     const _aiCardGroupKey = () => {
@@ -15401,7 +15646,11 @@ Niente altro, nessuna spiegazione.`;
         return {
           nome: p?.soprannome || p?.nome || '?', voto: st?.voto ?? null, gol: st?.goal || 0,
           assist: _trackAssistD ? (st?.assist || 0) : null,
-          autogol: st?.autogol || 0
+          autogol: st?.autogol || 0,
+          // Modalità Sostituzioni, Consegna C (6/8/2026): la Sezione D del Riepilogo Stagione è
+          // testo puro (non passa dal canvas del PNG giornale), serve marcarlo qui a parte.
+          sostituto: isSostituto(m, uid),
+          infortunato: isInfortunato(m, uid),
         };
       });
       let _i = 0;
@@ -15424,6 +15673,11 @@ Niente altro, nessuna spiegazione.`;
           formazioneA: rosterOf(m, m.squadraA), formazioneB: rosterOf(m, m.squadraB),
           titoloGiornale: m.titoloGiornale||'', commentoAI: m.commentoAI||'',
           uomoPartita: m.uomoPartita || null,
+          // Modalità Sostituzioni, Consegna C (6/8/2026): stessi campi già salvati sulla partita
+          // dalla Consegna A/B, riportati qui per completezza testuale (Sezione D non deve mai
+          // perdere informazioni quando un Riepilogo viene "alleggerito" delle sole immagini).
+          formato: m.formato || '',
+          sostituzioni: m.sostituzioni || [],
           pngGiornale: pngGiornaleCompresso,
           fotoPartita: m.fotoPartita || null // già leggera, nessuna ricompressione
         });
@@ -19031,6 +19285,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const mvpVoto=statsOf(mvpId)?.voto;
         txt += `\n🏅 *Uomo Partita:* ${mvpPlayer?.soprannome||mvpPlayer?.nome||''}${mvpVoto?` (${mvpVoto})`:''}\n`;
       }
+      // Modalità Sostituzioni, Consegna C (6/8/2026): mostra chi è uscito infortunato e chi lo ha
+      // sostituito, se registrato — stesso dato usato nel dettaglio partita e nel PNG.
+      const sost = m ? (m.sostituzioni||[]) : (matchSostituzioni.value||[]);
+      if(sost.length){
+        const sostLines = sost.map(s => {
+          const inf=getPlayer(s.infortunatoUid), sos=getPlayer(s.sostitutoUid);
+          return `${inf?.soprannome||inf?.nome||'?'} ➜ ${sos?.soprannome||sos?.nome||'?'}`;
+        });
+        txt += `\n🩹 *Sostituzioni:* ${sostLines.join(', ')}\n`;
+      }
       if(commento) txt += `\n💬 _${commento}_ ✨\n`;
       txt += `\n🏆 _Generato con Amici FC_`;
       return txt;
@@ -19052,6 +19316,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         })),
         mvpId: computedUomoPartita.value||computedMVP.value||null,
         commentoAI: aiComment.value||'',
+        // Modalità Sostituzioni, Consegna C (6/8/2026): passata al canvas per disegnare i badge
+        // 🩹 su infortunato/sostituto nella griglia giocatori (vedi drawPlayerGrid).
+        sostituzioni: matchSostituzioni.value||[],
       };
       const dataUrl = await drawMatchResultFormationCanvas(f, md);
       previewPNGUrl.value = dataUrl;
@@ -21272,9 +21539,18 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         const sqB = match.nomeSquadraB || 'Squadra B';
         const ris = (match.risultato ? match.risultato.goalA||0 : 0) + '-' + (match.risultato ? match.risultato.goalB||0 : 0);
         const nota = match.noteAI || match.notePartita || '';
+        // Modalità Sostituzioni, Consegna C (6/8/2026): stessa logica del prompt iniziale
+        // (generateCommentAI) — se c'è stato un infortunio con sostituzione, l'AI deve saperlo
+        // per poterlo raccontare, dato reale letto da match.sostituzioni (non inventato).
+        const sostText = (match.sostituzioni||[]).length
+          ? ' Sostituzioni per infortunio: ' + match.sostituzioni.map(s => {
+              const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
+              return (inf?.soprannome||inf?.nome||'?') + ' esce infortunato, entra ' + (sos?.soprannome||sos?.nome||'?');
+            }).join('; ') + '.'
+          : '';
         const prompt = 'Sei un telecronista italiano divertente. Genera commento epico (max 3 righe) per partita calcetto tra amici.' +
           ' ' + sqA + ' vs ' + sqB + ' risultato ' + ris + '.' +
-          ' Giocatori: ' + stats + '.' + (nota ? ' Note: ' + nota + '.' : '') +
+          ' Giocatori: ' + stats + '.' + (nota ? ' Note: ' + nota + '.' : '') + sostText +
           ' Sii ironico e usa i soprannomi.';
         let comment = '';
         if (provider === 'gemini') {
@@ -22499,6 +22775,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       regenerateCommentForMatch, showPNGPreview, showMoreMenu, showExportModal, exportGroupIds,
       installTab, installSubTab, editingPlayer, playerForm, detailPlayer,
       detailMatch, detailMatchReadonly, detailMatchPlayers, getPlayerForDetail, playerPhotoCacheByUid, tutorialCards, matchStep, matchTeamOpen, selectedForMatch, formationRiserve, computeFormato, toggleManualRiserva, toggleEditorRiserva, teamA, teamB, matchGoalA, matchGoalB,
+      isSostituto, isInfortunato,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
       playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji,
@@ -22523,6 +22800,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
+      matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
@@ -22550,6 +22828,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       checkForUpdates, doUpdate, optimizePlayerPhotos, optimizingPhotos, optimizeResult,
       confirmDeleteModal, askDeleteMatch, confirmDeleteDo, regenerateNewspaper,
       showEditMatch, editingMatch, openEditMatch, regenAIComment, aiRegenLoading, movePlayerInEdit, saveEditMatch,
+      editSostForm, editSostitutoOptions, addSostituzioneToEditingMatch, removeSostituzioneFromEditingMatch,
       shareStatsPNG, formatMeseHoF, openSendFormation, heroUnifiedData, heroUnifiedIdx, heroSwipeDelta, heroSwipeDragging, heroScrollHasMore, homeSegIdx, homeSegHL, setHomeSeg, heroTS, heroTM, heroTE, heroMD, heroMM, heroMU, heroClick, showLogModal, appLogs, clearLogs, copyLogs, logEvent, logFilter, showNuovaMenu, showSendFormation, sendFormationData, sendCode, sendText, copyToClipboard, showReceiveForm, receiveInput, receiveLoading, importFormation,
       showChangelog, changelogEntries,
       exportExcel, totalReset, autoSyncToCloud,
