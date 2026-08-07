@@ -151,17 +151,20 @@ input[type=password]:focus,input[type=email]:focus{border-color:var(--lime)}
     <div style="font-weight:900;font-size:1.1rem;margin-bottom:4px;color:var(--lime)">⚙️ Configura credenziali</div>
     <div style="font-size:0.72rem;color:var(--text2);margin-bottom:16px">Salvate solo in locale nel browser (localStorage), mai nel file. Da compilare una volta per dispositivo.</div>
 
-    <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:#fff">🔴 Profilo PRODUZIONE</div>
+    <div style="font-weight:700;font-size:0.85rem;margin-bottom:4px;color:#fff">🔴 Profilo PRODUZIONE</div>
+    <div style="font-size:0.7rem;color:var(--text2);margin-bottom:8px">Il database Firebase reale del tuo gruppo, quello usato ogni giovedì con i dati veri.</div>
     <div style="margin-bottom:6px"><input type="text" id="cfgProdUrl" placeholder="URL database (https://...firebasedatabase.app)" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
     <div style="margin-bottom:6px"><input type="text" id="cfgProdApiKey" placeholder="Firebase Web API Key" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
     <div style="margin-bottom:16px"><input type="email" id="cfgProdEmail" placeholder="Email di login" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
 
-    <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:#fff">🟢 Profilo TEST</div>
+    <div style="font-weight:700;font-size:0.85rem;margin-bottom:4px;color:#fff">🟢 Profilo TEST</div>
+    <div style="font-size:0.7rem;color:var(--text2);margin-bottom:8px">Un secondo progetto Firebase separato (facoltativo), per provare modifiche e correzioni senza mai rischiare i dati reali del gruppo.</div>
     <div style="margin-bottom:6px"><input type="text" id="cfgTestUrl" placeholder="URL database (https://...firebasedatabase.app)" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
     <div style="margin-bottom:6px"><input type="text" id="cfgTestApiKey" placeholder="Firebase Web API Key" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
     <div style="margin-bottom:16px"><input type="email" id="cfgTestEmail" placeholder="Email di login" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
 
-    <div style="font-weight:700;font-size:0.85rem;margin-bottom:8px;color:#fff">🧪 Test Suite (progetto TestAmiciFC)</div>
+    <div style="font-weight:700;font-size:0.85rem;margin-bottom:4px;color:#fff">🧪 Test Suite</div>
+    <div style="font-size:0.7rem;color:var(--text2);margin-bottom:8px">Credenziali usate SOLO dalla suite di test automatici (voce "🧪 Test Suite" nel menu laterale) per verificare che l'app funzioni correttamente. Di solito puoi ripetere qui lo stesso database del profilo TEST sopra — tienilo separato solo se preferisci isolare del tutto i test automatici dal resto.</div>
     <div style="margin-bottom:6px"><input type="text" id="cfgSuiteUrl" placeholder="URL database Test Suite" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
     <div style="margin-bottom:6px"><input type="text" id="cfgSuiteApiKey" placeholder="Firebase Web API Key" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
     <div style="margin-bottom:6px"><input type="email" id="cfgSuiteEmail" placeholder="Email account Test Suite" style="background:#1f2937;border:1px solid #374151;color:#fff;padding:7px 10px;border-radius:8px;font-size:0.8rem;outline:none;width:100%"></div>
@@ -211,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.0';
+const INSPECTOR_VERSION = '1.1';
 
 async function checkInspectorUpdate(){
   try {
@@ -245,9 +248,9 @@ function inspectorDoUpdate(){
 // cambiare l'URL a schermo NON bastava a spostare quelle operazioni altrove. Ora ogni funzione legge
 // SEMPRE da getActiveDb(), non esiste più nessuna scorciatoia hardcoded. Vedi REGOLE-PROGETTO.md, 20/6.
 const DB_PROFILES_SEED = [
-  { id:'prod', label:'🔴 PRODUZIONE — Calcetto Giovedì', short:'PRODUZIONE', isProd:true,
+  { id:'prod', label:'🔴 Produzione', short:'PRODUZIONE', isProd:true,
     dbUrl:'', apiKey:'', loginEmail:'' },
-  { id:'test', label:'🟢 TEST — testamicifc', short:'TEST', isProd:false,
+  { id:'test', label:'🟢 Test', short:'TEST', isProd:false,
     dbUrl:'', apiKey:'', loginEmail:'' },
 ];
 const DB_PROFILES_KEY = 'inspector_db_profiles_v1';
@@ -396,6 +399,16 @@ function updateDbBanner(){
   if (sel) sel.value = active.id === 'custom' ? '' : active.id;
 }
 
+// Aggiunge al banner i nomi REALI dei gruppi presenti in questo database, letti da Firebase dopo
+// il caricamento — mai scritti a mano nel file (6/8/2026, richiesta di Alby: l'Inspector va usato
+// anche da altri gruppi, quindi non deve avere nomi di gruppo hardcoded da nessuna parte).
+function updateDbBannerGroupName(){
+  const el = $('dbBanner');
+  if (!el || !GROUPS.length) return;
+  const names = GROUPS.map(g => g?.nome).filter(Boolean).join(', ');
+  if (names) el.textContent += ` — ${names}`;
+}
+
 let DB=null, GROUPS=[], PLAYERS=[], MATCHES=[], AI={};
 let VOTE_PINS={}; // {uid: true} — stato PIN di voto (Pagelle Multi-Utente), flattened su tutti i gruppi
 let VOTAZIONI_DATA={}; // {groupKey: {matchId: {_meta, entries}}} — sessioni di voto (Pagelle Multi-Utente)
@@ -510,6 +523,7 @@ async function loadAll(){
       ms.forEach(m=>{if(m)MATCHES.push({...m,_groupName:g?.nome||'?'});});
     });
     AI=DB.aiCards||{};
+    updateDbBannerGroupName(); // mostra i nomi reali dei gruppi, letti da Firebase — non più hardcoded (6/8/2026)
 
     // Pagelle Multi-Utente: i PIN sono leggibili solo da admin autenticati (regole di sicurezza
     // dedicate, 28/7/2026) — questo fetch di loadAll() non ha mai avuto un token, quindi votePins
@@ -1028,73 +1042,7 @@ function renderMaintAiMeta(){
     </p>
     <button class="btn btn-orange" onclick="runAiMetaMigration()">🚀 Esegui Migrazione</button>
     <div id="aiMetaLog" style="margin-top:16px;font-family:monospace;font-size:0.78rem;line-height:1.8"></div>
-  </div>
-
-  <div class="card" style="margin-top:16px;border-color:rgba(251,191,36,.4)">
-    <div class="card-title">👑 Ripristino Hall of Fame Maggio 2026 (una tantum)</div>
-    <p style="font-size:.82rem;color:var(--text2);margin-bottom:16px">
-      Recupero mirato SOLO della chiave <code>calcetto-giovedi/2026-05</code>, persa per il bug di sovrascrittura
-      di <code>syncToCloud</code> (fix 10/7/2026) e recuperata dal backup completo del 1° luglio 2026.
-      Scrive <strong>esclusivamente</strong> la chiave <code>2026-05</code> con PATCH — non tocca <code>2026-06</code>
-      né qualsiasi altra chiave già presente. Contenuto arricchito con <code>uid</code> (Ste, Alby), <code>gruppo</code>
-      e <code>stagione</code>, stesso standard della migrazione sopra.
-      <br><br>
-      <strong style="color:var(--orange)">⚠️ Controllo di sicurezza incluso</strong> — se la chiave <code>2026-05</code>
-      esiste già su Firebase, l'operazione si ferma senza scrivere nulla (per evitare di sovrascrivere un eventuale
-      recupero già fatto in altro modo).
-    </p>
-    <button class="btn btn-orange" onclick="runRestoreMaggio2026_05()">👑 Ripristina Maggio 2026</button>
-    <div id="restoreMaggioLog" style="margin-top:16px;font-family:monospace;font-size:0.78rem;line-height:1.8"></div>
   </div>`;
-}
-
-async function runRestoreMaggio2026_05(){
-  const active = getActiveDb();
-  const logEl = document.getElementById('restoreMaggioLog');
-  if(!logEl) return;
-  const ml = (msg, color='var(--text2)') => {
-    logEl.innerHTML += `<div style="color:${color}">${msg}</div>`;
-    logEl.scrollTop = logEl.scrollHeight;
-  };
-  if(!confirm('Ripristinare la Hall of Fame di Maggio 2026 (chiave 2026-05) dal backup del 1° luglio?\n\nVerrà scritta SOLO questa chiave, nessun\'altra verrà toccata.')) return;
-
-  const gKey = 'calcetto-giovedi';
-  const path = `amicifc/aiCards/hallOfFame/${gKey}/2026-05`;
-  ml('🔍 Controllo se la chiave 2026-05 esiste già...', 'var(--lime)');
-  try {
-    const existing = await fbRead(active.dbUrl, path, AUTH_TOKEN);
-    if (existing && existing.fame) {
-      ml('⚠️ La chiave 2026-05 esiste già su Firebase — nessuna scrittura effettuata, per sicurezza.', 'var(--orange)');
-      return;
-    }
-    const maggioData = {
-      fame: {
-        nome: 'Ste', emoji: '👑', titolo: 'Hall of Fame di 2026/05',
-        sottotitolo: 'Il Re indiscusso del Mese',
-        commento: 'Come un vero Re, Ste ha dominato il campo, segnando gol a profusione e portando la sua squadra alla vittoria. Un vero Puskás del calcetto moderno!',
-        stat_chiave: '4 Gol, 1 UoM, 26.5 Voti',
-        uid: '8eb7b871-b6c0-420f-b42a-cc83c8a61e7f',
-      },
-      shame: {
-        nome: 'Alby', emoji: '🪣', titolo: 'Hall of Shame di 2026/05',
-        sottotitolo: "L'Eterno Sfortunato",
-        commento: 'Con solo una vittoria su quattro partite e un contributo offensivo quasi inesistente, Alby ci dimostra che a volte la fortuna non è dalla nostra parte. Ma non temere, il prossimo mese sarà diverso... forse.',
-        stat_chiave: '1 Vittoria, 1 Gol, 0 Assist',
-        uid: '76ef50ad-5cc8-4ce7-9bd5-8c14c6a04509',
-      },
-      mese: '2026-05',
-      partite_analizzate: 4,
-      generatedAt: Date.now(),
-      createdBy: 'ripristino-backup-2026-07-01',
-      gruppo: 'Calcetto Giovedì',
-      stagione: 'Stagione 1',
-    };
-    await fbPatch(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/aiCards/hallOfFame/${gKey}`, { '2026-05': maggioData });
-    ml('✅ Chiave 2026-05 ripristinata con successo (Fame: Ste, Shame: Alby).', 'var(--lime)');
-    ml('ℹ️ Ricarica la pagina Hall of Fame per vederla nello storico.', 'var(--text2)');
-  } catch(e) {
-    ml(`❌ Errore: ${e.message}`, '#f87171');
-  }
 }
 
 async function runAiMetaMigration(){
@@ -3195,7 +3143,7 @@ async function doRestoreFromBackup(event) {
       // Se il backup ha la struttura flat (players + matches separati)
       if (backup.players && !backup.groups) {
         payload.groups = [{
-          group: { nome: 'Calcetto Giovedì', id: 'restored' },
+          group: { nome: 'Gruppo Ripristinato', id: 'restored' },
           players: backup.players,
           matches: backup.matches || []
         }];
@@ -4610,7 +4558,7 @@ function renderTestSuite(){
     <!-- Config DB Test -->
     <div class="card" style="margin-bottom:14px">
       <div class="card-head"><span class="card-title">⚙️ Configurazione DB Test</span>
-        <span style="font-size:0.7rem;color:var(--gray);margin-left:8px">Precompilato con TestAmiciFC</span>
+        <span style="font-size:0.7rem;color:var(--gray);margin-left:8px">Precompilato da "⚙️ Configura credenziali" → Test Suite</span>
       </div>
       <div class="card-body">
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
