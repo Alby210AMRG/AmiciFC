@@ -5625,6 +5625,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- Infortuni e Sostituzioni -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#FF8C00;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🩹 Infortuni e Sostituzioni</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>🩺 <strong>Infortunio a partita in corso</strong>: durante l'inserimento del risultato (Uno alla Volta, Tutti Insieme, Vota con gli amici) trovi il bottone "🩹 Sostituzioni per infortunio" — indica squadra, chi è uscito e chi è entrato al suo posto</div>
+            <div>⭐ Il sostituto prende voti, gol e assist esattamente come un giocatore normale — nessuna differenza nel calcolo delle statistiche</div>
+            <div>👁️ Il collegamento infortunato→sostituto resta visibile ovunque: dettaglio partita, PNG del giornale (badge 🩹 sull'avatar), testo di condivisione WhatsApp, e Riepilogo Stagione</div>
+            <div>✏️ Te ne sei accorto solo dopo aver già salvato? Nessun problema — la stessa funzione è disponibile anche da "Modifica Partita"</div>
+            <div>🪑 <strong>Riserve dichiarate in anticipo</strong> (es. "giochiamo 6v6 ma siamo in più"): si impostano invece in fase di creazione formazione, in "Chi gioca oggi?" — vedi il capitolo "Come Iniziare" più sopra</div>
+          </div>
+        </div>
+
         <!-- Riepilogo Stagione -->
         <div>
           <div style="font-weight:700;font-size:0.78rem;color:#2dd4bf;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📖 Riepilogo Stagione</div>
@@ -8456,7 +8468,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.817',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.819',date:'2026-08-06',items:[
+      'Soprannomi AI — correzione al fix di ieri, su segnalazione di Alby con un esempio concreto: davanti al Riepilogo Stagione, la soglia normale "ogni 4 partite" (giusta per il risparmio token durante la stagione) non basta — è uno scatto UNICO e PERMANENTE, anche 1 sola partita di differenza dall\'ultima generazione merita un soprannome fresco. Aggiunto un parametro `forceAll` a `_generateNicknames()`: quando true (solo per il Riepilogo Stagione), la soglia scende da 4 a 1 partita — non rigenera comunque tutti a prescindere, solo chi ha effettivamente giocato almeno una partita in più dall\'ultima volta. Verificato con l\'esempio esatto di Alby (soprannome generato a 10 partite, 2 partite in più prima dell\'archiviazione): con la soglia normale non scatta (corretto, durante la stagione), con quella del Riepilogo sì (corretto, prima dell\'archiviazione).',
+    ]},{version:'v1.818',date:'2026-08-06',items:[
+      'Soprannomi AI — bug reale trovato da Alby, corretto: prima del Riepilogo Stagione (Annuario, Sezione E) i soprannomi venivano letti così come si trovavano in memoria, senza mai un controllo di freschezza — potevano finire nel PDF basati su dati vecchi. Ora, subito prima di costruire l\'Annuario in fase di archiviazione, viene richiamato lo stesso identico controllo già esistente (rigenera SOLO chi ha almeno 4 partite dall\'ultima generazione) — nessun costo AI aggiuntivo rispetto a quanto sarebbe comunque dovuto prima o poi, garantito però al momento giusto.',
+      'Manuale del Campetto — nuovo capitolo "🩹 Infortuni e Sostituzioni" (in-app e nel file esterno MANUALE-AMICI-FC.md), e nuova card tutorial dedicata "Qualcuno si è infortunato?" (13ª card, dopo "Inserisci il risultato") — mancavano completamente da entrambi nonostante la funzione fosse già stata consegnata da giorni.',
+      'Nuova Regola d\'Oro (49): il Manuale del Campetto va aggiornato SEMPRE, in entrambi i posti (in-app + MANUALE-AMICI-FC.md), come parte della stessa consegna di ogni funzionalità utente-visibile — non un passo successivo facoltativo. Lezione imparata da questo stesso episodio: la Modalità Sostituzioni era stata consegnata in 3 parti senza mai toccare il Manuale.',
+    ]},{version:'v1.817',date:'2026-08-06',items:[
       'Bug reale segnalato da Alby con screenshot, causa trovata e corretta: in "Modifica Partita", compilare i due menu "Sostituzioni per infortunio" (infortunato+sostituto) SENZA premere il bottone separato "🩹 Aggiungi sostituto" prima di "Salva" faceva perdere la selezione in silenzio — nessun voto per il sostituto, nessuna traccia della sostituzione da nessuna parte (formazione, Inspector, PNG giornale). Causa: un flusso a due passaggi (compila → conferma → poi Salva) non abbastanza ovvio.',
       'Fix: "Salva" in Modifica Partita ora registra automaticamente una sostituzione compilata ma non ancora confermata, prima di salvare — non va più persa solo perché manca un click. Aggiunto anche un avviso visibile quando i menu sono compilati, e azzerato il modulo sostituzioni ogni volta che si apre l\'editor di una partita (altrimenti una selezione dimenticata su una partita rischiava di finire per errore su un\'altra, insieme alla nuova rete di sicurezza).',
     ]},{version:'v1.816',date:'2026-08-06',items:[
@@ -9478,6 +9496,7 @@ createApp({
       { icon: '👥', titolo: 'Aggiungi i giocatori', testo: 'Vai in Giocatori e aggiungi tutti i tuoi campioni — foto, ruolo e soprannome per renderli unici, più il Numero Preferito e la Squadra del Cuore: più dettagli metti, più le card AI diventano divertenti e su misura per ognuno.', cta: 'Vai ai Giocatori', view: 'players' },
       { icon: '⚽', titolo: 'Crea le squadre', testo: 'Tocca il pallone colorato in basso, seleziona chi gioca e scegli come dividere le squadre: AI (bilanciate dall\'intelligenza artificiale), Consigliata (algoritmo statistico), oppure Manuale (le trascini tu).', cta: 'Genera squadre', view: 'formations' },
       { icon: '📊', titolo: 'Inserisci il risultato', testo: 'Dopo la partita registra gol, assist e voti — statistiche, medie e classifiche vengono calcolate in automatico.', cta: 'Nuova partita', view: 'formations' },
+      { icon: '🩹', titolo: 'Qualcuno si è infortunato?', testo: 'Durante l\'inserimento del risultato trovi il bottone "Sostituzioni per infortunio" — indica chi è uscito e chi è entrato al suo posto: il sostituto prende voti/gol/assist come tutti gli altri, e resta scritto ovunque (partita, giornale, statistiche).', cta: null, view: null },
       { icon: '☁️', titolo: 'Firebase o solo locale?', testo: 'Funziona anche senza configurare nulla — tutto resta sul telefono, backup a mano con Import/Export. Se vuoi la sincronizzazione automatica tra più telefoni (e "Vota con gli amici"), attiva Firebase toccando l\'icona ☁️ accanto al nome del gruppo.', cta: null, view: null },
       { icon: '🗳️', titolo: 'Vota con gli amici', testo: 'Invece di inserire tu i voti, apri una votazione condivisa: ogni giocatore vota i compagni dal proprio telefono con un PIN personale, tramite un link su WhatsApp — il voto finale è la media di tutti.', cta: null, view: null },
       { icon: '🏆', titolo: 'Scopri le Statistiche', testo: 'In Stats trovi classifiche, medie, Overall, Top Team e tanto altro — chi segna di più, chi vince sempre, e chi invece ne vedrà delle belle.', cta: 'Vai alle Statistiche', view: 'stats' },
@@ -9590,7 +9609,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.817');
+    const appVersion = ref('1.819');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13675,10 +13694,17 @@ OUTPUT: Rispondi SOLO con JSON valido:
       }
     };
 
-    const _generateNicknames = async () => {
+    // forceAll (6/8/2026, richiesta di Alby): la soglia normale "ogni 4 partite" ha senso per la
+    // rotazione delle card durante la stagione (risparmio token, non serve un soprannome fresco ad
+    // ogni singola partita) — ma il Riepilogo Stagione è uno scatto UNICO e PERMANENTE: anche 1
+    // sola partita di differenza dall'ultima generazione merita un aggiornamento, dato che quel
+    // dato resterà archiviato così com'è per sempre. Con forceAll=true, la soglia diventa 1 invece
+    // di 4 — non "rigenera comunque tutti indipendentemente dalle partite giocate" (sarebbe uno
+    // spreco di token per chi non ha giocato nel frattempo), solo la soglia minima che scatta.
+    const _generateNicknames = async (forceAll = false) => {
       if (!settings.value.apiKey) { _aiLog('Soprannomi','⚠️ Nessuna API key',false); return; }
       if (!currentGroup.value) { _aiLog('Soprannomi','⚠️ Nessun gruppo attivo',false); return; }
-      _aiLog('Soprannomi','▶️ Verifica soprannomi da aggiornare...');
+      _aiLog('Soprannomi','▶️ Verifica soprannomi da aggiornare...' + (forceAll ? ' (soglia 1 partita — Riepilogo Stagione)' : ''));
       const players = groupPlayers.value.filter(p => (p.partiteTotali||0) >= 3);
       if (!players.length) return;
 
@@ -13686,7 +13712,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
         const existing = aiNicknames.value[p.uid || String(p.id)];
         if (!existing) return true;
         const partiteDa = (p.partiteTotali||0) - (existing.partiteAl||0);
-        return partiteDa >= 4; // ~1 mese di partite settimanali
+        return partiteDa >= (forceAll ? 1 : 4); // 4 = ~1 mese di partite settimanali; 1 = Riepilogo Stagione
       });
       if (!toGenerate.length) { _aiLog('Soprannomi','✅ Tutti i soprannomi sono aggiornati'); return; }
       _aiLog('Soprannomi','📝 Da generare: '+toGenerate.map(p=>p.soprannome||p.nome).join(', '));
@@ -16419,6 +16445,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const sezioneD = await buildSeasonSummaryTestSectionD((cur, tot) => {
           archiveStepData.riepilogoProgress = { current: cur, total: tot };
         });
+        // Soprannomi AI (richiesta di Alby, 6/8/2026 — correzione dopo un suo esempio concreto):
+        // il Riepilogo Stagione è uno scatto UNICO e PERMANENTE, non una rotazione periodica di
+        // card — la soglia normale "ogni 4 partite" (giusta per il risparmio token durante la
+        // stagione) qui non basta: anche 1 sola partita di differenza dall'ultima generazione
+        // merita un soprannome fresco, perché quel dato resterà archiviato così com'è per sempre.
+        // forceAll=true abbassa la soglia a 1 partita SOLO per questa chiamata — non rigenera
+        // comunque tutti a prescindere (nessuno spreco per chi non ha giocato nel frattempo).
+        try { await _generateNicknames(true); } catch(e) { logEvent('warn','app','Riepilogo Stagione: controllo freschezza soprannomi non riuscito — '+e.message); }
         const sezioneE = buildSeasonSummaryTestSectionE();
         const gabbione = buildSeasonSummaryTestGabbione();
 
