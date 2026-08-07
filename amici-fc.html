@@ -7013,6 +7013,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <option value="">— chi è entrato —</option>
           <option v-for="p in editSostitutoOptions" :key="p.uid" :value="p.uid">{{ p.soprannome||p.nome }}</option>
         </select>
+        <div v-if="editSostForm.infortunatoUid && editSostForm.sostitutoUid" style="font-size:0.72rem;color:#FF8C00;background:rgba(255,140,0,0.1);border-radius:6px;padding:6px 8px;margin-bottom:6px;text-align:center">
+          👆 Premi per confermarla subito (o verrà comunque aggiunta salvando la partita)
+        </div>
         <button class="btn btn-ghost btn-sm btn-full" style="border-color:rgba(255,140,0,0.4);color:#FF8C00" @click="addSostituzioneToEditingMatch">🩹 Aggiungi sostituto</button>
       </div>
 
@@ -8453,7 +8456,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.816',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.817',date:'2026-08-06',items:[
+      'Bug reale segnalato da Alby con screenshot, causa trovata e corretta: in "Modifica Partita", compilare i due menu "Sostituzioni per infortunio" (infortunato+sostituto) SENZA premere il bottone separato "🩹 Aggiungi sostituto" prima di "Salva" faceva perdere la selezione in silenzio — nessun voto per il sostituto, nessuna traccia della sostituzione da nessuna parte (formazione, Inspector, PNG giornale). Causa: un flusso a due passaggi (compila → conferma → poi Salva) non abbastanza ovvio.',
+      'Fix: "Salva" in Modifica Partita ora registra automaticamente una sostituzione compilata ma non ancora confermata, prima di salvare — non va più persa solo perché manca un click. Aggiunto anche un avviso visibile quando i menu sono compilati, e azzerato il modulo sostituzioni ogni volta che si apre l\'editor di una partita (altrimenti una selezione dimenticata su una partita rischiava di finire per errore su un\'altra, insieme alla nuova rete di sicurezza).',
+    ]},{version:'v1.816',date:'2026-08-06',items:[
       'Modalità Sostituzioni — Consegna C (ULTIMA): infortunato e sostituto ora visibili ovunque. PNG del giornale: badge 🩹 disegnato sull\'avatar di chi è entrato come sostituto e di chi è uscito infortunato (angolo opposto alla corona MVP, per non sovrapporsi). Testo di condivisione WhatsApp: nuova riga "🩹 Sostituzioni" con l\'elenco. Dettaglio partita: badge formato (es. "6v6"), box dedicato con le sostituzioni, e icona 🩹 accanto al nome di ogni giocatore coinvolto nell\'elenco squadra. Riepilogo Stagione: formato e sostituzioni salvati in Sezione D, mostrati sia a schermo che nel PDF (che cattura la stessa vista HTML via html2canvas, quindi eredita tutto automaticamente senza codice aggiuntivo). Prompt AI (commento iniziale e rigenerazione) informati delle sostituzioni per poterle raccontare.',
       'Bug reale trovato e corretto prima della consegna: le funzioni `isSostituto`/`isInfortunato`, usate nel template del dettaglio partita, non erano esposte nel return di `setup()` — avrebbero causato un errore silenzioso a runtime (mai un crash visibile, solo il badge mancante). Trovato con un controllo incrociato tra ciò che il template usa e ciò che viene effettivamente esposto, non dal solo `node --check` (che verifica solo la sintassi, non i riferimenti Vue).',
     ]},{version:'v1.815',date:'2026-08-06',items:[
@@ -9584,7 +9590,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.816');
+    const appVersion = ref('1.817');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14865,6 +14871,11 @@ Niente altro, nessuna spiegazione.`;
       editingMatch.value = copy;
       showEditMatch.value = true;
       voteAdminStatus.value = null; // Pagelle Multi-Utente: azzero, non deve restare quello della partita precedente
+      // Azzero il form sostituzioni: senza questo, una selezione lasciata a metà su una partita
+      // (mai confermata né salvata) resterebbe visibile aprendo una PARTITA DIVERSA — e con la
+      // nuova rete di sicurezza di saveEditMatch() verrebbe applicata per errore alla partita
+      // sbagliata (bug potenziale introdotto insieme al fix, 6/8/2026 — evitato qui).
+      editSostForm.value = { squadra: 'A', infortunatoUid: '', sostitutoUid: '' };
     };
     const movePlayerInEdit = (pid, from, to) => {
       if (!editingMatch.value) return;
@@ -14917,6 +14928,15 @@ Niente altro, nessuna spiegazione.`;
     };
     const saveEditMatch = async () => {
       if (!editingMatch.value) return;
+      // Rete di sicurezza (bug reale segnalato da Alby, 6/8/2026): se ha compilato i due menu di
+      // "Sostituzioni per infortunio" (infortunato+sostituto) ma NON ha premuto il bottone separato
+      // "🩹 Aggiungi sostituto" prima di salvare, la selezione andrebbe persa in silenzio — nessun
+      // voto per il sostituto, nessuna sostituzione registrata da nessuna parte. Il flusso a due
+      // passaggi (compila → conferma → poi Salva) non era abbastanza ovvio. Qui la registriamo
+      // comunque, così una selezione fatta non va mai persa solo perché manca un click.
+      if (editSostForm.value.infortunatoUid && editSostForm.value.sostitutoUid) {
+        addSostituzioneToEditingMatch();
+      }
       const m = JSON.parse(JSON.stringify(editingMatch.value));
       // Ricalcola rigoriParati e rigoriSbagliati da _rigori
       if (m._rigori) {
