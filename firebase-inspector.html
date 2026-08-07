@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.1';
+const INSPECTOR_VERSION = '1.2';
 
 async function checkInspectorUpdate(){
   try {
@@ -1916,6 +1916,9 @@ function renderMatches(q){
           <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">
             <span class="badge ${hasMUUID?'badge-green':'badge-red'}" style="font-size:0.62rem">${hasMUUID?'matchUUID ✅':'matchUUID ❌'}</span>
             <span class="badge ${idOk?'badge-green':'badge-red'}" style="font-size:0.62rem">${idOk?'playerID ✅':`playerID ❌ (${badIds.length+badStatIds.length} num)`}</span>
+            ${m.formato?`<span class="badge" style="font-size:0.62rem;background:rgba(58,123,255,.15);color:#3A7BFF">🏟️ ${m.formato}</span>`:''}
+            ${(m.riserveA?.length||0)+(m.riserveB?.length||0)>0?`<span class="badge badge-yellow" style="font-size:0.62rem">🪑 ${(m.riserveA?.length||0)+(m.riserveB?.length||0)} riserva/e</span>`:''}
+            ${(m.sostituzioni?.length||0)>0?`<span class="badge" style="font-size:0.62rem;background:rgba(255,140,0,.15);color:#FF8C00">🩹 ${m.sostituzioni.length} sostituzione/i</span>`:''}
           </div>
         </div>
         ${mvpName?`<span class="badge badge-yellow">⭐ ${mvpName}</span>`:''}
@@ -1935,6 +1938,14 @@ function renderMatches(q){
         ${scorers?`<div>⚽ ${scorers}</div>`:''}
         ${assisters?`<div>🅰️ ${assisters}</div>`:''}
         ${ogs?`<div style="color:var(--red)">OG: ${ogs}</div>`:''}
+      </div>`:''}
+      ${(m.sostituzioni?.length||0)>0?`<div style="margin-top:8px;padding:8px 10px;background:rgba(255,140,0,.06);border:1px solid rgba(255,140,0,.2);border-radius:8px;font-size:0.72rem">
+        <div style="color:#FF8C00;font-weight:700;margin-bottom:4px">🩹 Sostituzioni per infortunio</div>
+        ${m.sostituzioni.map(s=>{
+          const infOk = PLAYERS.some(p=>p.uid===s.infortunatoUid||String(p.id)===String(s.infortunatoUid));
+          const sosOk = PLAYERS.some(p=>p.uid===s.sostitutoUid||String(p.id)===String(s.sostitutoUid));
+          return `<div style="color:var(--text2);padding:1px 0">${s.squadra==='A'?'🔵':'🔴'} ${getPlayerName(s.infortunatoUid)}${infOk?'':' <span class=\"badge badge-red\" style=\"font-size:0.6rem\">uid non trovato</span>'} ➜ ${getPlayerName(s.sostitutoUid)}${sosOk?'':' <span class=\"badge badge-red\" style=\"font-size:0.6rem\">uid non trovato</span>'}</div>`;
+        }).join('')}
       </div>`:''}
       ${m.commentoAI?`<div style="margin-top:8px;padding:8px 10px;background:rgba(166,255,77,.06);border:1px solid rgba(166,255,77,.15);border-radius:8px;font-size:0.72rem;color:var(--text2);font-style:italic;line-height:1.5">
         <span style="color:var(--lime);font-style:normal;font-weight:700;margin-right:4px">✨ AI</span>${m.commentoAI.slice(0,200)}${m.commentoAI.length>200?'…':''}
