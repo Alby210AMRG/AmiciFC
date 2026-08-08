@@ -2063,6 +2063,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {{ archiveStepData.zipLoading ? '⏳ Genero PNG e ZIP...' : (archiveStepData.zipScaricato ? '✅ ZIP scaricato — riscarica' : '🗞️ Genera e scarica ZIP giornale') }}
             </button>
           </div>
+          <div style="background:rgba(192,132,252,0.07);border:1px solid rgba(192,132,252,0.3);border-radius:10px;padding:12px;margin-bottom:14px">
+            <div style="font-size:0.78rem;color:#c084fc;font-weight:700;margin-bottom:6px">🧬 Aggiornamento Soprannomi AI obbligatorio</div>
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:10px">Normalmente un Soprannome AI si aggiorna solo ogni 4 partite (per risparmiare token durante la stagione) — ma il Riepilogo Stagione è uno scatto permanente: anche 1 sola partita in più dall'ultima generazione merita un soprannome fresco, prima che resti archiviato così com'è per sempre. Aggiorna solo chi ha davvero giocato nel frattempo, nessuno spreco per gli altri.</div>
+            <div v-if="!settings.apiKey" style="font-size:0.72rem;color:var(--yellow);margin-bottom:8px">⚠️ Richiede una API key AI configurata su questo dispositivo (Impostazioni → Configurazione AI) — senza, questo passaggio non ha effetto</div>
+            <button class="btn btn-sm" style="width:100%;background:rgba(192,132,252,0.15);border:1.5px solid #c084fc;color:#c084fc;font-weight:700"
+              :disabled="archiveStepData.loading||archiveStepData.soprannomiLoading||!settings.apiKey"
+              @click="archiveAggiornaSoprannomiForzato">
+              {{ archiveStepData.soprannomiLoading ? '⏳ Aggiorno Soprannomi...' : (archiveStepData.soprannomiAggiornati ? '✅ Soprannomi aggiornati — riesegui' : '🧬 Aggiorna Soprannomi AI') }}
+            </button>
+          </div>
           <div style="background:rgba(200,255,0,0.07);border:1px solid rgba(200,255,0,0.3);border-radius:10px;padding:12px;margin-bottom:14px">
             <div style="font-size:0.78rem;color:#C8FF00;font-weight:700;margin-bottom:6px">📖 Riepilogo Stagione obbligatorio</div>
             <div v-if="archiveStepData.riepilogoNonSupportato" style="font-size:0.75rem;color:var(--yellow)">
@@ -2070,6 +2080,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <template v-else>
               <div style="font-size:0.75rem;color:var(--text2);margin-bottom:10px">Genera lo snapshot con numeri, Oscar, Annuario giocatori, partite e testo AI — mentre i dati sono ancora vivi. È l'unica occasione: dopo l'archiviazione foto/PNG non saranno più disponibili. Può richiedere qualche secondo.</div>
+              <div v-if="!archiveStepData.soprannomiAggiornati && !archiveStepData.skipSoprannomi" style="font-size:0.72rem;color:#c084fc;margin-bottom:10px">💡 Consiglio: aggiorna prima i Soprannomi AI qui sopra, così l'Annuario li include già freschi</div>
               <button class="btn btn-sm" style="width:100%;background:rgba(200,255,0,0.15);border:1.5px solid #C8FF00;color:#C8FF00;font-weight:700"
                 :disabled="archiveStepData.loading||archiveStepData.riepilogoLoading"
                 @click="archiveGeneraRiepilogoStagione">
@@ -2098,7 +2109,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </button>
             <div v-if="archiveStepData.skipChecksExpanded" style="padding:12px;border-top:1px solid rgba(255,77,77,0.2);background:rgba(255,77,77,0.03)">
               <div style="font-size:0.75rem;color:var(--text2);line-height:1.6;margin-bottom:10px">
-                Backup, ZIP giornale e Riepilogo Stagione sono obbligatori perché sono l'<strong style="color:var(--text1)">unica occasione</strong> per conservare foto e PNG di questa stagione — dopo l'archiviazione vengono cancellati e non sono più recuperabili.
+                Backup, ZIP giornale e Riepilogo Stagione sono obbligatori perché sono l'<strong style="color:var(--text1)">unica occasione</strong> per conservare foto e PNG di questa stagione — dopo l'archiviazione vengono cancellati e non sono più recuperabili. L'aggiornamento Soprannomi AI è obbligatorio per un motivo diverso: senza l'AI configurata non serve a nulla, e con l'AI configurata garantisce che l'Annuario nel Riepilogo mostri sempre i soprannomi più aggiornati, non una versione vecchia di settimane.
                 Spunta una voce solo se sei sicuro di non averne bisogno (es. hai già un backup fatto altrove, o questa stagione non ha foto/PNG rilevanti da conservare). <strong style="color:var(--red)">Chi salta un controllo si assume la responsabilità di eventuali dati persi.</strong><br><br>
                 In ogni caso, saltare questi controlli riguarda solo backup/ZIP/Riepilogo extra — la stagione verrà comunque archiviata regolarmente e resterà sempre consultabile in Statistiche e nello Storico Partite.
               </div>
@@ -2108,18 +2119,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;margin-bottom:8px;cursor:pointer">
                 <input type="checkbox" v-model="archiveStepData.skipZip"> Non mi serve lo ZIP giornale per questa stagione
               </label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;margin-bottom:8px;cursor:pointer">
+                <input type="checkbox" v-model="archiveStepData.skipSoprannomi"> Non mi serve aggiornare i Soprannomi AI (o non ho l'AI configurata)
+              </label>
               <label style="display:flex;align-items:center;gap:8px;font-size:0.78rem;cursor:pointer">
                 <input type="checkbox" v-model="archiveStepData.skipRiepilogo"> Non mi serve il Riepilogo Stagione per questa stagione
               </label>
             </div>
           </div>
 
-          <div v-if="(!archiveStepData.backupScaricato&&!archiveStepData.skipBackup)||(!archiveStepData.zipScaricato&&!archiveStepData.skipZip)||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato&&!archiveStepData.skipRiepilogo)" style="color:var(--yellow);font-size:0.75rem;margin-bottom:8px">⚠️ Scarica backup di sicurezza, ZIP giornale e genera il Riepilogo Stagione (o salta i controlli qui sopra) per abilitare la conferma</div>
+          <div v-if="(!archiveStepData.backupScaricato&&!archiveStepData.skipBackup)||(!archiveStepData.zipScaricato&&!archiveStepData.skipZip)||(!archiveStepData.soprannomiAggiornati&&!archiveStepData.skipSoprannomi)||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato&&!archiveStepData.skipRiepilogo)" style="color:var(--yellow);font-size:0.75rem;margin-bottom:8px">⚠️ Scarica backup di sicurezza, ZIP giornale, aggiorna i Soprannomi AI e genera il Riepilogo Stagione (o salta i controlli qui sopra) per abilitare la conferma</div>
           <div v-if="archiveStepData.error" style="color:var(--red);font-size:0.78rem;margin-bottom:8px">{{ archiveStepData.error }}</div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-ghost" style="flex:1" :disabled="archiveStepData.loading" @click="archiveWizard.step=3">← Indietro</button>
             <button class="btn btn-sm" style="flex:2;background:rgba(255,77,77,0.15);border:1.5px solid var(--red);color:var(--red);font-weight:700"
-              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading||(!archiveStepData.backupScaricato&&!archiveStepData.skipBackup)||(!archiveStepData.zipScaricato&&!archiveStepData.skipZip)||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato&&!archiveStepData.skipRiepilogo)"
+              :disabled="archiveStepData.confermaTesto.toUpperCase()!=='ARCHIVIA'||archiveStepData.loading||(!archiveStepData.backupScaricato&&!archiveStepData.skipBackup)||(!archiveStepData.zipScaricato&&!archiveStepData.skipZip)||(!archiveStepData.soprannomiAggiornati&&!archiveStepData.skipSoprannomi)||(!archiveStepData.riepilogoGenerato&&!archiveStepData.riepilogoNonSupportato&&!archiveStepData.skipRiepilogo)"
               @click="doArchiveStagione">
               {{ archiveStepData.loading ? '⏳ Archiviazione...' : '📦 Conferma Archiviazione' }}
             </button>
@@ -8468,7 +8482,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.819',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.820',date:'2026-08-06',items:[
+      'Soprannomi AI — spostato da automatico a bottone esplicito nel wizard "Archivia Stagione": Alby ha preferito un passaggio visibile e spiegato invece di un\'azione invisibile dentro la generazione del Riepilogo. Nuovo box "🧬 Aggiornamento Soprannomi AI obbligatorio" nello Step 4, posizionato tra "ZIP giornale" e "Riepilogo Stagione", con spiegazione dettagliata di cosa fa e perché (soglia 1 partita invece delle 4 normali, perché il Riepilogo è uno scatto permanente). Incluso anche nella sezione "Salta controlli obbligatori" come 4° checkbox indipendente — pre-spuntata automaticamente su dispositivi senza una API key AI configurata, per non bloccare l\'archiviazione di chi non usa l\'AI. Aggiunto anche un piccolo promemoria nel box del Riepilogo Stagione se i Soprannomi non sono ancora stati aggiornati, per non perdere il beneficio generando il Riepilogo nell\'ordine sbagliato.',
+    ]},{version:'v1.819',date:'2026-08-06',items:[
       'Soprannomi AI — correzione al fix di ieri, su segnalazione di Alby con un esempio concreto: davanti al Riepilogo Stagione, la soglia normale "ogni 4 partite" (giusta per il risparmio token durante la stagione) non basta — è uno scatto UNICO e PERMANENTE, anche 1 sola partita di differenza dall\'ultima generazione merita un soprannome fresco. Aggiunto un parametro `forceAll` a `_generateNicknames()`: quando true (solo per il Riepilogo Stagione), la soglia scende da 4 a 1 partita — non rigenera comunque tutti a prescindere, solo chi ha effettivamente giocato almeno una partita in più dall\'ultima volta. Verificato con l\'esempio esatto di Alby (soprannome generato a 10 partite, 2 partite in più prima dell\'archiviazione): con la soglia normale non scatta (corretto, durante la stagione), con quella del Riepilogo sì (corretto, prima dell\'archiviazione).',
     ]},{version:'v1.818',date:'2026-08-06',items:[
       'Soprannomi AI — bug reale trovato da Alby, corretto: prima del Riepilogo Stagione (Annuario, Sezione E) i soprannomi venivano letti così come si trovavano in memoria, senza mai un controllo di freschezza — potevano finire nel PDF basati su dati vecchi. Ora, subito prima di costruire l\'Annuario in fase di archiviazione, viene richiamato lo stesso identico controllo già esistente (rigenera SOLO chi ha almeno 4 partite dall\'ultima generazione) — nessun costo AI aggiuntivo rispetto a quanto sarebbe comunque dovuto prima o poi, garantito però al momento giusto.',
@@ -9539,10 +9555,15 @@ createApp({
                                 // inventare per il Riepilogo. Vedi Regola d'Oro sul multi-storico
                                 // dei Riepiloghi, aggiunta 23/7/2026.
       riepilogoNonSupportato: false, // true se si sta archiviando un gruppo diverso da quello corrente (limite noto)
+      // Aggiornamento forzato Soprannomi AI (6/8/2026, richiesta di Alby — bottone esplicito nel
+      // wizard invece che automatico e invisibile dentro il Riepilogo Stagione)
+      soprannomiAggiornati: false, // aggiornati in questa sessione del wizard
+      soprannomiLoading: false,
       skipChecksExpanded: false, // sezione "Salta controlli obbligatori" — nascosta finché non la apri apposta
       skipBackup: false,
       skipZip: false,
-      skipRiepilogo: false
+      skipRiepilogo: false,
+      skipSoprannomi: false
     });
     const matchTeamOpen      = ref({A: true, B: true}); // accordion squadre in newmatch
     const matchNotes         = ref('');
@@ -9609,7 +9630,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.819');
+    const appVersion = ref('1.820');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16445,14 +16466,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const sezioneD = await buildSeasonSummaryTestSectionD((cur, tot) => {
           archiveStepData.riepilogoProgress = { current: cur, total: tot };
         });
-        // Soprannomi AI (richiesta di Alby, 6/8/2026 — correzione dopo un suo esempio concreto):
-        // il Riepilogo Stagione è uno scatto UNICO e PERMANENTE, non una rotazione periodica di
-        // card — la soglia normale "ogni 4 partite" (giusta per il risparmio token durante la
-        // stagione) qui non basta: anche 1 sola partita di differenza dall'ultima generazione
-        // merita un soprannome fresco, perché quel dato resterà archiviato così com'è per sempre.
-        // forceAll=true abbassa la soglia a 1 partita SOLO per questa chiamata — non rigenera
-        // comunque tutti a prescindere (nessuno spreco per chi non ha giocato nel frattempo).
-        try { await _generateNicknames(true); } catch(e) { logEvent('warn','app','Riepilogo Stagione: controllo freschezza soprannomi non riuscito — '+e.message); }
+        // Nota (6/8/2026): l'aggiornamento forzato dei Soprannomi AI NON avviene più qui in
+        // automatico — Alby ha preferito un bottone esplicito e visibile nel wizard "Archivia
+        // Stagione" (vedi archiveAggiornaSoprannomiForzato più sotto), con una spiegazione chiara
+        // di cosa fa, invece di un'azione invisibile dentro la generazione del Riepilogo.
         const sezioneE = buildSeasonSummaryTestSectionE();
         const gabbione = buildSeasonSummaryTestGabbione();
 
@@ -20455,10 +20472,17 @@ const toggleFont = () => {
       // gruppo diverso (da Gestione Gruppi), il Riepilogo non può essere generato qui. Da rivedere
       // in futuro se servirà davvero archiviare gruppi non correnti con Riepilogo incluso.
       archiveStepData.riepilogoNonSupportato = g.id !== currentGroup.value?.id;
+      archiveStepData.soprannomiAggiornati = false;
+      archiveStepData.soprannomiLoading = false;
       archiveStepData.skipChecksExpanded = false;
       archiveStepData.skipBackup = false;
       archiveStepData.skipZip = false;
       archiveStepData.skipRiepilogo = false;
+      // Senza una API key configurata su QUESTO dispositivo, l'aggiornamento Soprannomi AI non può
+      // fare nulla — pre-spuntato come "salta" per non bloccare l'archiviazione di chi non ha l'AI
+      // configurata (l'utente può comunque togliere la spunta, il bottone resterà semplicemente
+      // senza effetto e lo segnalerà).
+      archiveStepData.skipSoprannomi = !settings.value.apiKey;
       archiveWizard.value = {
         step: 1,
         group: g,
@@ -20534,6 +20558,27 @@ const toggleFont = () => {
     // già un pngRisultato salvato, poi aggiunge al ZIP anche le fotoPartita dove presenti.
     // Chiamata dal box dedicato in Step 4 del wizard — genera e salva lo snapshot mentre i dati
     // sono ancora vivi (stesso principio dello ZIP: ultima occasione prima della pulizia).
+    // Aggiornamento forzato Soprannomi AI dal wizard di archiviazione (6/8/2026, richiesta di Alby:
+    // bottone esplicito con spiegazione, non un'azione automatica e invisibile). Usa forceAll=true
+    // di _generateNicknames() — soglia 1 partita invece di 4, corretto per un dato che sta per
+    // diventare permanente nel Riepilogo Stagione (vedi Regola d'Oro e CHANGELOG v1.819).
+    const archiveAggiornaSoprannomiForzato = async () => {
+      if (!settings.value.apiKey) {
+        toast('⚠️ Nessuna API key AI configurata su questo dispositivo', 'error', 4000);
+        return;
+      }
+      archiveStepData.soprannomiLoading = true;
+      try {
+        await _generateNicknames(true);
+        archiveStepData.soprannomiAggiornati = true;
+        toast('✅ Soprannomi AI aggiornati', 'success', 3000);
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error', 4000);
+      } finally {
+        archiveStepData.soprannomiLoading = false;
+      }
+    };
+
     const archiveGeneraRiepilogoStagione = async () => {
       if (archiveStepData.riepilogoNonSupportato) return;
       archiveStepData.riepilogoLoading = true;
@@ -22900,7 +22945,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
-      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
+      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, archiveAggiornaSoprannomiForzato, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
       seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep, seasonSummaryPdfMatchBatches, appUpdateOverlay,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
