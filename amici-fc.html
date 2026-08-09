@@ -870,6 +870,14 @@ textarea.input-field { resize: vertical; min-height: 80px; }
 .stats-tabs-wrap { position:relative }
 .stats-tabs-wrap::after { content:'';position:absolute;right:0;top:0;bottom:0;width:32px;background:linear-gradient(to left,var(--bg),transparent);pointer-events:none;z-index:2 }
 .hc-label   { font-size:11px!important;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:auto;position:relative;z-index:1 }
+.hc-share-btn {
+  position:absolute; top:12px; right:12px; z-index:5;
+  width:34px; height:34px; border-radius:50%;
+  background:rgba(0,0,0,.35); border:1px solid rgba(255,255,255,.25);
+  color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center;
+  cursor:pointer; backdrop-filter:blur(4px); transition:transform .15s ease, background .15s ease;
+}
+.hc-share-btn:active { transform:scale(0.9); background:rgba(0,0,0,.55); }
 /* ── EMOJI ANIMAZIONI ── */
 @keyframes ovr-glow-gold { 0%,100%{box-shadow:0 0 0 2px #fbbf24,0 0 20px rgba(251,191,36,.4)} 50%{box-shadow:0 0 0 3px #fbbf24,0 0 40px rgba(251,191,36,.7)} }
 @keyframes circle-glow-gold   { 0%,100%{box-shadow:0 0 14px rgba(251,191,36,.4)} 50%{box-shadow:0 0 28px rgba(251,191,36,.8)} }
@@ -2498,6 +2506,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @click="heroClick">
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
+            :ref="el => el && (_heroSlideEls[i] = el)"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
             :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='manualCard'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
@@ -2803,6 +2812,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.4);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1);text-align:center">Premi per l'Overall completo</div>
             </template>
             <template v-else-if="s.type==='ovr3'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="margin-bottom:8px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;gap:8px;flex:1">
                 <!-- 2° posto (sinistra) -->
@@ -2839,7 +2849,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.3)">OVR</div>
                 </div>
               </div>
-              <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.35);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);text-align:center">Premi per la classifica Overall completa</div>
+              <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.35);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);text-align:center">📤 Tocca l'icona per condividere</div>
             </template>
 
             <!-- TRASH TALK -->
@@ -2936,7 +2946,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 :ref="el => el && _heroAutoScroll(el, s, s.type)">
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                   <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.motivo||s.testo}}</div>
-                  <div v-if="s.titolo" class="hc-body-em" style="color:rgba(255,255,255,.55);font-style:italic">"{{s.titolo}}"</div>
                   <div v-if="s.firma" class="hc-meta" style="color:rgba(255,255,255,.45);border:none;padding:0;text-align:right">— {{s.firma}}</div>
                 </div>
               </div>
@@ -3064,40 +3073,44 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── PODIO3 GOL/PUNTI ── -->
             <template v-else-if="s.type==='podio3'">
-              <div class="hc-label" :style="'color:'+s.col">{{s.label}}</div>
-              <div style="position:relative;z-index:1;display:flex;align-items:flex-end;justify-content:center;gap:8px;flex:1;padding-bottom:8px">
-                <!-- 2° posto -->
-                <div v-if="s.podio[1]" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #94a3b8;margin:0 auto">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
+              <div class="hc-label" style="margin-bottom:8px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;justify-content:center;align-items:flex-end;gap:8px;flex:1">
+                <!-- 2° posto (sinistra) -->
+                <div v-if="s.podio&&s.podio[1]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
+                  <div style="font-size:18px">🥈</div>
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #94a3b8;background:rgba(255,255,255,.08);animation:circle-glow-silver 2.2s ease-in-out infinite">
                     <img :src="s.podio[1].foto&&s.podio[1].foto.startsWith('data:')?s.podio[1].foto:getPlayerPhoto(s.podio[1].foto,s.podio[1].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
-                  <div style="font-size:11px;font-weight:700;color:#94a3b8;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px">{{s.podio[1].nome}}</div>
-                  <div style="font-size:22px;font-weight:900;color:#94a3b8">{{s.podio[1].val}}</div>
-                  <div style="font-size:9px;color:rgba(148,163,184,.5);text-transform:uppercase">{{s.valLabel}}</div>
-                  <div style="background:rgba(148,163,184,.2);border-radius:6px 6px 0 0;width:100%;height:60px;display:flex;align-items:center;justify-content:center;font-size:20px">🥈</div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.8);max-width:74px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[1].nome}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.podio[1].ruolo}}</div>
+                  <div style="font-size:28px;font-weight:900;color:#94a3b8;line-height:1">{{s.podio[1].val}}</div>
+                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.3)">{{s.valLabel}}</div>
                 </div>
-                <!-- 1° posto -->
-                <div v-if="s.podio[0]" style="flex:1.2;display:flex;flex-direction:column;align-items:center;gap:6px">
-                  <div style="font-size:16px">👑</div>
-                  <div style="width:64px;height:64px;border-radius:50%;overflow:hidden;border:3px solid;margin:0 auto" :style="'border-color:'+s.col+';box-shadow:0 0 16px '+s.col+'55'">
+                <!-- 1° posto (centro, più grande) -->
+                <div v-if="s.podio&&s.podio[0]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:12px">
+                  <div style="font-size:22px">🥇</div>
+                  <div style="width:88px;height:88px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;background:rgba(255,255,255,.08);animation:circle-glow-gold 1.8s ease-in-out infinite">
                     <img :src="s.podio[0].foto&&s.podio[0].foto.startsWith('data:')?s.podio[0].foto:getPlayerPhoto(s.podio[0].foto,s.podio[0].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
-                  <div style="font-size:13px;font-weight:900;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px" :style="'color:'+s.col">{{s.podio[0].nome}}</div>
-                  <div style="font-size:30px;font-weight:900" :style="'color:'+s.col+';text-shadow:0 0 16px '+s.col+'88'">{{s.podio[0].val}}</div>
-                  <div style="font-size:9px;text-transform:uppercase;opacity:.6" :style="'color:'+s.col">{{s.valLabel}}</div>
-                  <div style="border-radius:6px 6px 0 0;width:100%;height:80px;display:flex;align-items:center;justify-content:center;font-size:24px" :style="'background:'+s.col+'22'">🥇</div>
+                  <div style="font-size:13px;font-weight:800;color:#fff;max-width:90px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[0].nome}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.45)">{{s.podio[0].ruolo}}</div>
+                  <div style="font-size:36px;font-weight:900;color:#fbbf24;line-height:1;text-shadow:0 0 16px rgba(251,191,36,.6)">{{s.podio[0].val}}</div>
+                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.35)">{{s.valLabel}}</div>
                 </div>
-                <!-- 3° posto -->
-                <div v-if="s.podio[2]" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-                  <div style="width:44px;height:44px;border-radius:50%;overflow:hidden;border:2px solid #cd7c3d;margin:0 auto">
+                <!-- 3° posto (destra) -->
+                <div v-if="s.podio&&s.podio[2]" style="display:flex;flex-direction:column;align-items:center;gap:6px;padding-bottom:0">
+                  <div style="font-size:18px">🥉</div>
+                  <div style="width:62px;height:62px;border-radius:50%;overflow:hidden;border:2.5px solid #cd7c3d;background:rgba(255,255,255,.08);animation:circle-glow-bronze 2.5s ease-in-out infinite">
                     <img :src="s.podio[2].foto&&s.podio[2].foto.startsWith('data:')?s.podio[2].foto:getPlayerPhoto(s.podio[2].foto,s.podio[2].uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
                   </div>
-                  <div style="font-size:10px;font-weight:700;color:#cd7c3d;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px">{{s.podio[2].nome}}</div>
-                  <div style="font-size:18px;font-weight:900;color:#cd7c3d">{{s.podio[2].val}}</div>
-                  <div style="font-size:9px;color:rgba(205,124,61,.5);text-transform:uppercase">{{s.valLabel}}</div>
-                  <div style="background:rgba(205,124,61,.2);border-radius:6px 6px 0 0;width:100%;height:44px;display:flex;align-items:center;justify-content:center;font-size:18px">🥉</div>
+                  <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.75);max-width:64px;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.podio[2].nome}}</div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.podio[2].ruolo}}</div>
+                  <div style="font-size:24px;font-weight:900;color:#cd7c3d;line-height:1">{{s.podio[2].val}}</div>
+                  <div style="font-size:9px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,.3)">{{s.valLabel}}</div>
                 </div>
               </div>
+              <div style="position:relative;z-index:1;font-size:12px;color:rgba(255,255,255,.35);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.08);text-align:center">📤 Tocca l'icona per condividere</div>
             </template>
 
             <!-- ── H2H CARD ── -->
@@ -8482,7 +8495,14 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.820',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.822',date:'2026-08-06',items:[
+      'Card condivisibili nel carosello home — punto 2, primo gruppo (Classifiche/Podio): nuovo bottone 📤 su "Overall Rating", "Classifica Gol", "Classifica Punti" e "Media Punti/Partita" — tocca il bottone (non più la card) per condividere via WhatsApp con testo e immagine, riusando lo stesso modal già in uso per formazioni/partite. Cattura fatta con html2canvas (già incluso nel progetto per il PDF Riepilogo Stagione, nessuna libreria nuova) sul singolo elemento della card, non uno screenshot di tutto lo schermo. Rimosso il vecchio comportamento "tap sulla card → vai alle statistiche" su queste 4 card, sostituito da un testo di richiamo aggiornato ("Tocca l\'icona per condividere").',
+    ]},{version:'v1.821',date:'2026-08-06',items:[
+      'Sistemazione card carosello home, punto 1 (su segnalazione di Alby con screenshot): "Rivivi la Partita" ora mostra il vero commento AI (Telecronista) nel box scrollabile quando esiste per quella partita, invece di una delle 3 frasi brevi locali che lasciavano il box quasi vuoto — le frasi brevi restano come fallback per le partite senza commento AI.',
+      'Classifica Gol, Classifica Punti e Media Punti/Partita (tipo "podio3") ora identiche per proporzioni ed effetti a "Overall Rating" — foto più grandi (72/88/62px invece di 52/64/44px), glow animato sulle medaglie, ruolo del giocatore visibile, testo di richiamo "Premi per la classifica completa" in fondo. Il colore di sfondo della card resta diverso per ciascuna, come richiesto.',
+      'Pronostico: emoji del "pendolino" corretta (🚄 invece del generico 🚆); rimossa una citazione in corsivo che appariva sotto ogni singola mini-card come "secondo commento" scollegato — era il titolo generale del Pronostico del giorno (condiviso da tutte le previsioni), mostrato per errore come se fosse specifico di quella previsione.',
+      'Firme finte degli articoli/commenti AI — corrette 4 su 15 che erano storpiate troppo debolmente (es. "Ancelottiiii" solo tripla vocale, "Mourinhow" solo una lettera aggiunta): ora "Ancelottone", "Mourinaccio", "Guardiolone", "Sacchettoni" — corrette in tutte e 3 le copie duplicate della lista nel file (TrashTalk, Pronostico, commento AI partita).',
+    ]},{version:'v1.820',date:'2026-08-06',items:[
       'Soprannomi AI — spostato da automatico a bottone esplicito nel wizard "Archivia Stagione": Alby ha preferito un passaggio visibile e spiegato invece di un\'azione invisibile dentro la generazione del Riepilogo. Nuovo box "🧬 Aggiornamento Soprannomi AI obbligatorio" nello Step 4, posizionato tra "ZIP giornale" e "Riepilogo Stagione", con spiegazione dettagliata di cosa fa e perché (soglia 1 partita invece delle 4 normali, perché il Riepilogo è uno scatto permanente). Incluso anche nella sezione "Salta controlli obbligatori" come 4° checkbox indipendente — pre-spuntata automaticamente su dispositivi senza una API key AI configurata, per non bloccare l\'archiviazione di chi non usa l\'AI. Aggiunto anche un piccolo promemoria nel box del Riepilogo Stagione se i Soprannomi non sono ancora stati aggiornati, per non perdere il beneficio generando il Riepilogo nell\'ordine sbagliato.',
     ]},{version:'v1.819',date:'2026-08-06',items:[
       'Soprannomi AI — correzione al fix di ieri, su segnalazione di Alby con un esempio concreto: davanti al Riepilogo Stagione, la soglia normale "ogni 4 partite" (giusta per il risparmio token durante la stagione) non basta — è uno scatto UNICO e PERMANENTE, anche 1 sola partita di differenza dall\'ultima generazione merita un soprannome fresco. Aggiunto un parametro `forceAll` a `_generateNicknames()`: quando true (solo per il Riepilogo Stagione), la soglia scende da 4 a 1 partita — non rigenera comunque tutti a prescindere, solo chi ha effettivamente giocato almeno una partita in più dall\'ultima volta. Verificato con l\'esempio esatto di Alby (soprannome generato a 10 partite, 2 partite in più prima dell\'archiviazione): con la soglia normale non scatta (corretto, durante la stagione), con quella del Riepilogo sì (corretto, prima dell\'archiviazione).',
@@ -9630,7 +9650,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.820');
+    const appVersion = ref('1.822');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13158,7 +13178,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     // Pool nomi storpiati per la firma del "telecronista" — condiviso tra generazione normale
     // e "Azzera e Rigenera", cosi non c'è un'unica fonte duplicata (vedi bug fix 10/7/2026:
     // _forceGenerateTrashTalk non gestiva affatto la firma, a differenza di _generateTrashTalk).
-    const _ttFirmePool = ['Luciano Spallucci','Carlo Ancelottiiii','Josè Mourinhow','Pep Guardialà','Fabio Capellone','Arrigo Sacconi','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
+    const _ttFirmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
 
     const _forceGenerateTrashTalk = async (match) => {
       if (!settings.value.apiKey || !currentGroup.value) return;
@@ -14035,8 +14055,8 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       const last3 = [...matches].sort((a,b)=>b.data.localeCompare(a.data)).slice(0,3);
       const profili = players.slice(0,10).map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,...(currentGroup.value?.trackAssist !== false ? {ast:p.assistTotali||0} : {}),voto:(p.mediaVoto||0).toFixed(1),uom:p.uomoPartitaTotali||0,pti:(p.mediaPunti||0).toFixed(1),...(p.squadraCuore ? {squadra_cuore:p.squadraCuore} : {})}));
       const _firmePool = [
-        'Luciano Spallucci','Carlo Ancelottiiii','Josè Mourinhow','Pep Guardialà',
-        'Fabio Capellone','Arrigo Sacconi','Giovanni Trapattoni il Vecchio',
+        'Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone',
+        'Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattoni il Vecchio',
         'Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico',
         'Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone',
         'Massimiliano Allegrigio','Sinisa Mihajlovicchio'
@@ -20065,6 +20085,49 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // di Alby). Priorità: 1) emoji già presente nel testo della card (prefisso del label, o campo
     // badge/emoji dedicato) — cosi la filigrana è sempre coerente col contenuto mostrato; 2) fallback
     // fisso per tipo, concordato con Alby, per i tipi che non hanno mai un'emoji propria nel testo.
+    // ══════════════════════════════════════════════════════════════
+    // ── Card condivisibili nel carosello home (6/8/2026, richiesta di Alby) ──
+    // Riusa il modal PNG già esistente (showPNGPreview/previewPNGUrl/previewPNGName/previewPNGText
+    // + sharePNG) invece di inventare un flusso nuovo — stesso identico modal già usato per
+    // formazioni/partite/statistiche. La sola parte nuova è la CATTURA: html2canvas (già incluso
+    // nel progetto per il PDF Riepilogo Stagione, nessuna libreria aggiuntiva) su un singolo
+    // elemento DOM del carosello, invece di disegnare un canvas da zero come per gli altri PNG.
+    const _heroSlideEls = []; // element DOM di ogni slide del carosello, popolato dai ref nel template
+
+    // Testo di accompagnamento per la condivisione, specifico per tipo di card. Aggiunto un caso
+    // alla volta man mano che si rendono condivisibili le varie famiglie di card (richiesta di
+    // Alby: procedere per gruppi, non tutto insieme).
+    const _buildHeroCardShareText = (s) => {
+      if (s.type === 'podio3') {
+        const righe = (s.podio||[]).map((p,idx) => `${['🥇','🥈','🥉'][idx]||''} ${p.nome}: ${p.val} ${s.valLabel||''}`.trim());
+        return `${s.label}\n${righe.join('\n')}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'ovr3') {
+        const righe = (s.podio||[]).map((p,idx) => `${['🥇','🥈','🥉'][idx]||''} ${p.nome}: ${p.ovr} OVR`.trim());
+        return `🏆 ${s.label}\n${righe.join('\n')}\n\n⚽ Amici FC`;
+      }
+      return '⚽ Amici FC';
+    };
+
+    const shareHeroCardPNG = async (i) => {
+      const el = _heroSlideEls[i];
+      const s = heroUnifiedData.value?.[i];
+      if (!el || !s) { toast('❌ Card non trovata', 'error'); return; }
+      toast('⏳ Preparo la condivisione...', 'info', 2500);
+      try {
+        const canvas = await html2canvas(el, { backgroundColor: null, scale: 2, useCORS: true });
+        const dataUrl = canvas.toDataURL('image/png');
+        previewPNGUrl.value = dataUrl;
+        const nomeFile = (s.label || 'card').toLowerCase().replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '');
+        previewPNGName.value = `amicifc-${nomeFile || 'card'}.png`;
+        previewPNGText.value = _buildHeroCardShareText(s);
+        showPNGPreview.value = true;
+      } catch(e) {
+        console.error('[shareHeroCardPNG]', e);
+        toast('❌ Errore condivisione: ' + e.message, 'error');
+      }
+    };
+
     const heroWatermarkEmoji = (s) => {
       if (s.type === 'manualCard') return '📖'; // filigrana dedicata per la card Manuale (6/8/2026)
       if (s.type === 'tutorial') return '🎓'; // identità unica e fissa per tutte le card tutorial (6/8/2026, richiesta Alby) — non l'icona per-card, che varia
@@ -21678,7 +21741,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           comment = dd.choices?.[0]?.message?.content || '';
         }
         if (comment) {
-          const _firmePool = ['Luciano Spallucci','Carlo Ancelottiiii','Josè Mourinhow','Pep Guardialà','Fabio Capellone','Arrigo Sacconi','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
+          const _firmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
           const _firma = _firmePool[Math.floor(Date.now() / 86400000) % _firmePool.length];
           match.commentoAI = comment.trim() + '\n— ' + _firma;
           try {
@@ -21972,7 +22035,13 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         const ri=Math.floor(Date.now()/86400000);
         const intros=gA===gB?['Un pareggio che lascia l\'amaro in bocca.','Nessun vincitore, ma tanto spettacolo.']:gA>gB?[tA+' ha dominato dall\'inizio.',tA+' ha meritato ogni goal.']:[tB+' ha dimostrato la propria qualità.',tB+' non lascia spazio ai dubbi.'];
         const bodies=[scorers?'Marcatori: '+scorers+(last.uomoPartita?'. UoM: '+last.uomoPartita+'.':'.'):'Il risultato parla chiaro.',last.note?'"'+last.note+'"':'Una partita da ricordare.',gA+gB>=6?''+(gA+gB)+' gol totali. Serata di gala!':(gA+gB===0)?'Zero gol, massima tensione.':'Ogni goal è costato caro.'];
-        slides.push({type:'recap',dur:7000,label:'Rivivi la Partita',gA,gB,tA,tB,intro:intros[ri%intros.length],body:bodies[ri%bodies.length],sub:formatDate(last.data)+(last.uomoPartita?' \xb7 UoM: '+last.uomoPartita:''),bg:'linear-gradient(145deg,#0a0a1a,#1e1b4b 60%,#3730a3)',dest:'matchClick',matchId:last.id});
+        // Box scrollabile (6/8/2026, richiesta di Alby): prima mostrava sempre una delle 3 frasi
+        // brevi qui sopra, anche quando esisteva già un vero commento AI (Telecronista) per quella
+        // partita — risultato un box enorme quasi vuoto con una riga sola. Ora, se il commento AI
+        // esiste, è quello a comparire (ha più senso occupare lo spazio scrollabile) — le frasi
+        // brevi restano solo come fallback per le partite senza commento AI.
+        const recapBody = last.commentoAI && last.commentoAI.trim() ? last.commentoAI.trim() : bodies[ri%bodies.length];
+        slides.push({type:'recap',dur:7000,label:'Rivivi la Partita',gA,gB,tA,tB,intro:intros[ri%intros.length],body:recapBody,sub:formatDate(last.data)+(last.uomoPartita?' \xb7 UoM: '+last.uomoPartita:''),bg:'linear-gradient(145deg,#0a0a1a,#1e1b4b 60%,#3730a3)',dest:'matchClick',matchId:last.id});
         slides.push(_mot1); // motivazionale dopo recap
       }
 
@@ -21995,8 +22064,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
               ovr:p._score,
               ruolo:p.ruolo||''
             })),
-            bg:'linear-gradient(145deg,#0a0a1a,#1a1040 60%,#3b1d8a)',
-            dest:'stats',statsTab:'overall'
+            bg:'linear-gradient(145deg,#0a0a1a,#1a1040 60%,#3b1d8a)'
           });
         }
       }
@@ -22012,7 +22080,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         if(_pr.primoGol?.nome){const pp=_findP(_pr.primoGol.nome);_pronoItems.push({kind:'primoGol',icon:'⚽',sub:'PRIMO GOL',color:'#4ade80',nome:_pr.primoGol.nome,motivo:_pr.primoGol.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#06200f,#0f3d22 60%,#16a34a)'});}
         if(_pr.mvpPrevisto?.nome){const pp=_findP(_pr.mvpPrevisto.nome);_pronoItems.push({kind:'mvp',icon:'🌟',sub:'MVP PREVISTO',color:'#fbbf24',nome:_pr.mvpPrevisto.nome,motivo:_pr.mvpPrevisto.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#241a02,#5c4309 60%,#d97706)'});}
         if(_pr.disastroAnnunciato?.nome){const pp=_findP(_pr.disastroAnnunciato.nome);_pronoItems.push({kind:'disastro',icon:'💥',sub:'DISASTRO ANNUNCIATO',color:'#f87171',nome:_pr.disastroAnnunciato.nome,motivo:_pr.disastroAnnunciato.motivo,foto:pp?.foto,uid:pp?.uid,bg:'linear-gradient(145deg,#240505,#5c1313 60%,#dc2626)'});}
-        if(_pr.previsione_assurda){_pronoItems.push({kind:'assurda',icon:'🚆',sub:'PREVISIONE ASSURDA DEL PENDOLINO',color:'#60a5fa',testo:_pr.previsione_assurda,bg:'linear-gradient(145deg,#041420,#0d3050 60%,#2563eb)'}); }
+        if(_pr.previsione_assurda){_pronoItems.push({kind:'assurda',icon:'🚄',sub:'PREVISIONE ASSURDA DEL PENDOLINO',color:'#60a5fa',testo:_pr.previsione_assurda,bg:'linear-gradient(145deg,#041420,#0d3050 60%,#2563eb)'}); }
         if(_pronoItems.length){
           // shuffle deterministico basato su seed30, poi prendi le prime 2 (coppia "del momento")
           const _shuf=[..._pronoItems];
@@ -22229,8 +22297,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           slides.push({ type: 'podio3', dur: 6000, label: '⚽ CLASSIFICA GOL',
             podio: _topGol.map(p => ({ nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid, val: p.goalTotali||0, ruolo: p.ruolo||'' })),
             valLabel: 'GOL', col: '#fbbf24',
-            bg: 'linear-gradient(145deg,#1a0800,#7c3500 60%,#f59e0b)',
-            dest: 'stats', statsTab: 'goal' });
+            bg: 'linear-gradient(145deg,#1a0800,#7c3500 60%,#f59e0b)' });
 
           // ── Card: Classifica Punti Totali ──
           const _topPuntiTot = [...players].filter(p => (p.partiteTotali||0) >= 2 && (p.puntiTotali||0) > 0)
@@ -22239,8 +22306,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
             slides.push({ type: 'podio3', dur: 6000, label: '📊 CLASSIFICA PUNTI',
               podio: _topPuntiTot.map(p => ({ nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid, val: p.puntiTotali||0, ruolo: p.ruolo||'' })),
               valLabel: 'PT', col: '#60a5fa',
-              bg: 'linear-gradient(145deg,#0a1628,#1e3a5f 60%,#3b82f6)',
-              dest: 'stats', statsTab: 'classifica' });
+              bg: 'linear-gradient(145deg,#0a1628,#1e3a5f 60%,#3b82f6)' });
           }
         }
       }
@@ -22270,8 +22336,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           slides.push({ type: 'podio3', dur: 6000, label: '📈 MEDIA PUNTI/P',
             podio: _topPunti.map(p => ({ nome: p.soprannome||p.nome, foto: p.foto, uid: p.uid, val: (p.mediaPunti||0).toFixed(1), ruolo: p.ruolo||'' })),
             valLabel: 'PTS/P', col: '#a78bfa',
-            bg: 'linear-gradient(145deg,#1a0a2e,#4c1d95 60%,#7c3aed)',
-            dest: 'stats', statsTab: 'overall' });
+            bg: 'linear-gradient(145deg,#1a0a2e,#4c1d95 60%,#7c3aed)' });
         }
       }
 
@@ -22877,7 +22942,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       isSostituto, isInfortunato,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
-      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji,
+      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName, previewPNGText,
