@@ -2506,7 +2506,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @click="heroClick">
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
-            :ref="el => el && (_heroSlideEls[i] = el)"
+            :ref="el => _heroSlideRef(el, i)"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
             :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='manualCard'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
@@ -8495,7 +8495,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.822',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.824',date:'2026-08-06',items:[
+      'Versione diagnostica per il bug "Card non trovata" segnalato da Alby (ancora presente in v1.823 nonostante il fix precedente): aggiunti log dettagliati in console sia nel momento in cui il `:ref` del template dovrebbe registrare ogni card del carosello, sia nel bottone di condivisione — per capire se il problema è a monte (il ref non scatta mai durante il rendering) o a valle (scatta ma con indici/dati sbagliati). Nessuna funzionalità cambiata rispetto a v1.823, solo strumentazione diagnostica temporanea.',
+    ]},{version:'v1.823',date:'2026-08-06',items:[
+      'Bug reale segnalato da Alby con test diretto, corretto: il bottone 📤 di condivisione (Overall Rating, Classifica Gol, Classifica Punti, Media Punti/Partita) mostrava sempre "Card non trovata". Causa: la variabile `_heroSlideEls` (l\'elenco dei riferimenti DOM delle card, popolato dal callback `:ref` nel template) non era mai stata esposta nell\'elenco restituito da `setup()` — con il compilatore Vue usato in questo progetto (non `<script setup>`), il template può accedere SOLO a ciò che `setup()` restituisce esplicitamente, quindi quel riferimento nel template falliva silenziosamente e l\'array restava sempre vuoto. Corretto aggiungendo `_heroSlideEls` all\'elenco esposto — stesso identico errore che, se ripetuto, andrebbe cercato subito controllando che ogni variabile referenziata in un `:ref` di callback sia nell\'elenco esposto, non solo le funzioni (verificato: tutti gli altri `:ref` nel file richiamano funzioni già esposte, solo questo nuovo caso usava una variabile "grezza").',
+    ]},{version:'v1.822',date:'2026-08-06',items:[
       'Card condivisibili nel carosello home — punto 2, primo gruppo (Classifiche/Podio): nuovo bottone 📤 su "Overall Rating", "Classifica Gol", "Classifica Punti" e "Media Punti/Partita" — tocca il bottone (non più la card) per condividere via WhatsApp con testo e immagine, riusando lo stesso modal già in uso per formazioni/partite. Cattura fatta con html2canvas (già incluso nel progetto per il PDF Riepilogo Stagione, nessuna libreria nuova) sul singolo elemento della card, non uno screenshot di tutto lo schermo. Rimosso il vecchio comportamento "tap sulla card → vai alle statistiche" su queste 4 card, sostituito da un testo di richiamo aggiornato ("Tocca l\'icona per condividere").',
     ]},{version:'v1.821',date:'2026-08-06',items:[
       'Sistemazione card carosello home, punto 1 (su segnalazione di Alby con screenshot): "Rivivi la Partita" ora mostra il vero commento AI (Telecronista) nel box scrollabile quando esiste per quella partita, invece di una delle 3 frasi brevi locali che lasciavano il box quasi vuoto — le frasi brevi restano come fallback per le partite senza commento AI.',
@@ -9650,7 +9654,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.822');
+    const appVersion = ref('1.824');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20094,6 +20098,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // elemento DOM del carosello, invece di disegnare un canvas da zero come per gli altri PNG.
     const _heroSlideEls = []; // element DOM di ogni slide del carosello, popolato dai ref nel template
 
+    // Funzione dedicata per il :ref del template (6/8/2026, diagnostica): prima era un'espressione
+    // inline nel template — sostituita con una funzione vera per poterci mettere un log e capire
+    // se il ref scatta davvero durante il rendering, o se è proprio questo il punto che fallisce.
+    const _heroSlideRef = (el, i) => {
+      if (el) {
+        _heroSlideEls[i] = el;
+        console.log('[_heroSlideRef] slide', i, 'registrata:', el);
+      }
+    };
+
     // Testo di accompagnamento per la condivisione, specifico per tipo di card. Aggiunto un caso
     // alla volta man mano che si rendono condivisibili le varie famiglie di card (richiesta di
     // Alby: procedere per gruppi, non tutto insieme).
@@ -20110,9 +20124,18 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     };
 
     const shareHeroCardPNG = async (i) => {
+      console.log('[shareHeroCardPNG] chiamata con indice i =', i);
+      console.log('[shareHeroCardPNG] _heroSlideEls esiste?', typeof _heroSlideEls, '— lunghezza:', _heroSlideEls?.length, '— contenuto:', _heroSlideEls);
+      console.log('[shareHeroCardPNG] heroUnifiedData.value esiste?', typeof heroUnifiedData?.value, '— lunghezza:', heroUnifiedData?.value?.length);
       const el = _heroSlideEls[i];
       const s = heroUnifiedData.value?.[i];
-      if (!el || !s) { toast('❌ Card non trovata', 'error'); return; }
+      console.log('[shareHeroCardPNG] el trovato?', el, '— tipo:', el?.tagName);
+      console.log('[shareHeroCardPNG] s trovato?', s, '— s.type:', s?.type);
+      if (!el || !s) {
+        console.warn('[shareHeroCardPNG] FALLITO — el mancante:', !el, '— s mancante:', !s);
+        toast('❌ Card non trovata', 'error');
+        return;
+      }
       toast('⏳ Preparo la condivisione...', 'info', 2500);
       try {
         const canvas = await html2canvas(el, { backgroundColor: null, scale: 2, useCORS: true });
@@ -22942,7 +22965,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       isSostituto, isInfortunato,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
-      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG,
+      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG, _heroSlideEls, _heroSlideRef,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName, previewPNGText,
