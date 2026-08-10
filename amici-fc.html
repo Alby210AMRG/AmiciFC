@@ -8495,7 +8495,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.824',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.825',date:'2026-08-06',items:[
+      'Versione diagnostica (correzione della v1.824): i log per il bug "Card non trovata" ora usano il sistema di log interno dell\'app (`logEvent`, visibile in Impostazioni → Log di sistema) invece della console del browser — molto più comodo per verificare da telefono, dove non è pratico aprire gli strumenti sviluppatore. Nessuna funzionalità cambiata rispetto a v1.823, solo dove finiscono i log diagnostici.',
+    ]},{version:'v1.824',date:'2026-08-06',items:[
       'Versione diagnostica per il bug "Card non trovata" segnalato da Alby (ancora presente in v1.823 nonostante il fix precedente): aggiunti log dettagliati in console sia nel momento in cui il `:ref` del template dovrebbe registrare ogni card del carosello, sia nel bottone di condivisione — per capire se il problema è a monte (il ref non scatta mai durante il rendering) o a valle (scatta ma con indici/dati sbagliati). Nessuna funzionalità cambiata rispetto a v1.823, solo strumentazione diagnostica temporanea.',
     ]},{version:'v1.823',date:'2026-08-06',items:[
       'Bug reale segnalato da Alby con test diretto, corretto: il bottone 📤 di condivisione (Overall Rating, Classifica Gol, Classifica Punti, Media Punti/Partita) mostrava sempre "Card non trovata". Causa: la variabile `_heroSlideEls` (l\'elenco dei riferimenti DOM delle card, popolato dal callback `:ref` nel template) non era mai stata esposta nell\'elenco restituito da `setup()` — con il compilatore Vue usato in questo progetto (non `<script setup>`), il template può accedere SOLO a ciò che `setup()` restituisce esplicitamente, quindi quel riferimento nel template falliva silenziosamente e l\'array restava sempre vuoto. Corretto aggiungendo `_heroSlideEls` all\'elenco esposto — stesso identico errore che, se ripetuto, andrebbe cercato subito controllando che ogni variabile referenziata in un `:ref` di callback sia nell\'elenco esposto, non solo le funzioni (verificato: tutti gli altri `:ref` nel file richiamano funzioni già esposte, solo questo nuovo caso usava una variabile "grezza").',
@@ -9654,7 +9656,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.824');
+    const appVersion = ref('1.825');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20104,7 +20106,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const _heroSlideRef = (el, i) => {
       if (el) {
         _heroSlideEls[i] = el;
-        console.log('[_heroSlideRef] slide', i, 'registrata:', el);
+        logEvent('info', 'shareCard', `ref registrato per slide ${i} (tag ${el.tagName})`);
       }
     };
 
@@ -20124,15 +20126,12 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     };
 
     const shareHeroCardPNG = async (i) => {
-      console.log('[shareHeroCardPNG] chiamata con indice i =', i);
-      console.log('[shareHeroCardPNG] _heroSlideEls esiste?', typeof _heroSlideEls, '— lunghezza:', _heroSlideEls?.length, '— contenuto:', _heroSlideEls);
-      console.log('[shareHeroCardPNG] heroUnifiedData.value esiste?', typeof heroUnifiedData?.value, '— lunghezza:', heroUnifiedData?.value?.length);
+      logEvent('info', 'shareCard', `click condividi su indice ${i} — _heroSlideEls.length=${_heroSlideEls?.length ?? 'undefined'}, heroUnifiedData.value.length=${heroUnifiedData?.value?.length ?? 'undefined'}`);
       const el = _heroSlideEls[i];
       const s = heroUnifiedData.value?.[i];
-      console.log('[shareHeroCardPNG] el trovato?', el, '— tipo:', el?.tagName);
-      console.log('[shareHeroCardPNG] s trovato?', s, '— s.type:', s?.type);
+      logEvent('info', 'shareCard', `indice ${i}: el trovato=${!!el} (${el?.tagName||'n/d'}), s trovato=${!!s} (type=${s?.type||'n/d'})`);
       if (!el || !s) {
-        console.warn('[shareHeroCardPNG] FALLITO — el mancante:', !el, '— s mancante:', !s);
+        logEvent('warn', 'shareCard', `FALLITO indice ${i} — el mancante=${!el}, s mancante=${!s}`);
         toast('❌ Card non trovata', 'error');
         return;
       }
@@ -20146,7 +20145,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         previewPNGText.value = _buildHeroCardShareText(s);
         showPNGPreview.value = true;
       } catch(e) {
-        console.error('[shareHeroCardPNG]', e);
+        logEvent('error', 'shareCard', `errore html2canvas: ${e.message}`);
         toast('❌ Errore condivisione: ' + e.message, 'error');
       }
     };
