@@ -919,7 +919,7 @@ textarea.input-field { resize: vertical; min-height: 80px; }
   -ms-overflow-style: none;
 }
 .hc-scroll-box::-webkit-scrollbar { display: none; }
-@keyframes scroll-bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(4px)} }
+@keyframes chevron-fall { 0%{opacity:0;transform:translateY(-5px) rotate(45deg)} 25%{opacity:1} 65%{opacity:1} 100%{opacity:0;transform:translateY(7px) rotate(45deg)} }
 /* Nick card font sizes */
 .nick-fs-10 { font-size: 10px !important; line-height: 1.5 !important; }
 .nick-fs-11 { font-size: 11px !important; line-height: 1.5 !important; }
@@ -3237,14 +3237,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             :style="i===heroUnifiedIdx?'width:18px;background:rgba(255,255,255,.9)':'width:6px'">
           </div>
         </div>
-        <!-- Indicatore scroll (7/8/2026, design B scelto da Alby su 3 mockup): badge circolare
-             semi-trasparente in basso a destra, non copre i puntini — visibile solo se la card
-             corrente ha testo che supera il box. Misurato da _heroCheckOverflow, agganciata a
-             heroGo(), non da un :ref per-card (vedi commento sopra la funzione). -->
+        <!-- Indicatore scroll (7/8/2026 v2, su feedback di Alby): il badge circolare sembrava
+             un bottone premibile, ma non lo è (solo indicatore visivo) — tolto il cerchio,
+             sostituito con doppia freccia disegnata in CSS puro (nessun font di icone nel
+             progetto), animazione a cascata verso il basso per non dare l'impressione di
+             interattività. Visibile solo se la card corrente ha testo che supera il box.
+             Misurato da _heroCheckOverflow, agganciata a heroGo(), non da un :ref per-card. -->
         <transition name="fade-scroll">
           <div v-if="heroScrollHasMore[heroUnifiedData?.[heroUnifiedIdx]?.type]"
-            style="position:absolute;bottom:10px;right:10px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:6">
-            <span style="font-size:14px;color:rgba(255,255,255,.75);animation:scroll-bounce .9s ease-in-out infinite;display:inline-block">↓</span>
+            style="position:absolute;bottom:12px;right:14px;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;z-index:6">
+            <div style="width:9px;height:9px;border-right:2px solid rgba(255,255,255,.7);border-bottom:2px solid rgba(255,255,255,.7);animation:chevron-fall 1.3s ease-in-out infinite"></div>
+            <div style="width:9px;height:9px;border-right:2px solid rgba(255,255,255,.7);border-bottom:2px solid rgba(255,255,255,.7);animation:chevron-fall 1.3s ease-in-out infinite;animation-delay:.3s;margin-top:-4px"></div>
           </div>
         </transition>
       </div>
@@ -8496,7 +8499,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.829',date:'2026-08-07',items:[
+    const changelogEntries = [{version:'v1.830',date:'2026-08-10',items:[
+      'Indicatore "testo continua": confermato da Alby che l\'app NON si blocca più con la v1.829 — l\'approccio senza :ref ha funzionato. Feedback: il badge circolare sembrava un bottone premibile (non lo è, solo indicatore). Tolto il cerchio, sostituita la singola freccia con doppia freccia disegnata in CSS puro, animazione a cascata verso il basso, nessuno sfondo — per non dare più l\'impressione di interattività.',
+    ]},{version:'v1.829',date:'2026-08-07',items:[
       'Indicatore "testo continua" nelle card AI del carosello home: badge circolare in basso a destra (scelto da Alby su 3 mockup proposti), visibile solo se il testo supera il box. Riprogettato SENZA usare :ref per-card (causa del blocco app in v1.826/827): la misurazione avviene ora tramite querySelector mirato (data-hero-idx) agganciato al cambio di slide in heroGo(), funzione imperativa già esistente e sicura — non un :ref Vue. Rimossa completamente la vecchia _heroAutoScroll (mai realmente funzionante, includeva anche uno scroll automatico non più voluto). Testato con Puppeteer: nessun errore, nessun loop, app reattiva dopo 8+ secondi con rotazioni automatiche incluse. La resa visiva esatta (soglia di overflow) va confermata con dati reali.',
     ]},{version:'v1.828',date:'2026-08-06',items:[
       '🔴 ROLLBACK URGENTE COMPLETO: la v1.827 (rollback parziale) NON ha risolto il blocco allo splash screen segnalato da Alby — quindi l\'ipotesi che la causa fosse solo `_heroAutoScroll` era incompleta o sbagliata. Per massima sicurezza con un\'app di produzione bloccata, tornato byte per byte al comportamento della v1.823 su tutto il carosello hero: rimossa completamente `_heroSlideRef` e ogni esposizione su `window`, il `:ref` del template è tornato all\'espressione inline originale. Il bug "Card non trovata" sul bottone di condivisione torna presente (non bloccante, solo quel bottone specifico non funziona) — ma l\'app dovrebbe tornare stabile. Il problema del bottone verrà indagato con calma in una sessione dedicata, con test più cauti e passo dopo passo, non più mentre l\'app è in produzione bloccata.',
@@ -9665,7 +9670,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.829');
+    const appVersion = ref('1.830');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
