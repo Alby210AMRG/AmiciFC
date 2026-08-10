@@ -2506,7 +2506,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @click="heroClick">
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
-            :ref="el => el && (_heroSlideEls[i] = el)"
+            :data-hero-slide-idx="i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
             :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='manualCard'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
@@ -3245,7 +3245,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
              Misurato da _heroCheckOverflow, agganciata a heroGo(), non da un :ref per-card. -->
         <transition name="fade-scroll">
           <div v-if="heroScrollHasMore[heroUnifiedData?.[heroUnifiedIdx]?.type]"
-            style="position:absolute;bottom:12px;right:14px;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;z-index:6">
+            style="position:absolute;bottom:22px;right:14px;display:flex;flex-direction:column;align-items:center;gap:1px;pointer-events:none;z-index:6">
             <div style="width:9px;height:9px;border-right:2px solid rgba(255,255,255,.7);border-bottom:2px solid rgba(255,255,255,.7);animation:chevron-fall 1.1s ease-in-out infinite"></div>
             <div style="width:9px;height:9px;border-right:2px solid rgba(255,255,255,.7);border-bottom:2px solid rgba(255,255,255,.7);animation:chevron-fall 1.1s ease-in-out infinite;animation-delay:.35s;margin-top:2px"></div>
           </div>
@@ -8499,7 +8499,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.831',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.832',date:'2026-08-10',items:[
+      '🔧 Freccia scroll alzata leggermente per non sovrapporsi più ai puntini del carosello.',
+      '🔧 Bottone di condivisione delle card (📤): finalmente risolto il bug storico "Card non trovata". Stesso approccio sicuro usato per la freccia — niente più :ref (causa del blocco app in passato), l\'elemento si cerca al momento del click tramite un data-attribute statico sulla slide. Testato con dati reali via Puppeteer: PNG generato correttamente, app rimasta reattiva senza errori.',
+    ]},{version:'v1.831',date:'2026-08-10',items:[
       'Doppia freccia scroll: Alby segnalava che se ne vedeva solo una — causa probabile, l\'animazione precedente le faceva sparire a turno (fade in/out sfalsato), quindi raramente entrambe visibili insieme. Ora restano sempre entrambe visibili (opacità minima .5 anche a riposo), con solo un leggero rimbalzo sfalsato, e più distanziate tra loro. Verificato con screenshot ravvicinato: ora si leggono chiaramente come due frecce distinte.',
     ]},{version:'v1.830',date:'2026-08-10',items:[
       'Indicatore "testo continua": confermato da Alby che l\'app NON si blocca più con la v1.829 — l\'approccio senza :ref ha funzionato. Feedback: il badge circolare sembrava un bottone premibile (non lo è, solo indicatore). Tolto il cerchio, sostituita la singola freccia con doppia freccia disegnata in CSS puro, animazione a cascata verso il basso, nessuno sfondo — per non dare più l\'impressione di interattività.',
@@ -9672,7 +9675,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.831');
+    const appVersion = ref('1.832');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20094,14 +20097,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // formazioni/partite/statistiche. La sola parte nuova è la CATTURA: html2canvas (già incluso
     // nel progetto per il PDF Riepilogo Stagione, nessuna libreria aggiuntiva) su un singolo
     // elemento DOM del carosello, invece di disegnare un canvas da zero come per gli altri PNG.
-    const _heroSlideEls = []; // element DOM di ogni slide del carosello, popolato dai ref nel template
-    // ROLLBACK URGENTE (6/8/2026, v1.828): l'intero esperimento con _heroSlideRef + esposizione su
-    // window (v1.824-v1.827) è stato annullato — l'app di Alby restava bloccata sullo splash screen
-    // anche dopo aver rimosso SOLO la parte di _heroAutoScroll (v1.827). Non è chiaro se la causa
-    // vera fosse ancora legata a questo carosello o a qualcos'altro: la scelta più sicura, con un'app
-    // di produzione bloccata, è tornare byte per byte al comportamento della v1.823 (che funzionava,
-    // con il solo bug non bloccante "Card non trovata" sul bottone di condivisione) e indagare con
-    // calma in una sessione dedicata, senza fretta e con test più cauti passo passo.
+    //
+    // Storia (per non ripetere gli stessi errori): la prima versione usava un :ref per popolare un
+    // array di riferimenti DOM (_heroSlideEls) — non ha mai funzionato in modo affidabile (stesso
+    // problema visto anche per l'indicatore di scroll, v1.826-829). Un tentativo di fix tramite
+    // esposizione su window ha causato un blocco totale dell'app (v1.826, rollback in v1.827/828).
+    // Soluzione finale (10/8/2026): niente più :ref — l'elemento si cerca al momento del click
+    // tramite un data-attribute statico (data-hero-slide-idx) messo su ogni slide nel template.
 
     // Testo di accompagnamento per la condivisione, specifico per tipo di card. Aggiunto un caso
     // alla volta man mano che si rendono condivisibili le varie famiglie di card (richiesta di
@@ -20119,10 +20121,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     };
 
     const shareHeroCardPNG = async (i) => {
-      logEvent('info', 'shareCard', `click condividi su indice ${i} — _heroSlideEls.length=${_heroSlideEls?.length ?? 'undefined'}, heroUnifiedData.value.length=${heroUnifiedData?.value?.length ?? 'undefined'}`);
-      const el = _heroSlideEls[i];
+      const el = document.querySelector('[data-hero-slide-idx="' + i + '"]');
       const s = heroUnifiedData.value?.[i];
-      logEvent('info', 'shareCard', `indice ${i}: el trovato=${!!el} (${el?.tagName||'n/d'}), s trovato=${!!s} (type=${s?.type||'n/d'})`);
+      logEvent('info', 'shareCard', `click condividi su indice ${i}: el trovato=${!!el}, s trovato=${!!s} (type=${s?.type||'n/d'})`);
       if (!el || !s) {
         logEvent('warn', 'shareCard', `FALLITO indice ${i} — el mancante=${!el}, s mancante=${!s}`);
         toast('❌ Card non trovata', 'error');
@@ -22958,7 +22959,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       isSostituto, isInfortunato,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
-      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG, _heroSlideEls,
+      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName, previewPNGText,
