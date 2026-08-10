@@ -2506,7 +2506,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @click="heroClick">
         <div :style="'display:flex;height:100%;transition:transform '+(heroSwipeDragging?'0ms':'.45s cubic-bezier(.4,0,.2,1)')+';transform:translateX(calc(-'+heroUnifiedIdx+'*100% + '+heroSwipeDelta+'px))'">
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
-            :ref="el => _heroSlideRef(el, i)"
+            :ref="el => el && (_heroSlideEls[i] = el)"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
             :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='manualCard'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
@@ -2668,7 +2668,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   }">{{s.badge}}</span>
                 </div>
                 <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
-                  :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                  :data-hero-idx="i">
                   <div class="hc-scroll-inner">
                     <div class="hc-body" style="color:#fff;font-weight:700;text-align:center">{{s.quote}}</div>
                     <div v-if="s.cit" class="hc-body-em" style="color:rgba(255,255,255,.6);text-align:center;margin-top:6px">{{s.cit}}</div>
@@ -2685,7 +2685,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
                 <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.5);text-align:center;margin-bottom:8px">Marcatori {{s.matchDate?formatDate(s.matchDate):'ultima partita'}}</div>
                 <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12)"
-                  :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                  :data-hero-idx="i">
                   <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                     <div v-for="(sc,si) in (s.scorers||[])" :key="si" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
                       <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(74,222,128,.5);display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.06)">
@@ -2767,7 +2767,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:4px">{{s.kicker}}</div>
                 <div class="hc-title" style="color:#fff;margin-bottom:8px">{{s.headline}}</div>
                 <div class="hc-scroll-box" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"
-                  :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                  :data-hero-idx="i">
                   <div class="hc-scroll-inner">
                     <div class="hc-body" style="color:rgba(255,255,255,.8)">{{s.body}}</div>
                   </div>
@@ -2790,7 +2790,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="flex:1;font-size:13px;color:rgba(255,255,255,.75);line-height:1.55">{{s.intro}}</div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.body}}</div>
                 </div>
@@ -2870,7 +2870,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(255,77,77,.08);border:1px solid rgba(255,77,77,.2)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.88)">{{s.testo}}</div>
                   <div v-if="aiCardsTrashTalkFirma" style="text-align:right;font-size:10px;color:rgba(255,180,180,.45);margin-top:6px;font-style:italic">— {{aiCardsTrashTalkFirma}}</div>
@@ -2894,7 +2894,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.card.commento}}</div>
                   <div v-if="s.card.stat_chiave" class="hc-body-em" style="color:rgba(251,191,36,.75);margin-top:8px">📊 {{s.card.stat_chiave}}</div>
@@ -2918,7 +2918,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(100,116,139,.1);border:1px solid rgba(100,116,139,.2)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.85)">{{s.card.commento}}</div>
                 </div>
@@ -2943,7 +2943,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:48px">{{s.icon}}</div>
               </div>
               <div class="hc-scroll-box" :style="'background:'+s.color+'1a;border:1px solid '+s.color+'4d'"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                   <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.motivo||s.testo}}</div>
                   <div v-if="s.firma" class="hc-meta" style="color:rgba(255,255,255,.45);border:none;padding:0;text-align:right">— {{s.firma}}</div>
@@ -2968,7 +2968,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.25)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.9)">{{s.txt}}</div>
                 </div>
@@ -3034,7 +3034,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.8)">{{s.txt}}</div>
                 </div>
@@ -3171,7 +3171,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner">
                   <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.confronto}}</div>
                   <div v-if="s.motivazione" class="hc-body-em" style="color:rgba(74,222,128,.85);margin-top:8px">{{s.motivazione}}</div>
@@ -3186,7 +3186,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label" style="color:#c4b5fd;margin-bottom:6px">{{s.label}}</div>
               <div style="position:relative;z-index:1;font-size:12px;color:rgba(196,181,253,.7);margin-bottom:10px;line-height:1.4;font-style:italic">{{s.sub}}</div>
               <div class="hc-scroll-box" style="flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(196,181,253,.15)"
-                :ref="el => el && _heroAutoScroll(el, s, s.type)">
+                :data-hero-idx="i">
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:6px">
                   <div v-for="(p,pi) in s.players" :key="pi"
                     style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
@@ -3237,13 +3237,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             :style="i===heroUnifiedIdx?'width:18px;background:rgba(255,255,255,.9)':'width:6px'">
           </div>
         </div>
-        <!-- Indicatore scroll: visibile solo se la card corrente ha testo che supera il box -->
+        <!-- Indicatore scroll (7/8/2026, design B scelto da Alby su 3 mockup): badge circolare
+             semi-trasparente in basso a destra, non copre i puntini — visibile solo se la card
+             corrente ha testo che supera il box. Misurato da _heroCheckOverflow, agganciata a
+             heroGo(), non da un :ref per-card (vedi commento sopra la funzione). -->
         <transition name="fade-scroll">
           <div v-if="heroScrollHasMore[heroUnifiedData?.[heroUnifiedIdx]?.type]"
-            style="position:absolute;bottom:22px;left:0;right:0;display:flex;flex-direction:column;align-items:center;pointer-events:none;z-index:6">
-            <div style="background:linear-gradient(to bottom,transparent,rgba(0,0,0,.55));width:100%;height:32px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:4px">
-              <span style="font-size:12px;color:rgba(255,255,255,.6);animation:scroll-bounce .9s ease-in-out infinite;display:inline-block">↓</span>
-            </div>
+            style="position:absolute;bottom:10px;right:10px;width:26px;height:26px;border-radius:50%;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:6">
+            <span style="font-size:14px;color:rgba(255,255,255,.75);animation:scroll-bounce .9s ease-in-out infinite;display:inline-block">↓</span>
           </div>
         </transition>
       </div>
@@ -8495,7 +8496,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.825',date:'2026-08-06',items:[
+    const changelogEntries = [{version:'v1.829',date:'2026-08-07',items:[
+      'Indicatore "testo continua" nelle card AI del carosello home: badge circolare in basso a destra (scelto da Alby su 3 mockup proposti), visibile solo se il testo supera il box. Riprogettato SENZA usare :ref per-card (causa del blocco app in v1.826/827): la misurazione avviene ora tramite querySelector mirato (data-hero-idx) agganciato al cambio di slide in heroGo(), funzione imperativa già esistente e sicura — non un :ref Vue. Rimossa completamente la vecchia _heroAutoScroll (mai realmente funzionante, includeva anche uno scroll automatico non più voluto). Testato con Puppeteer: nessun errore, nessun loop, app reattiva dopo 8+ secondi con rotazioni automatiche incluse. La resa visiva esatta (soglia di overflow) va confermata con dati reali.',
+    ]},{version:'v1.828',date:'2026-08-06',items:[
+      '🔴 ROLLBACK URGENTE COMPLETO: la v1.827 (rollback parziale) NON ha risolto il blocco allo splash screen segnalato da Alby — quindi l\'ipotesi che la causa fosse solo `_heroAutoScroll` era incompleta o sbagliata. Per massima sicurezza con un\'app di produzione bloccata, tornato byte per byte al comportamento della v1.823 su tutto il carosello hero: rimossa completamente `_heroSlideRef` e ogni esposizione su `window`, il `:ref` del template è tornato all\'espressione inline originale. Il bug "Card non trovata" sul bottone di condivisione torna presente (non bloccante, solo quel bottone specifico non funziona) — ma l\'app dovrebbe tornare stabile. Il problema del bottone verrà indagato con calma in una sessione dedicata, con test più cauti e passo dopo passo, non più mentre l\'app è in produzione bloccata.',
+    ]},{version:'v1.827',date:'2026-08-06',items:[
+      '🔴 ROLLBACK URGENTE: la v1.826 ha bloccato l\'app sulla schermata di splash per Alby. Causa probabile: esporre `_heroAutoScroll` su `window` l\'ha fatta funzionare per la prima volta (prima non veniva mai chiamata, bug identico a quello del bottone di condivisione) — ma questa funzione scrive su `heroScrollHasMore`, usato in un `v-if` nel template (riga con l\'indicatore di scroll), quindi il suo primo utilizzo reale ha probabilmente scatenato un ciclo di mount/unmount mai testato prima. Rimossa l\'esposizione su window SOLO per `_heroAutoScroll` (torna al comportamento precedente, "rotta" ma innocua) — mantenuta SOLO per `_heroSlideRef`, l\'unica necessaria per il bug del bottone di condivisione. L\'auto-scroll del testo lungo nelle card AI resta un problema noto da approfondire con calma in futuro, non urgente.',
+    ]},{version:'v1.826',date:'2026-08-06',items:[
+      'Fix reale (grazie al log di Alby in Impostazioni → Log di sistema, che ha confermato senza dubbi che il `:ref` del template non chiamava mai la funzione, pur essendo correttamente esposta da `setup()`): `_heroSlideRef` e `_heroAutoScroll` ora sono esposte ANCHE come proprietà di `window`, non solo tramite il return di `setup()`. Non è ancora chiaro il motivo esatto per cui la sola esposizione tramite `setup()` non bastasse per questi due `:ref` specifici (mentre funziona per tutto il resto dell\'app) — ma renderle raggiungibili anche globalmente elimina il problema indipendentemente dalla causa di fondo. Probabile bonus: anche l\'auto-scroll del testo lungo nelle card AI (mai realmente verificato prima, essendo solo un dettaglio estetico) dovrebbe ora iniziare a funzionare per la prima volta.',
+    ]},{version:'v1.825',date:'2026-08-06',items:[
       'Versione diagnostica (correzione della v1.824): i log per il bug "Card non trovata" ora usano il sistema di log interno dell\'app (`logEvent`, visibile in Impostazioni → Log di sistema) invece della console del browser — molto più comodo per verificare da telefono, dove non è pratico aprire gli strumenti sviluppatore. Nessuna funzionalità cambiata rispetto a v1.823, solo dove finiscono i log diagnostici.',
     ]},{version:'v1.824',date:'2026-08-06',items:[
       'Versione diagnostica per il bug "Card non trovata" segnalato da Alby (ancora presente in v1.823 nonostante il fix precedente): aggiunti log dettagliati in console sia nel momento in cui il `:ref` del template dovrebbe registrare ogni card del carosello, sia nel bottone di condivisione — per capire se il problema è a monte (il ref non scatta mai durante il rendering) o a valle (scatta ma con indici/dati sbagliati). Nessuna funzionalità cambiata rispetto a v1.823, solo strumentazione diagnostica temporanea.',
@@ -9656,7 +9665,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.825');
+    const appVersion = ref('1.829');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13944,45 +13953,25 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
     // ── Wrapper bottoni debug AI Cards ──
     // Calcola font size per nickCard basandosi sulla lunghezza totale del testo
     // Box stimato: ~280px largo, ~160px alto, ~10px padding
-    // ── HERO AUTO SCROLL via scrollTop ──
-    const _heroScrollTimers = new Map();
+    // ── HERO — indicatore "testo continua" (7/8/2026, richiesta Alby) ──
+    // Approccio scelto DELIBERATAMENTE senza :ref per-card (causa del blocco totale dell'app in
+    // v1.826 — vedi changelog v1.827/v1.828): misura l'overflow SOLO della card attualmente
+    // visibile, agganciata al cambio di slide in heroGo() (funzione imperativa già esistente,
+    // NON un :ref Vue), con querySelector mirato su un data-attribute stabile. Nessuno scroll
+    // automatico: solo mostra/nasconde la freccia in basso a destra (opzione B scelta da Alby
+    // su 3 mockup proposti).
     const heroScrollHasMore = ref({});
-
-    const _heroAutoScroll = (el, s, key) => {
-      if (!el) return;
-      // Usa la Map per evitare doppie init sulla stessa key
-      if (_heroScrollTimers.has('init_' + key)) return;
-      _heroScrollTimers.set('init_' + key, true);
-
+    const _heroCheckOverflow = () => {
       nextTick(() => {
         setTimeout(() => {
-          if (!el || !el.isConnected) return;
-          const overflow = el.scrollHeight - el.clientHeight;
-          heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: overflow > 5 };
-          if (overflow <= 5) return;
-
-          el.addEventListener('scroll', () => {
-            heroScrollHasMore.value = { ...heroScrollHasMore.value, [key]: el.scrollTop < overflow - 4 };
-          }, { passive: true });
-
-          // Auto-scroll dopo 3s
-          const t = setTimeout(() => {
-            const iv = setInterval(() => {
-              if (!el.isConnected) { clearInterval(iv); return; }
-              el.scrollTop += 1;
-              if (el.scrollTop >= overflow - 2) { clearInterval(iv); }
-            }, 50);
-          }, 3000);
-          _heroScrollTimers.set(key, t);
-        }, 200);
+          const idx = heroUnifiedIdx.value;
+          const type = heroUnifiedData.value?.[idx]?.type;
+          if (!type) return;
+          const el = document.querySelector('.hc-scroll-box[data-hero-idx="' + idx + '"]');
+          const overflow = el ? (el.scrollHeight - el.clientHeight > 5) : false;
+          heroScrollHasMore.value = { ...heroScrollHasMore.value, [type]: overflow };
+        }, 250);
       });
-    };
-
-    const _clearHeroScrollTimers = () => {
-      _heroScrollTimers.forEach((v, k) => { if (typeof v !== 'boolean') { clearTimeout(v); clearInterval(v); } });
-      _heroScrollTimers.clear();
-      heroScrollHasMore.value = {};
-      document.querySelectorAll('.hc-scroll-box').forEach(el => { el.scrollTop = 0; });
     };
 
     const _nickFontSize = (s) => {
@@ -20099,16 +20088,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // nel progetto per il PDF Riepilogo Stagione, nessuna libreria aggiuntiva) su un singolo
     // elemento DOM del carosello, invece di disegnare un canvas da zero come per gli altri PNG.
     const _heroSlideEls = []; // element DOM di ogni slide del carosello, popolato dai ref nel template
-
-    // Funzione dedicata per il :ref del template (6/8/2026, diagnostica): prima era un'espressione
-    // inline nel template — sostituita con una funzione vera per poterci mettere un log e capire
-    // se il ref scatta davvero durante il rendering, o se è proprio questo il punto che fallisce.
-    const _heroSlideRef = (el, i) => {
-      if (el) {
-        _heroSlideEls[i] = el;
-        logEvent('info', 'shareCard', `ref registrato per slide ${i} (tag ${el.tagName})`);
-      }
-    };
+    // ROLLBACK URGENTE (6/8/2026, v1.828): l'intero esperimento con _heroSlideRef + esposizione su
+    // window (v1.824-v1.827) è stato annullato — l'app di Alby restava bloccata sullo splash screen
+    // anche dopo aver rimosso SOLO la parte di _heroAutoScroll (v1.827). Non è chiaro se la causa
+    // vera fosse ancora legata a questo carosello o a qualcos'altro: la scelta più sicura, con un'app
+    // di produzione bloccata, è tornare byte per byte al comportamento della v1.823 (che funzionava,
+    // con il solo bug non bloccante "Card non trovata" sul bottone di condivisione) e indagare con
+    // calma in una sessione dedicata, senza fretta e con test più cauti passo passo.
 
     // Testo di accompagnamento per la condivisione, specifico per tipo di card. Aggiunto un caso
     // alla volta man mano che si rendono condivisibili le varie famiglie di card (richiesta di
@@ -22601,6 +22587,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       if(slide.type==='trashTalk'&&n!==prev&&aiCardsTrashTalk.value.length>1){aiCardsTrashTalkIdx.value=(aiCardsTrashTalkIdx.value+1)%aiCardsTrashTalk.value.length;}
       data.forEach((_,i)=>{const f=document.getElementById('hpf'+i);if(!f)return;if(i<n){f.style.transition='none';f.style.width='100%';}else if(i>n){f.style.transition='none';f.style.width='0%';}});
       const fill=document.getElementById('hpf'+n);if(fill){fill.style.transition='none';fill.style.width='0%';requestAnimationFrame(()=>requestAnimationFrame(()=>{fill.style.transition='width '+dur+'ms linear';fill.style.width='100%';}));}
+      _heroCheckOverflow();
       _heroTimerRef=setTimeout(()=>heroGo(n+1),dur);};
     const setHomeSeg=(idx)=>{homeSegIdx.value=idx;const pct=(idx*(100/3))+'%';const w=(100/3)+'%';homeSegHL.value={left:'calc('+pct+' + 3px)',width:'calc('+w+' - 6px)'};if(idx===0)currentView.value='stats';else if(idx===1)currentView.value='players';else currentView.value='history';};
 
@@ -22964,7 +22951,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       isSostituto, isInfortunato,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
-      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG, _heroSlideEls, _heroSlideRef,
+      playerSortBy, playerSortDir, sortedGroupPlayers, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG, _heroSlideEls,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingStep, installStep, deferredPrompt, installApp,
       updateAvailable, newVersion, updateCritical, showUpdateHighlights, updateHighlights, appVersion, appDate, previewPNGUrl, previewPNGName, previewPNGText,
@@ -23027,7 +23014,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
       hofStorico, hofStoricoLoading, hofStoricoLoaded, hofStoricoFiltrato, hofExpandedMese, hofPlayerFor, hofCountsFor,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _heroAutoScroll, _clearHeroScrollTimers, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
       seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest, formazioneRows, catValue, catValueDisplay, catTiedCount, catSplit, seasonSummaryWipeLoading, wipeLocalSeasonSummaryHistory,
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
