@@ -2579,11 +2579,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='stat'">
-              <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
+              <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:52px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
                 <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
                     @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
               </div>
-              <div v-else-if="s.showSilhouette" style="position:absolute;right:14px;top:44px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center">
+              <div v-else-if="s.showSilhouette" style="position:absolute;right:14px;top:52px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center">
                 <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
               </div>
               <div style="position:relative;z-index:1;font-size:84px;font-weight:900;line-height:1;letter-spacing:-4px" :style="'color:'+s.col">{{s.val}}</div>
@@ -2593,6 +2594,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;font-size:13px;color:rgba(255,255,255,.45);margin-top:auto;padding-top:8px;border-top:1px solid rgba(255,255,255,.1)">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='duel'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:stretch;gap:0;flex:1">
                 <!-- Giocatore A -->
@@ -2623,6 +2625,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='story'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="margin-bottom:6px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:0;margin-bottom:8px">
                 <!-- Giocatore A -->
@@ -2651,6 +2654,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='news'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:16px 18px;z-index:1">
                 <div class="hc-label" style="text-align:center;margin-bottom:10px">📻 In Diretta dallo Spogliatoio</div>
                 <div v-if="s.foto||s.uid" style="display:flex;justify-content:center;margin-bottom:10px;flex-shrink:0">
@@ -2677,6 +2681,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='newsGoals'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="ng-field-bg"></div>
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;height:100%;padding:2px">
                 <div class="hc-label" style="color:rgba(255,255,255,.55);text-align:center;margin-bottom:8px">📻 In Diretta dallo Spogliatoio</div>
@@ -8491,7 +8496,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.834',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.835',date:'2026-08-10',items:[
+      'Card condivisibili — gruppo 1 di 5: aggiunto il bottone 📤 anche a "stat" (statistica singola giocatore), "duel" (sfida diretta gol), "story" (confronto testa a testa), "news" (radio spogliatoio) e "newsGoals" (marcatori partita). Stesso meccanismo sicuro già in uso per Overall Rating/Classifiche. Testato ogni tipo singolarmente con Puppeteer: PNG generato correttamente, testo di condivisione corretto, nessun errore.',
+    ]},{version:'v1.834',date:'2026-08-10',items:[
       'Rimossa la scritta "📤 Tocca l\'icona per condividere" dalle card Overall Rating e Classifiche — su richiesta di Alby, non serve più ora che il bottone di condivisione è visibile e funzionante.',
     ]},{version:'v1.833',date:'2026-08-10',items:[
       '🔧 Foto giocatori ritagliate male nel PNG condiviso (Overall Rating / Classifiche): risolto. Causa: html2canvas non gestisce bene <img object-fit:cover>. Sostituito con background-image (molto più affidabile con html2canvas) sui 3 avatar del podio. Provato prima foreignObjectRendering:true (alternativa più "corretta" in teoria) ma produceva un PNG completamente bianco in questo ambiente — scartato. La nuova funzione, pur esposta correttamente, dava lo stesso ReferenceError già visto altre volte nel template — stessa rete di sicurezza già collaudata (esposizione anche su window), sicura qui perché la funzione è pura (nessuna scrittura su stato reattivo, a differenza del caso che aveva causato il blocco app in passato). Verificato con foto di test: ritaglio ora centrato e coerente su tutti e tre gli avatar.',
@@ -9671,7 +9678,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.834');
+    const appVersion = ref('1.835');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20127,6 +20134,24 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (s.type === 'ovr3') {
         const righe = (s.podio||[]).map((p,idx) => `${['🥇','🥈','🥉'][idx]||''} ${p.nome}: ${p.ovr} OVR`.trim());
         return `🏆 ${s.label}\n${righe.join('\n')}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'stat') {
+        return `${s.val}${s.valLabel ? ' ' + s.valLabel : ''}\n${s.name}${s.meta ? ' — ' + s.meta : ''}\n${s.sub||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'duel') {
+        const nomi = (s.name||'').split(' vs ');
+        const vals = (s.val||'').split('-');
+        return `${s.label}\n${nomi[0]||''}: ${vals[0]||''} gol\n${nomi[1]||''}: ${vals[1]||''} gol\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'story') {
+        return `${s.label}\n${s.na||''} vs ${s.nb||''}\n${s.txt||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'news') {
+        return `📻 In Diretta dallo Spogliatoio\n"${s.quote||''}"${s.cit ? '\n' + s.cit : ''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'newsGoals') {
+        const righe = (s.scorers||[]).map(sc => `⚽ ${sc.nome} ×${sc.gol}`);
+        return `📻 Marcatori${s.matchDate ? ' ' + formatDate(s.matchDate) : ''}\n${righe.join('\n')}\n\n⚽ Amici FC`;
       }
       return '⚽ Amici FC';
     };
