@@ -2581,9 +2581,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
             <template v-else-if="s.type==='stat'">
               <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
-              <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:52px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1);background:rgba(255,255,255,.08)">
-                <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
-                    @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
+              <div v-if="s.foto||s.uid" style="position:absolute;right:14px;top:52px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.25);box-shadow:0 0 18px rgba(255,255,255,.1)"
+                :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
               </div>
               <div v-else-if="s.showSilhouette" style="position:absolute;right:14px;top:52px;width:80px;height:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,255,255,.2);background:rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center">
                 <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.4)" stroke-width="1.2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
@@ -2600,8 +2599,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;display:flex;align-items:stretch;gap:0;flex:1">
                 <!-- Giocatore A -->
                 <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;padding:0 8px">
-                  <div style="width:86px;height:86px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 20px rgba(255,107,53,.4);background:rgba(255,255,255,.08);flex-shrink:0">
-                    <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:SILHOUETTE" style="width:100%;height:100%;object-fit:cover">
+                  <div style="width:86px;height:86px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 20px rgba(255,107,53,.4);flex-shrink:0"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.foto,uid:s.uid})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:14px;font-weight:900;color:#FF6B35;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.name&&s.name.split(' vs ')[0]}}</div>
                   <div style="font-size:38px;font-weight:900;color:#FF6B35;line-height:1;text-shadow:0 0 20px rgba(255,107,53,.5)">{{s.val&&s.val.split('-')[0]}}</div>
@@ -2613,8 +2612,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
                 <!-- Giocatore B -->
                 <div style="display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;padding:0 8px">
-                  <div style="width:86px;height:86px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 20px rgba(59,130,246,.4);background:rgba(255,255,255,.08);flex-shrink:0">
-                    <img :src="s.foto2&&s.foto2.startsWith('data:')?s.foto2:SILHOUETTE" style="width:100%;height:100%;object-fit:cover">
+                  <div style="width:86px;height:86px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 20px rgba(59,130,246,.4);flex-shrink:0"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.foto2,uid:s.uid2})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:14px;font-weight:900;color:#3b82f6;text-align:center;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.name&&s.name.split(' vs ')[1]}}</div>
                   <div style="font-size:38px;font-weight:900;color:#3b82f6;line-height:1;text-shadow:0 0 20px rgba(59,130,246,.5)">{{s.val&&s.val.split('-')[1]}}</div>
@@ -2631,8 +2630,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:0;margin-bottom:8px">
                 <!-- Giocatore A -->
                 <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
-                  <div style="width:82px;height:82px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 18px rgba(255,107,53,.4);background:rgba(255,255,255,.08)">
-                    <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:SILHOUETTE" style="width:100%;height:100%;object-fit:cover">
+                  <div style="width:82px;height:82px;border-radius:50%;overflow:hidden;border:3px solid #FF6B35;box-shadow:0 0 18px rgba(255,107,53,.4)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.foto,uid:s.uid})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:13px;font-weight:900;color:#FF6B35;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">{{s.na}}</div>
                 </div>
@@ -2640,8 +2639,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:20px;font-weight:900;color:rgba(255,255,255,.5);padding:0 6px;flex-shrink:0">VS</div>
                 <!-- Giocatore B -->
                 <div style="display:flex;flex-direction:column;align-items:center;gap:5px;flex:1">
-                  <div style="width:82px;height:82px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 18px rgba(59,130,246,.4);background:rgba(255,255,255,.08)">
-                    <img :src="s.foto2&&s.foto2.startsWith('data:')?s.foto2:SILHOUETTE" style="width:100%;height:100%;object-fit:cover">
+                  <div style="width:82px;height:82px;border-radius:50%;overflow:hidden;border:3px solid #3b82f6;box-shadow:0 0 18px rgba(59,130,246,.4)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.foto2,uid:s.uid2})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:13px;font-weight:900;color:#3b82f6;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">{{s.nb}}</div>
                 </div>
@@ -2659,8 +2658,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:absolute;inset:0;display:flex;flex-direction:column;padding:16px 18px;z-index:1">
                 <div class="hc-label" style="text-align:center;margin-bottom:10px">📻 In Diretta dallo Spogliatoio</div>
                 <div v-if="s.foto||s.uid" style="display:flex;justify-content:center;margin-bottom:10px;flex-shrink:0">
-                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2)">
-                    <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.5);box-shadow:0 0 20px rgba(74,222,128,.2)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                   </div>
                 </div>
                 <div v-else style="font-size:38px;text-align:center;margin-bottom:10px;flex-shrink:0">
@@ -2694,9 +2693,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   :data-hero-idx="i">
                   <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
                     <div v-for="(sc,si) in (s.scorers||[])" :key="si" style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
-                      <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(74,222,128,.5);display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.06)">
-                        <img v-if="sc.foto||sc.uid" :src="sc.foto&&sc.foto.startsWith('data:')?sc.foto:getPlayerPhoto(sc.foto,sc.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE"><span v-else>⚽</span>
+                      <div v-if="sc.foto||sc.uid" style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(74,222,128,.5)"
+                        :style="'background-image:url(\''+_avatarPhotoUrl({foto:sc.foto,uid:sc.uid})+'\');background-size:cover;background-position:center'">
                       </div>
+                      <div v-else style="width:36px;height:36px;min-width:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;background:rgba(255,255,255,.06);border:2px solid rgba(74,222,128,.5)">⚽</div>
                       <div style="flex:1;font-weight:700;color:#fff;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{sc.nome}}</div>
                       <div style="font-weight:900;color:#4ade80;font-size:14px;white-space:nowrap">⚽ ×{{sc.gol}}</div>
                     </div>
@@ -2864,8 +2864,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <span v-if="s.cardTot>1" style="margin-left:auto;font-size:10px;color:rgba(255,255,255,.35)">{{s.cardIdx+1}}/{{s.cardTot}}</span>
               </div>
               <div style="position:relative;z-index:1;display:flex;gap:12px;align-items:flex-start;margin-bottom:10px">
-                <div v-if="s.foto||s.uid" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,100,100,.6);box-shadow:0 0 16px rgba(255,77,77,.3);background:rgba(255,255,255,.08)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                <div v-if="s.foto||s.uid" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(255,100,100,.6);box-shadow:0 0 16px rgba(255,77,77,.3)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:17px;font-weight:800;color:#fca5a5;line-height:1.25;margin-bottom:6px">{{s.titolo}}</div>
@@ -2887,9 +2887,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" style="color:rgba(251,191,36,.9);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
-                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(251,191,36,.8);box-shadow:0 0 20px rgba(251,191,36,.4);background:rgba(255,255,255,.08)">
-                  <img :src="s.foto && s.foto.startsWith('data:') ? s.foto : getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
-                    @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
+                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(251,191,36,.8);box-shadow:0 0 20px rgba(251,191,36,.4)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:22px;margin-bottom:2px">{{s.card.emoji||'👑'}}</div>
@@ -2912,9 +2911,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" style="color:rgba(148,163,184,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
-                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(100,116,139,.6);box-shadow:0 0 16px rgba(0,0,0,.4);background:rgba(255,255,255,.06);filter:grayscale(40%)">
-                  <img :src="s.foto && s.foto.startsWith('data:') ? s.foto : getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover"
-                    @error="$event.target.style.display='none';$event.target.parentNode.style.background='rgba(255,255,255,.1)'">
+                <div style="width:80px;height:80px;min-width:80px;border-radius:50%;overflow:hidden;border:3px solid rgba(100,116,139,.6);box-shadow:0 0 16px rgba(0,0,0,.4);filter:grayscale(40%)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div style="font-size:22px;margin-bottom:2px">{{s.card.emoji||'🪣'}}</div>
@@ -3053,8 +3051,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:8px;margin-bottom:10px">
                 <!-- Giocatore A -->
                 <div style="flex:1;background:rgba(167,139,250,.1);border:1px solid rgba(167,139,250,.25);border-radius:10px;padding:10px;text-align:center">
-                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #a78bfa;margin:0 auto 6px">
-                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #a78bfa;margin:0 auto 6px"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.fotoA,uid:s.uidA})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div class="hc-sub" style="font-size:13px!important;font-weight:700;color:#a78bfa">{{s.nA}}</div>
                   <div style="font-size:26px;font-weight:900;color:#a78bfa;margin:6px 0">{{s.mvA}}</div>
@@ -3065,8 +3063,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:14px;font-weight:900;color:rgba(255,255,255,.3);flex-shrink:0">VS</div>
                 <!-- Giocatore B -->
                 <div style="flex:1;background:rgba(52,211,153,.1);border:1px solid rgba(52,211,153,.25);border-radius:10px;padding:10px;text-align:center">
-                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #34d399;margin:0 auto 6px">
-                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:52px;height:52px;border-radius:50%;overflow:hidden;border:2px solid #34d399;margin:0 auto 6px"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.fotoB,uid:s.uidB})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div class="hc-sub" style="font-size:13px!important;font-weight:700;color:#34d399">{{s.nB}}</div>
                   <div style="font-size:26px;font-weight:900;color:#34d399;margin:6px 0">{{s.mvB}}</div>
@@ -3165,8 +3163,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" style="color:rgba(74,222,128,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
-                <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25);background:rgba(255,255,255,.06)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid rgba(74,222,128,.6);box-shadow:0 0 16px rgba(74,222,128,.25)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div class="hc-name" style="color:#4ade80">{{s.nome}}</div>
@@ -3215,8 +3213,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-label" style="color:#fca5a5;margin-bottom:12px;letter-spacing:3px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:14px">
                 <div style="position:relative;flex-shrink:0">
-                  <div style="width:84px;height:84px;border-radius:50%;overflow:hidden;border:3px solid #fff;box-shadow:0 0 0 3px #dc2626,0 0 24px rgba(220,38,38,.6)">
-                    <img :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover;filter:grayscale(40%) contrast(1.1)" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:84px;height:84px;border-radius:50%;overflow:hidden;border:3px solid #fff;box-shadow:0 0 0 3px #dc2626,0 0 24px rgba(220,38,38,.6);filter:grayscale(40%) contrast(1.1)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="position:absolute;bottom:-5px;right:-5px;width:28px;height:28px;border-radius:50%;background:#dc2626;display:flex;align-items:center;justify-content:center;font-size:15px;border:2.5px solid #fff">🏥</div>
                 </div>
@@ -3240,8 +3238,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="position:relative;z-index:1;text-align:center;font-size:12px;font-weight:800;letter-spacing:3px;color:rgba(217,180,120,.85);margin-bottom:2px">🕵️ CHI L'HA VISTO?</div>
               <div style="position:relative;z-index:1;text-align:center;font-size:9px;color:rgba(255,255,255,.4);margin-bottom:14px">ASSENTE DAL CAMPETTO</div>
               <div style="position:relative;z-index:1;display:flex;justify-content:center;margin-bottom:12px">
-                <div style="width:96px;height:96px;border-radius:8px;overflow:hidden;border:3px solid rgba(217,180,120,.6);box-shadow:0 4px 16px rgba(0,0,0,.4);filter:grayscale(85%) sepia(20%) contrast(1.05)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                <div style="width:96px;height:96px;border-radius:8px;overflow:hidden;border:3px solid rgba(217,180,120,.6);box-shadow:0 4px 16px rgba(0,0,0,.4);filter:grayscale(85%) sepia(20%) contrast(1.05)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
               </div>
               <div style="position:relative;z-index:1;text-align:center;font-size:19px;font-weight:900;color:#f3e0b8;margin-bottom:8px;letter-spacing:.5px">{{s.nome}}</div>
@@ -8521,7 +8519,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.837',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.838',date:'2026-08-10',items:[
+      '🔧 Fix importante segnalato da Alby con screenshot: le foto dei giocatori risultavano schiacciate nel PNG condiviso di "Giocatore del Mese" — il fix precedente (v1.833) copriva solo Overall Rating/Classifiche, non le altre card. Convertite TUTTE le foto rimaste nelle card condivisibili (stat, duel, storia, radio spogliatoio, marcatori, TrashTalk, Giocatore/Peggiore del Mese, Identikit AI, Bilancia, Infortunio, Chi l\'ha visto — 15 foto in 12 card) allo stesso metodo affidabile con html2canvas (background-image invece di object-fit). Verificato con foto di test appositamente disegnata su tutte e 12: nessuna più schiacciata, tutte perfettamente ritagliate.',
+    ]},{version:'v1.837',date:'2026-08-10',items:[
       '5 fix/richieste segnalate da Alby: 1) Pronostico "previsione assurda": emoji cambiata da 🚄 a 🔮 con effetto di bagliore pulsante animato. 2) Bug post-archiviazione: dopo azzerare le partite, a volte comparivano card AI/giocatori (Identikit, TrashTalk...) insieme alle tutorial invece delle sole tutorial — il "riprova tra 1s" per quando le card AI non erano ancora pronte al primo avvio non ricontrollava lo scenario zero-partite. Corretto, verificato che la funzione condivisa produce ora sempre e solo card tutorial in quello scenario. 3) Card "manca da 3 partite": ridisegnata in stile "🕵️ Chi l\'ha visto?" — foto seppia/bianco e nero, cornice tratteggiata, filigrana "?" gigante. Sulla foto sempre a silhouette: nessun bug trovato nel codice (stesso campo dati di altre card che funzionano), probabile coincidenza — i giocatori spesso assenti tendono a essere anche i meno attivi nell\'app. 4) Aggiunto bottone di condivisione mancante alla card "Bilancia". 5) Fix importante: nelle card con testo scrollabile (Identikit AI e altre), il PNG condiviso tagliava il testo e la foto risultava schiacciata — html2canvas catturava solo la porzione visibile del box. Risolto catturando un clone temporaneo fuori schermo con il vincolo di altezza rimosso, invece dell\'elemento live nel carosello (zero rischio per swipe/animazioni in corso). Risolve entrambi i problemi insieme (testo completo + foto non più schiacciata), verificato con test mirato.',
     ]},{version:'v1.836',date:'2026-08-10',items:[
       'Card condivisibili — su richiesta di Alby: aggiunto il bottone 📤 a "Identikit AI" (nickCard), "Infortunio", "Trash Talk", "Giocatore del Mese" (hallFame) e "Peggiore del Mese" (hallShame). Stesso meccanismo sicuro già in uso. Testato ogni tipo singolarmente con Puppeteer: PNG generato correttamente, testo di condivisione corretto, nessun errore.',
@@ -9707,7 +9707,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.837');
+    const appVersion = ref('1.838');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
