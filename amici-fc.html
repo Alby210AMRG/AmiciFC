@@ -2855,6 +2855,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- TRASH TALK -->
             <template v-else-if="s.type==='trashTalk'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-ai-bg">AI</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:6px;margin-bottom:8px">
                 <span style="font-size:22px">{{s.emoji}}</span>
@@ -2881,6 +2882,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- HALL OF FAME -->
             <template v-else-if="s.type==='hallFame'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" style="color:rgba(251,191,36,.9);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
@@ -2905,6 +2907,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- HALL OF SHAME -->
             <template v-else-if="s.type==='hallShame'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" style="color:rgba(148,163,184,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:12px">
@@ -3156,6 +3159,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
 
             <template v-else-if="s.type==='nickCard'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" style="color:rgba(74,222,128,.8);margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
@@ -3203,6 +3207,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:260px;line-height:1;opacity:.07;color:#fff;font-weight:900;letter-spacing:-10px;transform:rotate(-15deg)">🏥</div>
               </div>
               <!-- Bande rosse decorative -->
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div style="position:absolute;top:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#dc2626);z-index:0"></div>
               <div style="position:absolute;bottom:0;left:0;right:0;height:4px;background:linear-gradient(90deg,#dc2626,#ef4444,#dc2626);z-index:0"></div>
               <div class="hc-label" style="color:#fca5a5;margin-bottom:12px;letter-spacing:3px">{{s.label}}</div>
@@ -8496,7 +8501,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.835',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.836',date:'2026-08-10',items:[
+      'Card condivisibili — su richiesta di Alby: aggiunto il bottone 📤 a "Identikit AI" (nickCard), "Infortunio", "Trash Talk", "Giocatore del Mese" (hallFame) e "Peggiore del Mese" (hallShame). Stesso meccanismo sicuro già in uso. Testato ogni tipo singolarmente con Puppeteer: PNG generato correttamente, testo di condivisione corretto, nessun errore.',
+    ]},{version:'v1.835',date:'2026-08-10',items:[
       'Card condivisibili — gruppo 1 di 5: aggiunto il bottone 📤 anche a "stat" (statistica singola giocatore), "duel" (sfida diretta gol), "story" (confronto testa a testa), "news" (radio spogliatoio) e "newsGoals" (marcatori partita). Stesso meccanismo sicuro già in uso per Overall Rating/Classifiche. Testato ogni tipo singolarmente con Puppeteer: PNG generato correttamente, testo di condivisione corretto, nessun errore.',
     ]},{version:'v1.834',date:'2026-08-10',items:[
       'Rimossa la scritta "📤 Tocca l\'icona per condividere" dalle card Overall Rating e Classifiche — su richiesta di Alby, non serve più ora che il bottone di condivisione è visibile e funzionante.',
@@ -9678,7 +9685,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.835');
+    const appVersion = ref('1.836');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20152,6 +20159,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (s.type === 'newsGoals') {
         const righe = (s.scorers||[]).map(sc => `⚽ ${sc.nome} ×${sc.gol}`);
         return `📻 Marcatori${s.matchDate ? ' ' + formatDate(s.matchDate) : ''}\n${righe.join('\n')}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'nickCard') {
+        return `🧬 ${s.label}\n${s.nome} — "${s.soprannome_ai||''}"\n${s.confronto||''}${s.motivazione ? '\n' + s.motivazione : ''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'trashTalk') {
+        return `${s.emoji||'😏'} ${s.label}\n${s.titolo||''}\n${s.testo||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'hallFame') {
+        return `👑 ${s.label}\n${s.card?.nome||''} — ${s.card?.titolo||''}\n${s.card?.commento||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'hallShame') {
+        return `🪣 ${s.label}\n${s.card?.nome||''} — ${s.card?.titolo||''}\n${s.card?.commento||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'infortunio') {
+        return `🏥 ${s.label}\n${s.nome} è fuori dai giochi\n${s.testo||''}\n\n🙏 Forza ${s.nome}!\n\n⚽ Amici FC`;
       }
       return '⚽ Amici FC';
     };
