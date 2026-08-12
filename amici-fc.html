@@ -8519,7 +8519,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.840',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.841',date:'2026-08-10',items:[
+      '🔧 Domanda di Alby via Inspector: perché il TrashTalk non si azzerava con larchiviazione mentre gli Identikit AI si. Causa: usa un flag di validita A TEMPO (calendario), non legato alle partite ne coperto dal fix precedente. Ora si azzera anche lui (locale e Firebase) durante larchiviazione.',
+      'Stesso identico problema trovato e corretto anche per il Pronostico (flag a TTL di 7 giorni) e per lHall of Fame del mese corrente (che potrebbe referenziare partite appena eliminate se si archivia a meta mese) — i mesi passati di Hall of Fame restano intatti, solo quello corrente viene azzerato.',
+    ]},{version:'v1.840',date:'2026-08-10',items:[
       'Chiarimento sul fix precedente (v1.839): scatta solo sulle ARCHIVIAZIONI fatte da ora in poi, non sui gruppi già archiviati prima con una versione precedente — quei gruppi restano con lo stato vecchio finché non si archivia di nuovo.',
       '🔧 Domanda molto pertinente di Alby, indagine approfondita: gli Identikit AI della stagione archiviata restavano "congelati" con il riferimento alla vecchia stagione, non dopo le 4 giornate previste ma potenzialmente MAI durante la stagione nuova — con le statistiche azzerate a 0, il conteggio per la rigenerazione (differenza rispetto al vecchio numero di partite) diventa negativo e non raggiunge mai la soglia. Ora la cache Identikit AI viene azzerata durante ogni archiviazione (locale e Firebase, altrimenti al sync successivo tornerebbe quella vecchia dal cloud) — la nuova stagione riparte con Identikit tutti da generare, come un gruppo nuovo. Verificato che TrashTalk e Giocatore del Mese non hanno lo stesso problema: sono legate a partite specifiche o al mese corrente, si aggiornano da sole.',
     ]},{version:'v1.839',date:'2026-08-10',items:[
@@ -9712,7 +9715,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.840');
+    const appVersion = ref('1.841');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -21034,6 +21037,62 @@ const toggleFont = () => {
             logEvent('info', 'app', `🧬 Identikit AI (soprannomi) azzerati per la nuova stagione — locale e Firebase`);
           } catch(e) {
             logEvent('warn', 'app', `Identikit AI azzerati solo in locale — pulizia Firebase non riuscita: ${e.message}`);
+          }
+        }
+        // Fix 10/8/2026 (bug trovato da Alby via Inspector: dopo l'archiviazione, tutte le card AI
+        // si azzeravano TRANNE il TrashTalk): il TrashTalk usa un flag di validità A TEMPO (TTL
+        // calendario, non legato al numero di partite) — il mio fix sopra per gli Identikit AI non
+        // lo tocca affatto, quindi restava "valido" secondo il suo stesso TTL e veniva ricaricato
+        // dalla cache con contenuto della stagione appena archiviata. Stesso pattern già collaudato
+        // altrove nel codice (invalidazione dopo correzione partita) — qui cancello l'INTERO nodo
+        // Firebase del gruppo (non solo una data specifica) dato che tutte le partite di questa
+        // stagione sono comunque appena state eliminate.
+        aiCardsTrashTalk.value = [];
+        aiCardsTrashTalkFirma.value = '';
+        aiFlagClear('tt', gid);
+        localStorage.removeItem('amicifc_tt_' + gid);
+        if (g.firebaseUrl) {
+          try {
+            const _tokTT2 = await getValidToken();
+            await _fbWrite(`aiCards/trashTalk/${_aiCardGroupKey()}`, null, _tokTT2);
+            logEvent('info', 'app', `🗑️ TrashTalk azzerato per la nuova stagione — locale e Firebase`);
+          } catch(e) {
+            logEvent('warn', 'app', `TrashTalk azzerato solo in locale — pulizia Firebase non riuscita: ${e.message}`);
+          }
+        }
+        // Stesso identico problema del TrashTalk — anche il Pronostico usa un flag a TTL calendario
+        // (7 giorni), non legato alle partite. Senza questo, il pronostico della prossima partita
+        // della vecchia stagione (spesso già giocata e passata) resterebbe "valido" e visibile.
+        aiPronostico.value = null;
+        aiFlagClear('pronostico', gid);
+        localStorage.removeItem('amicifc_prono_' + gid);
+        if (g.firebaseUrl) {
+          try {
+            const _tokPr = await getValidToken();
+            await _fbWrite(`aiCards/pronostico/${_aiCardGroupKey()}`, null, _tokPr);
+            logEvent('info', 'app', `🔮 Pronostico azzerato per la nuova stagione — locale e Firebase`);
+          } catch(e) {
+            logEvent('warn', 'app', `Pronostico azzerato solo in locale — pulizia Firebase non riuscita: ${e.message}`);
+          }
+        }
+        // Hall of Fame è tenuta per mese (amicifc_hof_YYYY-MM), quindi normalmente si aggiorna da
+        // sola al cambio di mese — MA se si archivia nello STESSO mese in cui erano state giocate
+        // le ultime partite (caso comune: archiviazione di metà stagione), la cache di quel mese
+        // resterebbe con dati calcolati su partite appena eliminate. Azzero solo il mese CORRENTE
+        // (non i mesi passati, che restano corretti — vedi punto 5 più sotto sullo storico).
+        {
+          const _mkCorr = _localMonthKey(new Date());
+          if (aiCardsHallOfFame.value?.mese === _mkCorr) aiCardsHallOfFame.value = null;
+          localStorage.removeItem('amicifc_hof_' + _mkCorr);
+          aiFlagClear('hof', gid);
+          if (g.firebaseUrl) {
+            try {
+              const _tokHof = await getValidToken();
+              await _fbWrite(`aiCards/hallOfFame/${_aiCardGroupKey()}/${_mkCorr}`, null, _tokHof);
+              logEvent('info', 'app', `👑 Hall of Fame del mese corrente azzerata per la nuova stagione — locale e Firebase`);
+            } catch(e) {
+              logEvent('warn', 'app', `Hall of Fame azzerata solo in locale — pulizia Firebase non riuscita: ${e.message}`);
+            }
           }
         }
         // Reset sistema hero: _heroLaunched=false + _heroRawData=[] fanno sì che _heroLaunch veda
