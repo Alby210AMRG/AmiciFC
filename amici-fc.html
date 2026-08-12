@@ -2706,10 +2706,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='trend'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin-bottom:10px">
-                <div style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(52,211,153,.5);background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">
-                  <img v-if="s.foto||s.uid" :src="getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE"><span v-else>⚡</span></div>
+                <div v-if="s.foto||s.uid" style="width:76px;height:76px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(52,211,153,.5)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'"></div>
+                <div v-else style="width:76px;height:76px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0">⚡</div>
                 <div style="flex:1">
                   <div style="font-size:17px;font-weight:800;color:#fff">{{s.name}}</div>
                   <div style="font-size:13px;color:rgba(255,255,255,.55);margin-top:3px;line-height:1.5">{{s.sub}}</div>
@@ -2769,6 +2771,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
 
             <template v-else-if="s.type==='cronaca'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label">{{s.label}}</div>
               <div style="position:relative;z-index:1;flex:1;display:flex;flex-direction:column">
                 <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:rgba(255,200,100,.85);margin-bottom:4px">{{s.kicker}}</div>
@@ -2805,12 +2808,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="hc-meta">{{s.sub}}</div>
             </template>
             <template v-else-if="s.type==='dreamteam'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="margin-bottom:6px">{{s.label}}</div>
               <div style="position:relative;z-index:1;font-size:18px;font-weight:900;color:#fbbf24;margin-bottom:10px;text-shadow:0 0 16px rgba(251,191,36,.5)">🏆 {{s.phase}}</div>
               <div style="position:relative;z-index:1;display:flex;justify-content:center;gap:10px;margin-bottom:12px">
                 <div v-for="(p,pi) in (s.squad||[])" :key="pi" style="display:flex;flex-direction:column;align-items:center;gap:4px">
-                  <div style="width:66px;height:66px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(251,191,36,.7);box-shadow:0 0 14px rgba(251,191,36,.3);background:rgba(255,255,255,.08)">
-                    <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:66px;height:66px;border-radius:50%;overflow:hidden;border:2.5px solid rgba(251,191,36,.7);box-shadow:0 0 14px rgba(251,191,36,.3)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl(p)+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.85);max-width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center">{{p.nome}}</div>
                 </div>
@@ -2932,11 +2936,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <!-- SOPRANNOME / IDENTIKIT AI -->
             <!-- ── PRONOSTICO PROSSIMA PARTITA ── -->
             <template v-else-if="s.type==='pronoMini'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-ai-bg">AI</div>
               <div class="hc-label" :style="'color:'+s.color+';margin-bottom:10px'">{{s.label}} · {{s.sub}}</div>
               <div v-if="s.nome" style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:6px 0 10px">
-                <div v-if="s.foto" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid var(--c,#fff)" :style="'border-color:'+s.color+';box-shadow:0 0 16px '+s.color+'55'">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                <div v-if="s.foto" style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid var(--c,#fff)" :style="'border-color:'+s.color+';box-shadow:0 0 16px '+s.color+'55;background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
                 <div v-else style="width:72px;height:72px;min-width:72px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:32px;border:3px solid" :style="'border-color:'+s.color+';background:'+s.color+'1a'">{{s.icon}}</div>
                 <div style="flex:1;min-width:0">
@@ -2957,10 +2961,11 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── RECORD PERSONALE ── -->
             <template v-else-if="s.type==='record'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="color:#fbbf24">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin-bottom:10px">
-                <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 16px rgba(251,191,36,.3)">
-                  <img :src="s.foto&&s.foto.startsWith('data:')?s.foto:getPlayerPhoto(s.foto,s.uid)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                <div style="width:72px;height:72px;min-width:72px;border-radius:50%;overflow:hidden;border:3px solid #fbbf24;box-shadow:0 0 16px rgba(251,191,36,.3)"
+                  :style="'background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'">
                 </div>
                 <div style="flex:1;min-width:0">
                   <div class="hc-name" style="color:#fbbf24">{{s.nome}}</div>
@@ -2981,12 +2986,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── FORMA RECENTE ── -->
             <template v-else-if="s.type==='forma'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="color:#4ade80;margin-bottom:10px">{{s.label}}</div>
               <div style="position:relative;z-index:1;display:flex;gap:10px;flex:1">
                 <!-- Top -->
                 <div style="flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.25);border-radius:10px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
-                  <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:2px solid #4ade80;box-shadow:0 0 12px rgba(74,222,128,.3)">
-                    <img :src="s.fotoTop&&s.fotoTop.startsWith('data:')?s.fotoTop:getPlayerPhoto(s.fotoTop,s.uidTop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:2px solid #4ade80;box-shadow:0 0 12px rgba(74,222,128,.3)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.fotoTop,uid:s.uidTop})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div class="hc-sub" style="color:#4ade80;font-weight:700;font-size:13px!important">{{s.nTop}}</div>
                   <div style="font-size:24px;font-weight:900;color:#4ade80;line-height:1">{{s.sTop}}</div>
@@ -2999,8 +3005,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
                 <!-- Flop -->
                 <div style="flex:1;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:10px;padding:10px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
-                  <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:2px solid #f87171;box-shadow:0 0 12px rgba(248,113,113,.3)">
-                    <img :src="s.fotoFlop&&s.fotoFlop.startsWith('data:')?s.fotoFlop:getPlayerPhoto(s.fotoFlop,s.uidFlop)" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:56px;height:56px;border-radius:50%;overflow:hidden;border:2px solid #f87171;box-shadow:0 0 12px rgba(248,113,113,.3)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.fotoFlop,uid:s.uidFlop})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div class="hc-sub" style="color:#f87171;font-weight:700;font-size:13px!important">{{s.nFlop}}</div>
                   <div style="font-size:24px;font-weight:900;color:#f87171;line-height:1">{{s.sFlop}}</div>
@@ -3017,24 +3023,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── ANNIVERSARY ── -->
             <template v-else-if="s.type==='anniversary'">
-              <div class="hc-label" style="color:#60a5fa">{{s.label}}</div>
-              <div style="position:relative;z-index:1;text-align:center;padding:10px 0 8px">
-                <div style="font-size:42px;margin-bottom:6px">🎂</div>
-                <div class="hc-title" style="color:#fff">Il gruppo esiste da</div>
-                <div style="font-size:30px;font-weight:900;color:#60a5fa;margin:4px 0">{{s.data.split('-').reverse().join('/')}}</div>
+              <div style="position:absolute;right:-14px;bottom:-18px;font-size:130px;opacity:.07;pointer-events:none;line-height:1;transform:rotate(-8deg);z-index:0">🎂</div>
+              <div class="hc-label" style="color:#60a5fa;margin-bottom:8px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;display:flex;align-items:center;gap:10px;margin-bottom:10px">
+                <div style="font-size:34px;line-height:1">🎂</div>
+                <div>
+                  <div style="font-size:11px;color:rgba(255,255,255,.55)">Il gruppo esiste dal</div>
+                  <div style="font-size:21px;font-weight:900;color:#60a5fa;line-height:1.2">{{s.data.split('-').reverse().join('/')}}</div>
+                </div>
               </div>
-              <div style="position:relative;z-index:1;display:flex;gap:8px;margin-bottom:8px">
-                <div style="flex:1;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:8px;text-align:center">
-                  <div style="font-size:24px;font-weight:900;color:#60a5fa">{{s.nPartite}}</div>
-                  <div style="font-size:10px;color:rgba(255,255,255,.5)">PARTITE</div>
+              <div style="position:relative;z-index:1;display:flex;gap:8px;margin-bottom:10px">
+                <div style="flex:1;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:6px;text-align:center">
+                  <div style="font-size:20px;font-weight:900;color:#60a5fa">{{s.nPartite}}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.5)">PARTITE</div>
                 </div>
-                <div style="flex:1;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:8px;text-align:center">
-                  <div style="font-size:24px;font-weight:900;color:#fbbf24">{{s.nGol}}</div>
-                  <div style="font-size:10px;color:rgba(255,255,255,.5)">GOL</div>
+                <div style="flex:1;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:6px;text-align:center">
+                  <div style="font-size:20px;font-weight:900;color:#fbbf24">{{s.nGol}}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.5)">GOL</div>
                 </div>
-                <div style="flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2);border-radius:8px;padding:8px;text-align:center">
-                  <div style="font-size:24px;font-weight:900;color:#4ade80">{{s.nGiocatori}}</div>
-                  <div style="font-size:10px;color:rgba(255,255,255,.5)">GIOCATORI</div>
+                <div style="flex:1;background:rgba(74,222,128,.1);border:1px solid rgba(74,222,128,.2);border-radius:8px;padding:6px;text-align:center">
+                  <div style="font-size:20px;font-weight:900;color:#4ade80">{{s.nGiocatori}}</div>
+                  <div style="font-size:9px;color:rgba(255,255,255,.5)">GIOCATORI</div>
                 </div>
               </div>
               <div class="hc-scroll-box" style="background:rgba(96,165,250,.08);border:1px solid rgba(96,165,250,.2)"
@@ -3116,12 +3125,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── H2H CARD ── -->
             <template v-else-if="s.type==='h2hCard'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-label" style="color:#f87171;margin-bottom:12px">{{s.label}}</div>
               <!-- Foto e nomi — centrati verticalmente -->
               <div style="position:relative;z-index:1;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px">
                 <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #f87171;box-shadow:0 0 16px rgba(248,113,113,.35);background:rgba(255,255,255,.08)">
-                    <img :src="s.fotoA&&s.fotoA.startsWith('data:')?s.fotoA:getPlayerPhoto(s.fotoA,s.uidA)||SILHOUETTE" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #f87171;box-shadow:0 0 16px rgba(248,113,113,.35)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.fotoA,uid:s.uidA})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:13px;font-weight:800;color:#f87171;text-align:center;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.nA}}</div>
                   <div style="font-size:30px;font-weight:900;color:#f87171;line-height:1">{{s.wA}}</div>
@@ -3133,8 +3143,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <div style="font-size:11px;color:rgba(255,255,255,.4)">{{s.pari}} pari</div>
                 </div>
                 <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px">
-                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #60a5fa;box-shadow:0 0 16px rgba(96,165,250,.35);background:rgba(255,255,255,.08)">
-                    <img :src="s.fotoB&&s.fotoB.startsWith('data:')?s.fotoB:getPlayerPhoto(s.fotoB,s.uidB)||SILHOUETTE" style="width:100%;height:100%;object-fit:cover" @error="$event.target.src=SILHOUETTE">
+                  <div style="width:72px;height:72px;border-radius:50%;overflow:hidden;border:2.5px solid #60a5fa;box-shadow:0 0 16px rgba(96,165,250,.35)"
+                    :style="'background-image:url(\''+_avatarPhotoUrl({foto:s.fotoB,uid:s.uidB})+'\');background-size:cover;background-position:center'">
                   </div>
                   <div style="font-size:13px;font-weight:800;color:#60a5fa;text-align:center;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{s.nB}}</div>
                   <div style="font-size:30px;font-weight:900;color:#60a5fa;line-height:1">{{s.wB}}</div>
@@ -3183,6 +3193,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- ── FANTASMI DEL GOL ── -->
             <template v-else-if="s.type==='fantasma'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <!-- Watermark fantasma -->
               <div style="position:absolute;right:-20px;bottom:-20px;font-size:180px;opacity:.05;pointer-events:none;z-index:0;line-height:1">👻</div>
               <div class="hc-label" style="color:#c4b5fd;margin-bottom:6px">{{s.label}}</div>
@@ -3192,8 +3203,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:6px">
                   <div v-for="(p,pi) in s.players" :key="pi"
                     style="display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.04);border-radius:8px;padding:6px 10px">
-                    <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(196,181,253,.4);background:rgba(255,255,255,.06)">
-                      <img :src="getPlayerPhoto(p.foto,p.uid)" style="width:100%;height:100%;object-fit:cover;filter:grayscale(50%)" @error="$event.target.src=SILHOUETTE">
+                    <div style="width:36px;height:36px;min-width:36px;border-radius:50%;overflow:hidden;border:2px solid rgba(196,181,253,.4);filter:grayscale(50%)"
+                      :style="'background-image:url(\''+_avatarPhotoUrl(p)+'\');background-size:cover;background-position:center'">
                     </div>
                     <div style="flex:1;font-weight:700;color:#e9d5ff;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{p.nome}}</div>
                     <div style="font-size:11px;color:rgba(196,181,253,.6);white-space:nowrap">{{p.partite}} presenze</div>
@@ -8520,7 +8531,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.842',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.843',date:'2026-08-10',items:[
+      'Card condivisibili — 7 nuovi tipi (11 etichette): Trending Ora, Crisi di Forma/Cronaca Top Scorer/Il Guascone (stesso tipo cronaca), Squadra Perfetta del Momento, entrambe le Pronostico, Record Personale, Forma Recente, Testa a Testa, I Fantasmi del Gol. Foto convertite al metodo sicuro con html2canvas. Testato ogni tipo con Puppeteer: PNG generato, foto non schiacciate.',
+      'Card "Il Gruppo nel Tempo" ridisegnata: aggiunta la filigrana mancante (torta), blocco superiore reso piu compatto (emoji e data affiancate invece che impilate, statistiche piu piccole) per lasciare molto piu spazio al testo scrollabile sotto, che prima era compresso in uno spazio troppo piccolo.',
+    ]},{version:'v1.842',date:'2026-08-10',items:[
       '🔧 Bug reale trovato dallo screenshot di Alby: la card "Scorpione e il portiere titolare con 0.00 pts/g" compariva anche a stagione zero, dopo larchiviazione — a differenza di tutte le altre card statistiche simili, questa non controllava se il portiere avesse mai giocato una partita, solo se esisteva un giocatore con quel ruolo (il ruolo non si azzera con larchiviazione, solo le statistiche). Corretto con lo stesso controllo gia presente altrove.',
       '🎨 La card "Nuova Stagione" non si vedeva mai dopo larchiviazione: dipendeva dal Riepilogo Stagione generato con successo (richiede AI configurata, puo fallire), un segnale inaffidabile. Ora usa lelenco delle stagioni archiviate, che si popola sempre. Ridisegnata anche esteticamente su richiesta di Alby: filigrana 🌱, bagliore sullicona, testo accorciato per stare nello spazio disponibile (verificato con screenshot ritagliato esatto sui 320px della card), e include ora il messaggio sulle card AI che torneranno dopo le prime partite.',
     ]},{version:'v1.841',date:'2026-08-10',items:[
@@ -9719,7 +9733,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.842');
+    const appVersion = ref('1.843');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20214,6 +20228,32 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       }
       if (s.type === 'assenza') {
         return `🕵️ Chi l'ha visto?\n${s.nome}\n${s.testo||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'trend') {
+        return `🔥 ${s.label}\n${s.testo||s.txt||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'cronaca') {
+        return `${s.label}\n${s.kicker||''}\n${s.headline||''}\n${s.body||''}\n${s.sub||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'dreamteam') {
+        const righe = (s.squad||[]).map(p => `• ${p.nome}`);
+        return `🏆 ${s.label} — ${s.phase||''}\n${righe.join('\n')}\n${s.txt||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'pronoMini') {
+        return `🔮 ${s.label} · ${s.sub||''}\n${s.nome||''}\n${s.motivo||s.testo||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'record') {
+        return `🏆 ${s.label}\n${s.nome} (${s.ruolo||''})\n${s.val} ${s.tipo||''}\n${s.txt||''}\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'forma') {
+        return `${s.label}\n📈 ${s.nTop}: ${s.sTop}\n📉 ${s.nFlop}: ${s.sFlop}\nMedia voti ultimi 3\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'h2hCard') {
+        return `⚔️ ${s.label}\n${s.nA}: ${s.wA} vittorie\n${s.nB}: ${s.wB} vittorie\n${s.tot} sfide totali, ${s.pari} pari\n\n⚽ Amici FC`;
+      }
+      if (s.type === 'fantasma') {
+        const righe = (s.players||[]).map(p => `👻 ${p.nome}: ${p.partite} presenze`);
+        return `${s.label}\n${s.sub||''}\n${righe.join('\n')}\n\n⚽ Amici FC`;
       }
       return '⚽ Amici FC';
     };
