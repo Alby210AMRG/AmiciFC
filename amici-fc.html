@@ -8519,7 +8519,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.839',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.840',date:'2026-08-10',items:[
+      'Chiarimento sul fix precedente (v1.839): scatta solo sulle ARCHIVIAZIONI fatte da ora in poi, non sui gruppi già archiviati prima con una versione precedente — quei gruppi restano con lo stato vecchio finché non si archivia di nuovo.',
+      '🔧 Domanda molto pertinente di Alby, indagine approfondita: gli Identikit AI della stagione archiviata restavano "congelati" con il riferimento alla vecchia stagione, non dopo le 4 giornate previste ma potenzialmente MAI durante la stagione nuova — con le statistiche azzerate a 0, il conteggio per la rigenerazione (differenza rispetto al vecchio numero di partite) diventa negativo e non raggiunge mai la soglia. Ora la cache Identikit AI viene azzerata durante ogni archiviazione (locale e Firebase, altrimenti al sync successivo tornerebbe quella vecchia dal cloud) — la nuova stagione riparte con Identikit tutti da generare, come un gruppo nuovo. Verificato che TrashTalk e Giocatore del Mese non hanno lo stesso problema: sono legate a partite specifiche o al mese corrente, si aggiornano da sole.',
+    ]},{version:'v1.839',date:'2026-08-10',items:[
       '🔧 Trovata la vera causa del bug "card AI/giocatori dopo l\'archiviazione" (persisteva nonostante il fix v1.837): tutorialEnabled è un\'impostazione GLOBALE, disattivata automaticamente alla prima partita mai giocata in un gruppo — se il gruppo aveva già partite prima di archiviare, restava disattivata anche dopo, quindi il controllo "zero partite" non faceva mai scattare le tutorial slides. L\'archiviazione ora riattiva tutorialEnabled (concettualmente: si riparte da zero). Verificato con test end-to-end nello scenario esatto di Alby: dopo il fix, la home mostra sempre e solo card tutorial (15/15), nessuna card AI stantia residua.',
     ]},{version:'v1.838',date:'2026-08-10',items:[
       '🔧 Fix importante segnalato da Alby con screenshot: le foto dei giocatori risultavano schiacciate nel PNG condiviso di "Giocatore del Mese" — il fix precedente (v1.833) copriva solo Overall Rating/Classifiche, non le altre card. Convertite TUTTE le foto rimaste nelle card condivisibili (stat, duel, storia, radio spogliatoio, marcatori, TrashTalk, Giocatore/Peggiore del Mese, Identikit AI, Bilancia, Infortunio, Chi l\'ha visto — 15 foto in 12 card) allo stesso metodo affidabile con html2canvas (background-image invece di object-fit). Verificato con foto di test appositamente disegnata su tutte e 12: nessuna più schiacciata, tutte perfettamente ritagliate.',
@@ -9709,7 +9712,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.839');
+    const appVersion = ref('1.840');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -21013,6 +21016,26 @@ const toggleFont = () => {
         // invece delle tutorial. L'archiviazione è concettualmente un "si riparte da zero": riattivo
         // qui la guida tutorial per il nuovo inizio.
         tutorialEnabled.value = true;
+        // Fix 10/8/2026 (domanda di Alby, molto pertinente): gli Identikit AI (soprannomi)
+        // restavano "congelati" con il riferimento partiteAl della vecchia stagione — con le
+        // statistiche azzerate a 0, sarebbero serviti MOLTI PIÙ incontri della nuova stagione prima
+        // di rigenerare (partiteTotali nuovo - partiteAl vecchio è un numero negativo, mai >=4), non
+        // le "4 giornate" che sembrerebbe a prima vista — nella pratica, forse mai entro la stagione.
+        // Azzero qui la cache sia in locale sia su Firebase (altrimenti il prossimo sync la
+        // ripristina dal cloud, stesso identico problema già visto con le partite al punto "8." più
+        // sopra) — la nuova stagione riparte con Identikit AI tutti da generare, come un gruppo nuovo.
+        aiNicknames.value = {};
+        localStorage.removeItem('amicifc_nicks_' + gid);
+        aiFlagClear('nicks', gid);
+        if (g.firebaseUrl) {
+          try {
+            const _tokNick = await getValidToken();
+            await _fbWrite(`aiCards/soprannomi/${_aiCardGroupKey()}`, null, _tokNick);
+            logEvent('info', 'app', `🧬 Identikit AI (soprannomi) azzerati per la nuova stagione — locale e Firebase`);
+          } catch(e) {
+            logEvent('warn', 'app', `Identikit AI azzerati solo in locale — pulizia Firebase non riuscita: ${e.message}`);
+          }
+        }
         // Reset sistema hero: _heroLaunched=false + _heroRawData=[] fanno sì che _heroLaunch veda
         // 0 partite e mostri le tutorial cards invece delle card AI stantie della stagione appena
         // archiviata (assenze, portiere, marcatori ecc. non hanno più senso a inizio stagione).
