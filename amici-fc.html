@@ -8519,7 +8519,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.838',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.839',date:'2026-08-10',items:[
+      '🔧 Trovata la vera causa del bug "card AI/giocatori dopo l\'archiviazione" (persisteva nonostante il fix v1.837): tutorialEnabled è un\'impostazione GLOBALE, disattivata automaticamente alla prima partita mai giocata in un gruppo — se il gruppo aveva già partite prima di archiviare, restava disattivata anche dopo, quindi il controllo "zero partite" non faceva mai scattare le tutorial slides. L\'archiviazione ora riattiva tutorialEnabled (concettualmente: si riparte da zero). Verificato con test end-to-end nello scenario esatto di Alby: dopo il fix, la home mostra sempre e solo card tutorial (15/15), nessuna card AI stantia residua.',
+    ]},{version:'v1.838',date:'2026-08-10',items:[
       '🔧 Fix importante segnalato da Alby con screenshot: le foto dei giocatori risultavano schiacciate nel PNG condiviso di "Giocatore del Mese" — il fix precedente (v1.833) copriva solo Overall Rating/Classifiche, non le altre card. Convertite TUTTE le foto rimaste nelle card condivisibili (stat, duel, storia, radio spogliatoio, marcatori, TrashTalk, Giocatore/Peggiore del Mese, Identikit AI, Bilancia, Infortunio, Chi l\'ha visto — 15 foto in 12 card) allo stesso metodo affidabile con html2canvas (background-image invece di object-fit). Verificato con foto di test appositamente disegnata su tutte e 12: nessuna più schiacciata, tutte perfettamente ritagliate.',
     ]},{version:'v1.837',date:'2026-08-10',items:[
       '5 fix/richieste segnalate da Alby: 1) Pronostico "previsione assurda": emoji cambiata da 🚄 a 🔮 con effetto di bagliore pulsante animato. 2) Bug post-archiviazione: dopo azzerare le partite, a volte comparivano card AI/giocatori (Identikit, TrashTalk...) insieme alle tutorial invece delle sole tutorial — il "riprova tra 1s" per quando le card AI non erano ancora pronte al primo avvio non ricontrollava lo scenario zero-partite. Corretto, verificato che la funzione condivisa produce ora sempre e solo card tutorial in quello scenario. 3) Card "manca da 3 partite": ridisegnata in stile "🕵️ Chi l\'ha visto?" — foto seppia/bianco e nero, cornice tratteggiata, filigrana "?" gigante. Sulla foto sempre a silhouette: nessun bug trovato nel codice (stesso campo dati di altre card che funzionano), probabile coincidenza — i giocatori spesso assenti tendono a essere anche i meno attivi nell\'app. 4) Aggiunto bottone di condivisione mancante alla card "Bilancia". 5) Fix importante: nelle card con testo scrollabile (Identikit AI e altre), il PNG condiviso tagliava il testo e la foto risultava schiacciata — html2canvas catturava solo la porzione visibile del box. Risolto catturando un clone temporaneo fuori schermo con il vincolo di altezza rimosso, invece dell\'elemento live nel carosello (zero rischio per swipe/animazioni in corso). Risolve entrambi i problemi insieme (testo completo + foto non più schiacciata), verificato con test mirato.',
@@ -9707,7 +9709,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.838');
+    const appVersion = ref('1.839');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -21002,6 +21004,15 @@ const toggleFont = () => {
         toast(`✅ Stagione archiviata! Nuova stagione: ${archiveStepData.nomeStagioneNuova}`, 'success', 4000);
         archiveWizard.value = null;
         currentView.value = 'home';
+        // Fix 10/8/2026 (bug segnalato da Alby, persisteva nonostante il fix precedente in
+        // _heroLaunch): tutorialEnabled è un'impostazione GLOBALE (non per stagione), disattivata
+        // automaticamente non appena viene inserita la prima partita in un gruppo (riga ~14898).
+        // Se questo gruppo aveva già partite prima di archiviare, tutorialEnabled era già false da
+        // prima — quindi il controllo "zero partite && tutorialEnabled" in _heroLaunch() non
+        // scattava mai, e la home mostrava le card AI stantie della stagione appena archiviata
+        // invece delle tutorial. L'archiviazione è concettualmente un "si riparte da zero": riattivo
+        // qui la guida tutorial per il nuovo inizio.
+        tutorialEnabled.value = true;
         // Reset sistema hero: _heroLaunched=false + _heroRawData=[] fanno sì che _heroLaunch veda
         // 0 partite e mostri le tutorial cards invece delle card AI stantie della stagione appena
         // archiviata (assenze, portiere, marcatori ecc. non hanno più senso a inizio stagione).

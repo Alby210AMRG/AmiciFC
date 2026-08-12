@@ -1,4 +1,4 @@
-const CACHE='amicifc-v1838';
+const CACHE='amicifc-v1839';
 const ASSETS=['./','./amici-fc.html','./sw.js'];
 
 // Firebase va sempre in rete — mai in cache.
