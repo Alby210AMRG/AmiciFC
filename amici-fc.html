@@ -2572,8 +2572,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </template>
             <template v-else-if="s.type==='newSeason'">
+              <div style="position:absolute;right:-10px;bottom:-16px;font-size:150px;line-height:1;opacity:.08;pointer-events:none;transform:rotate(-8deg)">🌱</div>
               <div style="position:relative;z-index:1;display:flex;flex-direction:column;justify-content:center;flex:1;padding:20px 18px 16px">
-                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1;display:inline-block;animation:heroIconBounce 2s ease-in-out infinite;width:fit-content">{{s.icon}}</div>
+                <div style="font-size:2.6rem;margin-bottom:10px;line-height:1;display:inline-block;animation:heroIconBounce 2s ease-in-out infinite;width:fit-content;filter:drop-shadow(0 0 14px rgba(166,255,77,.5))">{{s.icon}}</div>
                 <div style="font-size:0.65rem;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:rgba(166,255,77,0.7);margin-bottom:6px">NUOVA STAGIONE</div>
                 <div style="font-size:1.05rem;font-weight:800;color:#fff;margin-bottom:8px;line-height:1.25">{{s.titolo}}</div>
                 <div style="font-size:0.82rem;color:rgba(255,255,255,0.65);line-height:1.55">{{s.testo}}</div>
@@ -8519,7 +8520,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.841',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.842',date:'2026-08-10',items:[
+      '🔧 Bug reale trovato dallo screenshot di Alby: la card "Scorpione e il portiere titolare con 0.00 pts/g" compariva anche a stagione zero, dopo larchiviazione — a differenza di tutte le altre card statistiche simili, questa non controllava se il portiere avesse mai giocato una partita, solo se esisteva un giocatore con quel ruolo (il ruolo non si azzera con larchiviazione, solo le statistiche). Corretto con lo stesso controllo gia presente altrove.',
+      '🎨 La card "Nuova Stagione" non si vedeva mai dopo larchiviazione: dipendeva dal Riepilogo Stagione generato con successo (richiede AI configurata, puo fallire), un segnale inaffidabile. Ora usa lelenco delle stagioni archiviate, che si popola sempre. Ridisegnata anche esteticamente su richiesta di Alby: filigrana 🌱, bagliore sullicona, testo accorciato per stare nello spazio disponibile (verificato con screenshot ritagliato esatto sui 320px della card), e include ora il messaggio sulle card AI che torneranno dopo le prime partite.',
+    ]},{version:'v1.841',date:'2026-08-10',items:[
       '🔧 Domanda di Alby via Inspector: perché il TrashTalk non si azzerava con larchiviazione mentre gli Identikit AI si. Causa: usa un flag di validita A TEMPO (calendario), non legato alle partite ne coperto dal fix precedente. Ora si azzera anche lui (locale e Firebase) durante larchiviazione.',
       'Stesso identico problema trovato e corretto anche per il Pronostico (flag a TTL di 7 giorni) e per lHall of Fame del mese corrente (che potrebbe referenziare partite appena eliminate se si archivia a meta mese) — i mesi passati di Hall of Fame restano intatti, solo quello corrente viene azzerato.',
     ]},{version:'v1.840',date:'2026-08-10',items:[
@@ -9715,7 +9719,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.841');
+    const appVersion = ref('1.842');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -19069,7 +19073,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const topMG=[...el3].filter(p=>(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))[0];
       if(topMG) items.push({uid:topMG.uid,foto:topMG.foto,emoji:'⚡',text:`Miglior media gol: ${topMG.soprannome||topMG.nome} con ${((topMG.goalTotali||0)/(topMG.partiteTotali||1)).toFixed(2)} gol/partita`});
 
-      const gks=players.filter(p=>p.ruolo==='Portiere').sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0));
+      const gks=players.filter(p=>p.ruolo==='Portiere'&&(p.partiteTotali||0)>0).sort((a,b)=>(b.mediaPunti||0)-(a.mediaPunti||0));
       if(gks.length) items.push({uid:gks[0].uid,foto:gks[0].foto,emoji:'🧤',text:`${gks[0].soprannome||gks[0].nome} è il portiere titolare con ${(gks[0].mediaPunti||0).toFixed(2)} pts/g`});
 
       // ── ULTIMA PARTITA ──
@@ -22741,12 +22745,19 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     // tutorial. Estratta qui così ENTRAMBI i punti (avvio diretto e retry) usano la stessa identica
     // logica, senza rischio che si disallineino di nuovo in futuro.
     const _buildTutorialOnlySlides = () => {
-      const _welcomeSeasonSlide = seasonSummarySnapshot.value ? [{
+      // Fix 10/8/2026 (bug segnalato da Alby: la card "Nuova Stagione" non si è mai vista): il
+      // controllo precedente dipendeva da seasonSummarySnapshot, che si popola SOLO se il Riepilogo
+      // Stagione viene generato con successo (richiede AI configurata, può fallire o essere saltato)
+      // — un segnale inaffidabile per "questo gruppo ha già archiviato". currentGroupArchivedSeasons
+      // invece si popola sempre, in loadGroupData(), indipendentemente dall'AI: molto più solido.
+      const _lastArchived = [...currentGroupArchivedSeasons.value]
+        .sort((a,b) => (b.dataArchiviazione||'').localeCompare(a.dataArchiviazione||''))[0];
+      const _welcomeSeasonSlide = _lastArchived ? [{
         type: 'newSeason',
         dur: 7000,
         icon: '🎉',
         titolo: `Si riparte! Benvenuti nella ${currentGroup.value.stagione}`,
-        testo: `La ${seasonSummarySnapshot.value.stagione} è ora negli archivi: niente è andato perso — statistiche e Partite restano consultabili scegliendo la stagione passata dal menu, e il Riepilogo con tutti i dati ti aspetta in "Altro". In bocca al lupo per questa nuova stagione!`,
+        testo: `La ${_lastArchived.stagione || _lastArchived.nome} è ora negli archivi, sempre consultabile dal menu. Le card AI si sono resettate per il nuovo inizio e torneranno dopo le prime partite. In bocca al lupo! 🍀`,
         bg: 'linear-gradient(145deg,#0d1f0d,#1a4a1a 60%,#166534)',
       }] : [];
       return [_heroWelcomeCard, ..._welcomeSeasonSlide, _buildManualCard(), ..._buildTutorialSlides()];
