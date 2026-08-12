@@ -3820,6 +3820,28 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             @click="openSostituzioneModal">
             🩹 Sostituzioni per infortunio{{ matchSostituzioni.length ? ' ('+matchSostituzioni.length+')' : '' }}
           </button>
+          <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori"): stesso blocco
+               di "Tutti Insieme"/"Vota con gli amici", qui nell'header sempre visibile (non
+               dipende da quale giocatore è aperto in questo momento). -->
+          <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-top:8px">
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="opacity:.7">(opzionale — se non indicato, si assume "a turno")</span></div>
+            <div style="display:flex;gap:8px">
+              <div style="flex:1">
+                <label style="font-size:0.68rem;color:var(--blue);display:block;margin-bottom:3px">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</label>
+                <select class="select-field" v-model="matchPortiereDichiarato.A" style="width:100%">
+                  <option :value="null">A turno</option>
+                  <option v-for="pid in teamA" :key="'pdAsbs-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+                </select>
+              </div>
+              <div style="flex:1">
+                <label style="font-size:0.68rem;color:var(--red);display:block;margin-bottom:3px">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</label>
+                <select class="select-field" v-model="matchPortiereDichiarato.B" style="width:100%">
+                  <option :value="null">A turno</option>
+                  <option v-for="pid in teamB" :key="'pdBsbs-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+                </select>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Schermata giocatore corrente -->
@@ -4074,6 +4096,29 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <span style="color:var(--red)">OG = Autogol</span> &nbsp;·&nbsp;
           <span style="color:var(--lime)">🥅 RP = Rigore Parato</span> &nbsp;·&nbsp;
           <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span>
+        </div>
+
+        <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori", richiesta di Alby):
+             opzionale, un menu per squadra. Se non toccato resta "A turno" — nessun cambiamento
+             per chi non usa questa funzione. -->
+        <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="opacity:.7">(opzionale — se non indicato, si assume "a turno")</span></div>
+          <div style="display:flex;gap:8px">
+            <div style="flex:1">
+              <label style="font-size:0.68rem;color:var(--blue);display:block;margin-bottom:3px">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</label>
+              <select class="select-field" v-model="matchPortiereDichiarato.A" style="width:100%">
+                <option :value="null">A turno</option>
+                <option v-for="pid in teamA" :key="'pdA-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:0.68rem;color:var(--red);display:block;margin-bottom:3px">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</label>
+              <select class="select-field" v-model="matchPortiereDichiarato.B" style="width:100%">
+                <option :value="null">A turno</option>
+                <option v-for="pid in teamB" :key="'pdB-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <!-- Sostituzioni per infortunio (Modalità Sostituzioni, Consegna B — 6/8/2026): in "Vota
@@ -7065,6 +7110,28 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori"): stesso blocco delle
+           3 modalità di inserimento, qui editabile per una partita già salvata. -->
+      <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="opacity:.7">(opzionale — se non indicato, si assume "a turno")</span></div>
+        <div style="display:flex;gap:8px">
+          <div style="flex:1">
+            <label style="font-size:0.68rem;color:var(--blue);display:block;margin-bottom:3px">🔵 {{ editingMatch.nomeSquadraA||'Squadra A' }}</label>
+            <select class="select-field" v-model="editingMatch.portiereDichiarato.A" style="width:100%">
+              <option :value="null">A turno</option>
+              <option v-for="pid in editingMatch.squadraA||[]" :key="'pdAedit-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+            </select>
+          </div>
+          <div style="flex:1">
+            <label style="font-size:0.68rem;color:var(--red);display:block;margin-bottom:3px">🔴 {{ editingMatch.nomeSquadraB||'Squadra B' }}</label>
+            <select class="select-field" v-model="editingMatch.portiereDichiarato.B" style="width:100%">
+              <option :value="null">A turno</option>
+              <option v-for="pid in editingMatch.squadraB||[]" :key="'pdBedit-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <!-- ── Sostituzioni per infortunio (Modalità Sostituzioni, Consegna B — 6/8/2026) ── -->
       <div style="margin-bottom:14px">
         <div class="card-title" style="margin-bottom:8px">🩹 Sostituzioni per infortunio</div>
@@ -8531,7 +8598,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.843',date:'2026-08-10',items:[
+    const changelogEntries = [{version:'v1.844',date:'2026-08-11',items:[
+      'Nuova feature (Fase 1 di 4) — Portiere dichiarato: nelle 3 modalita di inserimento risultato (Uno alla Volta, Tutti Insieme, Vota con gli amici) e nella Modifica Partita, un menu opzionale per squadra per indicare chi ha fatto davvero il portiere in quella partita specifica. Se non indicato resta "a turno" come oggi, nessun cambiamento per chi non usa la funzione. Salvato sulla partita (JSON e Firebase). Prossime fasi: fix del Clean Sheet (che oggi non controlla il ruolo davvero giocato), calcolo Overall pesato per chi gioca piu ruoli, integrazione con Identikit AI.',
+    ]},{version:'v1.843',date:'2026-08-10',items:[
       'Card condivisibili — 7 nuovi tipi (11 etichette): Trending Ora, Crisi di Forma/Cronaca Top Scorer/Il Guascone (stesso tipo cronaca), Squadra Perfetta del Momento, entrambe le Pronostico, Record Personale, Forma Recente, Testa a Testa, I Fantasmi del Gol. Foto convertite al metodo sicuro con html2canvas. Testato ogni tipo con Puppeteer: PNG generato, foto non schiacciate.',
       'Card "Il Gruppo nel Tempo" ridisegnata: aggiunta la filigrana mancante (torta), blocco superiore reso piu compatto (emoji e data affiancate invece che impilate, statistiche piu piccole) per lasciare molto piu spazio al testo scrollabile sotto, che prima era compresso in uno spazio troppo piccolo.',
     ]},{version:'v1.842',date:'2026-08-10',items:[
@@ -9733,7 +9802,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.843');
+    const appVersion = ref('1.844');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11324,6 +11393,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
       matchGoalB.value = 0;
       playerStats.value = {};
       matchSostituzioni.value = [];
+      // Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori", richiesta di Alby):
+      // opzionale, per squadra — se non dichiarato per una squadra significa "a turno" (nessuno
+      // prende il clean sheet quella partita per quella squadra, l'Overall usa il ruolo anagrafico
+      // come fallback). Se dichiarato, quel giocatore specifico è il portiere per QUESTA partita —
+      // tutti gli altri della sua squadra sono "fuori ruolo" per questa partita specifica.
+      matchPortiereDichiarato.value = { A: null, B: null };
       aiComment.value = '';
       generatedPNG.value = '';
       matchStep.value = 1;
@@ -11360,6 +11435,10 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // solo a partita in corso/finita) e IL COLLEGAMENTO infortunato↔sostituto va tracciato,
     // confermato esplicitamente da Alby — usato per mostrare l'icona nel dettaglio partita.
     const matchSostituzioni = ref([]); // [{squadra:'A'|'B', infortunatoUid, sostitutoUid}]
+    // Portiere dichiarato per la partita in corso (10/8/2026) — {A: playerId|null, B: playerId|null}.
+    // null = "a turno" (non dichiarato). Usata da saveMatch/saveEditMatch per salvare sulla partita,
+    // e dalle 3 modalità di inserimento + dalla modifica partita per l'interfaccia di dichiarazione.
+    const matchPortiereDichiarato = ref({ A: null, B: null });
     const showSostituzioneModal = ref(false);
     const sostituzioneForm = ref({ squadra: 'A', infortunatoUid: '', sostitutoUid: '' });
 
@@ -14902,6 +14981,9 @@ Niente altro, nessuna spiegazione.`;
         riserveA:   [...(activeFormation.value?.riserveA || [])],
         riserveB:   [...(activeFormation.value?.riserveB || [])],
         sostituzioni: [...matchSostituzioni.value],
+        // Portiere dichiarato (10/8/2026): {A,B} playerId o null (="a turno"). Copia semplice —
+        // sono solo 2 stringhe/null, nessun bisogno di clonare in profondità.
+        portiereDichiarato: { A: matchPortiereDichiarato.value.A, B: matchPortiereDichiarato.value.B },
         risultato:  { goalA, goalB },
         statisticheGiocatori: statsArr,
         votazioneCondivisaPending: matchIsVoteMode.value ? true : false,
@@ -14998,6 +15080,10 @@ Niente altro, nessuna spiegazione.`;
         // I rigori segnati si deducono dai goal ma non li tracciamo separatamente
       }
       copy._rigori = rigori;
+      // Fallback (10/8/2026): partite salvate prima di questa feature non hanno il campo —
+      // lo aggiungo qui vuoto ("a turno" per entrambe le squadre) così l'interfaccia di modifica
+      // ha sempre un oggetto valido da leggere/scrivere, senza controlli extra nel template.
+      if (!copy.portiereDichiarato) copy.portiereDichiarato = { A: null, B: null };
       editingMatch.value = copy;
       showEditMatch.value = true;
       voteAdminStatus.value = null; // Pagelle Multi-Utente: azzero, non deve restare quello della partita precedente
@@ -23262,7 +23348,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
-      matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione,
+      matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
