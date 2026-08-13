@@ -8624,7 +8624,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.847',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.848',date:'2026-08-13',items:[
+      'Bug reale trovato da Alby: modificando una partita per correggere chi ha fatto il portiere, la scelta non veniva salvata - riaprendo la partita tornava sempre A turno. Causa: il salvataggio della modifica partita elenca ogni campo a mano (per non perdere le sostituzioni), e portiereDichiarato non era nella lista. Aggiunto. Verificato con un test end-to-end: partita senza il campo, apertura modifica, scelta di un portiere specifico, salvataggio, lettura diretta dal database, riapertura - il valore ora resta esattamente quello scelto.',
+    ]},{version:'v1.847',date:'2026-08-13',items:[
       'Fix Clean Sheet: le partite vecchie (senza il campo portiere dichiarato) davano il clean sheet a CHIUNQUE fosse in squadra, mentre le partite nuove con a turno non lo davano a nessuno - due comportamenti diversi per la stessa situazione (non sappiamo chi era davvero in porta). Unificati: ora anche le partite vecchie si comportano come a turno, nessuno prende il clean sheet. Nessun dato modificato, solo un fix nel calcolo (sempre dal vivo, mai salvato) - i numeri si aggiornano da soli, nessun ricalcolo manuale necessario.',
     ]},{version:'v1.846',date:'2026-08-13',items:[
       'Portiere dichiarato (Fase 3 di 4): calcolo Overall pesato per chi ha giocato piu ruoli nella stagione. Se un giocatore ha partite sia da portiere sia fuori ruolo (secondo portiereDichiarato), l\'Overall ora e una media pesata tra le due specialita invece di usare una sola formula fissa. Le partite fuori ruolo di un portiere usano la formula Jolly (gia esistente, la stessa di Attaccante/Centrocampista). In Statistiche, aprendo la scomposizione OVR di un giocatore misto compare "OVR misto: X partite da Portiere (N), Y da Jolly (M)". Chi non cambia mai ruolo non vede alcuna differenza. Testato con Puppeteer: caso misto (5+5 partite) calcola correttamente la media pesata, caso puro (10/10 partite) bypassa completamente il nuovo calcolo (zero rischio di regressione), indicatore visivo verificato nella UI reale.',
@@ -9835,7 +9837,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.847');
+    const appVersion = ref('1.848');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15347,6 +15349,12 @@ Niente altro, nessuna spiegazione.`;
           // NON si fa spread generico dell'oggetto, ogni campo va elencato a mano (a differenza del
           // sync Firebase, che invece è generico).
           sostituzioni:           m.sostituzioni || [],
+          // Fix 13/8/2026 (bug segnalato da Alby): mancava in questa lista esplicita, quindi la
+          // scelta fatta nel form di modifica non veniva mai salvata — riaprendo la partita
+          // tornava sempre "a turno" (il fallback di openEditMatch), anche se in realtà era stato
+          // scelto un portiere preciso. Stesso motivo per cui mancano le sostituzioni: qui NON si fa
+          // spread generico dell'oggetto, ogni campo nuovo va aggiunto qui a mano.
+          portiereDichiarato:     m.portiereDichiarato || { A: null, B: null },
           risultato:              m.risultato,
           statisticheGiocatori:   m.statisticheGiocatori,
           notePartita:            m.notePartita,
