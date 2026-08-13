@@ -8624,7 +8624,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.846',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.847',date:'2026-08-13',items:[
+      'Fix Clean Sheet: le partite vecchie (senza il campo portiere dichiarato) davano il clean sheet a CHIUNQUE fosse in squadra, mentre le partite nuove con a turno non lo davano a nessuno - due comportamenti diversi per la stessa situazione (non sappiamo chi era davvero in porta). Unificati: ora anche le partite vecchie si comportano come a turno, nessuno prende il clean sheet. Nessun dato modificato, solo un fix nel calcolo (sempre dal vivo, mai salvato) - i numeri si aggiornano da soli, nessun ricalcolo manuale necessario.',
+    ]},{version:'v1.846',date:'2026-08-13',items:[
       'Portiere dichiarato (Fase 3 di 4): calcolo Overall pesato per chi ha giocato piu ruoli nella stagione. Se un giocatore ha partite sia da portiere sia fuori ruolo (secondo portiereDichiarato), l\'Overall ora e una media pesata tra le due specialita invece di usare una sola formula fissa. Le partite fuori ruolo di un portiere usano la formula Jolly (gia esistente, la stessa di Attaccante/Centrocampista). In Statistiche, aprendo la scomposizione OVR di un giocatore misto compare "OVR misto: X partite da Portiere (N), Y da Jolly (M)". Chi non cambia mai ruolo non vede alcuna differenza. Testato con Puppeteer: caso misto (5+5 partite) calcola correttamente la media pesata, caso puro (10/10 partite) bypassa completamente il nuovo calcolo (zero rischio di regressione), indicatore visivo verificato nella UI reale.',
     ]},{version:'v1.845',date:'2026-08-11',items:[
       'Portiere dichiarato (Fase 2 di 4): la dichiarazione portiere ora e OBBLIGATORIA per le partite nuove (richiesta di Alby) — il campo parte vuoto, "A Turno" e sempre la prima opzione selezionabile ma va scelta attivamente, il salvataggio si blocca finche non si sceglie per entrambe le squadre. Le partite gia esistenti restano con la vecchia logica (nessun impatto sullo storico).',
@@ -9833,7 +9835,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.846');
+    const appVersion = ref('1.847');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9934,22 +9936,21 @@ createApp({
     };
 
     // Fix 11/8/2026 (feature "Portiere dichiarato", Fase 2): prima contava chiunque fosse in
-    // squadra con 0 gol subiti, senza controllare chi avesse davvero giocato in porta. Ora:
-    // - partite VECCHIE (senza il campo portiereDichiarato, salvate prima di questa feature):
-    //   vecchia logica invariata (chiunque fosse in squadra), per non azzerare di colpo lo storico
-    // - partite NUOVE (con il campo, obbligatorio da compilare): conta SOLO se il giocatore è
-    //   esattamente quello dichiarato per quella squadra — "a turno" (valore null) non assegna
-    //   il clean sheet a nessuno, per decisione esplicita di Alby ("non sappiamo chi era in porta")
+    // Fix 13/8/2026 (richiesta di Alby): rimosso il controllo speciale "if ('portiereDichiarato' in m)"
+    // che trattava diversamente le partite vecchie (campo assente = chiunque in squadra prende il
+    // clean sheet) dalle partite nuove con "a turno" (nessuno lo prende). Ora l'accesso opzionale
+    // (?.) tratta il campo assente ESATTAMENTE come portiereDichiarato:{A:null,B:null} — stesso
+    // risultato della proposta di Alby di valorizzare "a turno" su tutte le partite vecchie, ma
+    // senza dover toccare nessun dato salvato (locale o Firebase), un solo punto di codice più
+    // semplice. Comportamento ora identico a _splitMatchesByRuolo, che già faceva così.
     const calcCleanSheets = (playerId, matches = groupMatches.value) => {
       let cs = 0;
       for (const m of matches) {
         const inA = (m.squadraA||[]).includes(playerId);
         const inB = (m.squadraB||[]).includes(playerId);
         if (!inA && !inB) continue;
-        if ('portiereDichiarato' in m) {
-          const side = inA ? 'A' : 'B';
-          if (m.portiereDichiarato?.[side] !== playerId) continue; // non dichiarato o non era lui
-        }
+        const side = inA ? 'A' : 'B';
+        if (m.portiereDichiarato?.[side] !== playerId) continue; // non dichiarato, "a turno", o non era lui
         if ((inA ? (m.risultato?.goalB||0) : (m.risultato?.goalA||0)) === 0) cs++;
       }
       return cs;
