@@ -3820,23 +3820,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             @click="openSostituzioneModal">
             🩹 Sostituzioni per infortunio{{ matchSostituzioni.length ? ' ('+matchSostituzioni.length+')' : '' }}
           </button>
-          <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori"): stesso blocco
-               di "Tutti Insieme"/"Vota con gli amici", qui nell'header sempre visibile (non
-               dipende da quale giocatore è aperto in questo momento). -->
+          <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori"): OBBLIGATORIO
+               (11/8/2026) — stesso blocco di "Tutti Insieme"/"Vota con gli amici". -->
           <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-top:8px">
-            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="opacity:.7">(opzionale — se non indicato, si assume "a turno")</span></div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="color:var(--red);opacity:.85">(obbligatorio)</span></div>
             <div style="display:flex;gap:8px">
               <div style="flex:1">
                 <label style="font-size:0.68rem;color:var(--blue);display:block;margin-bottom:3px">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</label>
-                <select class="select-field" v-model="matchPortiereDichiarato.A" style="width:100%">
-                  <option :value="null">A turno</option>
+                <select class="select-field" v-model="matchPortiereDichiarato.A" style="width:100%" required>
+                  <option value="" disabled>Seleziona...</option>
+                  <option value="__turno__">A turno</option>
                   <option v-for="pid in teamA" :key="'pdAsbs-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
                 </select>
               </div>
               <div style="flex:1">
                 <label style="font-size:0.68rem;color:var(--red);display:block;margin-bottom:3px">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</label>
-                <select class="select-field" v-model="matchPortiereDichiarato.B" style="width:100%">
-                  <option :value="null">A turno</option>
+                <select class="select-field" v-model="matchPortiereDichiarato.B" style="width:100%" required>
+                  <option value="" disabled>Seleziona...</option>
+                  <option value="__turno__">A turno</option>
                   <option v-for="pid in teamB" :key="'pdBsbs-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
                 </select>
               </div>
@@ -4099,22 +4100,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
 
         <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori", richiesta di Alby):
-             opzionale, un menu per squadra. Se non toccato resta "A turno" — nessun cambiamento
-             per chi non usa questa funzione. -->
+             OBBLIGATORIO per le partite nuove (11/8/2026) — parte vuoto apposta (nessuna opzione
+             pre-selezionata, "A turno" incluso), così chi inserisce deve scegliere attivamente.
+             saveMatch() blocca il salvataggio se non compilato per entrambe le squadre. -->
         <div style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:12px">
-          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="opacity:.7">(opzionale — se non indicato, si assume "a turno")</span></div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Chi ha fatto il portiere? <span style="color:var(--red);opacity:.85">(obbligatorio)</span></div>
           <div style="display:flex;gap:8px">
             <div style="flex:1">
               <label style="font-size:0.68rem;color:var(--blue);display:block;margin-bottom:3px">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</label>
-              <select class="select-field" v-model="matchPortiereDichiarato.A" style="width:100%">
-                <option :value="null">A turno</option>
+              <select class="select-field" v-model="matchPortiereDichiarato.A" style="width:100%" required>
+                <option value="" disabled>Seleziona...</option>
+                <option value="__turno__">A turno</option>
                 <option v-for="pid in teamA" :key="'pdA-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
               </select>
             </div>
             <div style="flex:1">
               <label style="font-size:0.68rem;color:var(--red);display:block;margin-bottom:3px">🔴 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</label>
-              <select class="select-field" v-model="matchPortiereDichiarato.B" style="width:100%">
-                <option :value="null">A turno</option>
+              <select class="select-field" v-model="matchPortiereDichiarato.B" style="width:100%" required>
+                <option value="" disabled>Seleziona...</option>
+                <option value="__turno__">A turno</option>
                 <option v-for="pid in teamB" :key="'pdB-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
               </select>
             </div>
@@ -4594,6 +4598,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {id:'assist',icon:'🅰️',col:'rgba(100,200,255,.15)'},
               {id:'topteam',icon:'🏟️',col:'rgba(100,255,200,.15)'},
               {id:'autogol',icon:'❌',col:'rgba(200,200,200,.08)'},
+              {id:'cleansheet',icon:'🧤',col:'rgba(74,222,128,.12)'},
               {id:'hofre',icon:'👑',col:'rgba(251,191,36,.15)'},
               {id:'hofbidone',icon:'🪣',col:'rgba(150,150,150,.15)'}
             ]"
@@ -4604,7 +4609,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div style="width:28px;height:28px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px" :style="'background:'+tab.col">{{tab.icon}}</div>
               <span style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap"
                 :style="statsTab===tab.id?'color:var(--lime)':'color:var(--text2)'">
-                {{tab.id==='overall'?'Overall':tab.id==='goal'?'Gol':tab.id==='mediagol'?'Media ⚽':tab.id==='classifica'?'Punti':tab.id==='altri'?'UoM':tab.id==='h2h'?'H2H':tab.id==='mediapunti'?'Media Pt':tab.id==='mediavoto'?'Media ⭐':tab.id==='assist'?'Assist':tab.id==='topteam'?'Top Team':tab.id==='hofre'?'Re Mese':tab.id==='hofbidone'?'Bidone Mese':'Autogol'}}
+                {{tab.id==='overall'?'Overall':tab.id==='goal'?'Gol':tab.id==='mediagol'?'Media ⚽':tab.id==='classifica'?'Punti':tab.id==='altri'?'UoM':tab.id==='h2h'?'H2H':tab.id==='mediapunti'?'Media Pt':tab.id==='mediavoto'?'Media ⭐':tab.id==='assist'?'Assist':tab.id==='topteam'?'Top Team':tab.id==='hofre'?'Re Mese':tab.id==='hofbidone'?'Bidone Mese':tab.id==='cleansheet'?'Clean Sheet':'Autogol'}}
               </span>
             </button>
           </div>
@@ -4918,6 +4923,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
               <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
               <div class="stats-val" style="color:var(--red)">{{p.autogolTotali}}</div>
+            </div>
+          </div>
+        </template>
+
+        <!-- ── CLEAN SHEET (11/8/2026, richiesta di Alby, feature "Portiere dichiarato" Fase 2) ── -->
+        <template v-if="statsTab==='cleansheet'">
+          <div class="card">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+              <div class="card-title" style="margin-bottom:0">🧤 Classifica Clean Sheet</div><button class="btn btn-ghost btn-sm" style="font-size:0.8rem;padding:5px 12px" @click="shareStatsPNG('cleansheet')">📤 Condividi</button>
+            </div>
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">Partite senza subire gol, giocando davvero in porta. Solo le partite con il portiere dichiarato entrano in questa classifica.</div>
+            <div v-if="!statsTopCleanSheets.length" class="empty-state" style="padding:16px"><p>Nessun clean sheet ancora — ricordati di dichiarare chi ha fatto il portiere quando registri una partita!</p></div>
+            <div v-for="(p,i) in statsTopCleanSheets" :key="p.id" class="stats-row" style="cursor:pointer" @click="openPlayerDetail(p, statsSeasonFilter!=='attuale', statsSourceMatches, statsSeasonFilter)">
+              <div class="stats-rank" :class="rankClass(i)">{{i+1}}</div>
+              <div class="stats-avatar"><img v-if="getPlayerPhoto(p.foto, p.uid)" :src="getPlayerPhoto(p.foto, p.uid)" @error="onPhotoError($event, p.uid)"><img v-else :src="SILHOUETTE" style="width:100%;height:100%;object-fit:cover;border-radius:50%;opacity:0.6"></div>
+              <div class="stats-info"><div class="stats-name">{{p.soprannome||p.nome}}</div><div class="stats-sub">{{p.nome}} {{p.cognome}}</div></div>
+              <div class="stats-val" style="color:var(--lime)">{{p._cs}}</div>
             </div>
           </div>
         </template>
@@ -8598,7 +8620,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.844',date:'2026-08-11',items:[
+    const changelogEntries = [{version:'v1.845',date:'2026-08-11',items:[
+      'Portiere dichiarato (Fase 2 di 4): la dichiarazione portiere ora e OBBLIGATORIA per le partite nuove (richiesta di Alby) — il campo parte vuoto, "A Turno" e sempre la prima opzione selezionabile ma va scelta attivamente, il salvataggio si blocca finche non si sceglie per entrambe le squadre. Le partite gia esistenti restano con la vecchia logica (nessun impatto sullo storico).',
+      '🧤 Fix Clean Sheet: ora conta correttamente solo il portiere davvero dichiarato per le partite nuove (prima contava chiunque fosse in squadra, indipendentemente dal ruolo giocato). Aggiunta la classifica "Clean Sheet" nelle Statistiche, con bottone di condivisione come le altre classifiche.',
+    ]},{version:'v1.844',date:'2026-08-11',items:[
       'Nuova feature (Fase 1 di 4) — Portiere dichiarato: nelle 3 modalita di inserimento risultato (Uno alla Volta, Tutti Insieme, Vota con gli amici) e nella Modifica Partita, un menu opzionale per squadra per indicare chi ha fatto davvero il portiere in quella partita specifica. Se non indicato resta "a turno" come oggi, nessun cambiamento per chi non usa la funzione. Salvato sulla partita (JSON e Firebase). Prossime fasi: fix del Clean Sheet (che oggi non controlla il ruolo davvero giocato), calcolo Overall pesato per chi gioca piu ruoli, integrazione con Identikit AI.',
     ]},{version:'v1.843',date:'2026-08-10',items:[
       'Card condivisibili — 7 nuovi tipi (11 etichette): Trending Ora, Crisi di Forma/Cronaca Top Scorer/Il Guascone (stesso tipo cronaca), Squadra Perfetta del Momento, entrambe le Pronostico, Record Personale, Forma Recente, Testa a Testa, I Fantasmi del Gol. Foto convertite al metodo sicuro con html2canvas. Testato ogni tipo con Puppeteer: PNG generato, foto non schiacciate.',
@@ -9802,7 +9827,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.844');
+    const appVersion = ref('1.845');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9902,12 +9927,23 @@ createApp({
       }).length;
     };
 
+    // Fix 11/8/2026 (feature "Portiere dichiarato", Fase 2): prima contava chiunque fosse in
+    // squadra con 0 gol subiti, senza controllare chi avesse davvero giocato in porta. Ora:
+    // - partite VECCHIE (senza il campo portiereDichiarato, salvate prima di questa feature):
+    //   vecchia logica invariata (chiunque fosse in squadra), per non azzerare di colpo lo storico
+    // - partite NUOVE (con il campo, obbligatorio da compilare): conta SOLO se il giocatore è
+    //   esattamente quello dichiarato per quella squadra — "a turno" (valore null) non assegna
+    //   il clean sheet a nessuno, per decisione esplicita di Alby ("non sappiamo chi era in porta")
     const calcCleanSheets = (playerId, matches = groupMatches.value) => {
       let cs = 0;
       for (const m of matches) {
         const inA = (m.squadraA||[]).includes(playerId);
         const inB = (m.squadraB||[]).includes(playerId);
         if (!inA && !inB) continue;
+        if ('portiereDichiarato' in m) {
+          const side = inA ? 'A' : 'B';
+          if (m.portiereDichiarato?.[side] !== playerId) continue; // non dichiarato o non era lui
+        }
         if ((inA ? (m.risultato?.goalB||0) : (m.risultato?.goalA||0)) === 0) cs++;
       }
       return cs;
@@ -11394,11 +11430,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
       playerStats.value = {};
       matchSostituzioni.value = [];
       // Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori", richiesta di Alby):
-      // opzionale, per squadra — se non dichiarato per una squadra significa "a turno" (nessuno
-      // prende il clean sheet quella partita per quella squadra, l'Overall usa il ruolo anagrafico
-      // come fallback). Se dichiarato, quel giocatore specifico è il portiere per QUESTA partita —
-      // tutti gli altri della sua squadra sono "fuori ruolo" per questa partita specifica.
-      matchPortiereDichiarato.value = { A: null, B: null };
+      // per squadra, OBBLIGATORIO per le partite nuove (richiesta di Alby 11/8/2026: il campo
+      // parte VUOTO — non pre-selezionato su "A turno" — così chi inserisce deve scegliere
+      // attivamente, "A turno" incluso, invece di lasciarlo per dimenticanza). Stringa vuota '' =
+      // non ancora scelto (blocca il salvataggio); '__turno__' = scelta esplicita "a turno" (nessun
+      // clean sheet per quella squadra quella partita); altrimenti il playerId del portiere.
+      matchPortiereDichiarato.value = { A: '', B: '' };
       aiComment.value = '';
       generatedPNG.value = '';
       matchStep.value = 1;
@@ -11435,10 +11472,12 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // solo a partita in corso/finita) e IL COLLEGAMENTO infortunato↔sostituto va tracciato,
     // confermato esplicitamente da Alby — usato per mostrare l'icona nel dettaglio partita.
     const matchSostituzioni = ref([]); // [{squadra:'A'|'B', infortunatoUid, sostitutoUid}]
-    // Portiere dichiarato per la partita in corso (10/8/2026) — {A: playerId|null, B: playerId|null}.
-    // null = "a turno" (non dichiarato). Usata da saveMatch/saveEditMatch per salvare sulla partita,
-    // e dalle 3 modalità di inserimento + dalla modifica partita per l'interfaccia di dichiarazione.
-    const matchPortiereDichiarato = ref({ A: null, B: null });
+    // Portiere dichiarato per la partita in corso (10/8/2026) — {A: ''|'__turno__'|playerId, ...}.
+    // '' = non ancora scelto (blocca il salvataggio nelle partite nuove); '__turno__' = scelta
+    // esplicita "a turno"; playerId = quel giocatore è il portiere dichiarato. Usata da
+    // saveMatch/saveEditMatch per salvare sulla partita, e dalle 3 modalità di inserimento + dalla
+    // modifica partita per l'interfaccia di dichiarazione.
+    const matchPortiereDichiarato = ref({ A: '', B: '' });
     const showSostituzioneModal = ref(false);
     const sostituzioneForm = ref({ squadra: 'A', infortunatoUid: '', sostitutoUid: '' });
 
@@ -12757,7 +12796,7 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
       try {
         const dataUrl = await drawStatsCanvas(tipo);
         const labels = {goal:'marcatori',assist:'assist',overall:'overall',classifica:'classifica',
-                        mediapunti:'media-punti',voti:'voti',altri:'uomo-partita',topteam:'top-team',autogol:'autogol'};
+                        mediapunti:'media-punti',voti:'voti',altri:'uomo-partita',topteam:'top-team',autogol:'autogol',cleansheet:'clean-sheet'};
         previewPNGUrl.value = dataUrl;
         previewPNGName.value = `amicifc-stats-${labels[tipo]||tipo}-${new Date().toLocaleDateString('it-IT').replace(/\//g,'-')}.png`;
         showPNGPreview.value = true;
@@ -12783,6 +12822,7 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
         overall:    {label:'OVERALL - TOP PLAYER', icon:'🥇', color:'#C8FF00', data:()=>statsTopOverall.value.slice(0,10),    val:p=>`${Math.round(p._score||0)} OVR`},
         topteam:    {label:`BEST ${topFormationSize.value}vs${topFormationSize.value}`,icon:'🏟️', color:'#C8FF00', data:()=>buildTopFormation(topFormationSize.value, statsSourceMatches.value, statsSourcePlayers.value).slice(0,12), val:p=>p.ruolo||''},
         autogol:    {label:'HALL OF SHAME - AUTOGOL', icon:'😬', color:'#FF4D4D', data:()=>[...statsSourcePlayers.value].filter(p=>(p.autogolTotali||0)>0).sort((a,b)=>(b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10), val:p=>`${p.autogolTotali}`},
+        cleansheet: {label:'CLASSIFICA CLEAN SHEET', icon:'🧤', color:'#4ADE80', data:()=>statsTopCleanSheets.value.slice(0,10), val:p=>`${p._cs} CS`},
       };
       const cfg = statConfigs[tipo] || statConfigs.goal;
       const rows = cfg.data();
@@ -14925,6 +14965,15 @@ Niente altro, nessuna spiegazione.`;
     const saveMatch = async () => {
       if (!currentGroup.value) return;
 
+      // Portiere dichiarato obbligatorio (11/8/2026, richiesta di Alby): per le partite NUOVE,
+      // entrambe le squadre devono avere una scelta esplicita (un giocatore specifico o "a turno")
+      // prima di poter salvare — niente più dimenticanze che lascerebbero il campo vuoto per
+      // errore invece che per scelta consapevole.
+      if (!matchPortiereDichiarato.value.A || !matchPortiereDichiarato.value.B) {
+        toast('🥅 Indica chi ha fatto il portiere per entrambe le squadre (anche "A turno")', 'error');
+        return;
+      }
+
       // Catturato PRIMA di qualsiasi await/scrittura (Regola 6/8/2026): se questa è la primissima
       // partita del gruppo e "Card Tutorial" è ancora attivo, va disattivato automaticamente a
       // salvataggio riuscito — l'utente può sempre riattivarlo da Impostazioni→Aspetto.
@@ -14981,9 +15030,13 @@ Niente altro, nessuna spiegazione.`;
         riserveA:   [...(activeFormation.value?.riserveA || [])],
         riserveB:   [...(activeFormation.value?.riserveB || [])],
         sostituzioni: [...matchSostituzioni.value],
-        // Portiere dichiarato (10/8/2026): {A,B} playerId o null (="a turno"). Copia semplice —
-        // sono solo 2 stringhe/null, nessun bisogno di clonare in profondità.
-        portiereDichiarato: { A: matchPortiereDichiarato.value.A, B: matchPortiereDichiarato.value.B },
+        // Portiere dichiarato (10/8/2026): {A,B} playerId o null (="a turno"). Il form usa
+        // '__turno__' come valore del menu per forzare una scelta esplicita — qui lo traduco in
+        // null per tenere il dato salvato pulito (solo playerId o null, mai la stringa sentinella).
+        portiereDichiarato: {
+          A: matchPortiereDichiarato.value.A === '__turno__' ? null : matchPortiereDichiarato.value.A,
+          B: matchPortiereDichiarato.value.B === '__turno__' ? null : matchPortiereDichiarato.value.B,
+        },
         risultato:  { goalA, goalB },
         statisticheGiocatori: statsArr,
         votazioneCondivisaPending: matchIsVoteMode.value ? true : false,
@@ -18026,6 +18079,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const statsTopAutogol = computed(() =>
       [...statsSourcePlayers.value].filter(p => p.autogolTotali > 0)
         .sort((a,b) => (b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10)
+    );
+    // Classifica Clean Sheet (11/8/2026, richiesta di Alby, feature "Portiere dichiarato" Fase 2):
+    // calcCleanSheets ora usa portiereDichiarato quando presente (partite nuove) — mostra QUALSIASI
+    // giocatore con almeno 1 clean sheet, non solo chi ha ruolo anagrafico Portiere, dato che con
+    // questa feature anche un giocatore di movimento può aver giocato in porta in qualche partita.
+    const statsTopCleanSheets = computed(() =>
+      [...statsSourcePlayers.value]
+        .map(p => ({ ...p, _cs: calcCleanSheets(p.uid||String(p.id), statsSourceMatches.value) }))
+        .filter(p => p._cs > 0)
+        .sort((a,b) => (b._cs||0)-(a._cs||0)).slice(0,10)
     );
     const statsTopPoints = computed(() =>
       [...statsSourcePlayers.value].filter(p => (p.partiteTotali||0) > 0)
@@ -23333,7 +23396,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       totalGoals, recentMatches, sortedMatches, computedMVP, computedUomoPartita, statsGoalA, statsGoalB, scoreMismatch,
       topScorers, topAssists, topRated, topUomoPartita, topAutogol, topPoints, topAvgPoints, topOverall, statsTab, matchesByMonth,
       statsSeasonFilter, historySeasonFilter, statsSourcePlayers, statsSourceMatches, isStatsArchived, historySourceMatches, isHistoryArchived,
-      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsMediaVotoDinamica, statsTopUomoPartita, statsTopAutogol, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
+      statsTotalGoals, statsTopScorers, statsTopAssists, statsTopRated, statsTopRatedClassifica, statsMediaVotoDinamica, statsTopUomoPartita, statsTopAutogol, statsTopCleanSheets, statsTopPoints, statsTopAvgPoints, statsTopOverall, statsLeader,
       detailPlayerReadOnly, detailPlayerFormHistory, detailPlayerRecord, detailPlayerTab, detailPlayerSeasonFilter, detailPlayerHistoryMatches, openHistoryMatch, backToPlayer, detailMatchFromPlayer,
       formatDate, roleEmoji, groupColor, rankClass, votoColor, sortedByRole,
       buildTopFormation, topFormationSize,
