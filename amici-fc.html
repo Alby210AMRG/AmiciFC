@@ -8624,7 +8624,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.848',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.849',date:'2026-08-13',items:[
+      'Portiere dichiarato (Fase 4 di 4, ULTIMA FASE): integrazione con Identikit AI e commento post-partita. Condizione precisa concordata con Alby: solo quando un Portiere di ruolo gioca una partita segnata A turno (non un altro portiere specifico dichiarato) E in quella partita ha fatto gol, assist o sbagliato un rigore - segnale che probabilmente quel giorno non era lui in porta. Sia il commento del giornale post-partita sia l Identikit AI (con il conteggio sulla stagione) ora ricevono questa informazione, con istruzioni di menzionarla solo se presente e con un tocco scherzoso. Testato con Puppeteer tutti i casi: a turno con contributo conta, dichiarato specificamente non conta (nemmeno se e lui stesso), a turno senza contributo non conta, un giocatore non portiere da sempre zero. Con questa fase si conclude il progetto Portiere dichiarato.',
+    ]},{version:'v1.848',date:'2026-08-13',items:[
       'Bug reale trovato da Alby: modificando una partita per correggere chi ha fatto il portiere, la scelta non veniva salvata - riaprendo la partita tornava sempre A turno. Causa: il salvataggio della modifica partita elenca ogni campo a mano (per non perdere le sostituzioni), e portiereDichiarato non era nella lista. Aggiunto. Verificato con un test end-to-end: partita senza il campo, apertura modifica, scelta di un portiere specifico, salvataggio, lettura diretta dal database, riapertura - il valore ora resta esattamente quello scelto.',
     ]},{version:'v1.847',date:'2026-08-13',items:[
       'Fix Clean Sheet: le partite vecchie (senza il campo portiere dichiarato) davano il clean sheet a CHIUNQUE fosse in squadra, mentre le partite nuove con a turno non lo davano a nessuno - due comportamenti diversi per la stessa situazione (non sappiamo chi era davvero in porta). Unificati: ora anche le partite vecchie si comportano come a turno, nessuno prende il clean sheet. Nessun dato modificato, solo un fix nel calcolo (sempre dal vivo, mai salvato) - i numeri si aggiornano da soli, nessun ricalcolo manuale necessario.',
@@ -9837,7 +9839,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.848');
+    const appVersion = ref('1.849');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9987,6 +9989,30 @@ createApp({
         }
       }
       return { keeper, movement };
+    };
+
+    // Portiere dichiarato, Fase 4 (13/8/2026) — usata sia nel commento AI post-partita sia
+    // nell'Identikit AI (soprannomi). Condizione concordata con Alby: conta SOLO le partite dove
+    // la squadra del Portiere è dichiarata "a turno" (ambiguo, non sappiamo con certezza chi era
+    // in porta) E lui ha comunque fatto qualcosa da giocatore di movimento — non le partite dove
+    // un altro portiere specifico era dichiarato (in quel caso sappiamo per certo, non è degno di
+    // nota come "sorpresa").
+    const _countPortiereFuoriRuoloAmbiguo = (p, matches) => {
+      if ((p.ruolo||'').trim() !== 'Portiere') return 0;
+      const pid = p.uid || String(p.id);
+      let count = 0;
+      for (const m of matches) {
+        const inA = (m.squadraA||[]).map(String).includes(String(pid));
+        const inB = (m.squadraB||[]).map(String).includes(String(pid));
+        if (!inA && !inB) continue;
+        const side = inA ? 'A' : 'B';
+        const declared = m.portiereDichiarato?.[side];
+        if (declared && declared !== '__turno__') continue; // dichiarato specificamente, non ambiguo
+        const st = (m.statisticheGiocatori||[]).find(s => String(s.playerId) === String(pid));
+        if (!st) continue;
+        if ((st.goal||0) > 0 || (st.assist||0) > 0 || (st.rigoriSbagliati||0) > 0) count++;
+      }
+      return count;
     };
 
     // Ricostruisce le statistiche aggregate (gol, assist, media voto, ecc.) SOLO dal sottoinsieme
@@ -14082,6 +14108,11 @@ OUTPUT: Rispondi SOLO con JSON valido:
           if (p.descrizione) obj.descrizione_qualita = p.descrizione;
           if (p.numeroMaglia) obj.numero_preferito = p.numeroMaglia;
           if (p.squadraCuore) obj.squadra_cuore = p.squadraCuore;
+          // Portiere dichiarato, Fase 4 (13/8/2026): quante volte quest'anno ha giocato "a turno"
+          // (ambiguo, non sappiamo con certezza chi era in porta) E ha comunque fatto gol/assist/
+          // rigore sbagliato — probabile che quelle volte non fosse lui in porta. Solo per Portieri.
+          const _fuoriRuolo = _countPortiereFuoriRuoloAmbiguo(p, groupMatches.value);
+          if (_fuoriRuolo > 0) obj.volte_fuori_porta_con_contributo = _fuoriRuolo;
           return obj;
         });
 
@@ -14095,6 +14126,7 @@ NOTE CAMPI:
 - numero_preferito (se presente): il numero di maglia scelto dal giocatore — puoi citarlo con ironia se si presta (es. legato a un calciatore famoso con quel numero), ma non è obbligatorio
 - squadra_cuore (se presente): la squadra di calcio del cuore del giocatore — puoi usarla per un parallelo o una battuta se pertinente, ma non è obbligatorio
 - autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
+- volte_fuori_porta_con_contributo (solo per i Portieri, se presente): quante volte quest'anno ha fatto gol/assist/rigore sbagliato in una partita dove non era chiaro chi fosse il portiere titolare quel giorno — ottimo spunto ironico ("anche i portieri sognano il gol"), menzionalo solo se presente
 REGOLE OBBLIGATORIE:
 - Riporta SEMPRE il campo "n" come numero, esattamente uguale a numero_riferimento
 - Il confronto DEVE riflettere i dati reali (es: 0 gol → NON paragonare a Ronaldo o bomber)
@@ -14841,6 +14873,27 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       const _uomSection = _uomName ? '\nUomo della partita: '+_uomName : '';
       const hasPagelle = allPlayers.some(pid => (playerStats.value[pid]?.voto||0) !== 6 && (playerStats.value[pid]?.voto||0) > 0);
 
+      // Portiere dichiarato, Fase 4 (13/8/2026): rileva un Portiere di ruolo che, in QUESTA
+      // partita specifica, ha la squadra dichiarata "a turno" (non sappiamo con certezza chi era
+      // in porta) E ha comunque fatto qualcosa da giocatore di movimento (gol/assist/rigore
+      // sbagliato) — segnale genuino che probabilmente non era lui in porta quella volta.
+      // Condizione concordata con Alby: SOLO "a turno", non se un altro portiere specifico era
+      // dichiarato (in quel caso sappiamo per certo che ha giocato fuori, non è una sorpresa).
+      const _portiereFuoriRuolo = [];
+      for (const pid of allPlayers) {
+        const p = getPlayer(pid);
+        if (!p || (p.ruolo||'').trim() !== 'Portiere') continue;
+        const inA = teamA.value.includes(pid);
+        const declared = matchPortiereDichiarato.value[inA ? 'A' : 'B'];
+        if (declared && declared !== '__turno__') continue; // dichiarato specificamente (lui o un altro) — non ambiguo
+        const s = playerStats.value[pid] || {};
+        const azioni = [];
+        if (s.goal) azioni.push(s.goal + ' gol');
+        if (s.assist) azioni.push(s.assist + ' assist');
+        if (s.rigoriSbagliati) azioni.push('rigore sbagliato');
+        if (azioni.length) _portiereFuoriRuolo.push((p.soprannome||p.nome) + ' (' + azioni.join(', ') + ')');
+      }
+
       // ── Build match data section ──
       const _datiPartita = [
         `Gruppo: ${currentGroup.value?.nome || 'Amici FC'}`,
@@ -14854,6 +14907,7 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
           const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
           return (inf?.soprannome||inf?.nome||'?') + ' esce infortunato, entra ' + (sos?.soprannome||sos?.nome||'?');
         }).join('; ')}` : '',
+        _portiereFuoriRuolo.length ? `Portiere in campo aperto: ${_portiereFuoriRuolo.join('; ')} — di ruolo portiere, ma questa partita "a turno" e con contributo offensivo, probabile che non fosse lui in porta stavolta` : '',
         '',
         'Pagelle e statistiche giocatori:',
         ...allPlayers.map(pid => {
@@ -14894,6 +14948,7 @@ LINEE GUIDA IMPORTANTI:
 - Enfatizza momenti chiave: gol, errori clamorosi, giocate decisive, l'uomo partita
 - Se presenti, integra le "Note dal campo" nel racconto in modo naturale
 - Se presente una "Sostituzione per infortunio", raccontala con un tocco drammatico-ironico (es. "il dramma si consuma al 30esimo minuto...") — solo se il dato è presente, non inventarla mai
+- Se presente un "Portiere in campo aperto", raccontalo con un tocco scherzoso (es. "anche i portieri stanchi di parare vogliono la gloria") — solo se il dato è presente, non inventarlo mai
 - Puoi esagerare leggermente per effetto comico
 - Evita tono cronachistico puro: deve essere storytelling
 - Usa esclamazioni italiane: "Mamma mia!", "Incredibile!", "Che serata!", "Roba da matti!"
