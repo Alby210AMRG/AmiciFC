@@ -4805,6 +4805,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
             <div v-if="ovrExpandedId===p.id" style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin:-4px 0 10px;font-size:0.76rem;color:var(--text2);line-height:1.9">
               <div style="font-weight:700;color:var(--text);margin-bottom:4px">Come arriva a {{p._score}} — ruolo {{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).ruolo}}</div>
+              <div v-if="overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto"
+                style="background:rgba(166,255,77,.1);border:1px solid rgba(166,255,77,.25);border-radius:8px;padding:8px 10px;margin-bottom:6px;color:var(--text)">
+                ⚖️ <strong>OVR misto:</strong> {{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto.keeperCount}} partite da {{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto.keeperRuolo}} ({{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto.keeperOvr}}), {{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto.movementCount}} da {{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto.movementRuolo}} ({{overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).misto.movementOvr}}) — media pesata sul numero di partite
+              </div>
               <div v-for="(v,vi) in overallScoreBreakdown(p, null, statsSourceMatches, statsSourcePlayers).voci" :key="vi" style="display:flex;justify-content:space-between;gap:8px">
                 <span>{{v.label}}<span v-if="v.sub" style="color:rgba(255,255,255,.35)"> ({{v.sub}})</span></span>
                 <span :style="v.val<0?'color:var(--red)':'color:var(--text)'" style="font-weight:700;white-space:nowrap">{{v.val>=0?'+':''}}{{v.val.toFixed(1)}}</span>
@@ -8620,7 +8624,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.845',date:'2026-08-11',items:[
+    const changelogEntries = [{version:'v1.846',date:'2026-08-13',items:[
+      'Portiere dichiarato (Fase 3 di 4): calcolo Overall pesato per chi ha giocato piu ruoli nella stagione. Se un giocatore ha partite sia da portiere sia fuori ruolo (secondo portiereDichiarato), l\'Overall ora e una media pesata tra le due specialita invece di usare una sola formula fissa. Le partite fuori ruolo di un portiere usano la formula Jolly (gia esistente, la stessa di Attaccante/Centrocampista). In Statistiche, aprendo la scomposizione OVR di un giocatore misto compare "OVR misto: X partite da Portiere (N), Y da Jolly (M)". Chi non cambia mai ruolo non vede alcuna differenza. Testato con Puppeteer: caso misto (5+5 partite) calcola correttamente la media pesata, caso puro (10/10 partite) bypassa completamente il nuovo calcolo (zero rischio di regressione), indicatore visivo verificato nella UI reale.',
+    ]},{version:'v1.845',date:'2026-08-11',items:[
       'Portiere dichiarato (Fase 2 di 4): la dichiarazione portiere ora e OBBLIGATORIA per le partite nuove (richiesta di Alby) — il campo parte vuoto, "A Turno" e sempre la prima opzione selezionabile ma va scelta attivamente, il salvataggio si blocca finche non si sceglie per entrambe le squadre. Le partite gia esistenti restano con la vecchia logica (nessun impatto sullo storico).',
       '🧤 Fix Clean Sheet: ora conta correttamente solo il portiere davvero dichiarato per le partite nuove (prima contava chiunque fosse in squadra, indipendentemente dal ruolo giocato). Aggiunta la classifica "Clean Sheet" nelle Statistiche, con bottone di condivisione come le altre classifiche.',
     ]},{version:'v1.844',date:'2026-08-11',items:[
@@ -9827,7 +9833,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.845');
+    const appVersion = ref('1.846');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -9954,7 +9960,91 @@ createApp({
     // pezzi (per la riga espandibile in Statistiche e la vista equivalente in Inspector, 13/7/2026).
     // overallScore (sotto) richiama questa e prende solo .totale — un'unica fonte di verità, cosi il
     // numero mostrato e la sua scomposizione non possono mai disallinearsi tra loro.
-    const overallScoreBreakdown = (p, pMax, matches = groupMatches.value, players = groupPlayers.value) => {
+    // ── Portiere dichiarato, Fase 3 (11/8/2026) ──────────────────────────────────────────
+    // Divide le partite di un giocatore in due gruppi: "da portiere" e "da movimento", usando
+    // portiereDichiarato. Regola concordata con Alby: se la dichiarazione è specifica (un altro
+    // giocatore preciso, o il giocatore stesso), si sa con certezza; se è ambigua ("a turno" o
+    // partita vecchia senza il campo), conta come il ruolo ABITUALE del giocatore.
+    const _splitMatchesByRuolo = (p, matches) => {
+      const pid = p.uid || String(p.id);
+      const keeper = [], movement = [];
+      for (const m of matches) {
+        const inA = (m.squadraA||[]).map(String).includes(String(pid));
+        const inB = (m.squadraB||[]).map(String).includes(String(pid));
+        if (!inA && !inB) continue;
+        const side = inA ? 'A' : 'B';
+        const declared = m.portiereDichiarato?.[side];
+        if (declared && String(declared) === String(pid)) {
+          keeper.push(m); // ha fatto lui il portiere, per certo
+        } else if (declared) {
+          movement.push(m); // un altro giocatore specifico ha fatto il portiere: per certo fuori ruolo
+        } else {
+          // ambiguo (a turno, o partita vecchia senza il campo) -> ruolo abituale
+          if ((p.ruolo||'').trim() === 'Portiere') keeper.push(m); else movement.push(m);
+        }
+      }
+      return { keeper, movement };
+    };
+
+    // Ricostruisce le statistiche aggregate (gol, assist, media voto, ecc.) SOLO dal sottoinsieme
+    // di partite passato, leggendo i dati grezzi per-partita (statisticheGiocatori) — necessario
+    // perché overallScoreBreakdown normalmente legge i totali già aggregati su TUTTE le partite.
+    const _computeSubsetStats = (p, subsetMatches) => {
+      const pid = p.uid || String(p.id);
+      let goalTotali=0, assistTotali=0, autogolTotali=0, uomoPartitaTotali=0, puntiTotali=0,
+          partiteTotali=0, votiSum=0, votiCount=0, rigoriParatiTotali=0, rigoriSbagliatiTotali=0;
+      for (const m of subsetMatches) {
+        const st = (m.statisticheGiocatori||[]).find(s => String(s.playerId) === String(pid));
+        if (!st) continue;
+        goalTotali += st.goal||0;
+        assistTotali += st.assist||0;
+        autogolTotali += st.autogol||0;
+        uomoPartitaTotali += st.uomoPartita ? 1 : 0;
+        puntiTotali += st.punti||0;
+        partiteTotali++;
+        rigoriParatiTotali += st.rigoriParati||0;
+        rigoriSbagliatiTotali += st.rigoriSbagliati||0;
+        if (st.voto > 0) { votiSum += st.voto; votiCount++; }
+      }
+      return {
+        ...p,
+        goalTotali, assistTotali, autogolTotali, uomoPartitaTotali,
+        puntiTotali, partiteTotali,
+        mediaPunti: partiteTotali > 0 ? puntiTotali/partiteTotali : 0,
+        mediaVoto: votiCount > 0 ? votiSum/votiCount : 0,
+        votiTotali: votiCount,
+        rigoriParatiTotali, rigoriSbagliatiTotali,
+      };
+    };
+
+    const overallScoreBreakdown = (p, pMax, matches = groupMatches.value, players = groupPlayers.value, _skipSplit = false) => {
+      // Se il giocatore ha partite sia da portiere sia da movimento, calcola un OVR pesato tra le
+      // due specialità invece di usare un'unica formula basata solo sul ruolo anagrafico fisso.
+      // _skipSplit evita la ricorsione infinita quando questa stessa funzione viene richiamata
+      // sui due sottoinsiemi (che a quel punto vanno trattati con l'unica formula normale).
+      if (!_skipSplit) {
+        const { keeper, movement } = _splitMatchesByRuolo(p, matches);
+        if (keeper.length > 0 && movement.length > 0) {
+          const ruoloMovimento = (p.ruolo||'').trim() === 'Portiere' ? 'Jolly' : (p.ruolo||'Jolly');
+          const pKeeper = _computeSubsetStats({ ...p, ruolo: 'Portiere' }, keeper);
+          const pMovement = _computeSubsetStats({ ...p, ruolo: ruoloMovimento }, movement);
+          const bKeeper = overallScoreBreakdown(pKeeper, pMax, keeper, players, true);
+          const bMovement = overallScoreBreakdown(pMovement, pMax, movement, players, true);
+          const totalN = keeper.length + movement.length;
+          const raw = (bKeeper.totale * keeper.length + bMovement.totale * movement.length) / totalN;
+          return {
+            totale: Math.min(99, Math.max(50, Math.round(raw))),
+            voci: [],
+            ruolo: `Misto (Portiere + ${ruoloMovimento})`,
+            clamped: false,
+            misto: {
+              keeperCount: keeper.length, movementCount: movement.length,
+              keeperRuolo: 'Portiere', movementRuolo: ruoloMovimento,
+              keeperOvr: bKeeper.totale, movementOvr: bMovement.totale,
+            },
+          };
+        }
+      }
       const n      = Math.max(p.partiteTotali||1, 1);
       const mp     = p.mediaPunti||0;
       const mv     = p.mediaVoto||0;
