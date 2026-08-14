@@ -8648,7 +8648,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.850',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.851',date:'2026-08-13',items:[
+      'Sistema Achievement (Fase A, nucleo completato): catalogo di 51 achievement (Presenze, Gol, Doppietta/Tripletta/Quadrupletta, Assist, Uomo Partita, Vittorie, Streak, Pareggi, Portiere, Rigori, Pagelle alte e basse, Costanza, Punti procurati, Assenze, Overall, Giocatore/Peggiore del Mese) e il motore che li calcola dal vivo per ogni giocatore. Nessuna interfaccia ancora - il catalogo esiste ma non e ancora visibile da nessuna parte nella app (arriva nelle prossime fasi: persistenza, poi scheda giocatore, poi schermate dedicate). Testato con Puppeteer: un giocatore a statistiche zero non sblocca nulla, un giocatore con statistiche specifiche sblocca esattamente gli achievement attesi e nessun altro, comprese le soglie di confine (es. 27 gol sblocca 5/10/25 ma non un fittizio 50).',
+    ]},{version:'v1.850',date:'2026-08-13',items:[
       'Sistema Achievement (in lavorazione) - primo pezzo: nuovo tracciamento dei rigori segnati (prima finivano solo nel conteggio gol, senza un contatore dedicato). Nuovo contatore RG accanto a Rig.Parato e Rig.Sbagliato in tutte le modalita di inserimento partita, gestito anche nella modifica di partite esistenti. Prerequisito per i futuri achievement sui rigori - da solo non cambia nulla nella app visibile oggi. Testato con Puppeteer il ciclo completo: salvataggio, riapertura in modifica, risalvataggio - il dato resta sempre intatto.',
     ]},{version:'v1.849',date:'2026-08-13',items:[
       'Portiere dichiarato (Fase 4 di 4, ULTIMA FASE): integrazione con Identikit AI e commento post-partita. Condizione precisa concordata con Alby: solo quando un Portiere di ruolo gioca una partita segnata A turno (non un altro portiere specifico dichiarato) E in quella partita ha fatto gol, assist o sbagliato un rigore - segnale che probabilmente quel giorno non era lui in porta. Sia il commento del giornale post-partita sia l Identikit AI (con il conteggio sulla stagione) ora ricevono questa informazione, con istruzioni di menzionarla solo se presente e con un tocco scherzoso. Testato con Puppeteer tutti i casi: a turno con contributo conta, dichiarato specificamente non conta (nemmeno se e lui stesso), a turno senza contributo non conta, un giocatore non portiere da sempre zero. Con questa fase si conclude il progetto Portiere dichiarato.',
@@ -9865,7 +9867,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.850');
+    const appVersion = ref('1.851');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10040,6 +10042,244 @@ createApp({
       }
       return count;
     };
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // SISTEMA ACHIEVEMENT — Fase A (13/8/2026): funzioni di supporto per il motore di
+    // calcolo. Ogni funzione legge SOLO dai dati grezzi delle partite (statisticheGiocatori),
+    // mai da un valore salvato/cache — stesso principio già usato per Clean Sheet/Overall.
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    // Valore massimo di un campo statistica (es. 'goal') raggiunto dal giocatore in UNA
+    // singola partita — usata per doppietta/tripletta/quadrupletta.
+    const _maxStatInMatch = (p, matches, campo) => {
+      const pid = p.uid || String(p.id);
+      let max = 0;
+      for (const m of matches) {
+        const st = (m.statisticheGiocatori||[]).find(s => String(s.playerId) === String(pid));
+        if (st && (st[campo]||0) > max) max = st[campo]||0;
+      }
+      return max;
+    };
+
+    // Voto più alto/più basso mai ricevuto dal giocatore in una partita (ignora i voti a 0,
+    // che nell'app indicano "non votato" — stessa convenzione già usata altrove).
+    const _extremeVoto = (p, matches, dir) => {
+      const pid = p.uid || String(p.id);
+      let result = dir === 'max' ? -Infinity : Infinity;
+      for (const m of matches) {
+        const st = (m.statisticheGiocatori||[]).find(s => String(s.playerId) === String(pid));
+        if (!st || !(st.voto > 0)) continue;
+        if (dir === 'max' && st.voto > result) result = st.voto;
+        if (dir === 'min' && st.voto < result) result = st.voto;
+      }
+      return isFinite(result) ? result : null;
+    };
+
+    // Storico risultati (V/P/S) del giocatore, in ordine cronologico — stesso principio già
+    // usato altrove per gli streak (TrashTalk), generalizzato qui per essere riusabile.
+    const _playerResultsHistory = (p, matches) => {
+      const pid = p.uid || String(p.id);
+      const relevant = matches.filter(m => {
+        const inA = (m.squadraA||[]).map(String).includes(String(pid));
+        const inB = (m.squadraB||[]).map(String).includes(String(pid));
+        return inA || inB;
+      }).sort((a,b) => (a.data||'').localeCompare(b.data||''));
+      return relevant.map(m => {
+        const inA = (m.squadraA||[]).map(String).includes(String(pid));
+        const goalA = m.risultato?.goalA||0, goalB = m.risultato?.goalB||0;
+        if (goalA === goalB) return 'P';
+        const wonA = goalA > goalB;
+        return (inA === wonA) ? 'V' : 'S';
+      });
+    };
+
+    // true se nello storico esiste UNA SEQUENZA di almeno "lunghezza" risultati consecutivi
+    // dello stesso tipo, in QUALSIASI punto della cronologia (non solo l'ultima serie) — un
+    // achievement, una volta raggiunto, resta valido per sempre.
+    const _hasStreak = (results, tipo, lunghezza) => {
+      let run = 0;
+      for (const r of results) {
+        run = (r === tipo) ? run + 1 : 0;
+        if (run >= lunghezza) return true;
+      }
+      return false;
+    };
+
+    // Massima serie di partite CONSECUTIVE senza presenziare, contando solo da dopo la prima
+    // presenza in assoluto del giocatore nel gruppo (altrimenti le partite giocate prima che
+    // si unisse al gruppo conterebbero come "assenze", ingiusto).
+    const _maxAbsenceStreak = (p, allMatches) => {
+      const pid = p.uid || String(p.id);
+      const sorted = [...allMatches].sort((a,b) => (a.data||'').localeCompare(b.data||''));
+      const firstIdx = sorted.findIndex(m =>
+        (m.squadraA||[]).map(String).includes(String(pid)) || (m.squadraB||[]).map(String).includes(String(pid)));
+      if (firstIdx === -1) return 0; // non ha mai giocato in questo gruppo
+      let maxRun = 0, run = 0;
+      for (let i = firstIdx; i < sorted.length; i++) {
+        const m = sorted[i];
+        const inA = (m.squadraA||[]).map(String).includes(String(pid));
+        const inB = (m.squadraB||[]).map(String).includes(String(pid));
+        if (!inA && !inB) { run++; if (run > maxRun) maxRun = run; }
+        else run = 0;
+      }
+      return maxRun;
+    };
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // SISTEMA ACHIEVEMENT — Fase A: catalogo completo (13/8/2026), concordato con Alby.
+    // Ogni voce: id univoco, categoria (per raggruppare in UI), emoji, label, descrizione,
+    // e check(p, matches) che restituisce true/false. "matches" è SEMPRE la stagione
+    // corrente (groupMatches.value) in questa Fase A — gli achievement di CARRIERA
+    // (multi-stagione) arriveranno nella Fase E, non ancora implementata.
+    // ══════════════════════════════════════════════════════════════════════════════
+    const ACHIEVEMENTS_CATALOG = [
+      // ── Presenze ──
+      { id:'presenze_10', categoria:'Presenze', emoji:'🎽', label:'10 presenze', descrizione:'Hai giocato almeno 10 partite in questa stagione',
+        check:(p,m)=>(p.partiteTotali||0)>=10 },
+      { id:'presenze_25', categoria:'Presenze', emoji:'🎽', label:'25 presenze', descrizione:'Hai giocato almeno 25 partite in questa stagione',
+        check:(p,m)=>(p.partiteTotali||0)>=25 },
+      { id:'presenze_45', categoria:'Presenze', emoji:'🎽', label:'45 presenze', descrizione:'Praticamente una stagione intera senza saltarne una',
+        check:(p,m)=>(p.partiteTotali||0)>=45 },
+
+      // ── Gol ──
+      { id:'gol_5', categoria:'Gol', emoji:'⚽', label:'5 gol', descrizione:'5 gol in questa stagione',
+        check:(p,m)=>(p.goalTotali||0)>=5 },
+      { id:'gol_10', categoria:'Gol', emoji:'⚽', label:'10 gol', descrizione:'10 gol in questa stagione',
+        check:(p,m)=>(p.goalTotali||0)>=10 },
+      { id:'gol_25', categoria:'Gol', emoji:'⚽', label:'25 gol', descrizione:'25 gol in questa stagione — una stagione da bomber',
+        check:(p,m)=>(p.goalTotali||0)>=25 },
+
+      // ── Doppietta/Tripletta/Quadrupletta ──
+      { id:'doppietta_prima', categoria:'Gol', emoji:'⚽⚽', label:'Prima doppietta', descrizione:'Almeno 2 gol in una singola partita',
+        check:(p,m)=>_maxStatInMatch(p,m,'goal')>=2 },
+      { id:'tripletta_prima', categoria:'Gol', emoji:'🎩', label:'Prima tripletta', descrizione:'Almeno 3 gol in una singola partita',
+        check:(p,m)=>_maxStatInMatch(p,m,'goal')>=3 },
+      { id:'quadrupletta_prima', categoria:'Gol', emoji:'🎯', label:'Prima quadrupletta', descrizione:'Almeno 4 gol in una singola partita',
+        check:(p,m)=>_maxStatInMatch(p,m,'goal')>=4 },
+
+      // ── Assist ──
+      { id:'assist_5', categoria:'Assist', emoji:'🅰️', label:'5 assist', descrizione:'5 assist in questa stagione',
+        check:(p,m)=>(p.assistTotali||0)>=5 },
+      { id:'assist_10', categoria:'Assist', emoji:'🅰️', label:'10 assist', descrizione:'10 assist in questa stagione',
+        check:(p,m)=>(p.assistTotali||0)>=10 },
+      { id:'assist_25', categoria:'Assist', emoji:'🅰️', label:'25 assist', descrizione:'25 assist in questa stagione — il vero regista',
+        check:(p,m)=>(p.assistTotali||0)>=25 },
+
+      // ── Uomo Partita ──
+      { id:'uomo_partita_1', categoria:'Uomo Partita', emoji:'🥇', label:'Prima volta Uomo Partita', descrizione:'Eletto Uomo Partita per la prima volta',
+        check:(p,m)=>(p.uomoPartitaTotali||0)>=1 },
+      { id:'uomo_partita_5', categoria:'Uomo Partita', emoji:'🥇', label:'5 volte Uomo Partita', descrizione:'5 volte Uomo Partita in questa stagione',
+        check:(p,m)=>(p.uomoPartitaTotali||0)>=5 },
+      { id:'uomo_partita_10', categoria:'Uomo Partita', emoji:'👑', label:'10 volte Uomo Partita', descrizione:'10 volte Uomo Partita in questa stagione',
+        check:(p,m)=>(p.uomoPartitaTotali||0)>=10 },
+      { id:'uomo_partita_25', categoria:'Uomo Partita', emoji:'👑', label:'25 volte Uomo Partita', descrizione:'25 volte Uomo Partita — un vero fuoriclasse',
+        check:(p,m)=>(p.uomoPartitaTotali||0)>=25 },
+
+      // ── Vittorie ──
+      { id:'vittorie_5', categoria:'Vittorie', emoji:'🏆', label:'5 vittorie', descrizione:'5 vittorie in questa stagione',
+        check:(p,m)=>calcPlayerWins(p.uid||String(p.id),m)>=5 },
+      { id:'vittorie_10', categoria:'Vittorie', emoji:'🏆', label:'10 vittorie', descrizione:'10 vittorie in questa stagione',
+        check:(p,m)=>calcPlayerWins(p.uid||String(p.id),m)>=10 },
+      { id:'vittorie_25', categoria:'Vittorie', emoji:'🏆', label:'25 vittorie', descrizione:'25 vittorie — una stagione da campione',
+        check:(p,m)=>calcPlayerWins(p.uid||String(p.id),m)>=25 },
+
+      // ── Vittorie/Sconfitte di fila, Pareggi ──
+      { id:'vittorie_fila_3', categoria:'Streak', emoji:'🔥', label:'3 vittorie di fila', descrizione:'3 vittorie consecutive',
+        check:(p,m)=>_hasStreak(_playerResultsHistory(p,m),'V',3) },
+      { id:'vittorie_fila_5', categoria:'Streak', emoji:'🔥', label:'5 vittorie di fila', descrizione:'5 vittorie consecutive — inarrestabile',
+        check:(p,m)=>_hasStreak(_playerResultsHistory(p,m),'V',5) },
+      { id:'sconfitte_fila_3', categoria:'Streak', emoji:'💧', label:'3 sconfitte di fila', descrizione:'3 sconfitte consecutive (capita a tutti)',
+        check:(p,m)=>_hasStreak(_playerResultsHistory(p,m),'S',3) },
+      { id:'sconfitte_fila_5', categoria:'Streak', emoji:'💧', label:'5 sconfitte di fila', descrizione:'5 sconfitte consecutive — periodo no',
+        check:(p,m)=>_hasStreak(_playerResultsHistory(p,m),'S',5) },
+      { id:'pareggi_5', categoria:'Streak', emoji:'🤝', label:'5 pareggi', descrizione:'5 pareggi in questa stagione',
+        check:(p,m)=>_playerResultsHistory(p,m).filter(r=>r==='P').length>=5 },
+      { id:'pareggi_10', categoria:'Streak', emoji:'🤝', label:'10 pareggi', descrizione:'10 pareggi — il re dell\'equilibrio',
+        check:(p,m)=>_playerResultsHistory(p,m).filter(r=>r==='P').length>=10 },
+
+      // ── Portiere ──
+      { id:'clean_sheet_5', categoria:'Portiere', emoji:'🧤', label:'5 clean sheet', descrizione:'5 partite senza subire gol da portiere',
+        check:(p,m)=>calcCleanSheets(p.uid||String(p.id),m)>=5 },
+      { id:'clean_sheet_10', categoria:'Portiere', emoji:'🧤', label:'10 clean sheet', descrizione:'10 partite senza subire gol da portiere',
+        check:(p,m)=>calcCleanSheets(p.uid||String(p.id),m)>=10 },
+      { id:'clean_sheet_25', categoria:'Portiere', emoji:'🧤', label:'25 clean sheet', descrizione:'25 clean sheet — una saracinesca',
+        check:(p,m)=>calcCleanSheets(p.uid||String(p.id),m)>=25 },
+      { id:'rigori_parati_3', categoria:'Portiere', emoji:'🥅', label:'3 rigori parati', descrizione:'3 rigori parati in questa stagione',
+        check:(p,m)=>(p.rigoriParatiTotali||0)>=3 },
+      { id:'rigori_parati_5', categoria:'Portiere', emoji:'🥅', label:'5 rigori parati', descrizione:'5 rigori parati — specialista',
+        check:(p,m)=>(p.rigoriParatiTotali||0)>=5 },
+
+      // ── Rigori (calciatore) ──
+      { id:'rigori_segnati_3', categoria:'Rigori', emoji:'🎯', label:'3 rigori segnati', descrizione:'3 rigori segnati in questa stagione',
+        check:(p,m)=>(p.rigoriSegnatiTotali||0)>=3 },
+      { id:'rigori_segnati_5', categoria:'Rigori', emoji:'🎯', label:'5 rigori segnati', descrizione:'5 rigori segnati — freddezza glaciale',
+        check:(p,m)=>(p.rigoriSegnatiTotali||0)>=5 },
+      { id:'rigori_sbagliati_3', categoria:'Rigori', emoji:'😅', label:'3 rigori sbagliati', descrizione:'3 rigori sbagliati (ironico, capita ai migliori)',
+        check:(p,m)=>(p.rigoriSbagliatiTotali||0)>=3 },
+
+      // ── Pagelle alte ──
+      { id:'voto_8_primo', categoria:'Pagelle', emoji:'🌟', label:'Primo 8 in pagella', descrizione:'Voto 8 o superiore in una partita',
+        check:(p,m)=>{const v=_extremeVoto(p,m,'max'); return v!==null && v>=8;} },
+      { id:'voto_9_primo', categoria:'Pagelle', emoji:'🌟', label:'Primo 9 in pagella', descrizione:'Voto 9 o superiore in una partita',
+        check:(p,m)=>{const v=_extremeVoto(p,m,'max'); return v!==null && v>=9;} },
+      { id:'voto_10_primo', categoria:'Pagelle', emoji:'💯', label:'Primo 10 in pagella', descrizione:'Voto 10 — la partita perfetta',
+        check:(p,m)=>{const v=_extremeVoto(p,m,'max'); return v!==null && v>=10;} },
+
+      // ── Pagelle basse (ironiche) ──
+      { id:'voto_4_primo', categoria:'Pagelle', emoji:'😬', label:'Primo 4 in pagella', descrizione:'Voto 4 o inferiore in una partita (ironico)',
+        check:(p,m)=>{const v=_extremeVoto(p,m,'min'); return v!==null && v<=4;} },
+      { id:'voto_45_primo', categoria:'Pagelle', emoji:'😬', label:'Primo 4,5 in pagella', descrizione:'Voto 4,5 o inferiore in una partita (ironico)',
+        check:(p,m)=>{const v=_extremeVoto(p,m,'min'); return v!==null && v<=4.5;} },
+      { id:'voto_3_primo', categoria:'Pagelle', emoji:'🫣', label:'Primo 3 in pagella', descrizione:'Voto 3 o inferiore — giornata da dimenticare',
+        check:(p,m)=>{const v=_extremeVoto(p,m,'min'); return v!==null && v<=3;} },
+
+      // ── Costanza ──
+      { id:'media_voto_costante', categoria:'Pagelle', emoji:'📈', label:'Costanza', descrizione:'Media voto sopra 7 su almeno 10 partite votate',
+        check:(p,m)=>(p.votiTotali||0)>=10 && (p.mediaVoto||0)>7 },
+
+      // ── Punti procurati ──
+      { id:'punti_50', categoria:'Punti', emoji:'📊', label:'50 punti procurati', descrizione:'50 punti procurati (Classifica Punti) in questa stagione',
+        check:(p,m)=>(p.puntiTotali||0)>=50 },
+      { id:'punti_100', categoria:'Punti', emoji:'📊', label:'100 punti procurati', descrizione:'100 punti procurati in questa stagione',
+        check:(p,m)=>(p.puntiTotali||0)>=100 },
+      { id:'punti_250', categoria:'Punti', emoji:'📊', label:'250 punti procurati', descrizione:'250 punti procurati — una stagione da protagonista',
+        check:(p,m)=>(p.puntiTotali||0)>=250 },
+
+      // ── Assenze (ironico) ──
+      { id:'assenze_10', categoria:'Varie', emoji:'👻', label:'Fantasma del gruppo', descrizione:'10 o più partite di fila senza presentarsi (ironico)',
+        check:(p,m)=>_maxAbsenceStreak(p,m)>=10 },
+
+      // ── Overall ──
+      { id:'ovr_90', categoria:'Varie', emoji:'⭐', label:'Overall 90+', descrizione:'Overall Rating di 90 o superiore',
+        check:(p,m)=>overallScore(p, null, m, groupPlayers.value)>=90 },
+
+      // ── Giocatore/Peggiore del Mese (di carriera "gratis": hofCountsFor legge lo storico
+      // per mese a livello di gruppo, indipendente dalla stagione — nessun lavoro Fase E extra) ──
+      { id:'hof_fame_1', categoria:'Mese', emoji:'👑', label:'Giocatore del Mese', descrizione:'Eletto Giocatore del Mese per la prima volta',
+        check:(p,m)=>hofCountsFor(p.uid).fame>=1 },
+      { id:'hof_fame_3', categoria:'Mese', emoji:'👑', label:'3 volte Giocatore del Mese', descrizione:'Giocatore del Mese per 3 volte',
+        check:(p,m)=>hofCountsFor(p.uid).fame>=3 },
+      { id:'hof_fame_5', categoria:'Mese', emoji:'👑', label:'5 volte Giocatore del Mese', descrizione:'Giocatore del Mese per 5 volte — una dinastia',
+        check:(p,m)=>hofCountsFor(p.uid).fame>=5 },
+      { id:'hof_shame_1', categoria:'Mese', emoji:'🪣', label:'Peggiore del Mese', descrizione:'Eletto Peggiore del Mese per la prima volta (ironico)',
+        check:(p,m)=>hofCountsFor(p.uid).shame>=1 },
+      { id:'hof_shame_3', categoria:'Mese', emoji:'🪣', label:'3 volte Peggiore del Mese', descrizione:'Peggiore del Mese per 3 volte (ironico)',
+        check:(p,m)=>hofCountsFor(p.uid).shame>=3 },
+      { id:'hof_shame_5', categoria:'Mese', emoji:'🪣', label:'5 volte Peggiore del Mese', descrizione:'Peggiore del Mese per 5 volte — un classico (ironico)',
+        check:(p,m)=>hofCountsFor(p.uid).shame>=5 },
+    ];
+
+    // Motore di calcolo: valuta l'intero catalogo per un giocatore, restituisce solo gli
+    // achievement SBLOCCATI (decisione di Alby: la scheda giocatore mostra solo quelli
+    // sbloccati, non quelli mancanti sfumati).
+    const _computeAchievementsForPlayer = (p, matches = groupMatches.value) => {
+      return ACHIEVEMENTS_CATALOG.filter(a => {
+        try { return a.check(p, matches); }
+        catch(e) { return false; } // un achievement che fallisce il calcolo non blocca gli altri
+      });
+    };
+
+
 
     // Ricostruisce le statistiche aggregate (gol, assist, media voto, ecc.) SOLO dal sottoinsieme
     // di partite passato, leggendo i dati grezzi per-partita (statisticheGiocatori) — necessario
