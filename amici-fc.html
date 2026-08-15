@@ -5809,6 +5809,31 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
     </template>
 
+    <!-- Sistema Achievement, Fase D (13/8/2026): Albo d'Oro del gruppo — tutti gli achievement
+         del catalogo, raggruppati per categoria, ognuno con l'elenco dei giocatori che l'hanno
+         sbloccato (mostra anche quelli con nessuno, come obiettivo da raggiungere). -->
+    <template v-if="currentView === 'achievements'">
+      <div class="card-title">🏅 Albo d'Oro — Achievement</div>
+      <div class="card" style="border-color:rgba(251,191,36,0.3)">
+        <div v-for="(items, categoria) in _achievementGalleryData()" :key="categoria" style="margin-bottom:18px">
+          <div style="font-size:0.72rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fbbf24;margin-bottom:8px">{{categoria}}</div>
+          <div v-for="a in items" :key="a.id" style="background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+              <div style="font-size:1.3rem;flex-shrink:0">{{a.emoji}}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:0.85rem;font-weight:700;color:#fff">{{a.label}}</div>
+                <div style="font-size:0.68rem;color:var(--text2)">{{a.descrizione}}</div>
+              </div>
+            </div>
+            <div v-if="a.unlockedBy.length" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+              <span v-for="u in a.unlockedBy" :key="u.nome" class="badge" style="background:rgba(251,191,36,.12);color:#fbbf24;font-size:0.68rem">{{u.nome}}</span>
+            </div>
+            <div v-else style="font-size:0.68rem;color:var(--text2);font-style:italic;margin-top:4px">Nessuno ancora — chi sarà il primo?</div>
+          </div>
+        </div>
+      </div>
+    </template>
+
     <template v-if="currentView === 'settings'">
       <div class="card-title">⚙️ Impostazioni</div>
 
@@ -5859,6 +5884,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card-title">📖 Manuale del Campetto</div>
         <button class="btn btn-ghost btn-full" @click="currentView='manuale'">
           📖 Apri il Manuale
+        </button>
+      </div>
+
+      <!-- Sistema Achievement, Fase D (13/8/2026): Albo d'Oro del gruppo -->
+      <div class="card" style="border-color:rgba(251,191,36,0.3)">
+        <div class="card-title">🏅 Albo d'Oro</div>
+        <button class="btn btn-ghost btn-full" @click="currentView='achievements'">
+          🏅 Vedi tutti gli Achievement
         </button>
       </div>
 
@@ -6473,6 +6506,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <button class="more-menu-item" @click="currentView='manuale';showMoreMenu=false">
         <span class="more-icon">📖</span> Manuale del Campetto
       </button>
+      <button class="more-menu-item" @click="currentView='achievements';showMoreMenu=false">
+        <span class="more-icon">🏅</span> Albo d'Oro Achievement
+      </button>
       <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
         <span class="more-icon">⚙️</span> Impostazioni
       </button>
@@ -6784,6 +6820,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="pd-tabs">
         <div class="pd-tab" :class="{active:detailPlayerTab==='stats'}" @click="detailPlayerTab='stats'">📊 Statistiche</div>
         <div class="pd-tab" :class="{active:detailPlayerTab==='storico'}" @click="detailPlayerTab='storico'">📅 Storico</div>
+        <div class="pd-tab" :class="{active:detailPlayerTab==='achievement'}" @click="detailPlayerTab='achievement'">🏅 Achievement</div>
       </div>
 
       <!-- ── TAB STATISTICHE ── -->
@@ -6960,6 +6997,28 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
       </template> <!-- fine tab storico -->
+
+      <!-- ── TAB ACHIEVEMENT (Sistema Achievement, Fase C, 13/8/2026) ── -->
+      <template v-if="detailPlayerTab==='achievement'">
+        <div v-if="Object.keys(_playerAchievementsList(detailPlayer)).length===0"
+          style="text-align:center;padding:24px;color:var(--text2);font-size:0.85rem">
+          Nessun achievement sbloccato ancora in questa stagione — continua a giocare! 🎯
+        </div>
+        <div v-else style="margin-bottom:16px">
+          <div v-for="(items, categoria) in _playerAchievementsList(detailPlayer)" :key="categoria" style="margin-bottom:14px">
+            <div style="font-size:0.7rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin-bottom:6px">{{categoria}}</div>
+            <div v-for="a in items" :key="a.id"
+              style="display:flex;align-items:center;gap:10px;background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:6px">
+              <div style="font-size:1.4rem;flex-shrink:0">{{a.emoji}}</div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:0.85rem;font-weight:700;color:#fff">{{a.label}}</div>
+                <div style="font-size:0.7rem;color:var(--text2)">{{a.descrizione}}</div>
+              </div>
+              <div style="font-size:0.66rem;color:var(--text2);white-space:nowrap;flex-shrink:0">{{formatDate(a.data)}}</div>
+            </div>
+          </div>
+        </div>
+      </template> <!-- fine tab achievement -->
 
       <div v-if="firebaseUser && !detailPlayerReadOnly" style="background:var(--bg3);border-radius:10px;padding:12px 14px;margin-bottom:12px">
         <div style="font-size:0.78rem;color:var(--text2);margin-bottom:6px">🔑 PIN di voto (Pagelle Multi-Utente)</div>
@@ -8648,7 +8707,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.851',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.855',date:'2026-08-13',items:[
+      'Fix Achievement: Alby segnalava zero achievement sbloccati nonostante partite gia giocate in stagione. Causa: il controllo scattava solo dopo salvare o modificare una partita, mai per le partite gia esistenti prima di questa funzionalita (o comunque mai controllate). Ora il controllo scatta anche allapertura del gruppo, in aggiunta ai punti gia esistenti - innocuo se gia tutto aggiornato, aggiunge solo i nuovi sblocchi senza mai duplicare una festa. Testato con Puppeteer lo scenario esatto: gruppo con 15 partite gia esistenti mai controllate, registro achievement vuoto - dopo il fix, il caricamento del gruppo sblocca correttamente 7 achievement.',
+    ]},{version:'v1.854',date:'2026-08-13',items:[
+      'Sistema Achievement (Fase D completata): nuova schermata "Albo dOro" in Altro, con TUTTI gli achievement del catalogo raggruppati per categoria e per ciascuno lelenco dei giocatori che lo hanno sbloccato (o "Nessuno ancora - chi sara il primo?" per stimolare la sfida). Raggiungibile sia dalla card dedicata sia dal menu rapido. Vista equivalente aggiunta anche in Inspector (v1.4), per gruppo, con conteggio totale sblocchi. Testato con Puppeteer su entrambi.',
+    ]},{version:'v1.853',date:'2026-08-13',items:[
+      'Sistema Achievement (Fase C completata): interfaccia finalmente visibile. Nuova terza tab "Achievement" sulla scheda giocatore (app), accanto a Statistiche e Storico, con gli achievement sbloccati raggruppati per categoria (emoji, titolo, descrizione, data). Aggiunto anche in Inspector: badge accanto allOVR con il conteggio, espandibile con lo stesso pattern gia usato per la scomposizione OVR, per verificare rapidamente cosa ha sbloccato ogni giocatore senza aprire lapp. Testato con Puppeteer su entrambi: la tab app mostra correttamente i dati quando popolati dal flusso reale, il badge Inspector legge da Firebase e si espande correttamente al click.',
+    ]},{version:'v1.852',date:'2026-08-13',items:[
+      'Sistema Achievement (Fase B completata): registro persistente di quando ogni achievement viene sbloccato la prima volta (locale + Firebase), cosi non si festeggia due volte lo stesso traguardo. Controllato al salvataggio di una nuova partita, alla modifica di una partita esistente, e azzerato a ogni archiviazione stagione (salvato per sempre nello snapshot storico prima di azzerarsi, come tutto il resto). Ancora nessuna interfaccia visibile - arriva nelle prossime fasi. Testato con Puppeteer: primo sblocco registrato con la data corretta, un secondo controllo identico non genera nuovi sblocchi, un miglioramento successivo sblocca solo il nuovo traguardo senza toccare la data di quello gia sbloccato, persistenza su localStorage verificata.',
+    ]},{version:'v1.851',date:'2026-08-13',items:[
       'Sistema Achievement (Fase A, nucleo completato): catalogo di 51 achievement (Presenze, Gol, Doppietta/Tripletta/Quadrupletta, Assist, Uomo Partita, Vittorie, Streak, Pareggi, Portiere, Rigori, Pagelle alte e basse, Costanza, Punti procurati, Assenze, Overall, Giocatore/Peggiore del Mese) e il motore che li calcola dal vivo per ogni giocatore. Nessuna interfaccia ancora - il catalogo esiste ma non e ancora visibile da nessuna parte nella app (arriva nelle prossime fasi: persistenza, poi scheda giocatore, poi schermate dedicate). Testato con Puppeteer: un giocatore a statistiche zero non sblocca nulla, un giocatore con statistiche specifiche sblocca esattamente gli achievement attesi e nessun altro, comprese le soglie di confine (es. 27 gol sblocca 5/10/25 ma non un fittizio 50).',
     ]},{version:'v1.850',date:'2026-08-13',items:[
       'Sistema Achievement (in lavorazione) - primo pezzo: nuovo tracciamento dei rigori segnati (prima finivano solo nel conteggio gol, senza un contatore dedicato). Nuovo contatore RG accanto a Rig.Parato e Rig.Sbagliato in tutte le modalita di inserimento partita, gestito anche nella modifica di partite esistenti. Prerequisito per i futuri achievement sui rigori - da solo non cambia nulla nella app visibile oggi. Testato con Puppeteer il ciclo completo: salvataggio, riapertura in modifica, risalvataggio - il dato resta sempre intatto.',
@@ -9867,7 +9934,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.851');
+    const appVersion = ref('1.855');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10534,7 +10601,7 @@ createApp({
 
     const loadGroupData = async () => {
       _predCache.clear();
-      if (!currentGroup.value) { groupPlayers.value = []; groupMatches.value = []; groupFormations.value = []; currentGroupArchivedSeasons.value = []; return; }
+      if (!currentGroup.value) { groupPlayers.value = []; groupMatches.value = []; groupFormations.value = []; currentGroupArchivedSeasons.value = []; achievementsUnlocked.value = {}; return; }
       const gid = currentGroup.value.id;
       groupPlayers.value  = await db.players.where('groupId').equals(gid).toArray();
       groupMatches.value  = await db.matches.where('groupId').equals(gid).toArray();
@@ -10554,6 +10621,15 @@ createApp({
       }
       try { currentGroupArchivedSeasons.value = await db.archivedSeasons.where('groupId').equals(gid).toArray(); }
       catch(e) { currentGroupArchivedSeasons.value = []; }
+      _loadAchievementsUnlocked(gid);
+      // Fix 13/8/2026 (bug segnalato da Alby: "0 achievement nonostante partite già giocate"):
+      // il caricamento sopra legge solo il registro SALVATO — il controllo vero e proprio
+      // (confronto statistiche/catalogo) scattava finora SOLO dopo salvare/modificare una
+      // partita. Se le partite erano già state giocate prima di questa funzionalità (o comunque
+      // mai controllate), restavano per sempre a zero achievement finché non si toccava una
+      // partita. Ora il controllo scatta anche qui, ogni volta che si apre/cambia gruppo —
+      // innocuo se già tutto aggiornato (aggiunge solo i NUOVI sblocchi, mai duplica una festa).
+      _updateAchievementsUnlocked();
       await _hydratePlayerPhotos();
       await loadAllGroupsCache();
       if (groupMatches.value.length > 0) {
@@ -14213,6 +14289,114 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // ══════════════════════════════════════════════════════════════
     const aiNicknames = ref({}); // { playerId: { soprannome_ai, confronto, generatedAt, partiteAl } }
 
+    // ══════════════════════════════════════════════════════════════════════════════
+    // SISTEMA ACHIEVEMENT — Fase B (13/8/2026): registro persistente di QUANDO ogni
+    // achievement è stato sbloccato la prima volta. A differenza del calcolo (Fase A,
+    // sempre dal vivo, mai salvato), questo VA salvato — altrimenti non sapremmo mai
+    // distinguere "appena sbloccato" da "sbloccato da mesi" (serve per la celebrazione
+    // nella Fase C: solo i nuovi sblocchi generano la card rotativa nel carosello home).
+    // Struttura: { [playerUid]: { [achievementId]: { data:'YYYY-MM-DD' } } }
+    // Si azzera a ogni archiviazione stagione (i badge sono di stagione, decisione di Alby),
+    // ma prima viene salvato per intero dentro lo snapshot della stagione archiviata — non
+    // si perde mai nulla, resta storico.
+    // ══════════════════════════════════════════════════════════════════════════════
+    const achievementsUnlocked = ref({});
+
+    const _loadAchievementsUnlocked = (gid) => {
+      if (!gid) { achievementsUnlocked.value = {}; return; }
+      try {
+        const ls = JSON.parse(localStorage.getItem('amicifc_achv_' + gid) || 'null');
+        achievementsUnlocked.value = ls || {};
+      } catch(e) { achievementsUnlocked.value = {}; }
+    };
+
+    const _saveAchievementsUnlocked = async () => {
+      if (!currentGroup.value) return;
+      const gid = currentGroup.value.id;
+      localStorage.setItem('amicifc_achv_' + gid, JSON.stringify(achievementsUnlocked.value));
+      if (currentGroup.value.firebaseUrl) {
+        try {
+          const token = await getValidToken();
+          await _fbWrite(`achievements/${_aiCardGroupKey()}`, achievementsUnlocked.value, token);
+        } catch(e) {
+          logEvent('warn', 'app', `Registro achievement salvato solo in locale — Firebase non riuscito: ${e.message}`);
+        }
+      }
+    };
+
+    // Controlla, per OGNI giocatore del gruppo, se ha sbloccato NUOVI achievement rispetto al
+    // registro salvato — li aggiunge con la data odierna. Restituisce l'elenco dei nuovi sblocchi
+    // (usato dalla Fase C per la celebrazione — per ora nessuno lo consuma ancora).
+    // Chiamata a: salvataggio nuova partita, modifica partita, dopo l'archiviazione stagione.
+    const _updateAchievementsUnlocked = () => {
+      if (!currentGroup.value) return [];
+      const oggi = new Date().toISOString().slice(0,10);
+      const nuovi = [];
+      let changed = false;
+      for (const p of groupPlayers.value) {
+        const pid = p.uid || String(p.id);
+        const unlocked = _computeAchievementsForPlayer(p, groupMatches.value);
+        if (!achievementsUnlocked.value[pid]) achievementsUnlocked.value[pid] = {};
+        for (const a of unlocked) {
+          if (!achievementsUnlocked.value[pid][a.id]) {
+            achievementsUnlocked.value[pid][a.id] = { data: oggi };
+            changed = true;
+            nuovi.push({ pid, nome: p.soprannome||p.nome, achievement: a });
+          }
+        }
+      }
+      if (changed) {
+        achievementsUnlocked.value = { ...achievementsUnlocked.value }; // trigger reattività
+        _saveAchievementsUnlocked();
+      }
+      return nuovi;
+    };
+
+    // Achievement sbloccati di un giocatore, raggruppati per categoria — ordine di categoria e
+    // di achievement all'interno di ciascuna preservano l'ordine del catalogo (una progressione
+    // naturale, es. "10 presenze" prima di "25 presenze"), non l'ordine cronologico di sblocco.
+    // Usata dalla scheda giocatore (Fase C).
+    const _playerAchievementsList = (p) => {
+      if (!p) return {};
+      const pid = p.uid || String(p.id);
+      const unlocked = achievementsUnlocked.value[pid] || {};
+      const byCategoria = {};
+      for (const a of ACHIEVEMENTS_CATALOG) {
+        if (!unlocked[a.id]) continue;
+        if (!byCategoria[a.categoria]) byCategoria[a.categoria] = [];
+        byCategoria[a.categoria].push({ ...a, data: unlocked[a.id].data });
+      }
+      return byCategoria;
+    };
+    // Rete di sicurezza (13/8/2026): stesso fenomeno già visto più volte in questo progetto —
+    // una funzione nuova, esposta correttamente in setup(), dà comunque ReferenceError nel
+    // template compilato. Sicuro esporla anche su window: è pura (nessuna scrittura su stato
+    // reattivo), stesso identico caso di _avatarPhotoUrl.
+    window._playerAchievementsList = _playerAchievementsList;
+
+    // Sistema Achievement, Fase D (13/8/2026): dati per la schermata "Albo d'Oro" — TUTTI gli
+    // achievement del catalogo (anche quelli con zero sblocchi, mostrati come obiettivo),
+    // raggruppati per categoria, ciascuno con l'elenco dei giocatori che l'hanno sbloccato.
+    const _achievementGalleryData = () => {
+      const byCategoria = {};
+      for (const a of ACHIEVEMENTS_CATALOG) {
+        const unlockedBy = [];
+        for (const p of groupPlayers.value) {
+          const pid = p.uid || String(p.id);
+          const entry = achievementsUnlocked.value[pid]?.[a.id];
+          if (entry) unlockedBy.push({ nome: p.soprannome||p.nome, data: entry.data });
+        }
+        unlockedBy.sort((x,y) => (x.data||'').localeCompare(y.data||''));
+        if (!byCategoria[a.categoria]) byCategoria[a.categoria] = [];
+        byCategoria[a.categoria].push({ ...a, unlockedBy });
+      }
+      return byCategoria;
+    };
+    // Rete di sicurezza preventiva (stesso bug già visto 3 volte in questa sessione): pura,
+    // nessuna scrittura su stato reattivo, sicuro esporla anche su window fin da subito.
+    window._achievementGalleryData = _achievementGalleryData;
+
+
     // Migrazione: rimuove le vecchie chiavi nome/soprannome, mantiene solo id numerici
     const _migrateNicknames = (data) => {
       if (!data || !currentGroup.value) return data;
@@ -15508,6 +15692,7 @@ Niente altro, nessuna spiegazione.`;
       await recomputeStats();
 
       await loadGroupData();
+      _updateAchievementsUnlocked(); // Sistema Achievement Fase B — dati freschi post-reload
       _scheduleNewsCompute();
       haptic(80);
       toast('🏆 Partita salvata!');
@@ -15740,6 +15925,7 @@ Niente altro, nessuna spiegazione.`;
         syncToCloudWithRetry('Correzione partita');
         await recomputeStats().catch(console.warn);
         await loadGroupData().catch(console.warn);
+        _updateAchievementsUnlocked(); // Sistema Achievement Fase B — una modifica può sbloccare/rivelare nuovi achievement
       } catch(e) {
         logEvent('error', 'match', 'saveEditMatch fallito: ' + e.message);
         console.error('saveEditMatch error:', e);
@@ -21530,7 +21716,11 @@ const toggleFont = () => {
           dataArchiviazione: new Date().toISOString().slice(0,10),
           stagione: g.stagione || 'Stagione 1',
           giocatori: giocatoriPuliti,
-          partite: partitePulite
+          partite: partitePulite,
+          // Sistema Achievement Fase B (13/8/2026): salvo il registro achievement di QUESTA
+          // stagione dentro lo snapshot — i badge sono di stagione (si azzerano dopo, vedi più
+          // sotto), ma restano per sempre consultabili qui, come tutto il resto dello storico.
+          achievementsUnlocked: JSON.parse(JSON.stringify(achievementsUnlocked.value)),
         };
 
         // 3. Salva lo snapshot in locale (tabella dedicata, fetch-once-cache — niente più group.archivioStagioni)
@@ -21639,6 +21829,21 @@ const toggleFont = () => {
         // invece delle tutorial. L'archiviazione è concettualmente un "si riparte da zero": riattivo
         // qui la guida tutorial per il nuovo inizio.
         tutorialEnabled.value = true;
+        // Sistema Achievement Fase B (13/8/2026): i badge sono di stagione — già salvati per
+        // sempre dentro lo snapshot poco sopra, ora azzero il registro live per far ripartire
+        // da zero la nuova stagione (stesso identico principio già applicato alle statistiche
+        // giocatore e alle altre cache AI in questa stessa funzione).
+        achievementsUnlocked.value = {};
+        localStorage.removeItem('amicifc_achv_' + gid);
+        if (g.firebaseUrl) {
+          try {
+            const _tokAchv = await getValidToken();
+            await _fbWrite(`achievements/${_aiCardGroupKey()}`, null, _tokAchv);
+            logEvent('info', 'app', `🏅 Registro achievement azzerato per la nuova stagione — locale e Firebase`);
+          } catch(e) {
+            logEvent('warn', 'app', `Registro achievement azzerato solo in locale — pulizia Firebase non riuscita: ${e.message}`);
+          }
+        }
         // Fix 10/8/2026 (domanda di Alby, molto pertinente): gli Identikit AI (soprannomi)
         // restavano "congelati" con il riferimento partiteAl della vecchia stagione — con le
         // statistiche azzerate a 0, sarebbero serviti MOLTI PIÙ incontri della nuova stagione prima
@@ -23856,7 +24061,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
       voteAdminStatus, voteAdminLoading, voteShareLink, voteShareMatch, showVoteLinkModal, copyVoteLink, shareVoteLink,
       apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus, openVoteLinkModal,
-      showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, showAISection, tutorialEnabled, testAI,
+      showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, _playerAchievementsList, _achievementGalleryData, showAISection, tutorialEnabled, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
       precachePlayerPhotos,

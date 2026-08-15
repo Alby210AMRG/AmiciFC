@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.2';
+const INSPECTOR_VERSION = '1.5';
 
 async function checkInspectorUpdate(){
   try {
@@ -412,6 +412,42 @@ function updateDbBannerGroupName(){
 let DB=null, GROUPS=[], PLAYERS=[], MATCHES=[], AI={};
 let VOTE_PINS={}; // {uid: true} — stato PIN di voto (Pagelle Multi-Utente), flattened su tutti i gruppi
 let VOTAZIONI_DATA={}; // {groupKey: {matchId: {_meta, entries}}} — sessioni di voto (Pagelle Multi-Utente)
+let ACHIEVEMENTS_DATA={}; // {groupKey: {uid: {achievementId: {data}}}} — Sistema Achievement, Fase C (13/8/2026)
+// Catalogo MINIMO solo per etichette leggibili (emoji/label/categoria) — NON la logica di calcolo
+// completa (quella vive solo nell'app principale, Inspector legge soltanto ciò che è già stato
+// sbloccato e salvato su Firebase, non ricalcola nulla). Tenuto allineato a mano con
+// ACHIEVEMENTS_CATALOG dell'app — se cambia lì, aggiornare anche qui.
+const ACHV_LABELS = {
+  presenze_10:{emoji:'🎽',label:'10 presenze',categoria:'Presenze'}, presenze_25:{emoji:'🎽',label:'25 presenze',categoria:'Presenze'}, presenze_45:{emoji:'🎽',label:'45 presenze',categoria:'Presenze'},
+  gol_5:{emoji:'⚽',label:'5 gol',categoria:'Gol'}, gol_10:{emoji:'⚽',label:'10 gol',categoria:'Gol'}, gol_25:{emoji:'⚽',label:'25 gol',categoria:'Gol'},
+  doppietta_prima:{emoji:'⚽⚽',label:'Prima doppietta',categoria:'Gol'}, tripletta_prima:{emoji:'🎩',label:'Prima tripletta',categoria:'Gol'}, quadrupletta_prima:{emoji:'🎯',label:'Prima quadrupletta',categoria:'Gol'},
+  assist_5:{emoji:'🅰️',label:'5 assist',categoria:'Assist'}, assist_10:{emoji:'🅰️',label:'10 assist',categoria:'Assist'}, assist_25:{emoji:'🅰️',label:'25 assist',categoria:'Assist'},
+  uomo_partita_1:{emoji:'🥇',label:'Prima volta Uomo Partita',categoria:'Uomo Partita'}, uomo_partita_5:{emoji:'🥇',label:'5 volte Uomo Partita',categoria:'Uomo Partita'}, uomo_partita_10:{emoji:'👑',label:'10 volte Uomo Partita',categoria:'Uomo Partita'}, uomo_partita_25:{emoji:'👑',label:'25 volte Uomo Partita',categoria:'Uomo Partita'},
+  vittorie_5:{emoji:'🏆',label:'5 vittorie',categoria:'Vittorie'}, vittorie_10:{emoji:'🏆',label:'10 vittorie',categoria:'Vittorie'}, vittorie_25:{emoji:'🏆',label:'25 vittorie',categoria:'Vittorie'},
+  vittorie_fila_3:{emoji:'🔥',label:'3 vittorie di fila',categoria:'Streak'}, vittorie_fila_5:{emoji:'🔥',label:'5 vittorie di fila',categoria:'Streak'}, sconfitte_fila_3:{emoji:'💧',label:'3 sconfitte di fila',categoria:'Streak'}, sconfitte_fila_5:{emoji:'💧',label:'5 sconfitte di fila',categoria:'Streak'}, pareggi_5:{emoji:'🤝',label:'5 pareggi',categoria:'Streak'}, pareggi_10:{emoji:'🤝',label:'10 pareggi',categoria:'Streak'},
+  clean_sheet_5:{emoji:'🧤',label:'5 clean sheet',categoria:'Portiere'}, clean_sheet_10:{emoji:'🧤',label:'10 clean sheet',categoria:'Portiere'}, clean_sheet_25:{emoji:'🧤',label:'25 clean sheet',categoria:'Portiere'}, rigori_parati_3:{emoji:'🥅',label:'3 rigori parati',categoria:'Portiere'}, rigori_parati_5:{emoji:'🥅',label:'5 rigori parati',categoria:'Portiere'},
+  rigori_segnati_3:{emoji:'🎯',label:'3 rigori segnati',categoria:'Rigori'}, rigori_segnati_5:{emoji:'🎯',label:'5 rigori segnati',categoria:'Rigori'}, rigori_sbagliati_3:{emoji:'😅',label:'3 rigori sbagliati',categoria:'Rigori'},
+  voto_8_primo:{emoji:'🌟',label:'Primo 8 in pagella',categoria:'Pagelle'}, voto_9_primo:{emoji:'🌟',label:'Primo 9 in pagella',categoria:'Pagelle'}, voto_10_primo:{emoji:'💯',label:'Primo 10 in pagella',categoria:'Pagelle'},
+  voto_4_primo:{emoji:'😬',label:'Primo 4 in pagella',categoria:'Pagelle'}, voto_45_primo:{emoji:'😬',label:'Primo 4,5 in pagella',categoria:'Pagelle'}, voto_3_primo:{emoji:'🫣',label:'Primo 3 in pagella',categoria:'Pagelle'}, media_voto_costante:{emoji:'📈',label:'Costanza',categoria:'Pagelle'},
+  punti_50:{emoji:'📊',label:'50 punti procurati',categoria:'Punti'}, punti_100:{emoji:'📊',label:'100 punti procurati',categoria:'Punti'}, punti_250:{emoji:'📊',label:'250 punti procurati',categoria:'Punti'},
+  assenze_10:{emoji:'👻',label:'Fantasma del gruppo',categoria:'Varie'}, ovr_90:{emoji:'⭐',label:'Overall 90+',categoria:'Varie'},
+  hof_fame_1:{emoji:'👑',label:'Giocatore del Mese',categoria:'Mese'}, hof_fame_3:{emoji:'👑',label:'3 volte Giocatore del Mese',categoria:'Mese'}, hof_fame_5:{emoji:'👑',label:'5 volte Giocatore del Mese',categoria:'Mese'},
+  hof_shame_1:{emoji:'🪣',label:'Peggiore del Mese',categoria:'Mese'}, hof_shame_3:{emoji:'🪣',label:'3 volte Peggiore del Mese',categoria:'Mese'}, hof_shame_5:{emoji:'🪣',label:'5 volte Peggiore del Mese',categoria:'Mese'},
+};
+async function loadAchievementsData(){
+  ACHIEVEMENTS_DATA={};
+  try{
+    const base=$('fbUrl').value.trim().replace(/\/$/,'');
+    const _slug = nome => (nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
+    for(const g of GROUPS){
+      const gKey=_slug(g.nome);
+      const r=await fetch(`${base}/achievements/${gKey}.json`,{cache:'no-store'});
+      if(!r.ok) continue;
+      const data=await r.json();
+      if(data) ACHIEVEMENTS_DATA[gKey]=data;
+    }
+  }catch(e){ console.warn('[Achievements] load:', e.message); }
+}
 let AUTH_TOKEN='', AUTH_EMAIL='';
 let LOG_LINES=[];
 
@@ -530,6 +566,9 @@ async function loadAll(){
     // non arriverebbe mai qui. Lettura separata, autenticata, solo se già loggati.
     await loadVotePinsStatus();
     await loadVotazioniData();
+    // Sistema Achievement (13/8/2026): a differenza dei PIN, non è dato sensibile — leggibile
+    // subito, nessun login richiesto (stesso trattamento di partite/giocatori).
+    await loadAchievementsData();
 
     // Controlla anche amicifc2
     try{
@@ -571,6 +610,7 @@ function buildSidebar(){
     ${ni('matches-view','⚽','Partite',MATCHES.length,'matches-view')}
     ${ni('archive-view','📦','Archivio Stagioni',(() => { const as=DB?.archivedSeasons; if(!as) return ''; const tot=Object.values(as).reduce((s,g)=>s+Object.keys(g||{}).length,0); return tot||''; })(),'archive-view')}
     ${ni('summaries-view','📖','Riepiloghi Stagione',(() => { try { const ss=DB?.seasonSummary; if(!ss) return ''; const tot=Object.values(ss).reduce((s,g)=>s+(g&&typeof g==='object'?Object.keys(g).length:0),0); return tot||''; } catch(e) { return ''; } })(),'summaries-view')}
+    ${ni('achv-view','🏅','Achievement',(() => Object.values(ACHIEVEMENTS_DATA).reduce((s,g)=>s+Object.keys(g||{}).length,0)||'')(),'achv-view')}
     <div class="nav-sep"></div><div class="nav-group">AI Cards</div>
     ${ni('ai-status','🤖','AI Status','','ai-status')}
     ${ni('ai-trash','🔥','Trash Talk',ttCount,'ai-trash')}
@@ -620,6 +660,7 @@ function showView(v){
     'backup-view':renderBackup,
     'archive-view':renderArchive,
     'summaries-view':renderSeasonSummaries,
+    'achv-view':renderAchievements,
     'stats-view':renderStats,
     'log-view':renderLog,
     'maint-check':renderCheck,
@@ -1603,6 +1644,11 @@ function toggleOvrExpand(uid){
   _ovrExpandedUid = (_ovrExpandedUid === uid) ? null : uid;
   renderPlayers();
 }
+let _achvExpandedUid = null;
+function toggleAchvExpand(uid){
+  _achvExpandedUid = (_achvExpandedUid === uid) ? null : uid;
+  renderPlayers();
+}
 
 // Pagelle Multi-Utente: chi ha votato/chi manca per ciascuna partita con votazione aperta/chiusa
 function renderVotazioni(){
@@ -1797,6 +1843,31 @@ function renderPlayers(q){
             <span>Totale (arrotondato, min 50 – max 99)</span><span>${bd.totale}</span>
           </div>
         </div>` : '';
+      // Sistema Achievement (13/8/2026): badge espandibile con lo stesso pattern dell'OVR sopra —
+      // Inspector legge SOLO ciò che l'app ha già calcolato e salvato su Firebase, non ricalcola
+      // nulla in proprio (a differenza dell'OVR, che qui viene ricalcolato fresco).
+      const achvSlug = (gName||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
+      const achvForPlayer = ACHIEVEMENTS_DATA[achvSlug]?.[uidKey] || {};
+      const achvIds = Object.keys(achvForPlayer);
+      const isAchvExpanded = _achvExpandedUid === uidKey;
+      const achvBlock = achvIds.length===0
+        ? `<div class="pstat"><div class="pstat-n" style="color:var(--text2);font-size:0.85rem">—</div><div class="pstat-l">🏅 Achv.</div></div>`
+        : `<div class="pstat" style="cursor:pointer" onclick="toggleAchvExpand('${uidKey}')" title="Vedi gli achievement sbloccati">
+             <div class="pstat-n" style="color:var(--lime)">${achvIds.length} <span style="font-size:0.65rem">${isAchvExpanded?'▴':'▾'}</span></div>
+             <div class="pstat-l">🏅 Achv.</div>
+           </div>`;
+      const achvBreakdownHtml = (isAchvExpanded && achvIds.length>0) ? `
+        <div style="flex-basis:100%;width:100%;background:var(--bg3);border-radius:8px;padding:10px 12px;margin-top:4px;font-size:0.72rem;color:var(--text2);line-height:1.8">
+          <div style="font-weight:700;color:var(--text);margin-bottom:4px">🏅 Achievement sbloccati (${achvIds.length})</div>
+          ${achvIds.map(id=>{
+            const meta = ACHV_LABELS[id] || {emoji:'🏅',label:id,categoria:'?'};
+            const data = achvForPlayer[id]?.data || '?';
+            return `<div style="display:flex;justify-content:space-between;gap:8px">
+              <span>${meta.emoji} ${meta.label} <span style="color:rgba(255,255,255,.35)">(${meta.categoria})</span></span>
+              <span style="white-space:nowrap">${data}</span>
+            </div>`;
+          }).join('')}
+        </div>` : '';
       cards+=`<div class="player-card" style="flex-wrap:wrap;${p.infortunio?'border:1.5px solid rgba(248,113,113,.4);background:rgba(248,113,113,.05)':''}">
         <div class="player-avatar" style="${avatarStyle}">${avatarContent}</div>
         <div class="player-info">
@@ -1815,8 +1886,10 @@ function renderPlayers(q){
           <div class="pstat"><div class="pstat-n" style="color:#fbbf24">${(p.mediaVoto||0).toFixed(1)}</div><div class="pstat-l">⭐</div></div>
           <div class="pstat"><div class="pstat-n" style="color:#a78bfa">${p.uomoPartitaTotali||0}</div><div class="pstat-l">UoM</div></div>
           ${ovrBlock}
+          ${achvBlock}
         </div>
         ${breakdownHtml}
+        ${achvBreakdownHtml}
       </div>`;
       table+=`<tr>
         <td><strong>${p.soprannome||p.nome||'?'}</strong>${p.cognome?`<div class="val-gray" style="font-size:0.7rem">${p.cognome}</div>`:''}<div style="font-size:0.65rem;margin-top:2px">${fotoLabel}</div></td>
@@ -1919,6 +1992,13 @@ function renderMatches(q){
             ${m.formato?`<span class="badge" style="font-size:0.62rem;background:rgba(58,123,255,.15);color:#3A7BFF">🏟️ ${m.formato}</span>`:''}
             ${(m.riserveA?.length||0)+(m.riserveB?.length||0)>0?`<span class="badge badge-yellow" style="font-size:0.62rem">🪑 ${(m.riserveA?.length||0)+(m.riserveB?.length||0)} riserva/e</span>`:''}
             ${(m.sostituzioni?.length||0)>0?`<span class="badge" style="font-size:0.62rem;background:rgba(255,140,0,.15);color:#FF8C00">🩹 ${m.sostituzioni.length} sostituzione/i</span>`:''}
+            ${(()=>{
+              if(!('portiereDichiarato' in m)) return `<span class="badge" style="font-size:0.62rem;background:rgba(148,163,184,.15);color:#94a3b8">🧤 portiere non dichiarato (partita vecchia)</span>`;
+              const dA = m.portiereDichiarato?.A, dB = m.portiereDichiarato?.B;
+              const lblA = dA ? getPlayerName(dA) : 'a turno';
+              const lblB = dB ? getPlayerName(dB) : 'a turno';
+              return `<span class="badge" style="font-size:0.62rem;background:rgba(166,255,77,.12);color:var(--lime)">🧤 A: ${lblA} · B: ${lblB}</span>`;
+            })()}
           </div>
         </div>
         ${mvpName?`<span class="badge badge-yellow">⭐ ${mvpName}</span>`:''}
@@ -3368,6 +3448,52 @@ function renderArchive() {
 // effettivamente generato e se risulta completo. DB.seasonSummary è già presente in memoria
 // (l'intero nodo amicifc viene caricato in un colpo solo da loadAll()), quindi non serve nessuna
 // fetch aggiuntiva — solo una vista che finora non esisteva. Stesso pattern di renderArchive.
+// ── ACHIEVEMENT — Albo d'Oro, per gruppo, letto da Firebase (Inspector non ricalcola nulla,
+// mostra solo ciò che l'app ha già calcolato e salvato — coerente con come funziona anche
+// l'OVR qui sopra, tranne che l'OVR viene ricalcolato fresco e questo no) ──
+function renderAchievements(){
+  if(!DB){alert('Clicca prima Connetti per caricare il database.');return;}
+  const _slug = nome => (nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
+  let html = `<div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🏅 Achievement — Albo d'Oro</span></div>`;
+  if(GROUPS.length===0){
+    $('main').innerHTML = html + `<div class="empty"><div class="empty-icon">🏅</div>Nessun gruppo caricato — clicca Connetti</div>`;
+    return;
+  }
+  GROUPS.forEach(g => {
+    const gKey = _slug(g.nome);
+    const achvData = ACHIEVEMENTS_DATA[gKey] || {};
+    const players = PLAYERS.filter(p => p._groupName === g.nome);
+    const totSblocchi = Object.values(achvData).reduce((s,a)=>s+Object.keys(a||{}).length,0);
+    html += `<div style="font-size:0.75rem;font-weight:700;color:var(--text2);margin:14px 0 8px;text-transform:uppercase">${g.nome} <span style="font-weight:400">(${totSblocchi} sblocchi totali)</span></div>`;
+
+    const byCategoria = {};
+    Object.entries(ACHV_LABELS).forEach(([id, meta]) => {
+      if(!byCategoria[meta.categoria]) byCategoria[meta.categoria] = [];
+      const unlockedBy = [];
+      Object.entries(achvData).forEach(([uid, achvs]) => {
+        if(achvs && achvs[id]) {
+          const p = players.find(x => x.uid === uid);
+          unlockedBy.push({ nome: p ? (p.soprannome||p.nome) : uid, data: achvs[id].data });
+        }
+      });
+      unlockedBy.sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+      byCategoria[meta.categoria].push({ id, ...meta, unlockedBy });
+    });
+
+    Object.entries(byCategoria).forEach(([categoria, items]) => {
+      html += `<div style="font-size:0.68rem;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:#fbbf24;margin:10px 0 6px">${categoria}</div>`;
+      items.forEach(a => {
+        html += `<div style="background:var(--bg3);border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:0.75rem">
+          <div style="font-weight:700;color:var(--text)">${a.emoji} ${a.label} <span style="font-weight:400;color:var(--text2);font-size:0.68rem">[${a.id}]</span></div>
+          ${a.unlockedBy.length ? `<div style="color:var(--text2);margin-top:3px">${a.unlockedBy.map(u=>`${u.nome} <span style="color:var(--gray);font-size:0.68rem">(${u.data})</span>`).join(' · ')}</div>` : `<div style="color:var(--gray);font-style:italic;margin-top:3px">Nessuno ancora</div>`}
+        </div>`;
+      });
+    });
+  });
+  $('main').innerHTML = html;
+}
+
+
 function renderSeasonSummaries() {
   if (!DB) { alert('Clicca prima Connetti per caricare il database.'); return; }
 
