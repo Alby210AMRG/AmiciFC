@@ -5821,7 +5821,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
               <div style="font-size:1.3rem;flex-shrink:0">{{a.emoji}}</div>
               <div style="flex:1;min-width:0">
-                <div style="font-size:0.85rem;font-weight:700;color:#fff">{{a.label}}</div>
+                <div style="font-size:0.85rem;font-weight:700;color:#fff">{{a.label}} <span v-if="a.scope==='carriera'" style="font-size:0.6rem;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.15);padding:1px 6px;border-radius:6px;vertical-align:middle">🏆 CARRIERA</span></div>
                 <div style="font-size:0.68rem;color:var(--text2)">{{a.descrizione}}</div>
               </div>
             </div>
@@ -7011,7 +7011,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               style="display:flex;align-items:center;gap:10px;background:var(--bg3);border-radius:10px;padding:10px 14px;margin-bottom:6px">
               <div style="font-size:1.4rem;flex-shrink:0">{{a.emoji}}</div>
               <div style="flex:1;min-width:0">
-                <div style="font-size:0.85rem;font-weight:700;color:#fff">{{a.label}}</div>
+                <div style="font-size:0.85rem;font-weight:700;color:#fff">{{a.label}} <span v-if="a.scope==='carriera'" style="font-size:0.6rem;font-weight:800;color:#fbbf24;background:rgba(251,191,36,.15);padding:1px 6px;border-radius:6px;vertical-align:middle">🏆 CARRIERA</span></div>
                 <div style="font-size:0.7rem;color:var(--text2)">{{a.descrizione}}</div>
               </div>
               <div style="font-size:0.66rem;color:var(--text2);white-space:nowrap;flex-shrink:0">{{formatDate(a.data)}}</div>
@@ -8707,7 +8707,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.856',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.857',date:'2026-08-16',items:[
+      'Sistema Achievement (Fase E completata): achievement di CARRIERA, che sommano statistiche su tutte le stagioni archiviate piu quella corrente - 100 presenze, 50 gol, 50 vittorie in carriera. Contrassegnati con unetichetta dorata "CARRIERA" sia sulla scheda giocatore sia nellAlbo dOro, per distinguerli dalle soglie di stagione. Riusato lo stesso schema gia collaudato altrove nellapp per combinare stagioni archiviate e corrente. Testato con Puppeteer uno scenario con 2 stagioni archiviate + quella corrente: somma esatta delle statistiche, tutti e 3 gli achievement di carriera sbloccati correttamente, verificato anche che la soglia di stagione equivalente NON si sblocchi per errore usando i dati di carriera.',
+    ]},{version:'v1.856',date:'2026-08-13',items:[
       'Altri 2 fix Achievement segnalati da Alby. 1) Migliore/Peggiore del Mese non si sbloccavano mai: hofStorico non era ancora caricato quando partiva il controllo achievement - ora viene caricato (o atteso se gia in corso) prima. 2) Firebase non mostrava nulla per nessun giocatore nonostante lapp mostrasse achievement sbloccati: il salvataggio su Firebase scattava solo per i sblocchi nuovi - se il primissimo tentativo fosse fallito, non ci sarebbe mai stato un secondo tentativo. Ora si sincronizza sempre al caricamento del gruppo, non solo quando cè qualcosa di nuovo. Testato con Puppeteer: storico HOF precaricato da cache locale, achievement Giocatore del Mese sbloccato correttamente, registro salvato ad ogni apertura gruppo.',
     ]},{version:'v1.855',date:'2026-08-13',items:[
       'Fix Achievement: Alby segnalava zero achievement sbloccati nonostante partite gia giocate in stagione. Causa: il controllo scattava solo dopo salvare o modificare una partita, mai per le partite gia esistenti prima di questa funzionalita (o comunque mai controllate). Ora il controllo scatta anche allapertura del gruppo, in aggiunta ai punti gia esistenti - innocuo se gia tutto aggiornato, aggiunge solo i nuovi sblocchi senza mai duplicare una festa. Testato con Puppeteer lo scenario esatto: gruppo con 15 partite gia esistenti mai controllate, registro achievement vuoto - dopo il fix, il caricamento del gruppo sblocca correttamente 7 achievement.',
@@ -9936,7 +9938,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.856');
+    const appVersion = ref('1.857');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10209,6 +10211,8 @@ createApp({
         check:(p,m)=>(p.partiteTotali||0)>=25 },
       { id:'presenze_45', categoria:'Presenze', emoji:'🎽', label:'45 presenze', descrizione:'Praticamente una stagione intera senza saltarne una',
         check:(p,m)=>(p.partiteTotali||0)>=45 },
+      { id:'presenze_100', categoria:'Presenze', emoji:'🎽', label:'100 presenze', descrizione:'100 presenze in carriera, tra tutte le stagioni', scope:'carriera',
+        check:(p,m)=>_getCareerStats(p).partiteTotali>=100 },
 
       // ── Gol ──
       { id:'gol_5', categoria:'Gol', emoji:'⚽', label:'5 gol', descrizione:'5 gol in questa stagione',
@@ -10217,6 +10221,8 @@ createApp({
         check:(p,m)=>(p.goalTotali||0)>=10 },
       { id:'gol_25', categoria:'Gol', emoji:'⚽', label:'25 gol', descrizione:'25 gol in questa stagione — una stagione da bomber',
         check:(p,m)=>(p.goalTotali||0)>=25 },
+      { id:'gol_50', categoria:'Gol', emoji:'⚽', label:'50 gol', descrizione:'50 gol in carriera, tra tutte le stagioni', scope:'carriera',
+        check:(p,m)=>_getCareerStats(p).goalTotali>=50 },
 
       // ── Doppietta/Tripletta/Quadrupletta ──
       { id:'doppietta_prima', categoria:'Gol', emoji:'⚽⚽', label:'Prima doppietta', descrizione:'Almeno 2 gol in una singola partita',
@@ -10251,6 +10257,8 @@ createApp({
         check:(p,m)=>calcPlayerWins(p.uid||String(p.id),m)>=10 },
       { id:'vittorie_25', categoria:'Vittorie', emoji:'🏆', label:'25 vittorie', descrizione:'25 vittorie — una stagione da campione',
         check:(p,m)=>calcPlayerWins(p.uid||String(p.id),m)>=25 },
+      { id:'vittorie_50', categoria:'Vittorie', emoji:'🏆', label:'50 vittorie', descrizione:'50 vittorie in carriera, tra tutte le stagioni', scope:'carriera',
+        check:(p,m)=>calcPlayerWins(p.uid||String(p.id),_getCareerMatches())>=50 },
 
       // ── Vittorie/Sconfitte di fila, Pareggi ──
       { id:'vittorie_fila_3', categoria:'Streak', emoji:'🔥', label:'3 vittorie di fila', descrizione:'3 vittorie consecutive',
@@ -14412,6 +14420,52 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // Rete di sicurezza preventiva (stesso bug già visto 3 volte in questa sessione): pura,
     // nessuna scrittura su stato reattivo, sicuro esporla anche su window fin da subito.
     window._achievementGalleryData = _achievementGalleryData;
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // SISTEMA ACHIEVEMENT — Fase E (16/8/2026): achievement di CARRIERA (multi-stagione).
+    // Stesso pattern già collaudato e in uso altrove nell'app (detailPlayerHistoryMatches,
+    // riga ~9760) per combinare stagione corrente + stagioni archiviate — riusato qui, non
+    // reinventato.
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    // Tutte le partite del giocatore, stagione corrente + tutte le stagioni archiviate.
+    const _getCareerMatches = () => {
+      const archived = currentGroupArchivedSeasons.value.flatMap(s => s.partite || s.matches || []);
+      return [...groupMatches.value, ...archived];
+    };
+
+    // Statistiche aggregate SEMPLICI (somma diretta dei campi già calcolati per stagione,
+    // nessun ricalcolo dal vivo) sommate su stagione corrente + tutte le stagioni archiviate.
+    // Per achievement che richiedono ricalcolo dal vivo (vittorie, clean sheet, streak) si usa
+    // invece _getCareerMatches() con le funzioni già esistenti (calcPlayerWins, ecc.).
+    const _getCareerStats = (p) => {
+      const pid = p.uid || String(p.id);
+      let partiteTotali=0, goalTotali=0, assistTotali=0, puntiTotali=0, uomoPartitaTotali=0,
+          rigoriParatiTotali=0, rigoriSbagliatiTotali=0, rigoriSegnatiTotali=0;
+      for (const stagione of currentGroupArchivedSeasons.value) {
+        const pInStagione = (stagione.giocatori||[]).find(x => (x.uid||String(x.id)) === pid);
+        if (!pInStagione) continue;
+        partiteTotali += pInStagione.partiteTotali||0;
+        goalTotali += pInStagione.goalTotali||0;
+        assistTotali += pInStagione.assistTotali||0;
+        puntiTotali += pInStagione.puntiTotali||0;
+        uomoPartitaTotali += pInStagione.uomoPartitaTotali||0;
+        rigoriParatiTotali += pInStagione.rigoriParatiTotali||0;
+        rigoriSbagliatiTotali += pInStagione.rigoriSbagliatiTotali||0;
+        rigoriSegnatiTotali += pInStagione.rigoriSegnatiTotali||0;
+      }
+      // + stagione corrente (i campi del giocatore passato in ingresso sono già quelli attuali)
+      partiteTotali += p.partiteTotali||0;
+      goalTotali += p.goalTotali||0;
+      assistTotali += p.assistTotali||0;
+      puntiTotali += p.puntiTotali||0;
+      uomoPartitaTotali += p.uomoPartitaTotali||0;
+      rigoriParatiTotali += p.rigoriParatiTotali||0;
+      rigoriSbagliatiTotali += p.rigoriSbagliatiTotali||0;
+      rigoriSegnatiTotali += p.rigoriSegnatiTotali||0;
+      return { partiteTotali, goalTotali, assistTotali, puntiTotali, uomoPartitaTotali,
+        rigoriParatiTotali, rigoriSbagliatiTotali, rigoriSegnatiTotali };
+    };
 
 
     // Migrazione: rimuove le vecchie chiavi nome/soprannome, mantiene solo id numerici
