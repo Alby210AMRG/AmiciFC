@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.5';
+const INSPECTOR_VERSION = '1.6';
 
 async function checkInspectorUpdate(){
   try {
@@ -441,7 +441,11 @@ async function loadAchievementsData(){
     const _slug = nome => (nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
     for(const g of GROUPS){
       const gKey=_slug(g.nome);
-      const r=await fetch(`${base}/achievements/${gKey}.json`,{cache:'no-store'});
+      // Fix 16/8/2026 (bug segnalato da Alby: "Achievement non si vedono in Inspector nonostante
+      // presenti su Firebase"): mancava il prefisso "amicifc/" — l'app scrive tramite
+      // getFirebaseBase(), che restituisce {url}/amicifc, quindi il percorso reale è
+      // amicifc/achievements/{gruppo}, non achievements/{gruppo} alla radice come letto qui finora.
+      const r=await fetch(`${base}/amicifc/achievements/${gKey}.json`,{cache:'no-store'});
       if(!r.ok) continue;
       const data=await r.json();
       if(data) ACHIEVEMENTS_DATA[gKey]=data;
