@@ -8707,7 +8707,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.855',date:'2026-08-13',items:[
+    const changelogEntries = [{version:'v1.856',date:'2026-08-13',items:[
+      'Altri 2 fix Achievement segnalati da Alby. 1) Migliore/Peggiore del Mese non si sbloccavano mai: hofStorico non era ancora caricato quando partiva il controllo achievement - ora viene caricato (o atteso se gia in corso) prima. 2) Firebase non mostrava nulla per nessun giocatore nonostante lapp mostrasse achievement sbloccati: il salvataggio su Firebase scattava solo per i sblocchi nuovi - se il primissimo tentativo fosse fallito, non ci sarebbe mai stato un secondo tentativo. Ora si sincronizza sempre al caricamento del gruppo, non solo quando cè qualcosa di nuovo. Testato con Puppeteer: storico HOF precaricato da cache locale, achievement Giocatore del Mese sbloccato correttamente, registro salvato ad ogni apertura gruppo.',
+    ]},{version:'v1.855',date:'2026-08-13',items:[
       'Fix Achievement: Alby segnalava zero achievement sbloccati nonostante partite gia giocate in stagione. Causa: il controllo scattava solo dopo salvare o modificare una partita, mai per le partite gia esistenti prima di questa funzionalita (o comunque mai controllate). Ora il controllo scatta anche allapertura del gruppo, in aggiunta ai punti gia esistenti - innocuo se gia tutto aggiornato, aggiunge solo i nuovi sblocchi senza mai duplicare una festa. Testato con Puppeteer lo scenario esatto: gruppo con 15 partite gia esistenti mai controllate, registro achievement vuoto - dopo il fix, il caricamento del gruppo sblocca correttamente 7 achievement.',
     ]},{version:'v1.854',date:'2026-08-13',items:[
       'Sistema Achievement (Fase D completata): nuova schermata "Albo dOro" in Altro, con TUTTI gli achievement del catalogo raggruppati per categoria e per ciascuno lelenco dei giocatori che lo hanno sbloccato (o "Nessuno ancora - chi sara il primo?" per stimolare la sfida). Raggiungibile sia dalla card dedicata sia dal menu rapido. Vista equivalente aggiunta anche in Inspector (v1.4), per gruppo, con conteggio totale sblocchi. Testato con Puppeteer su entrambi.',
@@ -9934,7 +9936,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.855');
+    const appVersion = ref('1.856');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10629,7 +10631,22 @@ createApp({
       // mai controllate), restavano per sempre a zero achievement finché non si toccava una
       // partita. Ora il controllo scatta anche qui, ogni volta che si apre/cambia gruppo —
       // innocuo se già tutto aggiornato (aggiunge solo i NUOVI sblocchi, mai duplica una festa).
+      // Fix 13/8/2026 (secondo bug, stesso giro — segnalato subito dopo da Alby): Migliore/
+      // Peggiore del Mese non si sbloccavano MAI qui, perché hofStorico non era ancora caricato
+      // a questo punto (caricato altrove nell'app, quasi sempre senza await) — hofCountsFor()
+      // restituiva sempre {fame:0,shame:0}. Carico (o aspetto se già in corso) PRIMA di
+      // controllare gli achievement, così i dati sono davvero pronti.
+      if (!hofStoricoLoaded.value) { try { await _loadHofStorico(); } catch(e) {} }
       _updateAchievementsUnlocked();
+      // Fix 13/8/2026 (terzo bug, stesso giro — segnalato da Alby: "Firebase non mostra nulla per
+      // nessun giocatore" nonostante l'app mostri achievement sbloccati): _saveAchievementsUnlocked
+      // scatta SOLO quando _updateAchievementsUnlocked rileva qualcosa di NUOVO — se il primissimo
+      // tentativo di sincronizzazione fosse fallito (rete, timing, ecc.), da quel momento in poi
+      // localmente risulta già tutto aggiornato e non ci sarebbe mai stato un secondo tentativo,
+      // lasciando Firebase indietro per sempre. Sincronizzo sempre qui (se c'è qualcosa da
+      // sincronizzare), ogni volta che si apre il gruppo — economico, garantisce che Firebase si
+      // riallinei anche dopo un fallimento silenzioso passato.
+      if (Object.keys(achievementsUnlocked.value).length > 0) _saveAchievementsUnlocked();
       await _hydratePlayerPhotos();
       await loadAllGroupsCache();
       if (groupMatches.value.length > 0) {
