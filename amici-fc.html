@@ -8728,7 +8728,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.858',date:'2026-08-16',items:[
+    const changelogEntries = [{version:'v1.859',date:'2026-08-16',items:[
+      'Fix PDF Riepilogo Stagione: la nuova sezione Achievement (Fase G) compariva nel sommario e nella copertina di capitolo come generico "Sezione" invece del titolo giusto - avevo aggiunto la sezione al PDF ma dimenticato di registrarla nelle 3 mappe emoji/titolo usate per copertine e sommario. Ora mostra correttamente "🏅 Achievement della Stagione". Verificato con Puppeteer che tutte e 3 le mappe restituiscano i valori giusti.',
+    ]},{version:'v1.858',date:'2026-08-16',items:[
       'Sistema Achievement (Fase G, ULTIMA FASE): nuovo capitolo "Achievement della Stagione" nel Riepilogo Stagione, sia nella vista app sia nel PDF esportato. Elenca ogni giocatore che ha sbloccato almeno un achievement in questa stagione, ordinati per numero di achievement, con etichetta dorata per quelli di carriera. Riusa il registro achievement e il catalogo gia esistenti, nessun nuovo calcolo. Il PDF cattura automaticamente la nuova sezione dal DOM, stesso meccanismo gia usato per le altre sezioni. Testato con Puppeteer: funzione dati verificata (ordine corretto, giocatori senza achievement esclusi), sezione visibile e corretta nella vista completa del Riepilogo. Con questa fase si conclude lintero progetto Sistema Achievement, iniziato con Portiere Dichiarato come prerequisito.',
     ]},{version:'v1.857',date:'2026-08-16',items:[
       'Sistema Achievement (Fase E completata): achievement di CARRIERA, che sommano statistiche su tutte le stagioni archiviate piu quella corrente - 100 presenze, 50 gol, 50 vittorie in carriera. Contrassegnati con unetichetta dorata "CARRIERA" sia sulla scheda giocatore sia nellAlbo dOro, per distinguerli dalle soglie di stagione. Riusato lo stesso schema gia collaudato altrove nellapp per combinare stagioni archiviate e corrente. Testato con Puppeteer uno scenario con 2 stagioni archiviate + quella corrente: somma esatta delle statistiche, tutti e 3 gli achievement di carriera sbloccati correttamente, verificato anche che la soglia di stagione equivalente NON si sblocchi per errore usando i dati di carriera.',
@@ -9961,7 +9963,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.858');
+    const appVersion = ref('1.859');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -18158,14 +18160,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // Etichette leggibili per la barra di progresso, una per ogni sezione catturata dalla vista.
     const _seasonSummaryPdfSectionLabels = {
       'rp-pdf-sezA': 'Numeri della stagione', 'rp-pdf-sezB': 'Gli Oscar', 'rp-pdf-sezC': 'Classifiche',
-      'rp-pdf-sezD': 'Le partite', 'rp-pdf-sezE': 'Annuario', 'rp-pdf-gabbione': 'Il Gabbione',
+      'rp-pdf-sezD': 'Le partite', 'rp-pdf-sezE': 'Annuario', 'rp-pdf-sezF': 'Achievement', 'rp-pdf-gabbione': 'Il Gabbione',
       'rp-pdf-formazioni': 'Formazioni della Stagione', 'rp-pdf-curiosita': 'Curiosità',
     };
     // Emoji per la copertina di ogni capitolo (richiesta di Alby 4/8/2026) — stessa emoji già usata
     // nel titolo di ciascuna sezione in-app, per coerenza visiva.
     const _seasonSummaryPdfChapterEmoji = {
       'rp-pdf-sezA': '🔢', 'rp-pdf-sezB': '🏆', 'rp-pdf-sezC': '📊',
-      'rp-pdf-sezD': '🗞️', 'rp-pdf-sezE': '📇', 'rp-pdf-gabbione': '🥊',
+      'rp-pdf-sezD': '🗞️', 'rp-pdf-sezE': '📇', 'rp-pdf-sezF': '🏅', 'rp-pdf-gabbione': '🥊',
       'rp-pdf-formazioni': '📐', 'rp-pdf-curiosita': '🎲',
     };
     // Titolo per la copertina di ogni capitolo — quasi identico all'etichetta sopra, ma con
@@ -18173,7 +18175,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // stare corto nell'indicatore di avanzamento).
     const _seasonSummaryPdfChapterTitle = {
       'rp-pdf-sezA': 'Numeri della Stagione', 'rp-pdf-sezB': 'Gli Oscar', 'rp-pdf-sezC': 'Classifiche',
-      'rp-pdf-sezD': 'Le Partite', 'rp-pdf-sezE': 'Annuario Giocatori', 'rp-pdf-gabbione': 'Il Gabbione',
+      'rp-pdf-sezD': 'Le Partite', 'rp-pdf-sezE': 'Annuario Giocatori', 'rp-pdf-sezF': 'Achievement della Stagione', 'rp-pdf-gabbione': 'Il Gabbione',
       'rp-pdf-formazioni': 'Formazioni della Stagione', 'rp-pdf-curiosita': 'Curiosità',
     };
 
