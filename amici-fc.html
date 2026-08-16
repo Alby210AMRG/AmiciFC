@@ -5558,6 +5558,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
+      <!-- Sistema Achievement, Fase G (16/8/2026): Sezione F — Achievement della Stagione -->
+      <div v-if="seasonSummarySnapshot.sezioneF && seasonSummarySnapshot.sezioneF.length" class="card" id="rp-pdf-sezF">
+        <div id="rp-pdf-sezF-header" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
+          <div class="card-title" style="margin-bottom:6px">🏅 Achievement della Stagione</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <div v-for="p in seasonSummarySnapshot.sezioneF" :key="p.uid" class="rp-annuario-row"
+            :style="{display:'flex',gap:'12px',borderTop:'1px solid var(--border)',padding: seasonSummaryPdfPrintMode ? '18px 20px 0' : '12px 0 0'}">
+            <img :src="p.foto" @error="onPhotoError($event, p.uid)" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;border:1px solid var(--border)">
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:0.82rem;margin-bottom:4px">{{ p.nome }} <span style="font-weight:400;color:var(--text2)">· {{ p.count }} achievement</span></div>
+              <div style="display:flex;flex-wrap:wrap;gap:6px">
+                <span v-for="a in p.achievements" :key="a.id" class="badge" style="background:rgba(251,191,36,.12);color:#fbbf24;font-size:0.68rem">
+                  {{ a.emoji }} {{ a.label }}<span v-if="a.scope==='carriera'"> 🏆</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Il Gabbione -->
       <div class="card" id="rp-pdf-gabbione">
         <div class="card-title" style="margin-bottom:6px">🥊 Il Gabbione</div>
@@ -8707,7 +8728,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.857',date:'2026-08-16',items:[
+    const changelogEntries = [{version:'v1.858',date:'2026-08-16',items:[
+      'Sistema Achievement (Fase G, ULTIMA FASE): nuovo capitolo "Achievement della Stagione" nel Riepilogo Stagione, sia nella vista app sia nel PDF esportato. Elenca ogni giocatore che ha sbloccato almeno un achievement in questa stagione, ordinati per numero di achievement, con etichetta dorata per quelli di carriera. Riusa il registro achievement e il catalogo gia esistenti, nessun nuovo calcolo. Il PDF cattura automaticamente la nuova sezione dal DOM, stesso meccanismo gia usato per le altre sezioni. Testato con Puppeteer: funzione dati verificata (ordine corretto, giocatori senza achievement esclusi), sezione visibile e corretta nella vista completa del Riepilogo. Con questa fase si conclude lintero progetto Sistema Achievement, iniziato con Portiere Dichiarato come prerequisito.',
+    ]},{version:'v1.857',date:'2026-08-16',items:[
       'Sistema Achievement (Fase E completata): achievement di CARRIERA, che sommano statistiche su tutte le stagioni archiviate piu quella corrente - 100 presenze, 50 gol, 50 vittorie in carriera. Contrassegnati con unetichetta dorata "CARRIERA" sia sulla scheda giocatore sia nellAlbo dOro, per distinguerli dalle soglie di stagione. Riusato lo stesso schema gia collaudato altrove nellapp per combinare stagioni archiviate e corrente. Testato con Puppeteer uno scenario con 2 stagioni archiviate + quella corrente: somma esatta delle statistiche, tutti e 3 gli achievement di carriera sbloccati correttamente, verificato anche che la soglia di stagione equivalente NON si sblocchi per errore usando i dati di carriera.',
     ]},{version:'v1.856',date:'2026-08-13',items:[
       'Altri 2 fix Achievement segnalati da Alby. 1) Migliore/Peggiore del Mese non si sbloccavano mai: hofStorico non era ancora caricato quando partiva il controllo achievement - ora viene caricato (o atteso se gia in corso) prima. 2) Firebase non mostrava nulla per nessun giocatore nonostante lapp mostrasse achievement sbloccati: il salvataggio su Firebase scattava solo per i sblocchi nuovi - se il primissimo tentativo fosse fallito, non ci sarebbe mai stato un secondo tentativo. Ora si sincronizza sempre al caricamento del gruppo, non solo quando cè qualcosa di nuovo. Testato con Puppeteer: storico HOF precaricato da cache locale, achievement Giocatore del Mese sbloccato correttamente, registro salvato ad ogni apertura gruppo.',
@@ -9938,7 +9961,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.857');
+    const appVersion = ref('1.858');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -16770,6 +16793,32 @@ Niente altro, nessuna spiegazione.`;
         .sort((a,b) => b.partiteTotali - a.partiteTotali);
     };
 
+    // Sistema Achievement, Fase G (16/8/2026): Sezione F del Riepilogo Stagione — riusa il
+    // registro achievementsUnlocked già esistente (Fase B) e il catalogo (Fase A), nessun nuovo
+    // calcolo — achievementsUnlocked contiene già esattamente ciò che è stato sbloccato IN QUESTA
+    // stagione (si azzera a ogni archiviazione, quindi al momento della generazione del Riepilogo
+    // rappresenta correttamente solo la stagione che si sta per chiudere).
+    const buildSeasonSummaryTestSectionF = () => {
+      const players = groupPlayers.value;
+      return players
+        .map(p => {
+          const pid = p.uid || String(p.id);
+          const unlocked = achievementsUnlocked.value[pid] || {};
+          const ids = Object.keys(unlocked);
+          if (!ids.length) return null;
+          const achievements = ACHIEVEMENTS_CATALOG
+            .filter(a => unlocked[a.id])
+            .map(a => ({ id:a.id, emoji:a.emoji, label:a.label, categoria:a.categoria,
+              scope:a.scope||'stagione', data: unlocked[a.id].data }));
+          return {
+            uid: pid, nome: p.soprannome || p.nome, foto: getPlayerPhoto(p.foto, pid),
+            count: achievements.length, achievements,
+          };
+        })
+        .filter(Boolean)
+        .sort((a,b) => b.count - a.count);
+    };
+
     // "Il Gabbione" — abbinamento 2vs2/3vs3 in stile "rivincita": tra i migliori per overall,
     // prova ogni divisione bilanciata delle due squadre e sceglie quella che mette il maggior
     // numero di "incubi personali" nella squadra avversaria (massima carica di rivincita).
@@ -17184,6 +17233,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (s.sezioneB) for (const k of Object.keys(s.sezioneB)) _stripFotoArr(s.sezioneB[k]?.giocatori);
       if (s.sezioneC) for (const k of Object.keys(s.sezioneC)) _stripFotoArr(s.sezioneC[k]);
       _stripFotoArr(s.sezioneE);
+      _stripFotoArr(s.sezioneF);
       if (s.formazioniTop) for (const size of Object.keys(s.formazioniTop)) {
         const rows = s.formazioniTop[size];
         if (rows) for (const ruolo of Object.keys(rows)) _stripFotoArr(rows[ruolo]);
@@ -17377,6 +17427,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // Stagione" (vedi archiveAggiornaSoprannomiForzato più sotto), con una spiegazione chiara
         // di cosa fa, invece di un'azione invisibile dentro la generazione del Riepilogo.
         const sezioneE = buildSeasonSummaryTestSectionE();
+        const sezioneF = buildSeasonSummaryTestSectionF();
         const gabbione = buildSeasonSummaryTestGabbione();
 
         // Stesso archivioId già generato all'apertura del wizard (archiveStepData.pendingArchivioId)
@@ -17396,6 +17447,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           sezioneC: d.sezioneC,
           sezioneD,
           sezioneE,
+          sezioneF,
           gabbione,
           formazioniTop: d.formazioniTop,
           curiosita: d.curiosita,
@@ -18096,7 +18148,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // Ordine delle sezioni vere catturate dalla vista (id assegnati nel template). Chiusura NON è
     // inclusa qui: è sostituita dalla pagina di chiusura disegnata apposta (_buildClosingPageHTML),
     // più curata graficamente del semplice box di testo a schermo.
-    const seasonSummaryPdfSectionIds = ['rp-pdf-sezA', 'rp-pdf-sezB', 'rp-pdf-sezC', 'rp-pdf-sezD', 'rp-pdf-sezE', 'rp-pdf-gabbione', 'rp-pdf-formazioni', 'rp-pdf-curiosita'];
+    const seasonSummaryPdfSectionIds = ['rp-pdf-sezA', 'rp-pdf-sezB', 'rp-pdf-sezC', 'rp-pdf-sezD', 'rp-pdf-sezE', 'rp-pdf-sezF', 'rp-pdf-gabbione', 'rp-pdf-formazioni', 'rp-pdf-curiosita'];
 
     // Generazione PDF completa — passo 2 (25-26/7/2026): Copertina e Chiusura disegnate da zero,
     // tutte le sezioni intermedie catturate dalla vista Riepilogo Stagione già esistente (via
