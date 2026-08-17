@@ -4499,12 +4499,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
-        <div v-if="!computedUomoPartita" style="text-align:center;font-size:0.72rem;color:var(--yellow);margin-bottom:8px">
+        <div v-if="!computedUomoPartita && !(matchIsVoteMode && matchUomoPartitaVotato)" style="text-align:center;font-size:0.72rem;color:var(--yellow);margin-bottom:8px">
           ⚠️ Seleziona l'Uomo Partita per continuare
         </div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" @click="stepByStepDone?(currentView='stepbystep'):( matchStep=1);Vue.nextTick(()=>{window.scrollTo(0,0);document.documentElement.scrollTop=0;document.body.scrollTop=0})">← Indietro</button>
-          <button class="btn btn-primary" style="flex:1" :disabled="!computedUomoPartita" @click="saveMatch">
+          <button class="btn btn-primary" style="flex:1" :disabled="!computedUomoPartita && !(matchIsVoteMode && matchUomoPartitaVotato)" @click="saveMatch">
             {{ matchIsVoteMode ? '💾 Salva e Apri Voto' : '✅ Salva Partita' }}
           </button>
         </div>
@@ -8818,7 +8818,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.862',date:'2026-08-16',items:[
+    const changelogEntries = [{version:'v1.863',date:'2026-08-16',items:[
+      'Fix: in "Vota con gli amici" con "Lo votano i partecipanti" attivo, il bottone Salva restava bloccato dal vecchio controllo "Seleziona lUomo Partita per continuare" - quel controllo non sapeva ancora nulla della nuova opzione. Corretto: ora il salvataggio procede normalmente quando lUomo Partita sara deciso dai votanti, mentre resta bloccato come sempre negli altri due casi (modalita normale, o "lo scelgo io" senza averlo ancora scelto). Testato con Puppeteer tutti e 3 gli scenari.',
+    ]},{version:'v1.862',date:'2026-08-16',items:[
       'Riordino home: la card "Riepilogo Stagione" (quando presente) ora appare sopra "Manuale del Campetto", non piu sotto.',
       'Nuovo: in "Vota con gli amici", chi inserisce i dati puo scegliere se decidere subito lUomo Partita (come sempre) o lasciarlo scegliere ai votanti. Nel link condiviso compare un nuovo passaggio facoltativo prima del riepilogo, con badge per chi ha segnato/autogol/rigore fatto/rigore sbagliato per aiutare la scelta. Alla chiusura della votazione, se attiva questa opzione, un popup mostra chi hanno votato i partecipanti (con conteggio) - lammin conferma il suggerito o ne sceglie un altro, mai applicato in automatico.',
     ]},{version:'v1.861',date:'2026-08-16',items:[
@@ -10060,7 +10062,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.862');
+    const appVersion = ref('1.863');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
