@@ -5562,6 +5562,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div v-if="seasonSummarySnapshot.sezioneF && seasonSummarySnapshot.sezioneF.length" class="card" id="rp-pdf-sezF">
         <div id="rp-pdf-sezF-header" :style="{padding: seasonSummaryPdfPrintMode ? '0 20px' : '0'}">
           <div class="card-title" style="margin-bottom:6px">🏅 Achievement della Stagione</div>
+          <div v-if="seasonSummarySnapshot.aiTexts?.commentoF" style="font-size:0.82rem;color:var(--text2);line-height:1.6;margin-bottom:12px">{{ seasonSummarySnapshot.aiTexts.commentoF }}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:14px">
           <div v-for="p in seasonSummarySnapshot.sezioneF" :key="p.uid" class="rp-annuario-row"
@@ -8728,7 +8729,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.860',date:'2026-08-16',items:[
+    const changelogEntries = [{version:'v1.861',date:'2026-08-16',items:[
+      'Sistema Achievement: aggiunto il commento AI dedicato al capitolo Achievement del Riepilogo Stagione, richiesto da Alby prima dellarchiviazione. Durante il lavoro scoperti 3 punti diversi dove il testo veniva costruito (produzione normale, anteprima principale, rigenerazione manuale) - solo uno dei tre includeva correttamente i dati achievement nel prompt inviato allAI, gli altri due li avrebbero sempre ignorati mostrando "nessun achievement" anche quando ce nerano. Corretti tutti e tre. Aggiunto anche il testo generato alla visualizzazione del capitolo, che prima mancava del tutto. Testato con Puppeteer che il prompt includa correttamente nomi e conteggi quando gli achievement sono presenti.',
+    ]},{version:'v1.860',date:'2026-08-16',items:[
       'Fix trovato in revisione pre-archiviazione reale (richiesta di Alby prima di archiviare la sua stagione vera): rigoriSegnatiTotali era stato aggiunto in questa sessione (v1.850) ma la lista di azzeramento statistiche in archiviazione non era mai stata aggiornata - un giocatore avrebbe portato avanti il vecchio conteggio rigori segnati nella stagione nuova. Corretto. Riletta per intero la funzione di archiviazione end-to-end (nessun altro problema trovato) e testato con Puppeteer uno scenario realistico completo: statistiche azzerate correttamente incluso il nuovo campo, partite eliminate, achievement live azzerati, storico achievement preservato per sempre nello snapshot, nessun errore.',
     ]},{version:'v1.859',date:'2026-08-16',items:[
       'Fix PDF Riepilogo Stagione: la nuova sezione Achievement (Fase G) compariva nel sommario e nella copertina di capitolo come generico "Sezione" invece del titolo giusto - avevo aggiunto la sezione al PDF ma dimenticato di registrarla nelle 3 mappe emoji/titolo usate per copertine e sommario. Ora mostra correttamente "🏅 Achievement della Stagione". Verificato con Puppeteer che tutte e 3 le mappe restituiscano i valori giusti.',
@@ -9965,7 +9968,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.860');
+    const appVersion = ref('1.861');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -17136,6 +17139,7 @@ Marcatori (top): ${d.sezioneC.topScorers.slice(0,5).map(p=>p.soprannome||p.nome)
 Media voto (top): ${d.sezioneC.topMediaVoto.slice(0,5).map(p=>p.soprannome||p.nome).join(', ')}
 Il Gabbione 2vs2 (sfida "rivincita" suggerita, non giocata davvero): ${gabTxt(gab.gabbione2v2)}
 Il Gabbione 3vs3 (sfida "rivincita" suggerita, non giocata davvero): ${gabTxt(gab.gabbione3v3)}
+Achievement sbloccati in stagione: ${d.sezioneF && d.sezioneF.length ? d.sezioneF.map(p=>`${p.nome} (${p.count})`).join(', ') : 'nessuno quest\'anno'}
 
 Scrivi un breve testo per ciascuna di queste parti (2-3 frasi ciascuna, tranne dove indicato diversamente):
 - intro: apertura del diario di stagione
@@ -17144,13 +17148,14 @@ Scrivi un breve testo per ciascuna di queste parti (2-3 frasi ciascuna, tranne d
 - commentoC: commento sulle classifiche
 - commentoD: 1 sola frase, introduce la sezione partite
 - commentoE: 1 sola frase, introduce l'Annuario dei giocatori
+- commentoF: 1 sola frase, introduce il capitolo Achievement della stagione (se nessuno ne ha sbloccati, scrivi una frase leggera tipo "quest'anno niente trofei, ma la prossima stagione è ancora tutta da giocare")
 - commentoGabbione: telecronaca ironica che presenta le sfide del Gabbione, ricordando che è un abbinamento suggerito, non una partita reale
 - chiusura: saluto finale di chiusura stagione (fino a 3 frasi)
 
 Usa esattamente questa firma per il telecronista/giornalista, alla fine del diario: "${firma}".
 
 Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
-{"intro":"...","commentoA":"...","commentoB":"...","commentoC":"...","commentoD":"...","commentoE":"...","commentoGabbione":"...","chiusura":"...","firma":"${firma}"}`;
+{"intro":"...","commentoA":"...","commentoB":"...","commentoC":"...","commentoD":"...","commentoE":"...","commentoF":"...","commentoGabbione":"...","chiusura":"...","firma":"${firma}"}`;
     };
 
     // Fase 2 del Riepilogo Stagione: genera SOLO il testo AI, riusando i dati già calcolati in
@@ -17175,7 +17180,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const raw = await _callAI(prompt, 1200);
         if (!raw) { seasonSummaryAITexts.value = { _errore: 'Nessuna risposta AI (quota esaurita o rete non disponibile). Riprova più tardi.' }; return; }
         const parsed = _parseAIJson(raw);
-        const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoGabbione','chiusura'];
+        const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoF','commentoGabbione','chiusura'];
         // Scarta se anche un solo campo manca/non è testo — niente assegnazione parziale che
         // lascerebbe la schermata con dei "buchi" a metà tra testo vero e placeholder.
         if (!parsed || !required.every(k => typeof parsed[k] === 'string' && parsed[k].trim())) {
@@ -17467,10 +17472,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (settings.value.apiKey) {
           try {
             const firma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
-            const prompt = _buildSeasonSummaryAIPrompt(d, gabbione, firma);
+            const prompt = _buildSeasonSummaryAIPrompt({ ...d, sezioneF }, gabbione, firma);
             const raw = await _callAI(prompt, 1200);
             const parsed = raw ? _parseAIJson(raw) : null;
-            const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoGabbione','chiusura'];
+            const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoF','commentoGabbione','chiusura'];
             if (parsed && required.every(k => typeof parsed[k] === 'string' && parsed[k].trim())) {
               snapshot = { ...snapshot, aiTexts: { ...parsed, firma: parsed.firma || firma }, aiError: null };
               logEvent('info','app','📖 Riepilogo Stagione: testo AI generato');
@@ -17512,12 +17517,12 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       seasonSummaryAIGenerating.value = true;
       try {
         const s = seasonSummarySnapshot.value;
-        const d = { stagione: s.stagione, trackAssist: s.trackAssist, sezioneA: s.sezioneA, sezioneB: s.sezioneB, sezioneC: s.sezioneC };
+        const d = { stagione: s.stagione, trackAssist: s.trackAssist, sezioneA: s.sezioneA, sezioneB: s.sezioneB, sezioneC: s.sezioneC, sezioneF: s.sezioneF };
         const firma = _ttFirmePool[Math.floor(Date.now() / 86400000) % _ttFirmePool.length];
         const prompt = _buildSeasonSummaryAIPrompt(d, s.gabbione, firma);
         const raw = await _callAI(prompt, 1200);
         const parsed = raw ? _parseAIJson(raw) : null;
-        const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoGabbione','chiusura'];
+        const required = ['intro','commentoA','commentoB','commentoC','commentoD','commentoE','commentoF','commentoGabbione','chiusura'];
         let snapshot;
         if (parsed && required.every(k => typeof parsed[k] === 'string' && parsed[k].trim())) {
           snapshot = { ...s, aiTexts: { ...parsed, firma: parsed.firma || firma }, aiError: null };
@@ -18633,9 +18638,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           out += `3vs3: — (non ci sono ancora abbastanza giocatori idonei)\n`;
         }
 
+        // Sistema Achievement, Fase G: sezioneF calcolata anche qui — sincrona come sezioneE,
+        // nessuna immagine da gestire.
+        const sezioneF = buildSeasonSummaryTestSectionF();
+
         // Fase 1 completa e salvata: da qui in poi il retry del solo testo AI (Fase 2) può
         // riusare questi dati senza ricalcolare/riricomprimere nulla.
-        seasonSummaryLastData.value = { d, gab };
+        seasonSummaryLastData.value = { d: { ...d, sezioneF }, gab };
         out += `\n(Genero ora il testo AI — Fase 2, non bloccante: se fallisce tutto il resto sopra resta comunque consultabile)\n`;
         seasonSummaryTestOutput.value = out;
 
