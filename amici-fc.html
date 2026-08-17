@@ -3284,23 +3284,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </transition>
       </div>
 
-      <!-- Richiamo al Manuale del Campetto (6/8/2026): visibile solo se "Card Tutorial" è attivo
-           (stessa logica di visibilità delle card tutorial — Alby, 6/8/2026) — sempre subito sotto
-           il carosello; quando esiste anche il box Riepilogo Stagione (sotto), questo si trova
-           naturalmente sopra di esso. -->
-      <div v-if="currentGroup && tutorialEnabled" class="hero-card" style="background:linear-gradient(135deg,#0a1628,#1e3a5f 60%,#3a7bff);cursor:pointer" @click="currentView='manuale'">
-        <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
-        <div style="flex:1;text-align:left;position:relative;z-index:1">
-          <div class="hero-title">Manuale del Campetto</div>
-          <div class="hero-sub">Come funziona tutto — card, voti, statistiche</div>
-        </div>
-      </div>
-
+      <!-- Riordino richiesto da Alby (16/8/2026): Riepilogo Stagione ora sopra al Manuale del
+           Campetto (prima era il contrario) — quando esiste, ha priorità visiva più alta. -->
       <div v-if="currentGroup && seasonSummarySnapshot && !groupMatches.length" class="hero-card" style="background:linear-gradient(135deg,#1a2e05,#3a5c0a 60%,#C8FF00);cursor:pointer;border:3px solid #A6FF4D;border-radius:20px;box-sizing:border-box;animation:seasonSummaryGlow 2.2s ease-in-out infinite" @click="currentView='seasonSummary'">
         <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
         <div style="flex:1;text-align:left;position:relative;z-index:1">
           <div class="hero-title">Riepilogo Stagione</div>
           <div class="hero-sub">{{ seasonSummarySnapshot.stagione }} — tocca per leggerlo</div>
+        </div>
+      </div>
+
+      <!-- Richiamo al Manuale del Campetto (6/8/2026): visibile solo se "Card Tutorial" è attivo
+           (stessa logica di visibilità delle card tutorial — Alby, 6/8/2026) — sempre subito sotto
+           il carosello, e sotto il box Riepilogo Stagione quando presente. -->
+      <div v-if="currentGroup && tutorialEnabled" class="hero-card" style="background:linear-gradient(135deg,#0a1628,#1e3a5f 60%,#3a7bff);cursor:pointer" @click="currentView='manuale'">
+        <div style="flex-shrink:0;position:relative;z-index:1;font-size:2.2rem;line-height:1">📖</div>
+        <div style="flex:1;text-align:left;position:relative;z-index:1">
+          <div class="hero-title">Manuale del Campetto</div>
+          <div class="hero-sub">Come funziona tutto — card, voti, statistiche</div>
         </div>
       </div>
 
@@ -4373,7 +4374,19 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <template v-if="matchStep === 2">
         <div class="card" v-if="!stepByStepDone">
           <div class="card-title">🏅 Uomo Partita</div>
-          <div style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:12px">
+
+          <!-- Richiesta di Alby (16/8/2026): solo in "Vota con gli amici", scelta tra decidere
+               subito o lasciarlo scegliere ai votanti. -->
+          <div v-if="matchIsVoteMode" style="display:flex;gap:8px;margin-bottom:12px">
+            <div class="badge" style="flex:1;cursor:pointer;padding:8px;text-align:center"
+              :class="!matchUomoPartitaVotato?'badge-yellow':'badge-gray'"
+              @click="matchUomoPartitaVotato=false">✋ Lo scelgo io ora</div>
+            <div class="badge" style="flex:1;cursor:pointer;padding:8px;text-align:center"
+              :class="matchUomoPartitaVotato?'badge-yellow':'badge-gray'"
+              @click="matchUomoPartitaVotato=true">🗳️ Lo votano i partecipanti</div>
+          </div>
+
+          <div v-if="!matchIsVoteMode || !matchUomoPartitaVotato" style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:12px">
             <div style="font-size:0.8rem;font-weight:700;color:var(--yellow);margin-bottom:8px">🏅 Seleziona Uomo Partita</div>
             <div style="display:flex;flex-wrap:wrap;gap:6px">
               <div v-for="pid in [...teamA,...teamB]" :key="'upm-'+pid"
@@ -4383,6 +4396,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 {{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}
               </div>
             </div>
+          </div>
+          <div v-else style="margin-bottom:14px;padding:12px;background:var(--bg3);border-radius:12px;text-align:center;font-size:0.82rem;color:var(--text2)">
+            🗳️ Saranno i votanti a scegliere l'Uomo Partita — troverai il risultato quando chiudi la votazione.
           </div>
 
           <div v-if="computedUomoPartita" style="margin-top:14px;text-align:center">
@@ -7747,6 +7763,39 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </div>
 
+  <!-- Popup conferma Uomo Partita votato dai partecipanti (richiesta di Alby, 16/8/2026) — resta
+       un suggerimento: l'admin conferma il più votato o sceglie chiunque altro qui, mai applicato
+       in automatico. -->
+  <div v-if="voteMvpConfirmModal" class="modal-overlay center">
+    <div class="modal-sheet" style="max-width:420px;text-align:center;border-radius:20px;padding:24px">
+      <div style="font-size:1.1rem;font-weight:800;margin-bottom:6px">⭐ Uomo Partita votato</div>
+      <div style="font-size:0.82rem;color:var(--text2);margin-bottom:16px">
+        {{ voteMvpConfirmModal.totalVoters }} votanti — conferma il suggerito o scegline un altro.
+      </div>
+      <div v-if="!voteMvpConfirmModal.breakdown.length" style="font-size:0.85rem;color:var(--text2);margin-bottom:16px;font-style:italic">
+        Nessuno ha indicato un Uomo Partita — scegli tu, o lascia vuoto.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;text-align:left;max-height:40vh;overflow-y:auto">
+        <div v-for="b in voteMvpConfirmModal.breakdown" :key="b.uid" @click="voteMvpConfirmModal.selectedUid = b.uid"
+          style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-radius:10px;cursor:pointer"
+          :style="voteMvpConfirmModal.selectedUid===b.uid ? 'background:rgba(255,211,61,0.15);border:2px solid var(--yellow,#ffd33d)' : 'background:var(--bg2,#111827);border:2px solid transparent'">
+          <span style="font-weight:700">{{ b.nome }}</span>
+          <span class="badge badge-gray">{{ b.count }} {{ b.count===1 ? 'voto' : 'voti' }}</span>
+        </div>
+        <!-- Nessuno (per lasciare l'Uomo Partita vuoto anche se qualcuno ha votato) -->
+        <div @click="voteMvpConfirmModal.selectedUid = null"
+          style="display:flex;justify-content:center;align-items:center;padding:8px 14px;border-radius:10px;cursor:pointer;font-size:0.8rem;color:var(--text2)"
+          :style="!voteMvpConfirmModal.selectedUid ? 'background:rgba(255,211,61,0.1);border:2px solid var(--yellow,#ffd33d)' : 'border:2px solid transparent'">
+          Nessuno / lascia vuoto
+        </div>
+      </div>
+      <button class="btn btn-primary btn-full" :disabled="voteAdminLoading" @click="confermaChiusuraVotazioneConMvp">
+        {{ voteAdminLoading ? '⏳ Pubblico...' : '✅ Conferma e Pubblica' }}
+      </button>
+      <button class="btn btn-ghost btn-full" style="margin-top:8px" :disabled="voteAdminLoading" @click="voteMvpConfirmModal=null">Annulla</button>
+    </div>
+  </div>
+
   <!-- ═══ Pagelle Multi-Utente: pagina di voto pubblica (Fase 3, 28/7/2026) ═══ -->
   <div v-if="voteMode" style="position:fixed;inset:0;z-index:999999;background:var(--bg1,#0a0a0f);color:var(--text,#fff);overflow-y:auto;padding:20px 16px;font-family:inherit">
     <!-- Badge identità confermata (richiesta di Alby 28/7/2026: capire subito se il PIN inserito
@@ -7865,14 +7914,54 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" style="flex:1" @click="votePrev">← Indietro</button>
           <button class="btn btn-primary" style="flex:2" @click="voteNext">
-            {{ voteCurrentIdx===voteTargets.length-1 ? '✅ Riepilogo →' : 'Avanti →' }}
+            {{ voteCurrentIdx===voteTargets.length-1 ? (voteMatchInfo?.uomoPartitaVotato ? '⭐ Uomo Partita →' : '✅ Riepilogo →') : 'Avanti →' }}
           </button>
+        </div>
+      </div>
+
+      <!-- UOMO PARTITA (richiesta di Alby, 16/8/2026): scelta facoltativa del votante, un
+           suggerimento per l'admin — non sostituisce la scelta manuale già esistente. -->
+      <div v-if="voteStep==='mvp'">
+        <div style="text-align:center;margin-bottom:6px">
+          <div style="font-size:2.2rem;line-height:1;margin-bottom:8px">⭐</div>
+          <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">Chi è stato l'Uomo Partita?</div>
+          <div style="font-size:0.78rem;color:var(--text2,#9ca3af)">Facoltativo — è solo un suggerimento per chi inserisce il risultato</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;margin:18px 0">
+          <div v-for="t in voteTargets" :key="t.uid" @click="voteMvpPick = (voteMvpPick===t.uid ? null : t.uid)"
+            style="display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;cursor:pointer;transition:background .15s"
+            :style="voteMvpPick===t.uid ? 'background:rgba(255,211,61,0.15);border:2px solid var(--yellow,#ffd33d)' : 'background:var(--bg2,#111827);border:2px solid transparent'">
+            <div style="width:40px;height:40px;border-radius:50%;overflow:hidden;background:var(--bg3,#0d1117);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem">
+              <img v-if="t.foto" :src="t.foto" style="width:100%;height:100%;object-fit:cover">
+              <span v-else>⚽</span>
+            </div>
+            <div style="flex:1">
+              <div style="font-weight:700">{{ t.nome }}</div>
+              <div style="font-size:0.7rem;color:var(--text2,#9ca3af)">{{ t.squadra==='A' ? (voteMatchInfo?.nomeSquadraA||'Squadra A') : (voteMatchInfo?.nomeSquadraB||'Squadra B') }}</div>
+              <div v-if="voteStatsFor(t.uid) && (voteStatsFor(t.uid).goal||voteStatsFor(t.uid).autogol||voteStatsFor(t.uid).rigoriSegnati||voteStatsFor(t.uid).rigoriSbagliati)"
+                style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">
+                <span v-if="voteStatsFor(t.uid).goal" style="font-size:0.62rem;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(166,255,77,0.15);color:var(--lime,#a6ff4d)">⚽ {{ voteStatsFor(t.uid).goal }}</span>
+                <span v-if="voteStatsFor(t.uid).autogol" style="font-size:0.62rem;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(255,77,77,0.15);color:#ff4d4d">⚠️ {{ voteStatsFor(t.uid).autogol }} autogol</span>
+                <span v-if="voteStatsFor(t.uid).rigoriSegnati" style="font-size:0.62rem;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(251,191,36,0.15);color:#fbbf24">🎯 rig. segnato</span>
+                <span v-if="voteStatsFor(t.uid).rigoriSbagliati" style="font-size:0.62rem;font-weight:700;padding:2px 6px;border-radius:6px;background:rgba(255,107,53,0.15);color:#ff6b35">❌ rig. sbagliato</span>
+              </div>
+            </div>
+            <div v-if="voteMvpPick===t.uid" style="font-size:1.3rem">⭐</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn btn-ghost" style="flex:1" @click="voteCurrentIdx=voteTargets.length-1; voteStep='voting'">← Indietro</button>
+          <button class="btn btn-primary" style="flex:2" @click="voteStep='review'">✅ Riepilogo →</button>
         </div>
       </div>
 
       <!-- RIEPILOGO (raggruppato per squadra) -->
       <div v-if="voteStep==='review'">
         <div style="text-align:center;font-weight:800;font-size:1.1rem;margin-bottom:16px">📋 Riepilogo voti</div>
+        <div v-if="voteMvpPick" style="text-align:center;margin-bottom:14px;font-size:0.85rem">
+          ⭐ Uomo Partita per te: <strong>{{ voteTargets.find(t=>t.uid===voteMvpPick)?.nome }}</strong>
+          <span style="color:var(--text2,#9ca3af);cursor:pointer;text-decoration:underline;margin-left:6px" @click="voteStep='mvp'">(cambia)</span>
+        </div>
         <div style="font-size:0.78rem;font-weight:700;color:#7ab0ff;margin-bottom:6px">🔵 {{ voteMatchInfo?.nomeSquadraA||'Squadra A' }}</div>
         <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
           <div v-for="t in voteTargets.filter(x=>x.squadra==='A')" :key="t.uid" style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:var(--bg2,#111827);border-radius:8px">
@@ -8729,7 +8818,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.861',date:'2026-08-16',items:[
+    const changelogEntries = [{version:'v1.862',date:'2026-08-16',items:[
+      'Riordino home: la card "Riepilogo Stagione" (quando presente) ora appare sopra "Manuale del Campetto", non piu sotto.',
+      'Nuovo: in "Vota con gli amici", chi inserisce i dati puo scegliere se decidere subito lUomo Partita (come sempre) o lasciarlo scegliere ai votanti. Nel link condiviso compare un nuovo passaggio facoltativo prima del riepilogo, con badge per chi ha segnato/autogol/rigore fatto/rigore sbagliato per aiutare la scelta. Alla chiusura della votazione, se attiva questa opzione, un popup mostra chi hanno votato i partecipanti (con conteggio) - lammin conferma il suggerito o ne sceglie un altro, mai applicato in automatico.',
+    ]},{version:'v1.861',date:'2026-08-16',items:[
       'Sistema Achievement: aggiunto il commento AI dedicato al capitolo Achievement del Riepilogo Stagione, richiesto da Alby prima dellarchiviazione. Durante il lavoro scoperti 3 punti diversi dove il testo veniva costruito (produzione normale, anteprima principale, rigenerazione manuale) - solo uno dei tre includeva correttamente i dati achievement nel prompt inviato allAI, gli altri due li avrebbero sempre ignorati mostrando "nessun achievement" anche quando ce nerano. Corretti tutti e tre. Aggiunto anche il testo generato alla visualizzazione del capitolo, che prima mancava del tutto. Testato con Puppeteer che il prompt includa correttamente nomi e conteggi quando gli achievement sono presenti.',
     ]},{version:'v1.860',date:'2026-08-16',items:[
       'Fix trovato in revisione pre-archiviazione reale (richiesta di Alby prima di archiviare la sua stagione vera): rigoriSegnatiTotali era stato aggiunto in questa sessione (v1.850) ma la lista di azzeramento statistiche in archiviazione non era mai stata aggiornata - un giocatore avrebbe portato avanti il vecchio conteggio rigori segnati nella stagione nuova. Corretto. Riletta per intero la funzione di archiviazione end-to-end (nessun altro problema trovato) e testato con Puppeteer uno scenario realistico completo: statistiche azzerate correttamente incluso il nuovo campo, partite eliminate, achievement live azzerati, storico achievement preservato per sempre nello snapshot, nessun errore.',
@@ -9968,7 +10060,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.861');
+    const appVersion = ref('1.862');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11973,6 +12065,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       stepByStepIdx.value = 0;
       stepByStepPlayers.value = [];
       matchIsVoteMode.value = false;
+      matchUomoPartitaVotato.value = false;
       _initMatchData(f);
       currentView.value = 'newmatch';
     };
@@ -11982,6 +12075,11 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // correttamente i voti a 0/non impostati, nessuna logica nuova necessaria per quello) e apre
     // automaticamente la votazione subito dopo il salvataggio.
     const matchIsVoteMode = ref(false);
+    // Richiesta di Alby (16/8/2026): in modalità "Vota con gli amici", chi inserisce i dati
+    // decide se scegliere l'Uomo Partita subito (come sempre) o lasciarlo scegliere ai votanti.
+    // Default false = "lo scelgo io ora" (comportamento identico a prima, nessuna sorpresa per
+    // chi non usa questa opzione).
+    const matchUomoPartitaVotato = ref(false);
 
     // ══════════════════════════════════════════════════════════════
     // ── Modalità Sostituzioni, Consegna B (6/8/2026) — infortuni a partita in corso ──
@@ -12049,6 +12147,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       stepByStepIdx.value = 0;
       stepByStepPlayers.value = [];
       matchIsVoteMode.value = true;
+      matchUomoPartitaVotato.value = false;
       _initMatchData(f);
       currentView.value = 'newmatch';
     };
@@ -12057,6 +12156,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const f = modeChoiceFormation.value;
       showModeChoice.value = false;
       matchIsVoteMode.value = false;
+      matchUomoPartitaVotato.value = false;
       _initMatchData(f);
       // Ordine: prima squadra A poi squadra B
       stepByStepPlayers.value = [...teamA.value, ...teamB.value];
@@ -15742,6 +15842,10 @@ Niente altro, nessuna spiegazione.`;
         risultato:  { goalA, goalB },
         statisticheGiocatori: statsArr,
         votazioneCondivisaPending: matchIsVoteMode.value ? true : false,
+        // Richiesta di Alby (16/8/2026): true solo se in "Vota con gli amici" è stato scelto
+        // "lo votano i partecipanti" invece della scelta manuale — il flusso di voto lo legge
+        // per capire se mostrare o no il passaggio Uomo Partita ai votanti.
+        uomoPartitaVotato: matchIsVoteMode.value && matchUomoPartitaVotato.value,
         commentoAI:      aiComment.value,
         titoloGiornale:  articleTitle.value || '',
         fotoPartita:     matchPhoto.value || '',
@@ -20439,6 +20543,13 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const stats = voteMatchInfo.value?.statisticheGiocatori || [];
       return stats.find(s => s && s.playerId === t.uid) || null;
     });
+    // Richiesta di Alby (16/8/2026): stesso principio di voteCurrentTargetStats ma per un uid
+    // qualsiasi — usata nella lista di scelta Uomo Partita, dove servono le statistiche di TUTTI
+    // i giocatori insieme, non solo di quello attualmente in pagella.
+    const voteStatsFor = (uid) => {
+      const stats = voteMatchInfo.value?.statisticheGiocatori || [];
+      return stats.find(s => s && s.playerId === uid) || null;
+    };
     const voteEligiblePlayers = ref([]); // chi PUÒ votare: chi ha giocato + admin
     const voteMatchTargets = ref([]); // chi va VOTATO: solo chi ha giocato davvero (mai gli admin che non hanno giocato)
     const voteMatchDetails = ref(null); // {groupName, marcatori:[], autogol:[], rigoriParati:[], rigoriSbagliati:[]}
@@ -20451,6 +20562,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const voteTargets     = ref([]);
     const voteCurrentIdx  = ref(0);
     const voteScores      = ref({});
+    // Richiesta di Alby (16/8/2026): oltre alle pagelle, ogni votante può indicare chi ritiene
+    // sia stato l'Uomo Partita — un SUGGERIMENTO per l'admin, che resta libero di confermare o
+    // cambiare col controllo manuale già esistente (nessuna sostituzione automatica).
+    const voteMvpPick     = ref(null); // uid scelto da questo votante, o null se saltato
     const voteSubmitting  = ref(false);
 
     // Stato lato admin: apertura/chiusura votazione per la partita nel dettaglio
@@ -20599,6 +20714,86 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return Math.round(media*2)/2; // arrotonda a step 0.5, stessa scala usata ovunque nell'app
     }
 
+    // Richiesta di Alby (16/8/2026): stato del popup di conferma Uomo Partita votato dai
+    // partecipanti — null quando non c'è nulla da confermare, altrimenti contiene tutto il
+    // necessario per completare la chiusura una volta che l'admin ha scelto (o confermato il
+    // suggerito) chi è l'Uomo Partita.
+    const voteMvpConfirmModal = ref(null); // {match, nuoveStat, nuoviVoti, gKey, breakdown, selectedUid, totalVoters}
+
+    // Parte finale di chiudiVotazione, estratta per essere condivisa da entrambi i percorsi
+    // (nessun voto Uomo Partita da confermare / confermato dal popup) — identica in tutto e per
+    // tutto alla logica originale, solo isolata in una funzione a sé.
+    async function _finalizzaChiusuraVotazione(match, nuoveStat, nuoviVoti, gKey) {
+      const localMatch = await db.matches.where('matchUUID').equals(match.matchUUID).first();
+      if (!localMatch) throw new Error('partita non trovata nel database locale');
+      const _nuovoUpdatedAt = Date.now();
+      await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, votazioneCondivisaPending: false, updatedAt: _nuovoUpdatedAt });
+
+      // BUG TROVATO 29/7/2026 (secondo giro — segnalato da Alby col log alla mano: il primo fix
+      // aveva reso il sync affidabile, ma un ALTRO meccanismo lo vanificava lo stesso): syncToCloud
+      // ha una logica di risoluzione conflitti pensata per più dispositivi — se una partita esiste
+      // su entrambi i lati, tiene quella con updatedAt più recente, e in questo caso Firebase
+      // risultava "più recente" (per un test precedente sulla stessa partita), scartando così il
+      // voto appena calcolato. Per un'azione DELIBERATA come chiudere una votazione, questo non va
+      // mai lasciato al caso: scriviamo qui il risultato DIRETTAMENTE su questa specifica partita
+      // su Firebase (stesso pattern già usato altrove per correzioni mirate, es. Correggi ID
+      // Legacy), PRIMA e a prescindere dal sync generico — così è garantito, non negoziabile.
+      try {
+        const _base = getFirebaseBase();
+        const _groupsRes = await fetch(`${_base}/groups.json?auth=${fbIdToken.value}`, {cache:'no-store'});
+        if (_groupsRes.ok) {
+          const _fbGroups = await _groupsRes.json();
+          const _fbGroupsArr = Array.isArray(_fbGroups) ? _fbGroups : Object.values(_fbGroups||{});
+          const _gi = _fbGroupsArr.findIndex(g => g?.group?.nome === currentGroup.value?.nome);
+          if (_gi >= 0) {
+            const _fbMatchesArr = Array.isArray(_fbGroups[_gi]?.matches) ? _fbGroups[_gi].matches : Object.values(_fbGroups[_gi]?.matches||{});
+            const _mi = _fbMatchesArr.findIndex(m => m?.matchUUID === match.matchUUID);
+            if (_mi >= 0) {
+              await fetch(`${_base}/groups/${_gi}/matches/${_mi}.json?auth=${fbIdToken.value}`, {
+                method:'PATCH', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({ statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt })
+              });
+            } else {
+              logEvent('warn','votes','⚠️ Partita non trovata su Firebase per scrittura diretta — proseguo solo col sync generico');
+            }
+          } else {
+            logEvent('warn','votes','⚠️ Gruppo non trovato su Firebase per scrittura diretta — proseguo solo col sync generico');
+          }
+        }
+      } catch(e) {
+        logEvent('warn','votes','⚠️ Scrittura diretta partita fallita: '+e.message+' — proseguo col sync generico');
+      }
+
+      await _fbPatchVoteMeta(gKey, match.matchUUID, { closed:true, closedAt: Date.now(), closedBy: firebaseUser.value.email });
+
+      await forceRecomputeStats(); // ricalcola tutto da zero (locale)
+
+      // Sync generico di rincalzo per il resto (statistiche giocatori aggregate, ecc.) — la
+      // partita specifica è già garantita dalla scrittura diretta qui sopra, indipendentemente
+      // da qualunque decisione di merge/conflitto prenda questo sync.
+      const _syncOk = await syncToCloudWithRetry('Voti chiusura votazione');
+      if (!_syncOk) {
+        toast('⚠️ Voto della partita già garantito, ma altre statistiche non ancora sincronizzate — controlla la connessione o il login','error',5500);
+      }
+
+      await loadVoteAdminStatus(match);
+      // match è lo stesso oggetto reattivo di editingMatch (passato per riferimento dal
+      // bottone "Chiudi e Pubblica") — aggiornarlo qui si riflette subito nel form visibile.
+      match.votazioneCondivisaPending = false;
+      match.statisticheGiocatori = nuoveStat;
+      if (_syncOk) {
+        toast(`✅ Votazione chiusa, ${Object.keys(nuoviVoti).length} voti pubblicati su Firebase!`,'success',4000);
+        // Suggerimento (non obbligo): ora che i voti sono noti, è il momento naturale per il
+        // commento AI — prima non aveva senso, mancavano i dati (richiesta di Alby, 30/7/2026).
+        // regenAIComment scrive direttamente su "match" (già il form visibile), esattamente
+        // come farebbe l'admin premendo il bottone manuale — l'admin decide poi se salvare.
+        if (confirm('🤖 Voti pubblicati! Vuoi generare ora il commento AI per questa partita?')) {
+          regenAIComment(match).catch(e => console.warn('[CommentoAI]', e.message));
+        }
+      }
+      logEvent('info','votes', `🔒 Votazione chiusa per partita ${match.data} da ${firebaseUser.value.email} — ${Object.keys(nuoviVoti).length} voti aggiornati (sync ${_syncOk?'riuscito':'FALLITO'})`);
+    }
+
     async function chiudiVotazione(match) {
       if (!firebaseUser.value || !fbIdToken.value) return;
       if (!confirm('🔒 Chiudere la votazione e pubblicare i voti finali?\n\nQuesta operazione calcola la media dei voti ricevuti (con scarto degli anomali) e aggiorna la partita — non sarà possibile votare ancora finché non riapri la votazione.')) return;
@@ -20622,72 +20817,52 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const localMatch = await db.matches.where('matchUUID').equals(match.matchUUID).first();
         if (!localMatch) throw new Error('partita non trovata nel database locale');
         const nuoveStat = (localMatch.statisticheGiocatori||[]).map(s => nuoviVoti[s.playerId] != null ? { ...s, voto: nuoviVoti[s.playerId] } : s);
-        const _nuovoUpdatedAt = Date.now();
-        await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, votazioneCondivisaPending: false, updatedAt: _nuovoUpdatedAt });
 
-        // BUG TROVATO 29/7/2026 (secondo giro — segnalato da Alby col log alla mano: il primo fix
-        // aveva reso il sync affidabile, ma un ALTRO meccanismo lo vanificava lo stesso): syncToCloud
-        // ha una logica di risoluzione conflitti pensata per più dispositivi — se una partita esiste
-        // su entrambi i lati, tiene quella con updatedAt più recente, e in questo caso Firebase
-        // risultava "più recente" (per un test precedente sulla stessa partita), scartando così il
-        // voto appena calcolato. Per un'azione DELIBERATA come chiudere una votazione, questo non va
-        // mai lasciato al caso: scriviamo qui il risultato DIRETTAMENTE su questa specifica partita
-        // su Firebase (stesso pattern già usato altrove per correzioni mirate, es. Correggi ID
-        // Legacy), PRIMA e a prescindere dal sync generico — così è garantito, non negoziabile.
-        try {
-          const _base = getFirebaseBase();
-          const _groupsRes = await fetch(`${_base}/groups.json?auth=${fbIdToken.value}`, {cache:'no-store'});
-          if (_groupsRes.ok) {
-            const _fbGroups = await _groupsRes.json();
-            const _fbGroupsArr = Array.isArray(_fbGroups) ? _fbGroups : Object.values(_fbGroups||{});
-            const _gi = _fbGroupsArr.findIndex(g => g?.group?.nome === currentGroup.value?.nome);
-            if (_gi >= 0) {
-              const _fbMatchesArr = Array.isArray(_fbGroups[_gi]?.matches) ? _fbGroups[_gi].matches : Object.values(_fbGroups[_gi]?.matches||{});
-              const _mi = _fbMatchesArr.findIndex(m => m?.matchUUID === match.matchUUID);
-              if (_mi >= 0) {
-                await fetch(`${_base}/groups/${_gi}/matches/${_mi}.json?auth=${fbIdToken.value}`, {
-                  method:'PATCH', headers:{'Content-Type':'application/json'},
-                  body: JSON.stringify({ statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt })
-                });
-              } else {
-                logEvent('warn','votes','⚠️ Partita non trovata su Firebase per scrittura diretta — proseguo solo col sync generico');
-              }
-            } else {
-              logEvent('warn','votes','⚠️ Gruppo non trovato su Firebase per scrittura diretta — proseguo solo col sync generico');
-            }
-          }
-        } catch(e) {
-          logEvent('warn','votes','⚠️ Scrittura diretta partita fallita: '+e.message+' — proseguo col sync generico');
+        // Richiesta di Alby (16/8/2026): se in questa partita l'Uomo Partita era stato lasciato
+        // scegliere ai votanti, aggrego i loro "mvpPick" e mostro un popup di conferma — resta
+        // un SUGGERIMENTO, l'admin conferma o sceglie qualcun altro lì su due piedi, non viene
+        // mai applicato in automatico.
+        if (match.uomoPartitaVotato) {
+          const conteggio = {};
+          let totalVoters = 0;
+          realEntries.forEach(e => {
+            if (e.mvpPick) { conteggio[e.mvpPick] = (conteggio[e.mvpPick]||0) + 1; }
+            totalVoters++;
+          });
+          const breakdown = Object.entries(conteggio)
+            .map(([uid, count]) => ({ uid, nome: getPlayer(uid)?.soprannome || getPlayer(uid)?.nome || uid, count }))
+            .sort((a,b) => b.count - a.count);
+          voteMvpConfirmModal.value = {
+            match, nuoveStat, nuoviVoti, gKey,
+            breakdown, totalVoters,
+            selectedUid: breakdown[0]?.uid || null, // default: il più votato, l'admin può cambiarlo
+          };
+          voteAdminLoading.value = false;
+          return; // si prosegue da confermaChiusuraVotazioneConMvp, quando l'admin conferma
         }
 
-        await _fbPatchVoteMeta(gKey, match.matchUUID, { closed:true, closedAt: Date.now(), closedBy: firebaseUser.value.email });
+        await _finalizzaChiusuraVotazione(match, nuoveStat, nuoviVoti, gKey);
+      } catch(e) {
+        toast('❌ Errore chiusura votazione: '+e.message,'error',4500);
+      } finally { voteAdminLoading.value = false; }
+    }
 
-        await forceRecomputeStats(); // ricalcola tutto da zero (locale)
-
-        // Sync generico di rincalzo per il resto (statistiche giocatori aggregate, ecc.) — la
-        // partita specifica è già garantita dalla scrittura diretta qui sopra, indipendentemente
-        // da qualunque decisione di merge/conflitto prenda questo sync.
-        const _syncOk = await syncToCloudWithRetry('Voti chiusura votazione');
-        if (!_syncOk) {
-          toast('⚠️ Voto della partita già garantito, ma altre statistiche non ancora sincronizzate — controlla la connessione o il login','error',5500);
+    // Chiamata dal popup di conferma Uomo Partita votato — applica la scelta (default: il più
+    // votato, ma l'admin può averla cambiata nel popup) e completa la chiusura.
+    async function confermaChiusuraVotazioneConMvp() {
+      const modal = voteMvpConfirmModal.value;
+      if (!modal) return;
+      voteAdminLoading.value = true;
+      try {
+        const nuoveStatConMvp = modal.nuoveStat.map(s => ({
+          ...s,
+          uomoPartita: modal.selectedUid ? (s.playerId === modal.selectedUid) : (s.uomoPartita || false),
+        }));
+        if (modal.selectedUid) {
+          modal.match.uomoPartita = getPlayer(modal.selectedUid)?.soprannome || getPlayer(modal.selectedUid)?.nome || null;
         }
-
-        await loadVoteAdminStatus(match);
-        // match è lo stesso oggetto reattivo di editingMatch (passato per riferimento dal
-        // bottone "Chiudi e Pubblica") — aggiornarlo qui si riflette subito nel form visibile.
-        match.votazioneCondivisaPending = false;
-        match.statisticheGiocatori = nuoveStat;
-        if (_syncOk) {
-          toast(`✅ Votazione chiusa, ${Object.keys(nuoviVoti).length} voti pubblicati su Firebase!`,'success',4000);
-          // Suggerimento (non obbligo): ora che i voti sono noti, è il momento naturale per il
-          // commento AI — prima non aveva senso, mancavano i dati (richiesta di Alby, 30/7/2026).
-          // regenAIComment scrive direttamente su "match" (già il form visibile), esattamente
-          // come farebbe l'admin premendo il bottone manuale — l'admin decide poi se salvare.
-          if (confirm('🤖 Voti pubblicati! Vuoi generare ora il commento AI per questa partita?')) {
-            regenAIComment(match).catch(e => console.warn('[CommentoAI]', e.message));
-          }
-        }
-        logEvent('info','votes', `🔒 Votazione chiusa per partita ${match.data} da ${firebaseUser.value.email} — ${Object.keys(nuoviVoti).length} voti aggiornati (sync ${_syncOk?'riuscito':'FALLITO'})`);
+        await _finalizzaChiusuraVotazione(modal.match, nuoveStatConMvp, modal.nuoviVoti, modal.gKey);
+        voteMvpConfirmModal.value = null;
       } catch(e) {
         toast('❌ Errore chiusura votazione: '+e.message,'error',4500);
       } finally { voteAdminLoading.value = false; }
@@ -20853,6 +21028,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         voteCurrentIdx.value = 0;
         voteScores.value = {};
         voteRawInputs.value = {};
+        voteMvpPick.value = null;
         voteInputErr.value = '';
         voteStep.value = 'voting';
       } catch(e) {
@@ -20869,7 +21045,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       voteScores.value[t.uid] = result.value;
       voteInputErr.value = '';
       if (voteCurrentIdx.value < voteTargets.value.length - 1) voteCurrentIdx.value++;
-      else voteStep.value = 'review';
+      else voteStep.value = voteMatchInfo.value?.uomoPartitaVotato ? 'mvp' : 'review';
     }
     function votePrev() {
       voteInputErr.value = '';
@@ -20881,7 +21057,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       voteSubmitting.value = true;
       try {
         const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
-        const payload = { pinHashProof: voteHashProof.value, votes: voteScores.value, submittedAt: Date.now() };
+        const payload = { pinHashProof: voteHashProof.value, votes: voteScores.value, mvpPick: voteMvpPick.value || null, submittedAt: Date.now() };
         const res = await fetch(`${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${voteSelectedVoter.value.uid}.json`, {
           method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
         });
@@ -24183,7 +24359,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       loadFormations, saveFormation, deleteFormation, editFormation,
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
-      playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
+      playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, matchUomoPartitaVotato, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
       matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
@@ -24198,10 +24374,10 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       votePinStatus, votePinStatusLoaded, pinLoading, showPinRevealModal, pinRevealData, generateVotePin, loadVotePinStatus,
       voteMode, voteAppLogo, closeVotePage, voteStep, voteErrorMsg, voteMatchUUID, voteMatchInfo, voteCurrentTargetStats, voteEligiblePlayers, voteSelectedVoter,
       voteMatchTargets, voteMatchDetails, voteRawInputs, voteInputErr, ROLE_EMOJI,
-      votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteSubmitting,
+      votePinDigits, votePinErr, voteTargets, voteCurrentIdx, voteScores, voteMvpPick, voteStatsFor, voteSubmitting,
       voteSubmitPin, voteNext, votePrev, voteFinalSubmit,
       voteAdminStatus, voteAdminLoading, voteShareLink, voteShareMatch, showVoteLinkModal, copyVoteLink, shareVoteLink,
-      apriVotazione, riapriVotazione, chiudiVotazione, loadVoteAdminStatus, openVoteLinkModal,
+      apriVotazione, riapriVotazione, chiudiVotazione, voteMvpConfirmModal, confermaChiusuraVotazioneConMvp, loadVoteAdminStatus, openVoteLinkModal,
       showApiKey, showOvrInfo, showMediaVotoInfo, ovrExpandedId, overallScoreBreakdown, _playerAchievementsList, _achievementGalleryData, showAISection, tutorialEnabled, testAI,
       openCalMonths, toggleCalMonth, formatMonth, getDayName,
       generateImageFilename, getPhotoUrl, getPhotoUrlSmart, getPlayerPhoto, onPhotoError, _downloadMissingPhotos, SILHOUETTE, BALL_EMBEDDED,
