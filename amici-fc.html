@@ -8728,7 +8728,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.859',date:'2026-08-16',items:[
+    const changelogEntries = [{version:'v1.860',date:'2026-08-16',items:[
+      'Fix trovato in revisione pre-archiviazione reale (richiesta di Alby prima di archiviare la sua stagione vera): rigoriSegnatiTotali era stato aggiunto in questa sessione (v1.850) ma la lista di azzeramento statistiche in archiviazione non era mai stata aggiornata - un giocatore avrebbe portato avanti il vecchio conteggio rigori segnati nella stagione nuova. Corretto. Riletta per intero la funzione di archiviazione end-to-end (nessun altro problema trovato) e testato con Puppeteer uno scenario realistico completo: statistiche azzerate correttamente incluso il nuovo campo, partite eliminate, achievement live azzerati, storico achievement preservato per sempre nello snapshot, nessun errore.',
+    ]},{version:'v1.859',date:'2026-08-16',items:[
       'Fix PDF Riepilogo Stagione: la nuova sezione Achievement (Fase G) compariva nel sommario e nella copertina di capitolo come generico "Sezione" invece del titolo giusto - avevo aggiunto la sezione al PDF ma dimenticato di registrarla nelle 3 mappe emoji/titolo usate per copertine e sommario. Ora mostra correttamente "🏅 Achievement della Stagione". Verificato con Puppeteer che tutte e 3 le mappe restituiscano i valori giusti.',
     ]},{version:'v1.858',date:'2026-08-16',items:[
       'Sistema Achievement (Fase G, ULTIMA FASE): nuovo capitolo "Achievement della Stagione" nel Riepilogo Stagione, sia nella vista app sia nel PDF esportato. Elenca ogni giocatore che ha sbloccato almeno un achievement in questa stagione, ordinati per numero di achievement, con etichetta dorata per quelli di carriera. Riusa il registro achievement e il catalogo gia esistenti, nessun nuovo calcolo. Il PDF cattura automaticamente la nuova sezione dal DOM, stesso meccanismo gia usato per le altre sezioni. Testato con Puppeteer: funzione dati verificata (ordine corretto, giocatori senza achievement esclusi), sezione visibile e corretta nella vista completa del Riepilogo. Con questa fase si conclude lintero progetto Sistema Achievement, iniziato con Portiere Dichiarato come prerequisito.',
@@ -9963,7 +9965,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.859');
+    const appVersion = ref('1.860');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -21877,7 +21879,12 @@ const toggleFont = () => {
         const statsZero = {
           goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
           puntiTotali:0, partiteTotali:0, mediaVoto:0, votiTotali:0,
-          mediaPunti:0, rigoriParatiTotali:0, rigoriSbagliatiTotali:0
+          mediaPunti:0, rigoriParatiTotali:0, rigoriSbagliatiTotali:0,
+          // Fix 16/8/2026 (trovato in revisione pre-archiviazione reale, richiesta di Alby):
+          // rigoriSegnatiTotali era stato aggiunto in questa stessa sessione (v1.850, prerequisito
+          // achievement) ma questo elenco di azzeramento non era mai stato aggiornato — un
+          // giocatore avrebbe portato avanti il vecchio conteggio nella stagione nuova.
+          rigoriSegnatiTotali:0
         };
         let _azzerati = 0, _eliminati = 0;
         for (const p of allPlayersRaw) {
