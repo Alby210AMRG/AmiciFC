@@ -3898,13 +3898,25 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   @click="ensureStats(pid);playerStats[pid].voto=+(Math.min(10,(+(playerStats[pid]?.voto||6))+0.5).toFixed(1))">+</button>
               </div>
             </div>
-            <!-- 6. Gol (riga intera) -->
-            <div class="counter-box" style="justify-content:space-between;padding:10px 16px;margin-bottom:6px">
-              <span style="font-size:0.82rem;font-weight:700">⚽ Gol</span>
-              <div style="display:flex;align-items:center;gap:10px">
-                <button class="counter-btn" style="width:36px;height:36px" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
-                <span style="font-size:1.3rem;font-weight:900;min-width:36px;text-align:center">{{ playerStats[pid]?.goal||0 }}</span>
-                <button class="counter-btn" style="width:36px;height:36px" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+            <!-- 6. Gol + Rig.Segnato (richiesta di Alby, 18/8/2026: il rigore segnato è
+                 concettualmente un gol, va vicino — segnarlo qui incrementa automaticamente
+                 anche il contatore Gol, vedi incrementRigoreSegnato/decrementRigoreSegnato) -->
+            <div style="display:flex;gap:8px;margin-bottom:6px">
+              <div class="counter-box" style="flex:1;justify-content:space-between;padding:10px 12px">
+                <span style="font-size:0.78rem;font-weight:700">⚽ Gol</span>
+                <div style="display:flex;align-items:center;gap:8px">
+                  <button class="counter-btn" style="width:32px;height:32px" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
+                  <span style="font-size:1.15rem;font-weight:900;min-width:28px;text-align:center">{{ playerStats[pid]?.goal||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                </div>
+              </div>
+              <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(251,191,36,0.35);padding:10px 12px">
+                <span style="font-size:0.7rem;font-weight:700;color:#fbbf24;white-space:nowrap">🎯 Rig.Sg</span>
+                <div style="display:flex;align-items:center;gap:6px">
+                  <button class="counter-btn" style="width:32px;height:32px" @click="decrementRigoreSegnato(pid)">−</button>
+                  <span style="font-size:1.1rem;font-weight:800;color:#fbbf24;min-width:22px;text-align:center">{{ playerStats[pid]?.rigoriSegnati||0 }}</span>
+                  <button class="counter-btn" style="width:32px;height:32px" @click="incrementRigoreSegnato(pid)">+</button>
+                </div>
               </div>
             </div>
             <!-- 7. Assist + Autogol -->
@@ -3926,7 +3938,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 </div>
               </div>
             </div>
-            <!-- 8. Rig.Parato + Rig.Sbagliato + Rig.Segnato -->
+            <!-- 8. Rig.Parato + Rig.Sbagliato (Rig.Segnato spostato sopra, vicino a Gol) -->
             <div style="display:flex;gap:6px;margin-bottom:4px;min-width:0">
               <div class="counter-box" style="flex:1;min-width:0;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:8px 6px;overflow:hidden">
                 <span style="font-size:0.62rem;font-weight:700;color:var(--lime);white-space:nowrap">🥅 Rig.Par</span>
@@ -3942,14 +3954,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <button class="counter-btn" style="width:26px;height:26px;flex-shrink:0" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                   <span style="font-size:0.95rem;font-weight:800;color:#FF6B35;min-width:16px;text-align:center">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
                   <button class="counter-btn" style="width:26px;height:26px;flex-shrink:0" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
-                </div>
-              </div>
-              <div class="counter-box" style="flex:1;min-width:0;justify-content:space-between;border:1px solid rgba(251,191,36,0.35);padding:8px 6px;overflow:hidden">
-                <span style="font-size:0.62rem;font-weight:700;color:#fbbf24;white-space:nowrap">🎯 Rig.Sg</span>
-                <div style="display:flex;align-items:center;gap:3px">
-                  <button class="counter-btn" style="width:26px;height:26px;flex-shrink:0" @click="playerStats[pid]&&playerStats[pid].rigoriSegnati>0?playerStats[pid].rigoriSegnati--:null">−</button>
-                  <span style="font-size:0.95rem;font-weight:800;color:#fbbf24;min-width:16px;text-align:center">{{ playerStats[pid]?.rigoriSegnati||0 }}</span>
-                  <button class="counter-btn" style="width:26px;height:26px;flex-shrink:0" @click="ensureStats(pid);playerStats[pid].rigoriSegnati=(playerStats[pid].rigoriSegnati||0)+1">+</button>
                 </div>
               </div>
             </div>
@@ -4106,7 +4110,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <span v-if="!matchIsVoteMode">⭐ Voto &nbsp;·&nbsp; </span>⚽ Gol &nbsp;·&nbsp; 🅰️ Assist &nbsp;·&nbsp;
           <span style="color:var(--red)">OG = Autogol</span> &nbsp;·&nbsp;
           <span style="color:var(--lime)">🥅 RP = Rigore Parato</span> &nbsp;·&nbsp;
-          <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span>
+          <span style="color:#FF6B35">❌ RS = Rigore Sbagliato</span> &nbsp;·&nbsp;
+          <span style="color:#fbbf24">🎯 RG = Rigore Segnato (conta anche come Gol)</span>
         </div>
 
         <!-- Portiere dichiarato (10/8/2026, feature "portiere che gioca fuori", richiesta di Alby):
@@ -4160,7 +4165,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:0.9rem;font-weight:700;color:var(--text1)">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
                 <div style="font-size:0.7rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
               </div>
-              <!-- Riga 2: Voto + Gol -->
+              <!-- Riga 2: Voto + Gol + Rig.Segnato (richiesta di Alby, 18/8/2026: il rigore
+                   segnato è concettualmente un gol, va vicino — segnarlo qui incrementa
+                   automaticamente anche il contatore Gol) -->
               <div style="display:flex;gap:6px;margin-bottom:5px">
                 <div v-if="!matchIsVoteMode" class="counter-box" style="flex:1.3;justify-content:space-between">
                   <span style="font-size:0.68rem;color:var(--text2)">Voto</span>
@@ -4178,6 +4185,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
                     <span class="counter-val">{{ playerStats[pid]?.goal||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(251,191,36,0.35)">
+                  <span style="font-size:0.54rem;font-weight:700;color:#fbbf24;white-space:nowrap">🎯 RG</span>
+                  <div style="display:flex;align-items:center;gap:2px">
+                    <button class="counter-btn" @click="decrementRigoreSegnato(pid)">−</button>
+                    <span class="counter-val" style="color:#fbbf24">{{ playerStats[pid]?.rigoriSegnati||0 }}</span>
+                    <button class="counter-btn" @click="incrementRigoreSegnato(pid)">+</button>
                   </div>
                 </div>
               </div>
@@ -4200,7 +4215,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   </div>
                 </div>
               </div>
-              <!-- Riga 4: RP + RS + RG -->
+              <!-- Riga 4: RP + RS (Rig.Segnato spostato sopra, vicino a Gol) -->
               <div style="display:flex;gap:4px">
                 <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:6px 4px">
                   <span style="font-size:0.56rem;font-weight:700;color:var(--lime)">🥅 RP</span>
@@ -4216,14 +4231,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="counter-btn" style="width:22px;height:22px" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                     <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
                     <button class="counter-btn" style="width:22px;height:22px" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
-                  </div>
-                </div>
-                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(251,191,36,0.35);padding:6px 4px">
-                  <span style="font-size:0.54rem;font-weight:700;color:#fbbf24;white-space:nowrap">🎯 RG</span>
-                  <div style="display:flex;align-items:center;gap:1px">
-                    <button class="counter-btn" style="width:22px;height:22px" @click="playerStats[pid]&&playerStats[pid].rigoriSegnati>0?playerStats[pid].rigoriSegnati--:null">−</button>
-                    <span class="counter-val" style="color:#fbbf24">{{ playerStats[pid]?.rigoriSegnati||0 }}</span>
-                    <button class="counter-btn" style="width:22px;height:22px" @click="ensureStats(pid);playerStats[pid].rigoriSegnati=(playerStats[pid].rigoriSegnati||0)+1">+</button>
                   </div>
                 </div>
               </div>
@@ -4251,7 +4258,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <div style="font-size:0.9rem;font-weight:700;color:var(--text1)">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
                 <div style="font-size:0.7rem;color:var(--text2)">{{ getPlayer(pid)?.ruolo || '—' }}</div>
               </div>
-              <!-- Riga 2: Voto + Gol -->
+              <!-- Riga 2: Voto + Gol + Rig.Segnato (richiesta di Alby, 18/8/2026: il rigore
+                   segnato è concettualmente un gol, va vicino — segnarlo qui incrementa
+                   automaticamente anche il contatore Gol) -->
               <div style="display:flex;gap:6px;margin-bottom:5px">
                 <div v-if="!matchIsVoteMode" class="counter-box" style="flex:1.3;justify-content:space-between">
                   <span style="font-size:0.68rem;color:var(--text2)">Voto</span>
@@ -4269,6 +4278,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="counter-btn" @click="playerStats[pid]&&playerStats[pid].goal>0?playerStats[pid].goal--:null">−</button>
                     <span class="counter-val">{{ playerStats[pid]?.goal||0 }}</span>
                     <button class="counter-btn" @click="ensureStats(pid);playerStats[pid].goal++">+</button>
+                  </div>
+                </div>
+                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(251,191,36,0.35)">
+                  <span style="font-size:0.54rem;font-weight:700;color:#fbbf24;white-space:nowrap">🎯 RG</span>
+                  <div style="display:flex;align-items:center;gap:2px">
+                    <button class="counter-btn" @click="decrementRigoreSegnato(pid)">−</button>
+                    <span class="counter-val" style="color:#fbbf24">{{ playerStats[pid]?.rigoriSegnati||0 }}</span>
+                    <button class="counter-btn" @click="incrementRigoreSegnato(pid)">+</button>
                   </div>
                 </div>
               </div>
@@ -4291,7 +4308,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   </div>
                 </div>
               </div>
-              <!-- Riga 4: RP + RS + RG -->
+              <!-- Riga 4: RP + RS (Rig.Segnato spostato sopra, vicino a Gol) -->
               <div style="display:flex;gap:4px">
                 <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(74,222,128,0.35);padding:6px 4px">
                   <span style="font-size:0.56rem;font-weight:700;color:var(--lime)">🥅 RP</span>
@@ -4307,14 +4324,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="counter-btn" style="width:22px;height:22px" @click="playerStats[pid]&&playerStats[pid].rigoriSbagliati>0?playerStats[pid].rigoriSbagliati--:null">−</button>
                     <span class="counter-val" style="color:#FF6B35">{{ playerStats[pid]?.rigoriSbagliati||0 }}</span>
                     <button class="counter-btn" style="width:22px;height:22px" @click="ensureStats(pid);playerStats[pid].rigoriSbagliati=(playerStats[pid].rigoriSbagliati||0)+1">+</button>
-                  </div>
-                </div>
-                <div class="counter-box" style="flex:1;justify-content:space-between;border:1px solid rgba(251,191,36,0.35);padding:6px 4px">
-                  <span style="font-size:0.54rem;font-weight:700;color:#fbbf24;white-space:nowrap">🎯 RG</span>
-                  <div style="display:flex;align-items:center;gap:1px">
-                    <button class="counter-btn" style="width:22px;height:22px" @click="playerStats[pid]&&playerStats[pid].rigoriSegnati>0?playerStats[pid].rigoriSegnati--:null">−</button>
-                    <span class="counter-val" style="color:#fbbf24">{{ playerStats[pid]?.rigoriSegnati||0 }}</span>
-                    <button class="counter-btn" style="width:22px;height:22px" @click="ensureStats(pid);playerStats[pid].rigoriSegnati=(playerStats[pid].rigoriSegnati||0)+1">+</button>
                   </div>
                 </div>
               </div>
@@ -6803,7 +6812,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
   <!-- Player Detail Modal -->
   <!-- Modale rivelazione PIN di voto (Pagelle Multi-Utente, Fase 2) -->
-  <div v-if="showPinRevealModal" class="modal-overlay center" @click.self="showPinRevealModal=false">
+  <div v-if="showPinRevealModal" class="modal-overlay center" style="z-index:300" @click.self="showPinRevealModal=false">
     <div class="modal-sheet" style="max-width:380px;text-align:center;border-radius:20px;padding:24px">
       <div style="font-size:1.1rem;font-weight:800;margin-bottom:10px">🔑 PIN generato</div>
       <div style="font-size:0.85rem;color:var(--text2);margin-bottom:14px">
@@ -7920,13 +7929,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- UOMO PARTITA (richiesta di Alby, 16/8/2026): scelta facoltativa del votante, un
-           suggerimento per l'admin — non sostituisce la scelta manuale già esistente. -->
+      <!-- UOMO PARTITA (richiesta di Alby, 16/8/2026): scelta del votante, un suggerimento per
+           l'admin — non sostituisce la scelta manuale già esistente. Resa OBBLIGATORIA il
+           18/8/2026 su richiesta di Alby (prima era facoltativa: il votante poteva saltarla e
+           procedere comunque al Riepilogo — ora il bottone resta disabilitato finché non sceglie
+           qualcuno). -->
       <div v-if="voteStep==='mvp'">
         <div style="text-align:center;margin-bottom:6px">
           <div style="font-size:2.2rem;line-height:1;margin-bottom:8px">⭐</div>
           <div style="font-weight:800;font-size:1.1rem;margin-bottom:4px">Chi è stato l'Uomo Partita?</div>
-          <div style="font-size:0.78rem;color:var(--text2,#9ca3af)">Facoltativo — è solo un suggerimento per chi inserisce il risultato</div>
+          <div style="font-size:0.78rem;color:var(--text2,#9ca3af)">Scegli un giocatore per continuare</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:8px;margin:18px 0">
           <div v-for="t in voteTargets" :key="t.uid" @click="voteMvpPick = (voteMvpPick===t.uid ? null : t.uid)"
@@ -7950,9 +7962,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div v-if="voteMvpPick===t.uid" style="font-size:1.3rem">⭐</div>
           </div>
         </div>
+        <div v-if="!voteMvpPick" style="text-align:center;font-size:0.72rem;color:var(--yellow);margin-bottom:8px">
+          ⚠️ Seleziona l'Uomo Partita per continuare
+        </div>
         <div style="display:flex;gap:10px">
           <button class="btn btn-ghost" style="flex:1" @click="voteCurrentIdx=voteTargets.length-1; voteStep='voting'">← Indietro</button>
-          <button class="btn btn-primary" style="flex:2" @click="voteStep='review'">✅ Riepilogo →</button>
+          <button class="btn btn-primary" style="flex:2" :disabled="!voteMvpPick" @click="voteStep='review'">✅ Riepilogo →</button>
         </div>
       </div>
 
@@ -8819,7 +8834,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.865',date:'2026-08-18',items:[
+    const changelogEntries = [{version:'v1.866',date:'2026-08-18',items:[
+      'Fix importante (segnalato da Alby): il rigore segnato (RG) era sempre tracciato come statistica a se, mai sommato al conteggio Gol - ne nel risultato della partita (Uno alla Volta, Tutti Insieme, Vota con gli amici), ne nel totale gol carriera del giocatore (quindi nemmeno in classifica marcatori). Un rigore segnato ora conta automaticamente anche come gol ovunque nell app, da ora in avanti (nessun ricalcolo dello storico gia giocato, come richiesto). Spostato anche il contatore RG vicino al Gol nelle tre schermate (prima era in una riga separata con Rigore Parato/Sbagliato) e aggiunta la spiegazione mancante di RG nella legenda simboli.',
+      'Fix: il modal "PIN generato" appariva dietro la scheda giocatore invece che sopra (stesso z-index, ordine nel codice sfavorevole) - ora ha priorita e si vede sempre correttamente.',
+      'Fix: nel voto "Vota con gli amici", la scelta dell Uomo Partita da parte del votante era facoltativa e si poteva saltare - ora e obbligatoria, il bottone "Riepilogo" resta bloccato finche non si seleziona un giocatore (richiesta di Alby).',
+      'Confermato con Alby (nessuna modifica necessaria): il PIN di voto dura per sempre finche non lo si rigenera manualmente dalla scheda giocatore, non si azzera con l archiviazione di fine stagione - comportamento voluto.',
+    ]},{version:'v1.865',date:'2026-08-18',items:[
       'Uniformato in tutta app il colore della Squadra B: era rimasto rosso in circa 25 punti sparsi (setup partita, dettaglio formazione, formazione manuale, Uno alla Volta, Vota con gli amici lato votante, Modifica Partita, PNG condivisi di formazione e risultato, selettori sostituzione infortunio), invece dell arancione ufficiale gia usato correttamente altrove nell app. Aggiunta anche una nuova classe di bottone dedicata (arancione) senza toccare quella rossa usata per le azioni di eliminazione, che restano giustamente rosse.',
     ]},{version:'v1.864',date:'2026-08-18',items:[
       'Fix importante: nell editor "Modifica Formazione" il tasto Salva dava sempre errore DataCloneError e non salvava nulla. Causa: le riserve (riserveA/riserveB) venivano scritte nel database ancora come riferimento diretto ai dati reattivi di Vue, mai trasformate in un semplice elenco prima del salvataggio (a differenza dei giocatori delle due squadre, gia corretti in questo modo) - il database non sa salvare quel tipo di riferimento. Stesso identico problema corretto anche nella creazione formazione manuale.',
@@ -10069,7 +10089,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.865');
+    const appVersion = ref('1.866');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11349,6 +11369,29 @@ createApp({
     const ensureStats = pid => {
       if (!playerStats.value[pid])
         playerStats.value[pid] = { goal:0, assist:0, voto:6, autogol:0, uomoPartita:false };
+    };
+
+    // BUG TROVATO 18/8/2026 (segnalato da Alby: "se uno segna un rigore e mette 1 non viene
+    // calcolato come goal nel risultato nella stessa schermata"): rigoriSegnati era sempre stato
+    // tracciato come statistica a sé, mai sommata al conteggio Gol — né nel risultato della
+    // partita (statsGoalA/B, bottoni "calcola automaticamente"), né nel totale gol carriera del
+    // giocatore (goalTotali, quindi nemmeno in classifica marcatori). Confermato con Alby: un
+    // rigore segnato deve contare come gol OVUNQUE nell'app, ma senza ricalcolare lo storico
+    // già giocato (solo da ora in poi). Piuttosto che sommare rigoriSegnati in ogni singolo punto
+    // dell'app che usa "goal" (rischio di dimenticarne qualcuno), il rigore segnato ora incrementa
+    // DIRETTAMENTE anche il contatore Gol nello stesso click: goal include quindi già i rigori
+    // segnati da qui in avanti, e tutto il resto (risultato, gol totali, classifica) funziona
+    // automaticamente senza bisogno di toccare altri punti. rigoriSegnati resta comunque tracciato
+    // a parte per gli achievement dedicati (es. "3+ rigori segnati"), che restano corretti.
+    const incrementRigoreSegnato = pid => {
+      ensureStats(pid);
+      playerStats.value[pid].rigoriSegnati = (playerStats.value[pid].rigoriSegnati || 0) + 1;
+      playerStats.value[pid].goal = (playerStats.value[pid].goal || 0) + 1;
+    };
+    const decrementRigoreSegnato = pid => {
+      if (!playerStats.value[pid] || !(playerStats.value[pid].rigoriSegnati > 0)) return;
+      playerStats.value[pid].rigoriSegnati--;
+      if (playerStats.value[pid].goal > 0) playerStats.value[pid].goal--;
     };
 
     const setUomoPartita = pid => {
@@ -24381,7 +24424,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       groupPlayerCount, groupMatchCount,
       openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, getPlayerNick, handlePhotoUpload,
       startNewMatch, startPlayerSelection, togglePlayerSelection, selectAll,
-      ensureStats, setUomoPartita, getPlayer, sortByRole,
+      ensureStats, incrementRigoreSegnato, decrementRigoreSegnato, setUomoPartita, getPlayer, sortByRole,
       generateFormationsAI, generateFormationsWithAI,
       manualFormation, startManualFormation, addToManualTeam, removeFromManualTeam, saveManualFormation,
       loadFormations, saveFormation, deleteFormation, editFormation,
