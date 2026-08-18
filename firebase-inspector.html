@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.8';
+const INSPECTOR_VERSION = '1.9';
 
 async function checkInspectorUpdate(){
   try {
@@ -1726,30 +1726,44 @@ function renderVotazioni(){
     const detailBlockId = `votDetail_${sIdx}`;
 
     // Uomo Partita votato dai partecipanti (richiesta di Alby, 18/8/2026): mostra il conteggio
-    // live di chi sta prendendo più voti come MVP, stessa logica di aggregazione dell'app
-    // (chiudiVotazione) — solo lettura, aggiornato man mano che arrivano i voti.
+    // live di chi sta prendendo più voti come MVP, e CHI ha votato chi (come già fatto per le
+    // pagelle sopra) — stessa logica di aggregazione dell'app (chiudiVotazione), solo lettura.
+    // Corretto 18/8/2026 (segnalato da Alby): la stella/colore verde comparivano sempre sul primo
+    // della lista anche in caso di PARITÀ tra due o più candidati, facendo sembrare un pareggio
+    // come se ci fosse un leader netto — ora compaiono solo quando il primo ha davvero più voti
+    // di chiunque altro (nessun pareggio in testa).
     let mvpBlock = '';
     if (match && match.uomoPartitaVotato) {
       const mvpConteggio = {};
+      const mvpVotanti_lista = {}; // {targetUid: [nomeVotante, ...]}
       let mvpVotanti = 0;
       votedUids.forEach(vUid => {
         const pick = s.entries[vUid]?.mvpPick;
-        if (pick) { mvpConteggio[pick] = (mvpConteggio[pick]||0) + 1; }
+        if (pick) {
+          mvpConteggio[pick] = (mvpConteggio[pick]||0) + 1;
+          (mvpVotanti_lista[pick] = mvpVotanti_lista[pick]||[]).push(nameOf(vUid));
+        }
         mvpVotanti++;
       });
       const mvpBreakdown = Object.entries(mvpConteggio)
-        .map(([uid,count]) => ({ uid, nome: nameOf(uid), count }))
+        .map(([uid,count]) => ({ uid, nome: nameOf(uid), count, votanti: mvpVotanti_lista[uid]||[] }))
         .sort((a,b) => b.count - a.count);
+      const cIsLeader = mvpBreakdown.length>0 && (mvpBreakdown.length===1 || mvpBreakdown[0].count > mvpBreakdown[1].count);
       const mvpRows = mvpBreakdown.length
         ? mvpBreakdown.map((b,i) => `<tr>
-            <td>${i===0?'⭐ ':''}${b.nome}</td>
-            <td style="text-align:center"><strong style="color:${i===0?'var(--lime)':'var(--text)'}">${b.count}</strong> ${b.count===1?'voto':'voti'}</td>
+            <td>${(i===0&&cIsLeader)?'⭐ ':''}${b.nome}</td>
+            <td style="font-size:0.75rem;color:var(--text2)">${b.votanti.join(', ')}</td>
+            <td style="text-align:center"><strong style="color:${(i===0&&cIsLeader)?'var(--lime)':'var(--text)'}">${b.count}</strong> ${b.count===1?'voto':'voti'}</td>
           </tr>`).join('')
-        : `<tr><td colspan="2" style="color:var(--gray)">Nessun voto ancora arrivato per l'Uomo Partita</td></tr>`;
+        : `<tr><td colspan="3" style="color:var(--gray)">Nessun voto ancora arrivato per l'Uomo Partita</td></tr>`;
       const senzaScelta = votedUids.filter(vUid => !s.entries[vUid]?.mvpPick).length;
       mvpBlock = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
         <div style="font-size:0.78rem;color:#fbbf24;margin-bottom:6px">⭐ Uomo Partita votato (${mvpVotanti} votanti finora)</div>
-        <table class="tbl" style="margin-bottom:4px"><tbody>${mvpRows}</tbody></table>
+        <table class="tbl" style="margin-bottom:4px">
+          <thead><tr><th>Candidato</th><th>Votato da</th><th style="text-align:center">Voti</th></tr></thead>
+          <tbody>${mvpRows}</tbody>
+        </table>
+        ${!cIsLeader && mvpBreakdown.length>1 ? `<div style="font-size:0.68rem;color:var(--orange);margin-bottom:4px">⚖️ Parità in testa finora — nessun leader netto</div>` : ''}
         ${senzaScelta ? `<div style="font-size:0.68rem;color:var(--text2)">${senzaScelta} votante/i non ha/hanno ancora scelto nessuno</div>` : ''}
       </div>`;
     }
