@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.6';
+const INSPECTOR_VERSION = '1.8';
 
 async function checkInspectorUpdate(){
   try {
@@ -418,12 +418,12 @@ let ACHIEVEMENTS_DATA={}; // {groupKey: {uid: {achievementId: {data}}}} — Sist
 // sbloccato e salvato su Firebase, non ricalcola nulla). Tenuto allineato a mano con
 // ACHIEVEMENTS_CATALOG dell'app — se cambia lì, aggiornare anche qui.
 const ACHV_LABELS = {
-  presenze_10:{emoji:'🎽',label:'10 presenze',categoria:'Presenze'}, presenze_25:{emoji:'🎽',label:'25 presenze',categoria:'Presenze'}, presenze_45:{emoji:'🎽',label:'45 presenze',categoria:'Presenze'},
-  gol_5:{emoji:'⚽',label:'5 gol',categoria:'Gol'}, gol_10:{emoji:'⚽',label:'10 gol',categoria:'Gol'}, gol_25:{emoji:'⚽',label:'25 gol',categoria:'Gol'},
+  presenze_10:{emoji:'🎽',label:'10 presenze',categoria:'Presenze'}, presenze_25:{emoji:'🎽',label:'25 presenze',categoria:'Presenze'}, presenze_45:{emoji:'🎽',label:'45 presenze',categoria:'Presenze'}, presenze_100:{emoji:'🎽',label:'100 presenze 🏆 CARRIERA',categoria:'Presenze'},
+  gol_5:{emoji:'⚽',label:'5 gol',categoria:'Gol'}, gol_10:{emoji:'⚽',label:'10 gol',categoria:'Gol'}, gol_25:{emoji:'⚽',label:'25 gol',categoria:'Gol'}, gol_50:{emoji:'⚽',label:'50 gol 🏆 CARRIERA',categoria:'Gol'},
   doppietta_prima:{emoji:'⚽⚽',label:'Prima doppietta',categoria:'Gol'}, tripletta_prima:{emoji:'🎩',label:'Prima tripletta',categoria:'Gol'}, quadrupletta_prima:{emoji:'🎯',label:'Prima quadrupletta',categoria:'Gol'},
   assist_5:{emoji:'🅰️',label:'5 assist',categoria:'Assist'}, assist_10:{emoji:'🅰️',label:'10 assist',categoria:'Assist'}, assist_25:{emoji:'🅰️',label:'25 assist',categoria:'Assist'},
   uomo_partita_1:{emoji:'🥇',label:'Prima volta Uomo Partita',categoria:'Uomo Partita'}, uomo_partita_5:{emoji:'🥇',label:'5 volte Uomo Partita',categoria:'Uomo Partita'}, uomo_partita_10:{emoji:'👑',label:'10 volte Uomo Partita',categoria:'Uomo Partita'}, uomo_partita_25:{emoji:'👑',label:'25 volte Uomo Partita',categoria:'Uomo Partita'},
-  vittorie_5:{emoji:'🏆',label:'5 vittorie',categoria:'Vittorie'}, vittorie_10:{emoji:'🏆',label:'10 vittorie',categoria:'Vittorie'}, vittorie_25:{emoji:'🏆',label:'25 vittorie',categoria:'Vittorie'},
+  vittorie_5:{emoji:'🏆',label:'5 vittorie',categoria:'Vittorie'}, vittorie_10:{emoji:'🏆',label:'10 vittorie',categoria:'Vittorie'}, vittorie_25:{emoji:'🏆',label:'25 vittorie',categoria:'Vittorie'}, vittorie_50:{emoji:'🏆',label:'50 vittorie 🏆 CARRIERA',categoria:'Vittorie'},
   vittorie_fila_3:{emoji:'🔥',label:'3 vittorie di fila',categoria:'Streak'}, vittorie_fila_5:{emoji:'🔥',label:'5 vittorie di fila',categoria:'Streak'}, sconfitte_fila_3:{emoji:'💧',label:'3 sconfitte di fila',categoria:'Streak'}, sconfitte_fila_5:{emoji:'💧',label:'5 sconfitte di fila',categoria:'Streak'}, pareggi_5:{emoji:'🤝',label:'5 pareggi',categoria:'Streak'}, pareggi_10:{emoji:'🤝',label:'10 pareggi',categoria:'Streak'},
   clean_sheet_5:{emoji:'🧤',label:'5 clean sheet',categoria:'Portiere'}, clean_sheet_10:{emoji:'🧤',label:'10 clean sheet',categoria:'Portiere'}, clean_sheet_25:{emoji:'🧤',label:'25 clean sheet',categoria:'Portiere'}, rigori_parati_3:{emoji:'🥅',label:'3 rigori parati',categoria:'Portiere'}, rigori_parati_5:{emoji:'🥅',label:'5 rigori parati',categoria:'Portiere'},
   rigori_segnati_3:{emoji:'🎯',label:'3 rigori segnati',categoria:'Rigori'}, rigori_segnati_5:{emoji:'🎯',label:'5 rigori segnati',categoria:'Rigori'}, rigori_sbagliati_3:{emoji:'😅',label:'3 rigori sbagliati',categoria:'Rigori'},
@@ -1725,6 +1725,35 @@ function renderVotazioni(){
 
     const detailBlockId = `votDetail_${sIdx}`;
 
+    // Uomo Partita votato dai partecipanti (richiesta di Alby, 18/8/2026): mostra il conteggio
+    // live di chi sta prendendo più voti come MVP, stessa logica di aggregazione dell'app
+    // (chiudiVotazione) — solo lettura, aggiornato man mano che arrivano i voti.
+    let mvpBlock = '';
+    if (match && match.uomoPartitaVotato) {
+      const mvpConteggio = {};
+      let mvpVotanti = 0;
+      votedUids.forEach(vUid => {
+        const pick = s.entries[vUid]?.mvpPick;
+        if (pick) { mvpConteggio[pick] = (mvpConteggio[pick]||0) + 1; }
+        mvpVotanti++;
+      });
+      const mvpBreakdown = Object.entries(mvpConteggio)
+        .map(([uid,count]) => ({ uid, nome: nameOf(uid), count }))
+        .sort((a,b) => b.count - a.count);
+      const mvpRows = mvpBreakdown.length
+        ? mvpBreakdown.map((b,i) => `<tr>
+            <td>${i===0?'⭐ ':''}${b.nome}</td>
+            <td style="text-align:center"><strong style="color:${i===0?'var(--lime)':'var(--text)'}">${b.count}</strong> ${b.count===1?'voto':'voti'}</td>
+          </tr>`).join('')
+        : `<tr><td colspan="2" style="color:var(--gray)">Nessun voto ancora arrivato per l'Uomo Partita</td></tr>`;
+      const senzaScelta = votedUids.filter(vUid => !s.entries[vUid]?.mvpPick).length;
+      mvpBlock = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:0.78rem;color:#fbbf24;margin-bottom:6px">⭐ Uomo Partita votato (${mvpVotanti} votanti finora)</div>
+        <table class="tbl" style="margin-bottom:4px"><tbody>${mvpRows}</tbody></table>
+        ${senzaScelta ? `<div style="font-size:0.68rem;color:var(--text2)">${senzaScelta} votante/i non ha/hanno ancora scelto nessuno</div>` : ''}
+      </div>`;
+    }
+
     return `<div class="card">
       <div class="card-head"><span class="card-title">⚽ ${label}</span>
         <span class="badge ${match?(s.meta.closed?'badge-gray':'badge-lime'):'badge-red'}">${match?(s.meta.closed?'🔒 Chiusa':'🟢 Aperta'):'🗑️ Orfana — partita eliminata'}</span>
@@ -1745,7 +1774,8 @@ function renderVotazioni(){
         <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px">${votedUids.length?votedUids.map(nameOf).join(', '):'—'}</div>
         <div style="font-size:0.78rem;color:var(--orange);margin-bottom:4px">⏳ Non hanno ancora votato (${notVotedUids.length})</div>
         <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px">${notVotedUids.length?notVotedUids.map(nameOf).join(', '):'— tutti hanno votato ✅'}</div>
-        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('${detailBlockId}').style.display = document.getElementById('${detailBlockId}').style.display==='none' ? '' : 'none'">🔍 Vedi/nascondi dettaglio voti e anteprima calcolo</button>
+        ${mvpBlock}
+        <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="document.getElementById('${detailBlockId}').style.display = document.getElementById('${detailBlockId}').style.display==='none' ? '' : 'none'">🔍 Vedi/nascondi dettaglio voti e anteprima calcolo</button>
         <div id="${detailBlockId}" style="display:none;margin-top:10px;overflow-x:auto">
           <table class="tbl">
             <thead><tr><th>Giocatore</th><th>Voti ricevuti (da chi, quanto)</th><th style="text-align:center">Anteprima voto finale</th></tr></thead>
