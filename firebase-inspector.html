@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.9';
+const INSPECTOR_VERSION = '1.12';
 
 async function checkInspectorUpdate(){
   try {
@@ -1757,7 +1757,7 @@ function renderVotazioni(){
           </tr>`).join('')
         : `<tr><td colspan="3" style="color:var(--gray)">Nessun voto ancora arrivato per l'Uomo Partita</td></tr>`;
       const senzaScelta = votedUids.filter(vUid => !s.entries[vUid]?.mvpPick).length;
-      mvpBlock = `<div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      mvpBlock = `<div style="margin-bottom:14px">
         <div style="font-size:0.78rem;color:#fbbf24;margin-bottom:6px">⭐ Uomo Partita votato (${mvpVotanti} votanti finora)</div>
         <table class="tbl" style="margin-bottom:4px">
           <thead><tr><th>Candidato</th><th>Votato da</th><th style="text-align:center">Voti</th></tr></thead>
@@ -1788,9 +1788,9 @@ function renderVotazioni(){
         <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px">${votedUids.length?votedUids.map(nameOf).join(', '):'—'}</div>
         <div style="font-size:0.78rem;color:var(--orange);margin-bottom:4px">⏳ Non hanno ancora votato (${notVotedUids.length})</div>
         <div style="font-size:0.8rem;color:var(--text2);margin-bottom:10px">${notVotedUids.length?notVotedUids.map(nameOf).join(', '):'— tutti hanno votato ✅'}</div>
-        ${mvpBlock}
         <button class="btn btn-ghost btn-sm" style="margin-top:10px" onclick="document.getElementById('${detailBlockId}').style.display = document.getElementById('${detailBlockId}').style.display==='none' ? '' : 'none'">🔍 Vedi/nascondi dettaglio voti e anteprima calcolo</button>
         <div id="${detailBlockId}" style="display:none;margin-top:10px;overflow-x:auto">
+          ${mvpBlock}
           <table class="tbl">
             <thead><tr><th>Giocatore</th><th>Voti ricevuti (da chi, quanto)</th><th style="text-align:center">Anteprima voto finale</th></tr></thead>
             <tbody>${detailRows || '<tr><td colspan="3" style="color:var(--gray)">Nessun giocatore trovato per questa partita</td></tr>'}</tbody>
@@ -3061,7 +3061,7 @@ function downloadJSON(data, filename) {
   a.click();
 }
 
-function doFullBackup(includeFoto=true) {
+async function doFullBackup(includeFoto=true) {
   const ts = new Date().toISOString().slice(0,10);
 
   // Ricostruisce la struttura annidata per gruppo (group/players/matches/archivedSeasons) — lo stesso
@@ -3081,6 +3081,31 @@ function doFullBackup(includeFoto=true) {
     log(`⚠️ ${archivedFlat.length} stagioni archiviate trovate ma NON incluse nel backup: con più di un gruppo attivo l'Inspector non può attribuirle in modo affidabile a quello giusto`, 'warn');
   }
 
+  // votePins + votes (richiesta di Alby, 18/8/2026, prima dell'archiviazione stagione live del
+  // 18/8/2026): entrambi vivono in un ramo Firebase separato da "groups", quindi il backup non li
+  // includeva affatto. votePins è un fetch fresco e completo (non il flag booleano di VOTE_PINS,
+  // che scarta l'hash/updatedAt/updatedBy effettivi) — solo hash SHA-256 del PIN, mai il PIN in
+  // chiaro, quindi sicuro da includere e ripristinare. votes riusa VOTAZIONI_DATA (già caricato per
+  // intero da loadVotazioniData). Entrambi chiave per gKey slug del nome gruppo, coerente con come
+  // li scrive/legge l'app.
+  let votePinsFull = {};
+  if (AUTH_TOKEN) {
+    try {
+      const base=$('fbUrl').value.trim().replace(/\/$/,'');
+      const r = await fetch(`${base}/amicifc/votePins.json?auth=${AUTH_TOKEN}`, {cache:'no-store'});
+      if (r.ok) votePinsFull = (await r.json()) || {};
+    } catch(e) { console.warn('[Backup] votePins fetch:', e.message); }
+  } else {
+    log('⚠️ Non autenticato: i PIN dei giocatori NON sono inclusi nel backup (serve login admin per leggerli)', 'warn');
+  }
+  const votesFull = VOTAZIONI_DATA || {};
+  // seasonSummary (18/8/2026, segnalato da Alby con una domanda diretta: "il ripristino cancella
+  // anche il Riepilogo Stagione?"): stesso identico problema di votePins/votes — vive in un ramo
+  // Firebase separato da "groups", il backup non lo includeva MAI. A differenza di votePins non
+  // serve un fetch dedicato: DB è già un fetch completo (amicifc.json, non shallow), quindi
+  // DB.seasonSummary è già in memoria.
+  const seasonSummaryFull = DB?.seasonSummary || {};
+
   const groups = GROUPS.map(g => {
     const gPlayers = PLAYERS.filter(p => p._groupName === g.nome).map(p => {
       const clean = stripInternal(p);
@@ -3098,14 +3123,20 @@ function doFullBackup(includeFoto=true) {
   });
 
   const fotoCount = PLAYERS.filter(p=>p.foto&&p.foto.startsWith('data:')).length;
+  const votePinsCount = Object.values(votePinsFull).reduce((s,groupObj)=>s+Object.keys(groupObj||{}).length,0);
+  const votesCount = Object.values(votesFull).reduce((s,groupObj)=>s+Object.keys(groupObj||{}).length,0);
+  const seasonSummaryCount = Object.values(seasonSummaryFull).reduce((s,groupObj)=>s+Object.keys(groupObj||{}).length,0);
   const backup = {
     _backupDate: new Date().toISOString(),
     _version: 'inspector-v5-sync2',
     _type: 'backup-completo',
     _includeFoto: includeFoto,
-    _stats: { groups: GROUPS.length, players: PLAYERS.length, matches: MATCHES.length, fotoCount, archivedSeasons: archivedFlat.length },
+    _stats: { groups: GROUPS.length, players: PLAYERS.length, matches: MATCHES.length, fotoCount, archivedSeasons: archivedFlat.length, votePins: votePinsCount, votazioni: votesCount, riepiloghi: seasonSummaryCount },
     _restoreNote: 'Per ripristinare: usa il pulsante "Ripristina da Backup JSON" in questa sezione',
     playerPhotosMigrated: !!DB?.playerPhotosMigrated,
+    votePins: votePinsFull,
+    votes: votesFull,
+    seasonSummary: seasonSummaryFull,
     groups,
     aiCards: AI
   };
@@ -3113,7 +3144,7 @@ function doFullBackup(includeFoto=true) {
     ? `amicifc-backup-COMPLETO-con-foto-${ts}.json`
     : `amicifc-backup-completo-${ts}.json`;
   downloadJSON(backup, filename);
-  log(`Backup completo: ${GROUPS.length} gruppo/i, ${PLAYERS.length} giocatori, ${MATCHES.length} partite, ${archivedFlat.length} stagioni archiviate, ${includeFoto?fotoCount+' foto incluse (da playerPhotos o inline)':'foto escluse'}`, 'ok');
+  log(`Backup completo: ${GROUPS.length} gruppo/i, ${PLAYERS.length} giocatori, ${MATCHES.length} partite, ${archivedFlat.length} stagioni archiviate, ${votePinsCount} PIN, ${votesCount} sessioni di voto, ${seasonSummaryCount} Riepiloghi Stagione, ${includeFoto?fotoCount+' foto incluse (da playerPhotos o inline)':'foto escluse'}`, 'ok');
 }
 
 function doPlayersBackup() {
@@ -3237,6 +3268,12 @@ async function doRestoreFromBackup(event) {
 ` +
         `Stagioni archiviate: ${stats.archivedSeasons ?? '(backup precedente a questa funzione — verranno preservate quelle già su Firebase)'}
 ` +
+        `PIN giocatori: ${stats.votePins ?? '(backup precedente a questa funzione — verranno preservati quelli già su Firebase)'}
+` +
+        `Sessioni di voto: ${stats.votazioni ?? '(backup precedente a questa funzione — verranno preservate quelle già su Firebase)'}
+` +
+        `Riepiloghi Stagione: ${stats.riepiloghi ?? '(backup precedente a questa funzione — verranno preservati quelli già su Firebase)'}
+` +
         `Foto: ${hasFoto ? (stats.fotoCount || '?') + ' incluse' : 'non incluse'}
 
 ` +
@@ -3255,6 +3292,13 @@ async function doRestoreFromBackup(event) {
 
       // Sync v2: leggi stato attuale playerPhotos/playerPhotosMigrated/archivedSeasons — il restore NON deve perderli
       let currentPhotosMigrated=false, currentPhotoNodes={}, currentArchivedSeasons={};
+      // votePins/votes/seasonSummary (18/8/2026): stesso principio — il PUT su questo nodo è
+      // completo, quindi se non li preserviamo esplicitamente un backup VECCHIO (senza queste chiavi)
+      // cancellerebbe silenziosamente PIN, votazioni e Riepiloghi Stagione reali già su Firebase, mai
+      // inclusi nel backup solo perché il backup non sapeva ancora che esistessero. seasonSummary in
+      // particolare è dato AI generato una tantum e non rigenerabile (le immagini dei Riepiloghi più
+      // vecchi vengono già alleggerite dall'app stessa) — una perdita qui è permanente.
+      let currentVotePins={}, currentVotes={}, currentSeasonSummary={};
       try{
         const fbNow=await fetch(base+'.json?shallow=false',{cache:'no-store'});
         if(fbNow.ok){
@@ -3262,6 +3306,9 @@ async function doRestoreFromBackup(event) {
           currentPhotosMigrated=!!d?.playerPhotosMigrated;
           currentPhotoNodes=d?.playerPhotos||{};
           currentArchivedSeasons=d?.archivedSeasons||{};
+          currentVotePins=d?.votePins||{};
+          currentVotes=d?.votes||{};
+          currentSeasonSummary=d?.seasonSummary||{};
         }
       }catch(e){ log('⚠️ Lettura stato Sync v2 saltata: '+e.message,'info'); }
 
@@ -3278,6 +3325,35 @@ async function doRestoreFromBackup(event) {
       // Aggiungi gruppi, giocatori, partite
       if (backup.groups) payload.groups = backup.groups;
       if (backup.aiCards) payload.aiCards = backup.aiCards;
+
+      // votePins/votes: usa quelli del backup se presenti (formato nuovo, 18/8/2026), altrimenti
+      // preserva quelli già su Firebase — stesso principio già applicato sopra per playerPhotos.
+      if (backup.votePins) {
+        payload.votePins = backup.votePins;
+        const n = Object.values(backup.votePins).reduce((s,go)=>s+Object.keys(go||{}).length,0);
+        log(`🔑 ${n} PIN dal backup ripristinati`, 'info');
+      } else if (Object.keys(currentVotePins).length > 0) {
+        payload.votePins = currentVotePins;
+        log(`🔑 Backup senza PIN — quelli già su Firebase preservati`, 'info');
+      }
+      if (backup.votes) {
+        payload.votes = backup.votes;
+        const n = Object.values(backup.votes).reduce((s,go)=>s+Object.keys(go||{}).length,0);
+        log(`🗳️ ${n} sessioni di voto dal backup ripristinate`, 'info');
+      } else if (Object.keys(currentVotes).length > 0) {
+        payload.votes = currentVotes;
+        log(`🗳️ Backup senza votazioni — quelle già su Firebase preservate`, 'info');
+      }
+      // seasonSummary: dato AI generato una tantum, mai rigenerabile identico — preservare qui è
+      // particolarmente importante rispetto a votePins/votes.
+      if (backup.seasonSummary) {
+        payload.seasonSummary = backup.seasonSummary;
+        const n = Object.values(backup.seasonSummary).reduce((s,go)=>s+Object.keys(go||{}).length,0);
+        log(`📖 ${n} Riepiloghi Stagione dal backup ripristinati`, 'info');
+      } else if (Object.keys(currentSeasonSummary).length > 0) {
+        payload.seasonSummary = currentSeasonSummary;
+        log(`📖 Backup senza Riepiloghi Stagione — quelli già su Firebase preservati`, 'info');
+      }
 
       // Se il backup ha la struttura flat (players + matches separati)
       if (backup.players && !backup.groups) {

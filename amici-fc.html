@@ -8869,7 +8869,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.869',date:'2026-08-18',items:[
+    const changelogEntries = [{version:'v1.871',date:'2026-08-18',items:[
+      'Fix (domanda diretta di Alby: "il ripristino cancella anche il Riepilogo Stagione localmente?"): risposta era si - il ripristino Backup JSON locale cancella SEMPRE la tabella Riepiloghi prima di reimportare, e un backup vecchio (senza Riepiloghi al suo interno) non aveva nulla da rimettere al loro posto. Ora, se il backup non ne contiene, l app prova subito a riscaricarli da Firebase (che resta la fonte di verita intatta, mai toccata da un ripristino locale) invece di lasciare il vuoto fino al prossimo sync naturale.',
+    ]},{version:'v1.870',date:'2026-08-18',items:[
+      'Soprannomi AI: raddoppiato il vincolo di lunghezza introdotto in v1.867 (segnalato da Alby dopo la prima rigenerazione, risultata troppo corta) - confronto ora 1-2 frasi max 30 parole (era 15), motivazione 2-3 frasi max 60 parole (era 30). Alzato anche il budget token per la chiamata AI da 800 a 1400, per ridurre il rischio che il testo più lungo richiesto sfori di nuovo in MAX_TOKENS (causa originale dell incoerenza gia risolta in v1.867).',
+      'Fix importante (segnalato da Alby): su un dispositivo che non aveva mai generato o scaricato il Riepilogo Stagione (es. secondo device, mai loggato), la voce di menu "Riepilogo Stagione"/"Riepiloghi Stagionali" restava invisibile per sempre - anche con il Riepilogo regolarmente presente su Firebase (confermato visibile in Inspector). Causa: esisteva gia un meccanismo che scarica da Firebase le Stagioni Archiviate mancanti su un dispositivo nuovo, ma nessun meccanismo equivalente per il Riepilogo Stagione stesso - la funzione che lo carica cercava sempre e solo una riga gia esistente in locale, senza mai un modo per scaricarne una la prima volta. Aggiunto lo stesso meccanismo di sync-down gia usato per le Stagioni Archiviate (stessa logica, stesso abbinamento per nome gruppo), collegato allo stesso punto di avvio. Funziona anche senza aver eseguito il login, se le regole Firebase permettono la lettura pubblica.',
+    ]},{version:'v1.869',date:'2026-08-18',items:[
       'Spostato il bottone "Rigenera Soprannomi Annuario" (introdotto in v1.868) da dentro la vista Riepilogo Stagione a Impostazioni - Zona Pericolo, su richiesta di Alby: ora c e un elenco a tendina per scegliere QUALSIASI Riepilogo del gruppo (corrente o storico), invece di poter rigenerare solo quello gia aperto sullo schermo.',
     ]},{version:'v1.868',date:'2026-08-18',items:[
       'Nuovo: bottone "Rigenera Soprannomi" nell Annuario del Riepilogo Stagione, funziona anche su una stagione gia archiviata (richiesta di Alby, dopo l archiviazione 25/26: i soprannomi con lunghezza incoerente erano gia congelati nell Annuario, il fix precedente valeva solo da quel momento in poi). Usa i dati statistici gia fotografati nello snapshot (le partite di quella stagione non esistono piu in forma corrente) piu i dati anagrafici del giocatore ancora presenti (descrizione, numero maglia, squadra del cuore - non azzerati dall archiviazione). Non tocca in alcun modo i soprannomi della stagione corrente.',
@@ -10131,7 +10136,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.869');
+    const appVersion = ref('1.871');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10860,6 +10865,7 @@ createApp({
       // ri-aggiunga stagioni archiviate di test precedenti, contaminando lo stato del backup importato.
       if (currentGroup.value.firebaseUrl && !_skipNextArchivedPull) {
         _pullArchivedSeasonsFromFirebase(currentGroup.value).catch(() => {});
+        _pullSeasonSummariesFromFirebase(currentGroup.value).catch(() => {});
       }
       _skipNextArchivedPull = false;
     };
@@ -10983,6 +10989,61 @@ createApp({
         }
       } catch(e) {
         logEvent('warn', 'photos', '🖼️ _hydratePlayerPhotos: errore costruendo la cache — ' + (e.message||e));
+      }
+    };
+
+    // Scarica da Firebase i Riepiloghi Stagionali che non sono ancora presenti in locale per il
+    // gruppo dato (18/8/2026, segnalato da Alby: su un dispositivo che non ha mai generato/scaricato
+    // il Riepilogo di persona — es. secondo device, mai loggato — la voce di menu "Riepilogo
+    // Stagione"/"Riepiloghi Stagionali" restava invisibile per sempre, pur essendo presente su
+    // Firebase e visibile in Inspector: _reconcileCurrentSeasonSummary cerca SOLO una riga già
+    // esistente in locale, non ha mai avuto un percorso per scaricarne una la prima volta).
+    // Stessa identica struttura di _pullArchivedSeasonsFromFirebase (shallow fetch dei livelli,
+    // scarica solo i mancanti, abbinamento per groupNome con fallback "unico gruppo su questo URL").
+    const _pullSeasonSummariesFromFirebase = async (group) => {
+      if (!group?.firebaseUrl) return;
+      const gid = group.id;
+      try {
+        const tok = await getValidToken().catch(()=>null);
+
+        const _url = (group.firebaseUrl||'').replace(/\/$/,'');
+        const _resp = await fetch(`${_url}/amicifc/seasonSummary.json?shallow=true${tok?'&auth='+tok:''}`, { cache: 'no-store' });
+        if (!_resp.ok) return;
+        const allGroupKeys = await _resp.json(); // null se il nodo è vuoto, altrimenti {fbGroupId: true, ...}
+
+        const localRows = await db.seasonSummaries.where('groupId').equals(gid).toArray();
+        const localIds = new Set(localRows.map(s => s.archivioId).filter(Boolean));
+
+        let downloaded = 0;
+        for (const fbGroupId of Object.keys(allGroupKeys && typeof allGroupKeys === 'object' ? allGroupKeys : {})) {
+          const archivioKeys = await _fbReadFromGroup(group, `seasonSummary/${fbGroupId}`, tok, 'shallow=true');
+          if (!archivioKeys || typeof archivioKeys !== 'object') continue;
+
+          const missingIds = Object.keys(archivioKeys).filter(id => !localIds.has(id));
+          if (!missingIds.length) continue;
+
+          for (const archivioId of missingIds) {
+            const remote = await _fbReadFromGroup(group, `seasonSummary/${fbGroupId}/${archivioId}`, tok);
+            if (!remote?.archivioId) continue;
+
+            const belongsHere = remote.groupNome
+              ? remote.groupNome === group.nome
+              : true; // Riepiloghi pre-18/8/2026 senza groupNome: inclusi comunque, un URL Firebase appartiene a un solo account
+            if (!belongsHere) continue;
+
+            const { id: _oldId, ...rest } = remote; // mai riusare l'id Dexie di un altro dispositivo
+            await db.seasonSummaries.add({ ...rest, groupId: gid });
+            localIds.add(archivioId);
+            downloaded++;
+          }
+        }
+
+        if (downloaded > 0) {
+          logEvent('info', 'app', `📖 Scaricati ${downloaded} Riepiloghi Stagionali mancanti da Firebase per "${group.nome}"`);
+          if (currentGroup.value?.id === gid) loadSeasonSummarySnapshot(gid).catch(()=>{});
+        }
+      } catch(e) {
+        logEvent('warn', 'app', '📖 _pullSeasonSummariesFromFirebase: errore imprevisto — ' + (e.message||e));
       }
     };
 
@@ -14845,8 +14906,8 @@ NOTE CAMPI:
 - autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
 - volte_fuori_porta_con_contributo (solo per i Portieri, se presente): quante volte quest'anno ha fatto gol/assist/rigore sbagliato in una partita dove non era chiaro chi fosse il portiere titolare quel giorno — ottimo spunto ironico ("anche i portieri sognano il gol"), menzionalo solo se presente
 LUNGHEZZA (importante, rispettala sempre allo stesso modo per ogni giocatore, non allungarti anche se hai margine):
-- confronto: UNA frase breve, massimo 15 parole
-- motivazione: 1-2 frasi, massimo 30 parole in totale
+- confronto: 1-2 frasi, massimo 30 parole
+- motivazione: 2-3 frasi, massimo 60 parole in totale
 REGOLE OBBLIGATORIE:
 - Riporta SEMPRE il campo "n" come numero, esattamente uguale a numero_riferimento
 - Il confronto DEVE riflettere i dati reali (es: 0 gol → NON paragonare a Ronaldo o bomber)
@@ -14913,7 +14974,11 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
 
         const prompt = _buildNicknamePrompt(profili);
 
-        const raw = await _callAI(prompt, 800);
+        // Budget alzato da 800 a 1400 (18/8/2026): col vincolo di lunghezza raddoppiato (richiesta
+        // di Alby dopo la prima rigenerazione, risultata troppo corta), 800 token bastavano a stento
+        // e rischiavano di sforare più spesso in MAX_TOKENS — proprio la causa originale
+        // dell'incoerenza di lunghezza tra i vari modelli AI in fallback.
+        const raw = await _callAI(prompt, 1400);
         if (!raw) { failedBatches++; continue; }
         const parsed = _parseAIJson(raw);
         if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
@@ -17594,6 +17659,12 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       // doArchiveStagione): deep-clone in plain object PRIMA di scrivere su Dexie. Segnalato da
       // Alby 18/7/2026 nel test reale.
       const plainSnapshot = JSON.parse(JSON.stringify(snapshot));
+      // groupNome (18/8/2026): abbinamento stabile tra dispositivi diversi, stesso principio già
+      // usato per archivedSeasons (v1.575) — il gid Dexie locale è auto-increment e può differire
+      // da dispositivo a dispositivo, il nome del gruppo invece è stabile. Serve al nuovo
+      // _pullSeasonSummariesFromFirebase per sapere a quale gruppo LOCALE attribuire un Riepilogo
+      // scaricato da Firebase, generato originariamente su un altro dispositivo.
+      if (currentGroup.value?.nome) plainSnapshot.groupNome = currentGroup.value.nome;
       // Schema multi-riga dalla v1.734: la prima volta (Fase 1) non ha ancora un id Dexie, va
       // creato con add(); le volte successive (Fase 2 testo AI, retry) aggiornano la STESSA riga
       // con put(), preservando l'id.
@@ -17779,7 +17850,8 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           });
 
           const prompt = _buildNicknamePrompt(profili);
-          const raw = await _callAI(prompt, 800);
+          // Budget alzato da 800 a 1400 (18/8/2026), stesso motivo di _generateNicknames.
+          const raw = await _callAI(prompt, 1400);
           if (!raw) { failedBatches++; continue; }
           const parsed = _parseAIJson(raw);
           if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
@@ -22634,7 +22706,17 @@ Sei sicuro?`;
         // (comportamento corretto in generale, ma qui cancellerebbe esattamente quello che ho appena
         // ripristinato, nel caso in cui Firebase non lo abbia ancora). Assegnazione diretta, stesso
         // principio già usato per archivedSeasons: il backup importato è la fonte di verità qui.
-        if (importedSeasonSummary) seasonSummarySnapshot.value = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first() || null;
+        if (importedSeasonSummary) {
+          seasonSummarySnapshot.value = await db.seasonSummaries.where('groupId').equals(gid).and(r => !r.isLightweight).first() || null;
+        } else if (currentGroup.value?.firebaseUrl) {
+          // Guarigione automatica (18/8/2026, domanda diretta di Alby: "il ripristino cancella anche
+          // il Riepilogo Stagione localmente?" — sì, lo Step 1 sopra cancella SEMPRE la tabella locale
+          // prima di reimportare, e un backup vecchio/senza Riepiloghi non ha nulla da rimettere al suo
+          // posto). Firebase resta la fonte di verità intatta (mai toccata da un ripristino locale) —
+          // se il Riepilogo esiste ancora lì, questo lo riscarica subito invece di lasciare il vuoto
+          // fino al prossimo giro di sync naturale.
+          _pullSeasonSummariesFromFirebase(currentGroup.value).catch(()=>{});
+        }
 
         restoreStatus.value = `✅ Ripristino completato!
 ${backupPlayers.length} giocatori · ${importedMatches} partite · ${importedArchives} stagioni archiviate${importedSeasonSummary ? ` · ${importedSeasonSummary} Riepiloghi Stagionali ripristinati` : ''}
