@@ -6426,6 +6426,41 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   @click="wipeLocalSeasonSummaryHistory" :disabled="seasonSummaryWipeLoading">
                   {{ seasonSummaryWipeLoading ? '⏳...' : '🧹 Cancella storico Riepiloghi (solo locale, solo questo gruppo)' }}
                 </button>
+
+                <!-- Rigenera Soprannomi Annuario per una stagione a scelta (richiesta di Alby,
+                     18/8/2026): a differenza del testo AI narrativo (rigenerabile con "Riprova testo
+                     AI" nella vista Riepilogo), i soprannomi dell'Annuario restano congelati per
+                     sempre dentro sezioneE dopo l'archiviazione — questo strumento li rigenera usando
+                     le statistiche già congelate nello snapshot scelto (le partite di quella stagione
+                     non esistono più in forma live), senza toccare la cache soprannomi della stagione
+                     corrente. Selettore invece di un bottone dentro il Riepilogo stesso: qui si può
+                     scegliere QUALSIASI stagione storica, non solo quella aperta al momento. -->
+                <div style="margin-top:14px;padding-top:12px;border-top:1px solid rgba(255,255,255,.08)">
+                  <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                    🎭 I soprannomi AI dell'Annuario restano congelati per sempre al momento
+                    dell'archiviazione — rigenerarli qui aggiorna solo quella stagione, senza toccare
+                    i soprannomi della stagione corrente.
+                  </div>
+                  <button v-if="!zpAnnuarioSeasonsList.length" class="btn btn-full btn-sm" style="background:rgba(200,255,0,0.08);border:1.5px solid rgba(200,255,0,.3);color:#C8FF00"
+                    @click="zpLoadAnnuarioSeasonsList" :disabled="zpAnnuarioSeasonsLoading">
+                    {{ zpAnnuarioSeasonsLoading ? '⏳ Carico...' : '📂 Carica elenco Riepiloghi di questo gruppo' }}
+                  </button>
+                  <template v-else>
+                    <select v-model="zpAnnuarioTargetId" class="input-field" style="margin-bottom:8px;font-size:0.8rem">
+                      <option :value="null" disabled>Scegli quale Riepilogo rigenerare...</option>
+                      <option v-for="s in zpAnnuarioSeasonsList" :key="s.id" :value="s.id">
+                        {{ s.stagione || 'Stagione senza nome' }}{{ s.isLightweight===false ? ' (corrente)' : '' }} — {{ s.sezioneE?.length||0 }} giocatori
+                      </option>
+                    </select>
+                    <button class="btn btn-full btn-sm" style="background:rgba(200,255,0,0.12);border:1.5px solid #C8FF00;color:#C8FF00"
+                      :disabled="!zpAnnuarioTargetId || annuarioNicknamesRetrying" @click="zpRetryAnnuarioNicknamesForSelected">
+                      {{ annuarioNicknamesRetrying ? '⏳ Rigenero...' : '🔄 Rigenera Soprannomi Annuario' }}
+                    </button>
+                    <div v-if="zpAnnuarioRetryResult" style="font-size:0.72rem;margin-top:8px" :style="{color: zpAnnuarioRetryResult.ok ? 'var(--lime)' : 'var(--red)'}">
+                      {{ zpAnnuarioRetryResult.msg }}
+                    </div>
+                  </template>
+                </div>
                 <pre v-if="seasonSummaryTestOutput" style="margin-top:10px;padding:10px;background:rgba(0,0,0,.3);border-radius:8px;font-size:0.72rem;line-height:1.5;white-space:pre-wrap;color:var(--text2);max-height:400px;overflow-y:auto">{{ seasonSummaryTestOutput }}</pre>
                 <div v-if="seasonSummaryPreviewMatch" style="margin-top:10px">
                   <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">
@@ -8834,7 +8869,14 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.866',date:'2026-08-18',items:[
+    const changelogEntries = [{version:'v1.869',date:'2026-08-18',items:[
+      'Spostato il bottone "Rigenera Soprannomi Annuario" (introdotto in v1.868) da dentro la vista Riepilogo Stagione a Impostazioni - Zona Pericolo, su richiesta di Alby: ora c e un elenco a tendina per scegliere QUALSIASI Riepilogo del gruppo (corrente o storico), invece di poter rigenerare solo quello gia aperto sullo schermo.',
+    ]},{version:'v1.868',date:'2026-08-18',items:[
+      'Nuovo: bottone "Rigenera Soprannomi" nell Annuario del Riepilogo Stagione, funziona anche su una stagione gia archiviata (richiesta di Alby, dopo l archiviazione 25/26: i soprannomi con lunghezza incoerente erano gia congelati nell Annuario, il fix precedente valeva solo da quel momento in poi). Usa i dati statistici gia fotografati nello snapshot (le partite di quella stagione non esistono piu in forma corrente) piu i dati anagrafici del giocatore ancora presenti (descrizione, numero maglia, squadra del cuore - non azzerati dall archiviazione). Non tocca in alcun modo i soprannomi della stagione corrente.',
+    ]},{version:'v1.867',date:'2026-08-18',items:[
+      'Fix: subito dopo l archiviazione stagione, la tab Statistiche - Gol mostrava un banner "Leader" con 0 gol per un giocatore, prima ancora che fosse giocata una partita nella nuova stagione. Corretto con lo stesso controllo gia usato per Assist/Autogol: il banner ora resta nascosto finche nessuno ha segnato davvero.',
+      'Soprannomi AI: aggiunto un vincolo di lunghezza esplicito nel prompt (confronto: una frase, max 15 parole; motivazione: 1-2 frasi, max 30 parole) - prima, quando la generazione passava da un modello AI a un altro nella stessa sessione (es. dopo un errore 503), ogni modello scriveva quanto gli veniva naturale, alcuni soprannomi risultavano molto piu corti di altri nello stesso Riepilogo. Ora la lunghezza resta coerente indipendentemente da quale modello risponde.',
+    ]},{version:'v1.866',date:'2026-08-18',items:[
       'Fix importante (segnalato da Alby): il rigore segnato (RG) era sempre tracciato come statistica a se, mai sommato al conteggio Gol - ne nel risultato della partita (Uno alla Volta, Tutti Insieme, Vota con gli amici), ne nel totale gol carriera del giocatore (quindi nemmeno in classifica marcatori). Un rigore segnato ora conta automaticamente anche come gol ovunque nell app, da ora in avanti (nessun ricalcolo dello storico gia giocato, come richiesto). Spostato anche il contatore RG vicino al Gol nelle tre schermate (prima era in una riga separata con Rigore Parato/Sbagliato) e aggiunta la spiegazione mancante di RG nella legenda simboli.',
       'Fix: il modal "PIN generato" appariva dietro la scheda giocatore invece che sopra (stesso z-index, ordine nel codice sfavorevole) - ora ha priorita e si vede sempre correttamente.',
       'Fix: nel voto "Vota con gli amici", la scelta dell Uomo Partita da parte del votante era facoltativa e si poteva saltare - ora e obbligatoria, il bottone "Riepilogo" resta bloccato finche non si seleziona un giocatore (richiesta di Alby).',
@@ -10089,7 +10131,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.866');
+    const appVersion = ref('1.869');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14787,6 +14829,35 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // dato resterà archiviato così com'è per sempre. Con forceAll=true, la soglia diventa 1 invece
     // di 4 — non "rigenera comunque tutti indipendentemente dalle partite giocate" (sarebbe uno
     // spreco di token per chi non ha giocato nel frattempo), solo la soglia minima che scatta.
+    // Testo del prompt soprannomi AI estratto in funzione condivisa (18/8/2026) — riusato sia dalla
+    // generazione normale (_generateNicknames) sia dalla rigenerazione mirata dell'Annuario di una
+    // stagione già archiviata (retryAnnuarioNicknames), così il vincolo di lunghezza e le regole
+    // restano in un solo posto, mai due copie da tenere sincronizzate.
+    const _buildNicknamePrompt = (profili) => `Sei uno scout calcistico ironico. Per ogni giocatore genera soprannome e confronto con calciatore famoso BASANDOTI SOLO SUI DATI REALI forniti. NON inventare statistiche.
+GIOCATORI (dati reali da usare): ${JSON.stringify(profili)}
+NOTE CAMPI:
+- numero_riferimento: riportalo identico in output nel campo "n" (numero da 1 a ${profili.length})
+- partite_giocate: quante partite ha disputato in totale (NON è un punteggio)
+- punti_medi_a_partita: rendimento medio (punti per presenza, scala calcistica)
+- descrizione_qualita (se presente): note personali su stile di gioco, pregi e difetti — usale per personalizzare il soprannome e il confronto
+- numero_preferito (se presente): il numero di maglia scelto dal giocatore — puoi citarlo con ironia se si presta (es. legato a un calciatore famoso con quel numero), ma non è obbligatorio
+- squadra_cuore (se presente): la squadra di calcio del cuore del giocatore — puoi usarla per un parallelo o una battuta se pertinente, ma non è obbligatorio
+- autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
+- volte_fuori_porta_con_contributo (solo per i Portieri, se presente): quante volte quest'anno ha fatto gol/assist/rigore sbagliato in una partita dove non era chiaro chi fosse il portiere titolare quel giorno — ottimo spunto ironico ("anche i portieri sognano il gol"), menzionalo solo se presente
+LUNGHEZZA (importante, rispettala sempre allo stesso modo per ogni giocatore, non allungarti anche se hai margine):
+- confronto: UNA frase breve, massimo 15 parole
+- motivazione: 1-2 frasi, massimo 30 parole in totale
+REGOLE OBBLIGATORIE:
+- Riporta SEMPRE il campo "n" come numero, esattamente uguale a numero_riferimento
+- Il confronto DEVE riflettere i dati reali (es: 0 gol → NON paragonare a Ronaldo o bomber)
+- Difensore con gol subiti → NON dire che non subisce goal
+- Se voto è basso → motivazione ironica sul rendimento scarso
+- Usa piede preferito e descrizione_qualita per rendere il soprannome più specifico e personale
+- Se ci sono autogol o rigori sbagliati, puoi citarli con ironia leggera
+- Confronto ironico ma calcisticamente sensato basato sui numeri
+- Mai offensivo, sempre divertente
+JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
+
     const _generateNicknames = async (forceAll = false) => {
       if (!settings.value.apiKey) { _aiLog('Soprannomi','⚠️ Nessuna API key',false); return; }
       if (!currentGroup.value) { _aiLog('Soprannomi','⚠️ Nessun gruppo attivo',false); return; }
@@ -14840,27 +14911,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
           return obj;
         });
 
-        const prompt = `Sei uno scout calcistico ironico. Per ogni giocatore genera soprannome e confronto con calciatore famoso BASANDOTI SOLO SUI DATI REALI forniti. NON inventare statistiche.
-GIOCATORI (dati reali da usare): ${JSON.stringify(profili)}
-NOTE CAMPI:
-- numero_riferimento: riportalo identico in output nel campo "n" (numero da 1 a ${profili.length})
-- partite_giocate: quante partite ha disputato in totale (NON è un punteggio)
-- punti_medi_a_partita: rendimento medio (punti per presenza, scala calcistica)
-- descrizione_qualita (se presente): note personali su stile di gioco, pregi e difetti — usale per personalizzare il soprannome e il confronto
-- numero_preferito (se presente): il numero di maglia scelto dal giocatore — puoi citarlo con ironia se si presta (es. legato a un calciatore famoso con quel numero), ma non è obbligatorio
-- squadra_cuore (se presente): la squadra di calcio del cuore del giocatore — puoi usarla per un parallelo o una battuta se pertinente, ma non è obbligatorio
-- autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
-- volte_fuori_porta_con_contributo (solo per i Portieri, se presente): quante volte quest'anno ha fatto gol/assist/rigore sbagliato in una partita dove non era chiaro chi fosse il portiere titolare quel giorno — ottimo spunto ironico ("anche i portieri sognano il gol"), menzionalo solo se presente
-REGOLE OBBLIGATORIE:
-- Riporta SEMPRE il campo "n" come numero, esattamente uguale a numero_riferimento
-- Il confronto DEVE riflettere i dati reali (es: 0 gol → NON paragonare a Ronaldo o bomber)
-- Difensore con gol subiti → NON dire che non subisce goal
-- Se voto è basso → motivazione ironica sul rendimento scarso
-- Usa piede preferito e descrizione_qualita per rendere il soprannome più specifico e personale
-- Se ci sono autogol o rigori sbagliati, puoi citarli con ironia leggera
-- Confronto ironico ma calcisticamente sensato basato sui numeri
-- Mai offensivo, sempre divertente
-JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
+        const prompt = _buildNicknamePrompt(profili);
 
         const raw = await _callAI(prompt, 800);
         if (!raw) { failedBatches++; continue; }
@@ -17678,6 +17729,112 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // Gating per il retry del solo testo AI nella schermata definitiva: se il gruppo ha Firebase
     // serve login + AI configurata; se il gruppo è "solo JSON" (no Firebase) basta l'AI configurata,
     // nessun login richiesto (non esiste in quel caso). Deciso con Alby il 17/7/2026.
+    // Rigenera i soprannomi AI dell'Annuario (Sezione E) di un Riepilogo Stagione GIÀ ARCHIVIATO
+    // (richiesta di Alby, 18/8/2026, dopo l'archiviazione 25/26→26/27: i soprannomi generati prima
+    // dell'archiviazione avevano lunghezza incoerente per la stessa causa risolta in _generateNicknames
+    // — modelli AI diversi rispondevano nella stessa sessione, senza vincolo di lunghezza nel prompt).
+    // A differenza di _generateNicknames (dati LIVE da groupPlayers/groupMatches, cache globale
+    // aiNicknames), qui i dati statistici arrivano dallo snapshot già congelato — le partite e le
+    // statistiche di quella stagione non esistono più in forma live, sono state azzerate/rimosse
+    // dall'archiviazione. I campi anagrafici (descrizione, numero maglia, squadra del cuore, piede,
+    // ruolo) restano invece validi da groupPlayers per i giocatori ancora presenti (l'archiviazione
+    // azzera solo le statistiche, non il profilo) — usati come bonus se il giocatore è ancora nel
+    // gruppo, altrimenti il prompt procede senza. Scrive SOLO dentro lo snapshot passato, mai nella
+    // cache aiNicknames globale (che è già della stagione corrente, non va toccata).
+    const annuarioNicknamesRetrying = ref(false);
+    const retryAnnuarioNicknames = async (snapshot) => {
+      if (!settings.value.apiKey) { toast('⚠️ Nessuna API key AI configurata','error',3000); return; }
+      if (!snapshot?.sezioneE?.length) { toast('⚠️ Nessun Annuario da rigenerare in questo Riepilogo','error',3000); return; }
+      annuarioNicknamesRetrying.value = true;
+      try {
+        const players = snapshot.sezioneE;
+        const trackAssist = snapshot.trackAssist !== false;
+        const BATCH = 4;
+        const updatedE = players.map(p => ({ ...p })); // copia locale, mai la cache globale
+        let failedBatches = 0;
+
+        for (let bi = 0; bi < players.length; bi += BATCH) {
+          if (failedBatches >= 2) { _aiLog('Annuario','⛔ Troppi errori, stop batch'); break; }
+          const batch = players.slice(bi, bi + BATCH);
+          const profili = batch.map((p, idx) => {
+            const live = getPlayer(p.uid); // profilo anagrafico attuale, se il giocatore esiste ancora
+            const obj = {
+              numero_riferimento: idx + 1,
+              nome: p.nome,
+              ruolo: p.ruolo || live?.ruolo || 'Jolly',
+              piede: live?.piede || 'Destro',
+              partite_giocate: p.partiteTotali||0,
+              gol_fatti: p.goalTotali||0,
+              ...(trackAssist ? { assist: p.assistTotali||0 } : {}),
+              voto_medio: (p.mediaVoto||0).toFixed(1),
+              volte_uomo_partita: p.uomoPartitaTotali||0,
+              punti_medi_a_partita: (p.mediaPunti||0).toFixed(2)
+            };
+            if (p.autogolTotali) obj.autogol_totali = p.autogolTotali;
+            if (p.rigoriParatiTotali) obj.rigori_parati = p.rigoriParatiTotali;
+            if (live?.descrizione) obj.descrizione_qualita = live.descrizione;
+            if (live?.numeroMaglia) obj.numero_preferito = live.numeroMaglia;
+            if (live?.squadraCuore) obj.squadra_cuore = live.squadraCuore;
+            return obj;
+          });
+
+          const prompt = _buildNicknamePrompt(profili);
+          const raw = await _callAI(prompt, 800);
+          if (!raw) { failedBatches++; continue; }
+          const parsed = _parseAIJson(raw);
+          if (!parsed?.soprannomi?.length) { failedBatches++; continue; }
+          failedBatches = 0;
+
+          for (const s of parsed.soprannomi) {
+            const _n = parseInt(s.n);
+            if (!_n || _n < 1 || _n > batch.length) continue;
+            const p = batch[_n - 1];
+            if (!p || !s.soprannome_ai) continue;
+            const idx = updatedE.findIndex(e => e.uid === p.uid);
+            if (idx >= 0) updatedE[idx] = { ...updatedE[idx], soprannomeAI: s.soprannome_ai, confrontoAI: s.confronto, motivazioneAI: s.motivazione };
+          }
+          _aiLog('Annuario','✅ Batch '+(Math.floor(bi/BATCH)+1)+' rigenerato ('+batch.length+' giocatori)');
+        }
+
+        await _persistSeasonSummarySnapshot({ ...snapshot, sezioneE: updatedE });
+        toast('✅ Soprannomi Annuario rigenerati', 'success', 3000);
+      } catch(e) {
+        toast('❌ Errore: ' + e.message, 'error', 4000);
+      } finally {
+        annuarioNicknamesRetrying.value = false;
+      }
+    };
+
+    // Zona Pericolo — selettore stagione per retryAnnuarioNicknames (richiesta di Alby, 18/8/2026):
+    // a differenza del bottone iniziale dentro l'Annuario (rigenerava solo la stagione già aperta),
+    // qui si può scegliere QUALSIASI Riepilogo del gruppo, corrente o storico, da un elenco.
+    const zpAnnuarioSeasonsList = ref([]);
+    const zpAnnuarioSeasonsLoading = ref(false);
+    const zpAnnuarioTargetId = ref(null);
+    const zpAnnuarioRetryResult = ref(null);
+    const zpLoadAnnuarioSeasonsList = async () => {
+      if (!currentGroup.value) return;
+      zpAnnuarioSeasonsLoading.value = true;
+      zpAnnuarioRetryResult.value = null;
+      try {
+        zpAnnuarioSeasonsList.value = await listSeasonSummariesForGroup(currentGroup.value.id);
+      } finally {
+        zpAnnuarioSeasonsLoading.value = false;
+      }
+    };
+    const zpRetryAnnuarioNicknamesForSelected = async () => {
+      const target = zpAnnuarioSeasonsList.value.find(s => s.id === zpAnnuarioTargetId.value);
+      if (!target) { zpAnnuarioRetryResult.value = { ok:false, msg:'⚠️ Nessun Riepilogo selezionato' }; return; }
+      zpAnnuarioRetryResult.value = null;
+      await retryAnnuarioNicknames(target);
+      // Ricarico l'elenco per riflettere i nuovi soprannomi nel conteggio/anteprima, e aggiorno
+      // il risultato mostrato sotto al selettore (annuarioNicknamesRetrying già gestisce lo stato
+      // di caricamento del bottone, qui aggiungiamo solo un feedback testuale più specifico).
+      await zpLoadAnnuarioSeasonsList();
+      zpAnnuarioTargetId.value = target.id;
+      zpAnnuarioRetryResult.value = { ok:true, msg:'✅ Soprannomi rigenerati per "'+(target.stagione||'questa stagione')+'"' };
+    };
+
     const canRetrySeasonSummaryAI = computed(() => {
       if (!settings.value.apiKey) return false;
       if (currentGroup.value?.firebaseUrl) return !!firebaseUser.value;
@@ -19037,7 +19194,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const statsLeader = computed(() => {
       const TAB_CFG = {
         overall:    { col:'#A6FF4D', bg:'linear-gradient(135deg,#0d2200,#1a4400 60%,#2d7a00)', getter:()=>statsTopOverall.value[0],    val:p=>Math.round(p._score||0), sub:p=>`${p.partiteTotali||0} partite · ${p.goalTotali||0} gol` },
-        goal:       { col:'#f59e0b', bg:'linear-gradient(135deg,#1a0800,#7c3500 60%,#d97706)', getter:()=>statsTopScorers.value[0],     val:p=>p.goalTotali||0, sub:p=>`${p.partiteTotali||0} partite giocate` },
+        goal:       { col:'#f59e0b', bg:'linear-gradient(135deg,#1a0800,#7c3500 60%,#d97706)', getter:()=>{ const t=statsTopScorers.value[0]; return (t?.goalTotali||0)>0?t:null; }, val:p=>p.goalTotali||0, sub:p=>`${p.partiteTotali||0} partite giocate` },
         mediagol:   { col:'#A6FF4D', bg:'linear-gradient(135deg,#0d2200,#1a4400 60%,#2d7a00)', getter:()=>statsSourcePlayers.value.filter(p=>(p.partiteTotali||0)>=3&&(p.goalTotali||0)>0).sort((a,b)=>((b.goalTotali||0)/(b.partiteTotali||1))-((a.goalTotali||0)/(a.partiteTotali||1)))[0], val:p=>((p.goalTotali||0)/(p.partiteTotali||1)).toFixed(2), sub:p=>`${p.goalTotali} gol in ${p.partiteTotali} partite` },
         classifica: { col:'#60a5fa', bg:'linear-gradient(135deg,#0a1628,#1e3a5f 60%,#3b82f6)', getter:()=>statsTopPoints.value[0],      val:p=>p.puntiTotali||0, sub:p=>`${p.partiteTotali||0} partite` },
         mediapunti: { col:'#a78bfa', bg:'linear-gradient(135deg,#1a0a2e,#4c1d95 60%,#7c3aed)', getter:()=>statsTopAvgPoints.value[0],   val:p=>(p.mediaPunti||0).toFixed(2), sub:p=>`${p.partiteTotali} partite · ${p.puntiTotali} pt` },
@@ -24477,7 +24634,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
       seasonSummaryAITexts, seasonSummaryAIGenerating, seasonSummaryLastData, generaTestoAIRiepilogoStagione,
-      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, archiveAggiornaSoprannomiForzato, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, seasonSummaryExpandedMatches,
+      seasonSummarySnapshot, loadSeasonSummarySnapshot, generateSeasonSummarySnapshot, archiveGeneraRiepilogoStagione, archiveAggiornaSoprannomiForzato, canRetrySeasonSummaryAI, retrySeasonSummaryAIText, retryAnnuarioNicknames, annuarioNicknamesRetrying, zpAnnuarioSeasonsList, zpAnnuarioSeasonsLoading, zpAnnuarioTargetId, zpAnnuarioRetryResult, zpLoadAnnuarioSeasonsList, zpRetryAnnuarioNicknamesForSelected, seasonSummaryExpandedMatches,
       listSeasonSummariesForGroup, seasonSummaryHistoryList, seasonSummaryHistoryLoading, openSeasonSummaryHistory, viewSeasonSummaryHistoryEntry, backFromSeasonSummaryHistory,
       seasonSummaryPdfGenerating, generateSeasonSummaryPDF, seasonSummaryPdfPrintMode, seasonSummaryPdfIncludeImages, seasonSummaryPdfOverlay, seasonSummaryPdfStep, seasonSummaryPdfMatchBatches, appUpdateOverlay,
       rigeneraTrashTalk, azzeraRigeneraTrashTalk, rigeneraHallOfFame, azzeraRigeneraHallOfFame, rigeneraSoprannomi, azzeraRigeneraSoprannomi, rigeneraPronostico, azzeraRigeneraPronostico,
