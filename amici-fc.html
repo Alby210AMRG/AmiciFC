@@ -8875,7 +8875,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.872',date:'2026-08-18',items:[
+    const changelogEntries = [{version:'v1.873',date:'2026-08-18',items:[
+      'Fix (segnalato da Alby, testando il nuovo onboarding con un link Firebase di un gruppo esistente): dopo la connessione, la home restava bloccata con la sola card di benvenuto invece di mostrare tutte le card tutorial. Causa: quella schermata di onboarding chiama una funzione di sync "una tantum" separata dal normale ciclo periodico dell app, e nessuno dei due mai avviava esplicitamente il sistema delle hero card per un gruppo collegato a Firebase (veniva avviato solo per i gruppi senza Firebase). Aggiunta la chiamata mancante.',
+      'Fix collegato: per un gruppo con almeno una stagione gia archiviata, mancava anche la card "Si riparte! Benvenuti nella nuova stagione". Causa: la stessa funzione di sync onboarding non scaricava mai le stagioni archiviate dal payload Firebase (solo giocatori e partite) - aggiunto lo stesso meccanismo di download gia usato dal normale ciclo di sync periodico.',
+    ]},{version:'v1.872',date:'2026-08-18',items:[
       'Onboarding completamente ridisegnato in stile wizard, su richiesta di Alby: prima era una lunga pagina che si srotolava progressivamente, ora sono schermate distinte con indicatore di progresso (puntini in alto), tasto Indietro sempre presente e tasto Avanti dove serve. Tema scuro attivo di default. Testi introduttivi aggiornati con le funzioni chiave attuali (formazioni AI, Vota con gli amici, Riepilogo Stagione). I 4 box di installazione ora tutti uguali, impilati, con bordo colorato diverso per dispositivo (verde Android, iPhone, blu PC) e "Ce l ho gia installata" visivamente distinto (bordo tratteggiato giallo) per far capire che e unazione diversa. Schermata tema con Dark mostrato per primo e testi descrittivi. Schermata "Da dove vuoi partire" con bordi colorati diversi per opzione, spiegazione ampliata di "Importa un backup JSON" per chiarire quando usarlo rispetto a "Unisciti a un gruppo esistente". Nessuna modifica alla logica sottostante (creazione gruppo, connessione Firebase, import) - solo navigazione e presentazione.',
     ]},{version:'v1.871',date:'2026-08-18',items:[
       'Fix (domanda diretta di Alby: "il ripristino cancella anche il Riepilogo Stagione localmente?"): risposta era si - il ripristino Backup JSON locale cancella SEMPRE la tabella Riepiloghi prima di reimportare, e un backup vecchio (senza Riepiloghi al suo interno) non aveva nulla da rimettere al loro posto. Ora, se il backup non ne contiene, l app prova subito a riscaricarli da Firebase (che resta la fonte di verita intatta, mai toccata da un ripristino locale) invece di lasciare il vuoto fino al prossimo sync naturale.',
@@ -10151,7 +10154,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.872');
+    const appVersion = ref('1.873');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -20236,6 +20239,24 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           logEvent('info', 'photos', `🖼️ Stato foto dopo sync di onboarding: ${_pConFoto2}/${_pTot2} giocatori con campo foto valorizzato, cache uid→foto: ${_cacheSize2} voci`);
           _syncNavigated = true;
           currentView.value = 'home';
+          // Bug trovato 18/8/2026 (segnalato da Alby): syncFromCloudAndGo non scaricava mai
+          // archivedSeasons dal payload Firebase (solo groups/players/matches) — un gruppo con
+          // almeno una stagione già archiviata restava con currentGroupArchivedSeasons vuoto subito
+          // dopo l'onboarding, quindi la card "nuova stagione" (che dipende da quello, vedi
+          // _buildTutorialOnlySlides) non poteva mai comparire finché non arrivava il primo sync
+          // periodico normale. Stesso meccanismo di pull già usato dal ciclo di sync periodico.
+          await _pullArchivedSeasonsFromFirebase(currentGroup.value).catch(()=>{});
+          await loadGroupData(); // currentGroupArchivedSeasons è un ref semplice, non si aggiorna da solo
+          // Bug trovato 18/8/2026 (segnalato da Alby): senza questa chiamata le hero card in home
+          // restavano bloccate sulla sola card di benvenuto — selectGroup() sopra chiama
+          // _heroLaunch() solo per i gruppi SENZA Firebase (riga ~11070), per quelli con Firebase
+          // l'inizializzazione è normalmente delegata al ciclo di sync periodico, che qui non ha
+          // ancora girato. Reset dello stato hero (stesso pattern già usato dopo l'archiviazione)
+          // per essere sicuri che _heroLaunch() veda i dati freschi appena sincronizzati, inclusa
+          // l'eventuale card "nuova stagione" se il gruppo ha già una stagione archiviata.
+          _heroLaunched = false;
+          _heroRawData.value = [];
+          nextTick(() => _heroLaunch());
         } else {
           toast('⚠️ Nessun dato trovato nel cloud', 'error', 4000);
         }
