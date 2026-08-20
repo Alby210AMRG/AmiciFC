@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.12';
+const INSPECTOR_VERSION = '1.13';
 
 async function checkInspectorUpdate(){
   try {
@@ -624,6 +624,7 @@ function buildSidebar(){
     <div class="nav-sep"></div><div class="nav-group" style="color:var(--orange)">🛠️ Manutenzione</div>
     ${ni('maint-check','🩺','Analisi DB','','maint-check')}
     ${ni('maint-votazioni','🗳️','Votazioni','','maint-votazioni')}
+    ${ni('maint-pins','🔑','PIN Giocatori','','maint-pins')}
     ${ni('maint-legacy-ids','🆔','Correggi ID Legacy','','maint-legacy-ids')}
     ${ni('maint-clean','🧹','Pulizia Firebase','','maint-clean')}
     ${ni('sync-tools','🔄','Sync','','sync-tools')}
@@ -669,6 +670,7 @@ function showView(v){
     'log-view':renderLog,
     'maint-check':renderCheck,
     'maint-votazioni':renderVotazioni,
+    'maint-pins':renderMaintPins,
     'maint-clean':renderClean,
     'maint-obsoleti':renderObsoleti,
     'maint-ai-meta':renderMaintAiMeta,
@@ -1674,11 +1676,10 @@ function renderVotazioni(){
   allSessions.sort((a,b)=>(b.meta.openedAt||0)-(a.meta.openedAt||0));
   const nameOf = uid => { const p=PLAYERS.find(x=>x.uid===uid); return p ? (p.soprannome||p.nome) : uid; };
 
-  // Stessa slugificazione del nome gruppo usata dall'app (_aiCardGroupKey), per ritrovare la
-  // soglia di scarto impostata su quel gruppo specifico e mostrare la stessa anteprima di calcolo
-  // che vedrebbe l'admin chiudendo la votazione dall'app — nessuna logica duplicata a caso.
-  const _slug = nome => (nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
-  const _groupForKey = gKey => GROUPS.find(g => _slug(g.nome) === gKey);
+  // Stessa slugificazione del nome gruppo usata dall'app (_slugGroupName, ora funzione globale
+  // condivisa), per ritrovare la soglia di scarto impostata su quel gruppo specifico e mostrare
+  // la stessa anteprima di calcolo che vedrebbe l'admin chiudendo la votazione dall'app.
+  const _groupForKey = gKey => GROUPS.find(g => _slugGroupName(g.nome) === gKey);
 
   // Stesso identico algoritmo di aggregazione dell'app (mediana ± soglia di scarto) — SOLO
   // un'anteprima di lettura, non scrive nulla: serve a verificare il calcolo prima di chiudere
@@ -1842,6 +1843,163 @@ async function deleteAllOrphanVoteSessions(){
   renderVotazioni();
 }
 
+// Generazione/rigenerazione PIN di voto per un singolo giocatore, da Inspector (richiesta urgente
+// di Alby, 18/8/2026: prima l'unico modo era aprire l'app e farlo uno alla volta dalla scheda
+// giocatore). Stesso identico algoritmo dell'app (generateVotePin): PIN a 6 cifre casuali,
+// hash SHA-256 (mai il PIN in chiaro su Firebase), stesso percorso amicifc/votePins/{gKey}/{uid}.
+async function generateSinglePin(uid, nome, groupName) {
+  if (!AUTH_TOKEN) { alert('⚠️ Devi essere loggato per generare un PIN.'); return; }
+  const eraImpostato = !!VOTE_PINS[uid];
+  const conferma = eraImpostato
+    ? confirm(`🔑 ${nome} ha già un PIN impostato.\n\nRigenerarlo crea un PIN nuovo e rende INVALIDO quello vecchio — se ${nome} conosce già il vecchio PIN, non funzionerà più.\n\nProcedere con la rigenerazione?`)
+    : confirm(`🔑 Generare un nuovo PIN di voto per ${nome}?`);
+  if (!conferma) return;
+  try {
+    const active = getActiveDb();
+    const pin = String(Math.floor(100000 + Math.random()*900000)); // sempre 6 cifre, 100000-999999
+    const hash = await _sha256Hex(pin);
+    const gKey = _slugGroupName(groupName);
+    const payload = { hash, updatedAt: Date.now(), updatedBy: AUTH_EMAIL || 'inspector' };
+    await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/votePins/${gKey}/${uid}`, payload);
+    VOTE_PINS[uid] = true;
+    log(`🔑 PIN ${eraImpostato?'rigenerato':'generato'} per ${nome}`, 'ok');
+    alert(`🔑 PIN per ${nome}:\n\n${pin}\n\nSegnalo subito (WhatsApp, ecc.) — non sarà più visibile dopo aver chiuso questo messaggio, solo rigenerabile.`);
+    renderPlayers();
+  } catch(e) {
+    alert('❌ Errore generazione PIN: ' + e.message);
+    log('⚠️ Generazione PIN fallita per '+nome+': '+e.message, 'warn');
+  }
+}
+
+// Stato selezione per la generazione PIN massiva (18/8/2026) — set di uid selezionati e ultimo
+// elenco di risultati (nome→PIN in chiaro), mostrato una volta sola subito dopo la generazione.
+let _pinSelected = new Set();
+let _pinResults = null;
+
+function _pinToggle(uid) {
+  if (_pinSelected.has(uid)) _pinSelected.delete(uid); else _pinSelected.add(uid);
+  renderMaintPins();
+}
+
+function _pinSelectAllWithout() {
+  PLAYERS.forEach(p => { if (p.uid && !VOTE_PINS[p.uid]) _pinSelected.add(p.uid); });
+  renderMaintPins();
+}
+
+function _pinSelectNone() {
+  _pinSelected.clear();
+  renderMaintPins();
+}
+
+// Generazione PIN massiva (richiesta urgente di Alby, 18/8/2026): genera/rigenera il PIN per
+// tutti i giocatori selezionati in un colpo solo, invece di uno alla volta. Stesso identico
+// algoritmo di generateSinglePin, chiamato in sequenza per ciascun giocatore selezionato — alla
+// fine mostra un elenco unico nome→PIN, pensato per essere copiato e distribuito ai giocatori
+// (es. su WhatsApp), dato che è l'unico momento in cui il PIN è visibile in chiaro.
+async function generateBulkPins() {
+  if (!AUTH_TOKEN) { alert('⚠️ Devi essere loggato per generare i PIN.'); return; }
+  const targets = PLAYERS.filter(p => _pinSelected.has(p.uid));
+  if (!targets.length) { alert('Seleziona almeno un giocatore.'); return; }
+  const giaImpostati = targets.filter(p => VOTE_PINS[p.uid]).length;
+  const msg = giaImpostati > 0
+    ? `🔑 Stai per generare il PIN per ${targets.length} giocatori (${giaImpostati} hanno già un PIN — verrà sostituito e reso invalido quello vecchio).\n\nProcedere?`
+    : `🔑 Generare il PIN per ${targets.length} giocatori?`;
+  if (!confirm(msg)) return;
+
+  const active = getActiveDb();
+  const results = [];
+  const errori = [];
+  for (const p of targets) {
+    try {
+      const pin = String(Math.floor(100000 + Math.random()*900000));
+      const hash = await _sha256Hex(pin);
+      const gKey = _slugGroupName(p._groupName);
+      const payload = { hash, updatedAt: Date.now(), updatedBy: AUTH_EMAIL || 'inspector' };
+      await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/votePins/${gKey}/${p.uid}`, payload);
+      VOTE_PINS[p.uid] = true;
+      results.push({ nome: p.soprannome || p.nome || p.uid, pin });
+    } catch(e) {
+      errori.push({ nome: p.soprannome || p.nome || p.uid, errore: e.message });
+    }
+  }
+  log(`🔑 PIN generati in blocco: ${results.length} riusciti, ${errori.length} falliti`, errori.length ? 'warn' : 'ok');
+  _pinResults = results;
+  _pinSelected.clear();
+  if (errori.length) alert('⚠️ Alcuni PIN non sono stati generati:\n\n' + errori.map(e=>`${e.nome}: ${e.errore}`).join('\n'));
+  renderMaintPins();
+}
+
+function _pinCopyResults() {
+  if (!_pinResults?.length) return;
+  const testo = _pinResults.map(r => `${r.nome}: ${r.pin}`).join('\n');
+  navigator.clipboard?.writeText(testo).then(() => log('📋 Elenco PIN copiato negli appunti', 'ok')).catch(() => {});
+}
+
+function renderMaintPins() {
+  if (!DB) { $('main').innerHTML = '<div class="empty"><div class="empty-icon">🔌</div>Clicca prima Connetti per caricare il database.</div>'; return; }
+  if (!AUTH_TOKEN) {
+    $('main').innerHTML = '<div class="empty"><div class="empty-icon">🔒</div>Login richiesto per generare i PIN — usa il pulsante di login in alto.</div>';
+    return;
+  }
+
+  const byG = {};
+  PLAYERS.forEach(p => { const k = p._groupName || '?'; (byG[k] = byG[k] || []).push(p); });
+
+  const resultsBlock = _pinResults ? `
+    <div class="card" style="border-color:rgba(74,222,128,.4);background:rgba(74,222,128,.05);margin-bottom:14px">
+      <div class="card-head"><span class="card-title">✅ ${_pinResults.length} PIN generati — elenco per la distribuzione</span></div>
+      <div class="card-body">
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:10px">⚠️ Questo elenco è visibile solo ora — non sarà più recuperabile dopo aver lasciato questa pagina. Copialo e distribuiscilo subito.</div>
+        <table class="tbl" style="margin-bottom:10px">
+          <thead><tr><th>Giocatore</th><th>PIN</th></tr></thead>
+          <tbody>${_pinResults.map(r => `<tr><td>${r.nome}</td><td class="mono" style="font-weight:800;color:var(--lime);font-size:0.95rem">${r.pin}</td></tr>`).join('')}</tbody>
+        </table>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-primary btn-sm" onclick="_pinCopyResults()">📋 Copia elenco (nome: pin)</button>
+          <button class="btn btn-ghost btn-sm" onclick="_pinResults=null;renderMaintPins()">✕ Chiudi elenco</button>
+        </div>
+      </div>
+    </div>` : '';
+
+  const groupBlocks = Object.entries(byG).map(([gName, players]) => {
+    const rows = players.filter(p => p.uid).map(p => {
+      const checked = _pinSelected.has(p.uid);
+      const haPin = !!VOTE_PINS[p.uid];
+      return `<tr style="cursor:pointer" onclick="_pinToggle('${p.uid}')">
+        <td style="width:30px"><input type="checkbox" ${checked?'checked':''} onclick="event.stopPropagation();_pinToggle('${p.uid}')"></td>
+        <td>${p.soprannome || p.nome || '?'}</td>
+        <td><span class="badge ${haPin?'badge-green':'badge-orange'}">${haPin?'🔑 PIN già impostato':'⚠️ Nessun PIN'}</span></td>
+      </tr>`;
+    }).join('');
+    const senzaCount = players.filter(p => p.uid && !VOTE_PINS[p.uid]).length;
+    return `<div class="card" style="margin-bottom:14px">
+      <div class="card-head"><span class="card-title">👥 ${gName}</span><span class="badge badge-gray">${senzaCount} senza PIN</span></div>
+      <div class="card-body">
+        <table class="tbl">
+          <thead><tr><th></th><th>Giocatore</th><th>Stato</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan="3" style="color:var(--gray)">Nessun giocatore con uid valido in questo gruppo</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>`;
+  }).join('');
+
+  $('main').innerHTML = `
+    <div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🔑 PIN Giocatori</span></div>
+    <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px;line-height:1.5">
+      Genera o rigenera il PIN di voto per uno o più giocatori in un colpo solo — utile per preparare l'elenco da distribuire a inizio stagione invece di farlo uno alla volta dall'app. Il PIN si vede una sola volta al momento della generazione, come nell'app.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="_pinSelectAllWithout()">☑️ Seleziona tutti senza PIN</button>
+      <button class="btn btn-ghost btn-sm" onclick="_pinSelectNone()">☐ Deseleziona tutti</button>
+      <button class="btn btn-primary btn-sm" style="margin-left:auto" onclick="generateBulkPins()" ${_pinSelected.size===0?'disabled':''}>
+        🔑 Genera PIN per i selezionati (${_pinSelected.size})
+      </button>
+    </div>
+    ${resultsBlock}
+    ${groupBlocks || '<div class="empty"><div class="empty-icon">👥</div>Nessun giocatore trovato</div>'}
+  `;
+}
+
 function renderPlayers(q){
   if(q!==undefined)pSearch=q;
   const ql=pSearch.toLowerCase();
@@ -1922,9 +2080,10 @@ function renderPlayers(q){
           <div class="player-name">${p.soprannome||p.nome||'?'}${p.isAdminGruppo?'<span title="Admin del gruppo" style="margin-left:6px">👑</span>':''}${p.infortunio?'<span style="margin-left:6px;font-size:0.7rem;background:rgba(248,113,113,.2);color:#f87171;padding:1px 6px;border-radius:10px;font-weight:700">🤕 Infortunato</span>':''}</div>
           <div class="player-meta">${p.ruolo||'?'}${p.cognome?' · '+p.cognome:''}</div>
           ${p.infortunio?`<div style="font-size:0.65rem;color:#f87171;margin-top:2px;font-style:italic">${p.infortunio.slice(0,60)}${p.infortunio.length>60?'…':''}</div>`:''}
-          <div style="font-size:0.65rem;margin-top:2px;display:flex;gap:4px;flex-wrap:wrap">
+          <div style="font-size:0.65rem;margin-top:2px;display:flex;gap:4px;flex-wrap:wrap;align-items:center">
             <span class="badge ${uidOk?'badge-green':'badge-red'}" style="padding:1px 6px">${uidOk?'uid ✅':'uid ❌'}</span>
             ${AUTH_TOKEN?`<span class="badge ${VOTE_PINS[p.uid]?'badge-green':'badge-orange'}" style="padding:1px 6px">${VOTE_PINS[p.uid]?'🔑 PIN ✅':'🔑 PIN ⚠️'}</span>`:''}
+            ${AUTH_TOKEN&&uidOk?`<button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:0.62rem" onclick="generateSinglePin('${p.uid}','${(p.soprannome||p.nome||'').replace(/'/g,"\\'")}','${(p._groupName||'').replace(/'/g,"\\'")}')">${VOTE_PINS[p.uid]?'🔄 Rigenera':'🔑 Genera'}</button>`:''}
           </div>
         </div>
         <div class="player-stats">
@@ -4007,6 +4166,19 @@ async function fbPatch(url, apiKey, token, path, data){
   });
   if(!r.ok){ const e=await r.json(); throw new Error(e.error||`HTTP ${r.status}`); }
   return await r.json();
+}
+
+// Slugificazione nome gruppo, stesso algoritmo dell'app (_aiCardGroupKey) — funzione globale
+// condivisa (18/8/2026, PIN da Inspector): prima esisteva solo una copia locale identica dentro
+// renderVotazioni, promossa qui per essere riusata anche dalla generazione PIN senza duplicare
+// la stessa logica in due punti.
+const _slugGroupName = nome => (nome||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
+
+// Stesso identico algoritmo di hashing dell'app (_sha256Hex) — il PIN in chiaro non viene MAI
+// salvato su Firebase, solo il suo hash SHA-256 (18/8/2026, PIN da Inspector).
+async function _sha256Hex(str) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
 }
 
 async function fbRead(url, path, token){
