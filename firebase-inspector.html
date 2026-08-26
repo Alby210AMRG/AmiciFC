@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.14';
+const INSPECTOR_VERSION = '1.15';
 
 async function checkInspectorUpdate(){
   try {
@@ -2022,9 +2022,12 @@ function renderInfortuni() {
       .sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
     const g = GROUPS.find(x => x.nome === gName);
     const stagioneCorrente = g?.stagione || 'Stagione corrente';
+    // Stesso bug corretto nell'app (19/8/2026, segnalato da Alby con screenshot): "nome" è il
+    // nome che l'admin personalizza in fase di archiviazione (titolo della card in Archivio
+    // Stagioni), "stagione" è un campo diverso che spesso resta al default generico "Stagione 1".
     const _labelPer = (dal) => {
       const s = archiviateDelGruppo.find(a => (a.dataArchiviazione||'') >= dal);
-      return s ? (s.stagione || s.nome || 'Stagione archiviata') : stagioneCorrente;
+      return s ? (s.nome || s.stagione || 'Stagione archiviata') : stagioneCorrente;
     };
 
     const perStagione = {};
@@ -2036,7 +2039,7 @@ function renderInfortuni() {
       });
     });
 
-    const ordineLabels = [stagioneCorrente, ...archiviateDelGruppo.map(a=>a.stagione||a.nome).reverse()].filter((v,i,arr)=>v && arr.indexOf(v)===i);
+    const ordineLabels = [stagioneCorrente, ...archiviateDelGruppo.map(a=>a.nome||a.stagione).reverse()].filter((v,i,arr)=>v && arr.indexOf(v)===i);
     const stagioniConDati = ordineLabels.filter(l => perStagione[l]?.length);
 
     if (!stagioniConDati.length) return `<div class="card" style="margin-bottom:14px">

@@ -5894,10 +5894,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- Elenco Infortuni di tutto il gruppo, diviso per stagione (19/8/2026, richiesta di Alby) -->
     <template v-if="currentView === 'infortuni'">
       <div class="card-title">🏥 Infortuni</div>
-      <div v-if="!_infortuniByStagione().length" class="card" style="text-align:center;padding:30px 20px;color:var(--text2)">
+      <div v-if="!infortuniByStagione().length" class="card" style="text-align:center;padding:30px 20px;color:var(--text2)">
         Nessun infortunio registrato finora — meglio così! 💪
       </div>
-      <div v-for="gruppo in _infortuniByStagione()" :key="gruppo.label" class="card" style="margin-bottom:14px">
+      <div v-for="gruppo in infortuniByStagione()" :key="gruppo.label" class="card" style="margin-bottom:14px">
         <div class="card-title" style="font-size:0.9rem;margin-bottom:10px">📅 {{ gruppo.label }}</div>
         <div style="display:flex;flex-direction:column;gap:8px">
           <div v-for="(inf,idx) in gruppo.infortuni" :key="idx"
@@ -8972,7 +8972,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.875',date:'2026-08-19',items:[
+    const changelogEntries = [{version:'v1.877',date:'2026-08-19',items:[
+      'Fix (segnalato da Alby con screenshot): la vista Infortuni (app e Inspector) mostrava il nome sbagliato per una stagione archiviata - "Stagione 1" (un campo generico spesso rimasto al default) invece del nome vero scelto in fase di archiviazione ("Stagione 25/26"). Corretta la priorita tra i due campi in entrambi i punti (app e Inspector) piu un terzo punto trovato con lo stesso bug: la card "Si riparte!" mostrata dopo larchiviazione.',
+    ]},{version:'v1.876',date:'2026-08-19',items:[
+      'Fix critico (segnalato da Alby, con log completo): la schermata "Altro - Infortuni" andava in schermo nero (ReferenceError). Causa: una funzione nuova chiamata direttamente nel template iniziava con underscore, e in quel punto specifico Vue non riesce a risolverla a runtime. Rinominata, testato e confermato funzionante.',
+      'Fix bug di migrazione (segnalato da Alby su un giocatore con dati infortunio pre-esistenti): chi aveva il vecchio campo infortunio (testo libero) valorizzato ma nessuna voce nel nuovo elenco restava con un badge "infortunato" invisibile e non correggibile da nessuna parte dell interfaccia. Ora la migrazione avviene da sola per tutti i giocatori interessati ad ogni caricamento del gruppo, non serve piu notarlo per caso aprendo la scheda.',
+    ]},{version:'v1.875',date:'2026-08-19',items:[
       'Nuovo: storico infortuni per ogni giocatore, con date "Dal" e "Al" (richiesta di Alby). Il vecchio campo testo libero e diventato un elenco - ogni infortunio ha descrizione, data di inizio e data di fine (opzionale, se ancora in corso). Il badge "infortunato" ora si aggiorna da solo in base alle date, senza bisogno di toccare nulla a mano quando il giocatore rientra.',
       'Nuova voce di menu "Altro - Infortuni": elenco di tutti gli infortuni del gruppo, divisi per stagione.',
       'Le date infortunio sono ora materiale per l AI: usate nel prompt dei soprannomi (anche in rigenerazione su stagioni gia archiviate) e nel Riepilogo Stagione (giorni di assenza per giocatore, citati anche nel testo narrativo se presenti).',
@@ -10259,7 +10264,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.875');
+    const appVersion = ref('1.877');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11100,6 +11105,17 @@ createApp({
     const _hydrateInjuryStatus = async () => {
       const oggi = new Date().toISOString().slice(0,10);
       for (const p of groupPlayers.value) {
+        // Migrazione automatica infortunio legacy (19/8/2026, bug segnalato da Alby su Maik):
+        // giocatore con vecchio campo "infortunio" (testo) valorizzato ma nessuna voce nel nuovo
+        // elenco infortuni[] — succedeva a chiunque non avesse ancora aperto la propria scheda in
+        // modifica dopo l'introduzione di questa funzione. Prima di questo fix, il badge restava
+        // bloccato per sempre col vecchio testo, invisibile e non correggibile da nessuna parte
+        // dell'interfaccia. Proattivo qui (non solo su apertura modifica) così sistema anche i
+        // giocatori che nessuno controlla mai manualmente.
+        if (p.infortunio && (!Array.isArray(p.infortuni) || !p.infortuni.length)) {
+          p.infortuni = [{ descrizione: p.infortunio, dal: oggi, al: null }];
+          if (p.id) { try { await db.players.update(p.id, { infortuni: p.infortuni.map(i=>({...i})) }); } catch(e) {} }
+        }
         if (!Array.isArray(p.infortuni) || !p.infortuni.length) continue;
         const attivo = p.infortuni.find(inf => inf.dal && inf.dal <= oggi && (!inf.al || inf.al >= oggi));
         const nuovoValore = attivo ? attivo.descrizione : '';
@@ -11287,8 +11303,20 @@ createApp({
     // ── Players ──
     const openPlayerForm = p => {
       editingPlayer.value = p;
+      // Migrazione automatica infortunio legacy (19/8/2026, bug segnalato da Alby su Maik):
+      // se il giocatore ha il vecchio campo "infortunio" (testo libero, dal sistema precedente
+      // a questa funzione) valorizzato ma NESSUNA voce nel nuovo elenco infortuni[], la nuova
+      // interfaccia mostra solo l'elenco (quindi appare vuota) mentre il vecchio testo resta
+      // "invisibile" nel campo cache e continua a far comparire il badge altrove nell'app, senza
+      // che l'admin possa più vederlo o correggerlo. Qui, aprendo la modifica, lo converto subito
+      // in una voce reale e visibile (data "Dal" = oggi come stima migliore, modificabile), così
+      // l'admin la vede e può correggerla — invece di restare bloccata per sempre nel vecchio campo.
+      const _infortuniIniziali = Array.isArray(p?.infortuni) ? p.infortuni.map(i=>({...i})) : [];
+      if (p?.infortunio && !_infortuniIniziali.length) {
+        _infortuniIniziali.push({ descrizione: p.infortunio, dal: new Date().toISOString().slice(0,10), al: null });
+      }
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', numeroMaglia: p.numeroMaglia||null, squadraCuore: p.squadraCuore||'', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', infortuni: Array.isArray(p.infortuni) ? p.infortuni.map(i=>({...i})) : [], isAdminGruppo: !!p.isAdminGruppo }
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', numeroMaglia: p.numeroMaglia||null, squadraCuore: p.squadraCuore||'', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', infortuni: _infortuniIniziali, isAdminGruppo: !!p.isAdminGruppo }
         : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', numeroMaglia:null, squadraCuore:'', rivali:[], affinita:[], infortunio:'', infortuni:[], isAdminGruppo:false };
       showPlayerForm.value = true;
     };
@@ -14887,12 +14915,18 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // successiva, appartiene alla stagione corrente. I profili giocatore non si azzerano mai tra
     // stagioni, quindi l'elenco infortuni si accumula nel tempo sullo stesso oggetto giocatore —
     // questa funzione è ciò che permette di "spezzarlo" per stagione in una vista leggibile.
-    const _infortuniByStagione = () => {
+    const infortuniByStagione = () => {
       const archiviate = [...currentGroupArchivedSeasons.value].sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
       const stagioneCorrente = currentGroup.value?.stagione || 'Stagione corrente';
+      // Bug trovato 19/8/2026 (segnalato da Alby con screenshot): priorità sbagliata tra i due
+      // campi — "nome" è quello che l'admin personalizza in fase di archiviazione (es. "Stagione
+      // 25/26", mostrato come titolo della card in Inspector), "stagione" è un campo diverso
+      // (il valore del campo "Stagione" del gruppo AL MOMENTO dell'archiviazione, che spesso resta
+      // al default generico "Stagione 1" se non lo si personalizza mai separatamente). "nome" va
+      // sempre preferito perché è quello che l'utente ha effettivamente scelto.
       const _labelPer = (dal) => {
         const s = archiviate.find(a => (a.dataArchiviazione||'') >= dal);
-        return s ? (s.stagione || s.nome || 'Stagione archiviata') : stagioneCorrente;
+        return s ? (s.nome || s.stagione || 'Stagione archiviata') : stagioneCorrente;
       };
       const gruppi = {}; // { label: [{playerNome, playerUid, ...infortunio}] }
       groupPlayers.value.forEach(p => {
@@ -14903,7 +14937,7 @@ OUTPUT: Rispondi SOLO con JSON valido:
         });
       });
       // Ordino le stagioni: quella corrente in cima, poi le altre a ritroso nel tempo
-      const ordineLabels = [stagioneCorrente, ...archiviate.map(a=>a.stagione||a.nome).reverse()].filter((v,i,arr)=>arr.indexOf(v)===i);
+      const ordineLabels = [stagioneCorrente, ...archiviate.map(a=>a.nome||a.stagione).reverse()].filter((v,i,arr)=>arr.indexOf(v)===i);
       return ordineLabels.filter(l => gruppi[l]?.length).map(label => ({
         label,
         infortuni: gruppi[label].sort((a,b) => (b.dal||'').localeCompare(a.dal||''))
@@ -24460,7 +24494,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         dur: 7000,
         icon: '🎉',
         titolo: `Si riparte! Benvenuti nella ${currentGroup.value.stagione}`,
-        testo: `La ${_lastArchived.stagione || _lastArchived.nome} è ora negli archivi, sempre consultabile dal menu. Le card AI si sono resettate per il nuovo inizio e torneranno dopo le prime partite. In bocca al lupo! 🍀`,
+        testo: `La ${_lastArchived.nome || _lastArchived.stagione} è ora negli archivi, sempre consultabile dal menu. Le card AI si sono resettate per il nuovo inizio e torneranno dopo le prime partite. In bocca al lupo! 🍀`,
         bg: 'linear-gradient(145deg,#0d1f0d,#1a4a1a 60%,#166534)',
       }] : [];
       return [_heroWelcomeCard, ..._welcomeSeasonSlide, _buildManualCard(), ..._buildTutorialSlides()];
@@ -24917,7 +24951,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup, toggleTrackAssist,
       groupPlayerCount, groupMatchCount,
       openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, getPlayerNick, handlePhotoUpload,
-      newInfortunioForm, aggiungiInfortunio, rimuoviInfortunio, _infortuniByStagione,
+      newInfortunioForm, aggiungiInfortunio, rimuoviInfortunio, infortuniByStagione,
       startNewMatch, startPlayerSelection, togglePlayerSelection, selectAll,
       ensureStats, incrementRigoreSegnato, decrementRigoreSegnato, setUomoPartita, getPlayer, sortByRole,
       generateFormationsAI, generateFormationsWithAI,
