@@ -8972,7 +8972,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.877',date:'2026-08-19',items:[
+    const changelogEntries = [{version:'v1.878',date:'2026-08-19',items:[
+      'Infortuni: un infortunio che attraversa il confine tra due stagioni ora compare in ENTRAMBE (richiesta di Alby, dopo aver visto un caso reale confuso: un infortunio ancora in corso compariva solo nella vecchia stagione). Corretto anche il conteggio "giorni di assenza" nel Riepilogo Stagione, che prima escludeva del tutto un infortunio iniziato prima dell inizio stagione anche se continuato al suo interno - ora conta solo i giorni realmente dentro i confini della stagione.',
+    ]},{version:'v1.877',date:'2026-08-19',items:[
       'Fix (segnalato da Alby con screenshot): la vista Infortuni (app e Inspector) mostrava il nome sbagliato per una stagione archiviata - "Stagione 1" (un campo generico spesso rimasto al default) invece del nome vero scelto in fase di archiviazione ("Stagione 25/26"). Corretta la priorita tra i due campi in entrambi i punti (app e Inspector) piu un terzo punto trovato con lo stesso bug: la card "Si riparte!" mostrata dopo larchiviazione.',
     ]},{version:'v1.876',date:'2026-08-19',items:[
       'Fix critico (segnalato da Alby, con log completo): la schermata "Altro - Infortuni" andava in schermo nero (ReferenceError). Causa: una funzione nuova chiamata direttamente nel template iniziava con underscore, e in quel punto specifico Vue non riesce a risolverla a runtime. Rinominata, testato e confermato funzionante.',
@@ -10264,7 +10266,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.877');
+    const appVersion = ref('1.878');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14918,22 +14920,38 @@ OUTPUT: Rispondi SOLO con JSON valido:
     const infortuniByStagione = () => {
       const archiviate = [...currentGroupArchivedSeasons.value].sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
       const stagioneCorrente = currentGroup.value?.stagione || 'Stagione corrente';
-      // Bug trovato 19/8/2026 (segnalato da Alby con screenshot): priorità sbagliata tra i due
-      // campi — "nome" è quello che l'admin personalizza in fase di archiviazione (es. "Stagione
-      // 25/26", mostrato come titolo della card in Inspector), "stagione" è un campo diverso
-      // (il valore del campo "Stagione" del gruppo AL MOMENTO dell'archiviazione, che spesso resta
-      // al default generico "Stagione 1" se non lo si personalizza mai separatamente). "nome" va
-      // sempre preferito perché è quello che l'utente ha effettivamente scelto.
-      const _labelPer = (dal) => {
-        const s = archiviate.find(a => (a.dataArchiviazione||'') >= dal);
-        return s ? (s.nome || s.stagione || 'Stagione archiviata') : stagioneCorrente;
-      };
+      const oggi = new Date().toISOString().slice(0,10);
+      // Infortuni a cavallo tra due stagioni (19/8/2026, richiesta di Alby dopo aver visto un caso
+      // reale confuso: un infortunio iniziato nella vecchia stagione ma ancora in corso in quella
+      // nuova compariva SOLO nella vecchia). Costruisco un "bucket" per ciascuna stagione con i suoi
+      // confini temporali (lo=data di archiviazione della stagione precedente, esclusa; hi=data di
+      // archiviazione di questa stagione, inclusa; null=nessun limite per la stagione corrente), e
+      // ogni infortunio viene aggiunto a TUTTI i bucket con cui si sovrappone, non solo a quello di
+      // inizio. Un infortunio ancora "in corso" (senza data Al) si considera esteso fino a oggi ai
+      // fini di questo confronto.
+      const buckets = archiviate.map((a, i) => ({
+        label: a.nome || a.stagione || 'Stagione archiviata',
+        lo: i > 0 ? (archiviate[i-1].dataArchiviazione||'') : '',
+        hi: a.dataArchiviazione || '',
+      }));
+      buckets.push({ label: stagioneCorrente, lo: archiviate.length ? (archiviate[archiviate.length-1].dataArchiviazione||'') : '', hi: null });
+
       const gruppi = {}; // { label: [{playerNome, playerUid, ...infortunio}] }
       groupPlayers.value.forEach(p => {
         (p.infortuni||[]).forEach(inf => {
           if (!inf.dal) return;
-          const label = _labelPer(inf.dal);
-          (gruppi[label] = gruppi[label] || []).push({ playerNome: p.soprannome||p.nome, playerUid: p.uid, ...inf });
+          const alEffettivo = inf.al || oggi;
+          buckets.forEach(b => {
+            // Sovrapposizione tra intervalli [dal, alEffettivo] e (lo, hi]: la FINE dell'infortunio
+            // deve cadere dopo l'INIZIO del bucket, e l'INIZIO dell'infortunio deve cadere prima
+            // (o esattamente al)la FINE del bucket — avevo scritto il contrario, bug trovato
+            // subito testando lo scenario reale di Alby.
+            const finisceDopoInizioBucket = !b.lo || alEffettivo > b.lo;
+            const iniziaPrimaFineBucket = !b.hi || inf.dal <= b.hi;
+            if (finisceDopoInizioBucket && iniziaPrimaFineBucket) {
+              (gruppi[b.label] = gruppi[b.label] || []).push({ playerNome: p.soprannome||p.nome, playerUid: p.uid, ...inf });
+            }
+          });
         });
       });
       // Ordino le stagioni: quella corrente in cima, poi le altre a ritroso nel tempo
@@ -17295,19 +17313,24 @@ Niente altro, nessuna spiegazione.`;
       // Infortuni con storico (19/8/2026, richiesta di Alby): giorni di assenza nella stagione che
       // si sta per archiviare — la stagione corrente inizia subito dopo l'archiviazione precedente
       // più recente (o "da sempre" se questa è la primissima stagione del gruppo). Un infortunio
-      // ancora in corso (senza "Al") conta i giorni fino a oggi.
+      // ancora in corso (senza "Al") conta i giorni fino a oggi. Corretto 19/8/2026 (stesso
+      // ragionamento della vista elenco): un infortunio iniziato PRIMA dell'inizio di questa
+      // stagione ma continuato al suo interno non va escluso per intero — vanno contati solo i
+      // giorni che ricadono davvero dentro questa stagione (taglio/clip all'inizio stagione).
       const _archiviatePrecedenti = [...currentGroupArchivedSeasons.value].sort((a,b) => (b.dataArchiviazione||'').localeCompare(a.dataArchiviazione||''));
       const _inizioStagioneCorrente = _archiviatePrecedenti[0]?.dataArchiviazione || null;
       const _giorniInfortunioStagione = (infortuni) => {
         if (!Array.isArray(infortuni) || !infortuni.length) return 0;
         const oggi = new Date();
-        return infortuni
-          .filter(inf => inf.dal && (!_inizioStagioneCorrente || inf.dal >= _inizioStagioneCorrente))
-          .reduce((sum, inf) => {
-            const dal = new Date(inf.dal);
-            const al = inf.al ? new Date(inf.al) : oggi;
-            return sum + Math.max(0, Math.round((al - dal) / 86400000));
-          }, 0);
+        const inizioClip = _inizioStagioneCorrente ? new Date(_inizioStagioneCorrente) : null;
+        return infortuni.reduce((sum, inf) => {
+          if (!inf.dal) return sum;
+          let dal = new Date(inf.dal);
+          const al = inf.al ? new Date(inf.al) : oggi;
+          if (inizioClip && dal < inizioClip) dal = inizioClip; // taglia l'inizio al confine stagione
+          if (al <= dal) return sum; // nessuna sovrapposizione reale con questa stagione
+          return sum + Math.max(0, Math.round((al - dal) / 86400000));
+        }, 0);
       };
 
       return players

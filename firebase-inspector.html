@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.15';
+const INSPECTOR_VERSION = '1.16';
 
 async function checkInspectorUpdate(){
   try {
@@ -2022,20 +2022,29 @@ function renderInfortuni() {
       .sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
     const g = GROUPS.find(x => x.nome === gName);
     const stagioneCorrente = g?.stagione || 'Stagione corrente';
-    // Stesso bug corretto nell'app (19/8/2026, segnalato da Alby con screenshot): "nome" è il
-    // nome che l'admin personalizza in fase di archiviazione (titolo della card in Archivio
-    // Stagioni), "stagione" è un campo diverso che spesso resta al default generico "Stagione 1".
-    const _labelPer = (dal) => {
-      const s = archiviateDelGruppo.find(a => (a.dataArchiviazione||'') >= dal);
-      return s ? (s.nome || s.stagione || 'Stagione archiviata') : stagioneCorrente;
-    };
+    const oggi = new Date().toISOString().slice(0,10);
+    // Infortuni a cavallo tra due stagioni (19/8/2026, richiesta di Alby, stessa correzione fatta
+    // nell'app): un infortunio viene aggiunto a TUTTI i bucket stagione con cui si sovrappone, non
+    // solo a quello di inizio — un infortunio ancora "in corso" si considera esteso fino a oggi.
+    const buckets = archiviateDelGruppo.map((a, i) => ({
+      label: a.nome || a.stagione || 'Stagione archiviata',
+      lo: i > 0 ? (archiviateDelGruppo[i-1].dataArchiviazione||'') : '',
+      hi: a.dataArchiviazione || '',
+    }));
+    buckets.push({ label: stagioneCorrente, lo: archiviateDelGruppo.length ? (archiviateDelGruppo[archiviateDelGruppo.length-1].dataArchiviazione||'') : '', hi: null });
 
     const perStagione = {};
     players.forEach(p => {
       (p.infortuni||[]).forEach(inf => {
         if (!inf.dal) return;
-        const label = _labelPer(inf.dal);
-        (perStagione[label] = perStagione[label] || []).push({ playerNome: p.soprannome||p.nome||'?', ...inf });
+        const alEffettivo = inf.al || oggi;
+        buckets.forEach(b => {
+          const finisceDopoInizioBucket = !b.lo || alEffettivo > b.lo;
+          const iniziaPrimaFineBucket = !b.hi || inf.dal <= b.hi;
+          if (finisceDopoInizioBucket && iniziaPrimaFineBucket) {
+            (perStagione[b.label] = perStagione[b.label] || []).push({ playerNome: p.soprannome||p.nome||'?', ...inf });
+          }
+        });
       });
     });
 
