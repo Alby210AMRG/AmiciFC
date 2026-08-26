@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.13';
+const INSPECTOR_VERSION = '1.14';
 
 async function checkInspectorUpdate(){
   try {
@@ -615,6 +615,7 @@ function buildSidebar(){
     ${ni('archive-view','📦','Archivio Stagioni',(() => { const as=DB?.archivedSeasons; if(!as) return ''; const tot=Object.values(as).reduce((s,g)=>s+Object.keys(g||{}).length,0); return tot||''; })(),'archive-view')}
     ${ni('summaries-view','📖','Riepiloghi Stagione',(() => { try { const ss=DB?.seasonSummary; if(!ss) return ''; const tot=Object.values(ss).reduce((s,g)=>s+(g&&typeof g==='object'?Object.keys(g).length:0),0); return tot||''; } catch(e) { return ''; } })(),'summaries-view')}
     ${ni('achv-view','🏅','Achievement',(() => Object.values(ACHIEVEMENTS_DATA).reduce((s,g)=>s+Object.keys(g||{}).length,0)||'')(),'achv-view')}
+    ${ni('infortuni-view','🏥','Infortuni',(() => PLAYERS.reduce((s,p)=>s+(p.infortuni||[]).length,0)||'')(),'infortuni-view')}
     <div class="nav-sep"></div><div class="nav-group">AI Cards</div>
     ${ni('ai-status','🤖','AI Status','','ai-status')}
     ${ni('ai-trash','🔥','Trash Talk',ttCount,'ai-trash')}
@@ -666,6 +667,7 @@ function showView(v){
     'archive-view':renderArchive,
     'summaries-view':renderSeasonSummaries,
     'achv-view':renderAchievements,
+    'infortuni-view':renderInfortuni,
     'stats-view':renderStats,
     'log-view':renderLog,
     'maint-check':renderCheck,
@@ -2000,6 +2002,80 @@ function renderMaintPins() {
   `;
 }
 
+// Elenco infortuni di tutti i giocatori, raggruppati per gruppo e per stagione (19/8/2026,
+// richiesta di Alby) — stessa logica di _infortuniByStagione nell'app: un infortunio appartiene
+// alla prima stagione archiviata la cui dataArchiviazione è >= alla data "Dal", altrimenti alla
+// stagione corrente del gruppo. Vista di sola consultazione (nessuna azione di scrittura) — per
+// questo vive in "Dati" insieme ad Achievement/Archivio Stagioni, non in "Manutenzione" (corretto
+// dopo osservazione di Alby: qui non si genera/modifica nulla, si guarda soltanto).
+function renderInfortuni() {
+  if (!DB) { $('main').innerHTML = '<div class="empty"><div class="empty-icon">🔌</div>Clicca prima Connetti per caricare il database.</div>'; return; }
+
+  const archivedFlat = Object.values(DB?.archivedSeasons || {}).flatMap(s => Object.values(s || {}));
+
+  const byGroup = {};
+  PLAYERS.forEach(p => { const k = p._groupName || '?'; (byGroup[k] = byGroup[k] || []).push(p); });
+
+  const groupBlocks = Object.entries(byGroup).map(([gName, players]) => {
+    const archiviateDelGruppo = archivedFlat
+      .filter(a => a.groupNome === gName)
+      .sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
+    const g = GROUPS.find(x => x.nome === gName);
+    const stagioneCorrente = g?.stagione || 'Stagione corrente';
+    const _labelPer = (dal) => {
+      const s = archiviateDelGruppo.find(a => (a.dataArchiviazione||'') >= dal);
+      return s ? (s.stagione || s.nome || 'Stagione archiviata') : stagioneCorrente;
+    };
+
+    const perStagione = {};
+    players.forEach(p => {
+      (p.infortuni||[]).forEach(inf => {
+        if (!inf.dal) return;
+        const label = _labelPer(inf.dal);
+        (perStagione[label] = perStagione[label] || []).push({ playerNome: p.soprannome||p.nome||'?', ...inf });
+      });
+    });
+
+    const ordineLabels = [stagioneCorrente, ...archiviateDelGruppo.map(a=>a.stagione||a.nome).reverse()].filter((v,i,arr)=>v && arr.indexOf(v)===i);
+    const stagioniConDati = ordineLabels.filter(l => perStagione[l]?.length);
+
+    if (!stagioniConDati.length) return `<div class="card" style="margin-bottom:14px">
+      <div class="card-head"><span class="card-title">👥 ${gName}</span></div>
+      <div class="card-body" style="color:var(--gray)">Nessun infortunio registrato</div>
+    </div>`;
+
+    const stagioniHtml = stagioniConDati.map(label => {
+      const rows = perStagione[label].sort((a,b) => (b.dal||'').localeCompare(a.dal||'')).map(inf => `
+        <tr>
+          <td>${inf.playerNome}</td>
+          <td>${inf.descrizione||'—'}</td>
+          <td>${inf.dal||'—'}</td>
+          <td>${inf.al || '<span class="badge badge-orange">in corso</span>'}</td>
+        </tr>`).join('');
+      return `<div style="margin-bottom:14px">
+        <div style="font-size:0.78rem;font-weight:700;color:var(--lime);margin-bottom:6px">📅 ${label}</div>
+        <table class="tbl">
+          <thead><tr><th>Giocatore</th><th>Descrizione</th><th>Dal</th><th>Al</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
+    }).join('');
+
+    return `<div class="card" style="margin-bottom:14px">
+      <div class="card-head"><span class="card-title">👥 ${gName}</span></div>
+      <div class="card-body">${stagioniHtml}</div>
+    </div>`;
+  }).join('');
+
+  $('main').innerHTML = `
+    <div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">🏥 Infortuni</span></div>
+    <div style="font-size:0.78rem;color:var(--text2);margin-bottom:14px">
+      Elenco di sola lettura, raggruppato per gruppo e per stagione — stesso dato visibile in app in "Altro → Infortuni". Per modificare un infortunio, usa l'app (scheda giocatore → Modifica).
+    </div>
+    ${groupBlocks || '<div class="empty"><div class="empty-icon">👥</div>Nessun giocatore trovato</div>'}
+  `;
+}
+
 function renderPlayers(q){
   if(q!==undefined)pSearch=q;
   const ql=pSearch.toLowerCase();
@@ -2084,6 +2160,7 @@ function renderPlayers(q){
             <span class="badge ${uidOk?'badge-green':'badge-red'}" style="padding:1px 6px">${uidOk?'uid ✅':'uid ❌'}</span>
             ${AUTH_TOKEN?`<span class="badge ${VOTE_PINS[p.uid]?'badge-green':'badge-orange'}" style="padding:1px 6px">${VOTE_PINS[p.uid]?'🔑 PIN ✅':'🔑 PIN ⚠️'}</span>`:''}
             ${AUTH_TOKEN&&uidOk?`<button class="btn btn-ghost btn-sm" style="padding:1px 6px;font-size:0.62rem" onclick="generateSinglePin('${p.uid}','${(p.soprannome||p.nome||'').replace(/'/g,"\\'")}','${(p._groupName||'').replace(/'/g,"\\'")}')">${VOTE_PINS[p.uid]?'🔄 Rigenera':'🔑 Genera'}</button>`:''}
+            ${(p.infortuni||[]).length?`<span class="badge badge-gray" style="padding:1px 6px" title="Storico infortuni">🏥 ${(p.infortuni||[]).length} in storico</span>`:''}
           </div>
         </div>
         <div class="player-stats">

@@ -5582,6 +5582,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <text x="210" y="70" text-anchor="end" font-size="7" fill="var(--text2)">Ultima partita</text>
                 </svg>
               </div>
+              <div v-if="p.giorniInfortunioStagione>0" style="color:#f87171">🤕 {{ p.giorniInfortunioStagione }} giorni di assenza per infortunio in stagione</div>
               <div v-if="p.vittima">😈 Vittima preferita: {{ p.vittima.nome }} ({{ p.vittima.vinte }}/{{ p.vittima.tot }})</div>
               <div v-if="p.incubo">☠️ Incubo personale: {{ p.incubo.nome }} ({{ p.incubo.perse }}/{{ p.incubo.tot }})</div>
               <div v-if="p.soprannomeAI" style="font-style:italic;color:var(--text2);margin-top:2px">🎭 {{ p.soprannomeAI }}{{ p.confrontoAI ? ' — '+p.confrontoAI : '' }}</div>
@@ -5765,6 +5766,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>📲 Il link si condivide su WhatsApp/Telegram — funziona su qualsiasi telefono, anche senza l'app installata</div>
             <div>📊 Il voto finale è la <strong>media</strong> di tutti i voti ricevuti, con uno scarto automatico di quelli anomali</div>
             <div>🗳️ La card "Votazione in corso" appare ovunque nelle liste partite finché la votazione resta aperta</div>
+            <div>⭐ <strong>Uomo Partita votato dai partecipanti</strong>: quando apri la votazione, scegli se l'Uomo Partita lo decidi tu a fine serata (come sempre) oppure lo votano direttamente i partecipanti insieme alle pagelle — in quel caso, ogni votante deve scegliere qualcuno prima di poter concludere il proprio voto (non è possibile saltare)</div>
+            <div>🏆 Chiudendo la votazione con questa opzione attiva, vedi un riepilogo di chi ha preso più voti come Uomo Partita, prima di confermare — resta comunque un suggerimento, puoi sempre cambiarlo lì</div>
           </div>
         </div>
 
@@ -5849,6 +5852,31 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- Achievement / Albo d'Oro (18/8/2026: mai spiegato come concetto nel manuale
+             nonostante esista una vista dedicata raggiungibile da Altro) -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#fbbf24;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🏅 Achievement e Albo d'Oro</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>Ogni giocatore sblocca automaticamente traguardi in base a quello che fa in campo — primo gol, 50 presenze, hat-trick, striscia di vittorie e molti altri, nessuna azione richiesta</div>
+            <div>🏆 Alcuni achievement sono di <strong>carriera</strong> (restano per sempre, anche dopo l'archiviazione di fine stagione), altri sono legati alla singola stagione</div>
+            <div>📂 Vedi tutto il catalogo, chi ha sbloccato cosa e cosa manca ancora a nessuno, da "Altro" → <strong>Albo d'Oro</strong></div>
+            <div>📖 Nel Riepilogo Stagione trovi anche un capitolo dedicato agli achievement sbloccati proprio in quella stagione</div>
+          </div>
+        </div>
+
+
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🥅 Portiere Dichiarato</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>Per ogni partita puoi indicare <strong>chi ha fatto il portiere</strong> in ciascuna squadra — è opzionale, se non lo indichi si assume "a turno" (nessuno fisso)</div>
+            <div>📍 Si imposta durante l'inserimento del risultato, o dopo da <strong>"Modifica Partita"</strong> se te ne accorgi più tardi</div>
+            <div>🧤 Serve per calcolare correttamente la <strong>Classifica Clean Sheet</strong> — senza un portiere dichiarato, nessuno la riceve per quella partita (giusto: non sappiamo davvero chi era in porta)</div>
+            <div>⚖️ Se un giocatore fa il portiere in alcune partite e gioca fuori ruolo in altre, il suo <strong>Overall</strong> diventa una media pesata tra le due specialità invece di usare una sola formula fissa — lo vedi scritto nella scomposizione OVR della sua scheda</div>
+            <div>🎯 Bonus portiere sull'Overall: +Clean Sheet e +Rigori Parati (fino a +15 OVR)</div>
+          </div>
+        </div>
+
+
         <!-- Riepilogo Stagione -->
         <div>
           <div style="font-weight:700;font-size:0.78rem;color:#2dd4bf;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📖 Riepilogo Stagione</div>
@@ -5860,6 +5888,33 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+      </div>
+    </template>
+
+    <!-- Elenco Infortuni di tutto il gruppo, diviso per stagione (19/8/2026, richiesta di Alby) -->
+    <template v-if="currentView === 'infortuni'">
+      <div class="card-title">🏥 Infortuni</div>
+      <div v-if="!_infortuniByStagione().length" class="card" style="text-align:center;padding:30px 20px;color:var(--text2)">
+        Nessun infortunio registrato finora — meglio così! 💪
+      </div>
+      <div v-for="gruppo in _infortuniByStagione()" :key="gruppo.label" class="card" style="margin-bottom:14px">
+        <div class="card-title" style="font-size:0.9rem;margin-bottom:10px">📅 {{ gruppo.label }}</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div v-for="(inf,idx) in gruppo.infortuni" :key="idx"
+            style="display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:10px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);cursor:pointer"
+            @click="openPlayerDetail(getPlayer(inf.playerUid))">
+            <div style="width:36px;height:36px;border-radius:50%;overflow:hidden;background:var(--bg3);flex-shrink:0;display:flex;align-items:center;justify-content:center">
+              <img v-if="getPlayerPhoto(getPlayer(inf.playerUid)?.foto, inf.playerUid)" :src="getPlayerPhoto(getPlayer(inf.playerUid)?.foto, inf.playerUid)" style="width:100%;height:100%;object-fit:cover">
+              <span v-else>🤕</span>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:700;font-size:0.85rem">{{ inf.playerNome }}</div>
+              <div style="font-size:0.76rem;color:var(--text)">{{ inf.descrizione }}</div>
+              <div style="font-size:0.7rem;color:var(--text2)">Dal {{ inf.dal }} {{ inf.al ? ('al '+inf.al) : '— ancora in corso' }}</div>
+            </div>
+            <span v-if="!inf.al" class="badge" style="background:rgba(248,113,113,.2);color:#f87171;flex-shrink:0">🏥 in corso</span>
+          </div>
+        </div>
       </div>
     </template>
 
@@ -6598,6 +6653,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <button class="more-menu-item" @click="currentView='achievements';showMoreMenu=false">
         <span class="more-icon">🏅</span> Albo d'Oro Achievement
       </button>
+      <button class="more-menu-item" @click="currentView='infortuni';showMoreMenu=false">
+        <span class="more-icon">🏥</span> Infortuni
+      </button>
       <button class="more-menu-item" @click="currentView='settings';showMoreMenu=false">
         <span class="more-icon">⚙️</span> Impostazioni
       </button>
@@ -6823,12 +6881,40 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
 
       <div class="input-group">
-        <label class="input-label" style="color:#f87171">🤕 Infortunio</label>
-        <input class="input-field" v-model="playerForm.infortunio"
-          placeholder="Es: Distorsione alla caviglia, rientro previsto in 2 settimane"
-          style="border-color:rgba(248,113,113,.4)">
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
-          Se valorizzato, il giocatore mostrerà una card di auguri. Lascia vuoto quando rientra.
+        <label class="input-label" style="color:#f87171">🤕 Infortuni</label>
+        <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">
+          Se c'è un infortunio in corso (Dal impostato, Al ancora vuoto o non passato), il giocatore mostrerà una card di auguri e il badge 🏥 — sparisce da solo quando passa la data "Al".
+        </div>
+
+        <!-- Elenco infortuni già presenti (storico) -->
+        <div v-if="(playerForm.infortuni||[]).length" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+          <div v-for="(inf,idx) in playerForm.infortuni" :key="idx"
+            style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2)">
+            <div style="flex:1">
+              <div style="font-size:0.8rem;font-weight:600">{{ inf.descrizione }}</div>
+              <div style="font-size:0.7rem;color:var(--text2)">
+                Dal {{ inf.dal }} {{ inf.al ? ('al '+inf.al) : '— ancora in corso' }}
+              </div>
+            </div>
+            <button type="button" class="btn btn-ghost btn-sm" style="padding:4px 8px;font-size:0.7rem;color:#f87171" @click="rimuoviInfortunio(idx)">✕</button>
+          </div>
+        </div>
+
+        <!-- Form per aggiungere un nuovo infortunio -->
+        <div style="background:var(--bg3);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px">
+          <input class="input-field" v-model="newInfortunioForm.descrizione"
+            placeholder="Es: Distorsione alla caviglia" style="border-color:rgba(248,113,113,.4)">
+          <div style="display:flex;gap:8px">
+            <div style="flex:1">
+              <label style="font-size:0.68rem;color:var(--text2)">Dal</label>
+              <input class="input-field" type="date" v-model="newInfortunioForm.dal">
+            </div>
+            <div style="flex:1">
+              <label style="font-size:0.68rem;color:var(--text2)">Al (opzionale)</label>
+              <input class="input-field" type="date" v-model="newInfortunioForm.al">
+            </div>
+          </div>
+          <button type="button" class="btn btn-ghost btn-sm" @click="aggiungiInfortunio">➕ Aggiungi infortunio</button>
         </div>
       </div>
 
@@ -6902,6 +6988,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- Testo infortunio sotto i badge -->
         <div v-if="detailPlayer.infortunio" style="margin-top:10px;background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.3);border-radius:10px;padding:10px 14px;font-size:0.8rem;color:#f87171;line-height:1.5">
           🤕 {{ detailPlayer.infortunio }}
+        </div>
+        <!-- Storico Infortuni (19/8/2026): mostra tutte le voci passate, non solo quella attiva -->
+        <div v-if="(detailPlayer.infortuni||[]).length" style="margin-top:10px">
+          <div style="font-size:0.72rem;font-weight:700;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">🏥 Storico Infortuni</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div v-for="(inf,idx) in [...(detailPlayer.infortuni||[])].sort((a,b)=>(b.dal||'').localeCompare(a.dal||''))" :key="idx"
+              style="padding:8px 12px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);font-size:0.78rem">
+              <div style="font-weight:600">{{ inf.descrizione }}</div>
+              <div style="font-size:0.7rem;color:var(--text2)">Dal {{ inf.dal }} {{ inf.al ? ('al '+inf.al) : '— ancora in corso' }}</div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -8875,7 +8972,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.873',date:'2026-08-18',items:[
+    const changelogEntries = [{version:'v1.875',date:'2026-08-19',items:[
+      'Nuovo: storico infortuni per ogni giocatore, con date "Dal" e "Al" (richiesta di Alby). Il vecchio campo testo libero e diventato un elenco - ogni infortunio ha descrizione, data di inizio e data di fine (opzionale, se ancora in corso). Il badge "infortunato" ora si aggiorna da solo in base alle date, senza bisogno di toccare nulla a mano quando il giocatore rientra.',
+      'Nuova voce di menu "Altro - Infortuni": elenco di tutti gli infortuni del gruppo, divisi per stagione.',
+      'Le date infortunio sono ora materiale per l AI: usate nel prompt dei soprannomi (anche in rigenerazione su stagioni gia archiviate) e nel Riepilogo Stagione (giorni di assenza per giocatore, citati anche nel testo narrativo se presenti).',
+      'Fix trovato durante lo sviluppo: DataCloneError nel salvataggio giocatore quando si aggiungeva un infortunio (stesso tipo di bug gia risolto altrove in precedenza - array reattivo di Vue passato a IndexedDB senza spacchettarlo, stavolta anche a livello di singolo oggetto dentro larray).',
+    ]},{version:'v1.874',date:'2026-08-18',items:[
+      'Manuale del Campetto (in-app): aggiunti i capitoli mancanti da giorni nonostante le funzioni fossero gia consegnate - Portiere Dichiarato (mai documentato), Achievement e Albo d Oro (mai spiegato come concetto), Uomo Partita votato dai partecipanti (aggiunto alla sezione Vota con gli amici gia esistente).',
+      'Aggiornati anche MANUALE-AMICI-FC.md e README.md (file esterni del progetto) con tutte le funzioni degli ultimi giorni - Pagelle Multi-Utente non piu descritta come "in costruzione" ma come funzione completa, aggiunto backup completo da Inspector, onboarding a wizard, rigore segnato che conta come gol, e altro.',
+    ]},{version:'v1.873',date:'2026-08-18',items:[
       'Fix (segnalato da Alby, testando il nuovo onboarding con un link Firebase di un gruppo esistente): dopo la connessione, la home restava bloccata con la sola card di benvenuto invece di mostrare tutte le card tutorial. Causa: quella schermata di onboarding chiama una funzione di sync "una tantum" separata dal normale ciclo periodico dell app, e nessuno dei due mai avviava esplicitamente il sistema delle hero card per un gruppo collegato a Firebase (veniva avviato solo per i gruppi senza Firebase). Aggiunta la chiamata mancante.',
       'Fix collegato: per un gruppo con almeno una stagione gia archiviata, mancava anche la card "Si riparte! Benvenuti nella nuova stagione". Causa: la stessa funzione di sync onboarding non scaricava mai le stagioni archiviate dal payload Firebase (solo giocatori e partite) - aggiunto lo stesso meccanismo di download gia usato dal normale ciclo di sync periodico.',
     ]},{version:'v1.872',date:'2026-08-18',items:[
@@ -10154,7 +10259,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.873');
+    const appVersion = ref('1.875');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10871,6 +10976,13 @@ createApp({
       // sincronizzare), ogni volta che si apre il gruppo — economico, garantisce che Firebase si
       // riallinei anche dopo un fallimento silenzioso passato.
       if (Object.keys(achievementsUnlocked.value).length > 0) _saveAchievementsUnlocked();
+      // Nuova funzione Infortuni con storico (19/8/2026, richiesta di Alby): p.infortuni[] è la
+      // vera fonte di verità (elenco di {descrizione,dal,al} nel tempo) — p.infortunio resta un
+      // campo "cache" di sola visualizzazione, ricalcolato qui ad ogni caricamento gruppo dal
+      // confronto delle date con oggi, così TUTTO il codice esistente che già legge p.infortunio
+      // (badge, PNG, card auguri) continua a funzionare senza essere toccato, e il badge sparisce
+      // da solo quando la data "Al" passa, senza bisogno di un'azione manuale.
+      await _hydrateInjuryStatus();
       await _hydratePlayerPhotos();
       await loadAllGroupsCache();
       if (groupMatches.value.length > 0) {
@@ -10981,6 +11093,23 @@ createApp({
     };
 
     // ── Sync v2: idrata p.foto da tabella playerPhotos (uid) per i giocatori che non hanno foto inline ──
+    // Ricalcola p.infortunio (cache di visualizzazione) da p.infortuni[] (vera fonte di verità con
+    // lo storico) confrontando le date con oggi — vedi commento in loadGroupData per il perché di
+    // questo approccio "cache derivata" invece di riscrivere ogni punto dell'app che legge
+    // p.infortunio.
+    const _hydrateInjuryStatus = async () => {
+      const oggi = new Date().toISOString().slice(0,10);
+      for (const p of groupPlayers.value) {
+        if (!Array.isArray(p.infortuni) || !p.infortuni.length) continue;
+        const attivo = p.infortuni.find(inf => inf.dal && inf.dal <= oggi && (!inf.al || inf.al >= oggi));
+        const nuovoValore = attivo ? attivo.descrizione : '';
+        if (p.infortunio !== nuovoValore) {
+          p.infortunio = nuovoValore;
+          if (p.id) { try { await db.players.update(p.id, { infortunio: nuovoValore }); } catch(e) {} }
+        }
+      }
+    };
+
     const _hydratePlayerPhotos = async () => {
       const missing = groupPlayers.value.filter(p => p.uid && !p.foto);
       if (!missing.length) return;
@@ -11159,9 +11288,34 @@ createApp({
     const openPlayerForm = p => {
       editingPlayer.value = p;
       playerForm.value = p
-        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', numeroMaglia: p.numeroMaglia||null, squadraCuore: p.squadraCuore||'', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', isAdminGruppo: !!p.isAdminGruppo }
-        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', numeroMaglia:null, squadraCuore:'', rivali:[], affinita:[], infortunio:'', isAdminGruppo:false };
+        ? { nome: p.nome, cognome: p.cognome||'', soprannome: p.soprannome||'', ruolo: p.ruolo||'Attaccante', foto: p.foto||'', descrizione: p.descrizione||'', piede: p.piede||'Destro', numeroMaglia: p.numeroMaglia||null, squadraCuore: p.squadraCuore||'', rivali: Array.isArray(p.rivali) ? [...p.rivali] : [], affinita: Array.isArray(p.affinita) ? [...p.affinita] : [], fraseCelebre: p.fraseCelebre||'', infortunio: p.infortunio||'', infortuni: Array.isArray(p.infortuni) ? p.infortuni.map(i=>({...i})) : [], isAdminGruppo: !!p.isAdminGruppo }
+        : { nome:'', cognome:'', soprannome:'', ruolo:'Attaccante', foto:'', descrizione:'', piede:'Destro', numeroMaglia:null, squadraCuore:'', rivali:[], affinita:[], infortunio:'', infortuni:[], isAdminGruppo:false };
       showPlayerForm.value = true;
+    };
+
+    // Nuovo infortunio in fase di compilazione (form separato dentro playerForm, pulito ogni volta
+    // che l'admin lo apre o dopo aver aggiunto una voce) — 19/8/2026.
+    const newInfortunioForm = ref({ descrizione:'', dal:'', al:'' });
+    const _resetNewInfortunioForm = () => { newInfortunioForm.value = { descrizione:'', dal:'', al:'' }; };
+    const aggiungiInfortunio = () => {
+      const f = newInfortunioForm.value;
+      if (!f.descrizione.trim() || !f.dal) { toast('Descrizione e data "Dal" sono obbligatorie', 'error'); return; }
+      if (f.al && f.al < f.dal) { toast('La data "Al" non può essere prima di "Dal"', 'error'); return; }
+      playerForm.value.infortuni = [...(playerForm.value.infortuni||[]), { descrizione: f.descrizione.trim(), dal: f.dal, al: f.al || null }]
+        .sort((a,b) => (b.dal||'').localeCompare(a.dal||'')); // più recente in cima
+      _resetNewInfortunioForm();
+    };
+    const rimuoviInfortunio = (idx) => {
+      playerForm.value.infortuni = (playerForm.value.infortuni||[]).filter((_,i) => i!==idx);
+    };
+    // Calcola la descrizione dell'infortunio ATTIVO oggi da un elenco infortuni[] — stessa logica
+    // di _hydrateInjuryStatus, riusata qui per aggiornare p.infortunio subito al salvataggio senza
+    // aspettare il prossimo giro di loadGroupData.
+    const _computeInfortunioAttivo = (infortuni) => {
+      if (!Array.isArray(infortuni) || !infortuni.length) return '';
+      const oggi = new Date().toISOString().slice(0,10);
+      const attivo = infortuni.find(inf => inf.dal && inf.dal <= oggi && (!inf.al || inf.al >= oggi));
+      return attivo ? attivo.descrizione : '';
     };
 
     const savePlayer = async () => {
@@ -11177,6 +11331,7 @@ createApp({
       })();
 
       if (editingPlayer.value) {
+        const _infortunioCalcolato = _computeInfortunioAttivo(f.infortuni);
         const updated = await db.players.update(editingPlayer.value.id, {
           nome:        f.nome.trim(),
           cognome:     f.cognome?.trim() || '',
@@ -11188,7 +11343,8 @@ createApp({
           foto:        f.foto || '',
           descrizione: f.descrizione || '',
           fraseCelebre: f.fraseCelebre?.trim() || '',
-          infortunio:   f.infortunio?.trim() || '',
+          infortunio:   _infortunioCalcolato,
+          infortuni:   (f.infortuni || []).map(i=>({...i})),
           rivali:      (f.rivali||[]).filter(Boolean),
           affinita:    (f.affinita||[]).filter(Boolean),
           isAdminGruppo: !!f.isAdminGruppo,
@@ -11200,7 +11356,7 @@ createApp({
             await db.players.put({ ...editingPlayer.value,
               nome: f.nome.trim(), cognome: f.cognome?.trim()||'',
               soprannome: f.soprannome?.trim()||'', ruolo: f.ruolo||'Jolly',
-              piede: f.piede||'Destro', numeroMaglia: _numeroMaglia, squadraCuore: f.squadraCuore?.trim()||'', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', infortunio: f.infortunio?.trim()||'',
+              piede: f.piede||'Destro', numeroMaglia: _numeroMaglia, squadraCuore: f.squadraCuore?.trim()||'', foto: f.foto||'', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', infortunio: _infortunioCalcolato, infortuni: (f.infortuni || []).map(i=>({...i})),
               rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean),
               isAdminGruppo: !!f.isAdminGruppo,
             });
@@ -11221,7 +11377,8 @@ createApp({
           goalTotali:0, assistTotali:0, autogolTotali:0,
           puntiTotali:0, partiteTotali:0, mediaPunti:0,
           mediaVoto:0, votiTotali:0, uomoPartitaTotali:0,
-          piede: f.piede||'Destro', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', storicoPartite:[], rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean)
+          piede: f.piede||'Destro', descrizione: f.descrizione||'', fraseCelebre: f.fraseCelebre?.trim()||'', storicoPartite:[], rivali: (f.rivali||[]).filter(Boolean), affinita: (f.affinita||[]).filter(Boolean),
+          infortuni: (f.infortuni || []).map(i=>({...i})) // override esplicito: ...f sopra lo includerebbe come riferimento reattivo diretto (stesso DataCloneError già visto altrove)
         });
         // Sync v2: foto idratata anche nella tabella playerPhotos (uid stabile cross-device)
         if (f.foto) {
@@ -14724,6 +14881,35 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // Sistema Achievement, Fase D (13/8/2026): dati per la schermata "Albo d'Oro" — TUTTI gli
     // achievement del catalogo (anche quelli con zero sblocchi, mostrati come obiettivo),
     // raggruppati per categoria, ciascuno con l'elenco dei giocatori che l'hanno sbloccato.
+    // Raggruppa tutti gli infortuni di tutti i giocatori del gruppo per stagione (19/8/2026,
+    // richiesta di Alby) — un infortunio appartiene alla prima stagione archiviata la cui
+    // dataArchiviazione è >= alla data "Dal" dell'infortunio; se nessuna stagione archiviata è
+    // successiva, appartiene alla stagione corrente. I profili giocatore non si azzerano mai tra
+    // stagioni, quindi l'elenco infortuni si accumula nel tempo sullo stesso oggetto giocatore —
+    // questa funzione è ciò che permette di "spezzarlo" per stagione in una vista leggibile.
+    const _infortuniByStagione = () => {
+      const archiviate = [...currentGroupArchivedSeasons.value].sort((a,b) => (a.dataArchiviazione||'').localeCompare(b.dataArchiviazione||''));
+      const stagioneCorrente = currentGroup.value?.stagione || 'Stagione corrente';
+      const _labelPer = (dal) => {
+        const s = archiviate.find(a => (a.dataArchiviazione||'') >= dal);
+        return s ? (s.stagione || s.nome || 'Stagione archiviata') : stagioneCorrente;
+      };
+      const gruppi = {}; // { label: [{playerNome, playerUid, ...infortunio}] }
+      groupPlayers.value.forEach(p => {
+        (p.infortuni||[]).forEach(inf => {
+          if (!inf.dal) return;
+          const label = _labelPer(inf.dal);
+          (gruppi[label] = gruppi[label] || []).push({ playerNome: p.soprannome||p.nome, playerUid: p.uid, ...inf });
+        });
+      });
+      // Ordino le stagioni: quella corrente in cima, poi le altre a ritroso nel tempo
+      const ordineLabels = [stagioneCorrente, ...archiviate.map(a=>a.stagione||a.nome).reverse()].filter((v,i,arr)=>arr.indexOf(v)===i);
+      return ordineLabels.filter(l => gruppi[l]?.length).map(label => ({
+        label,
+        infortuni: gruppi[label].sort((a,b) => (b.dal||'').localeCompare(a.dal||''))
+      }));
+    };
+
     const _achievementGalleryData = () => {
       const byCategoria = {};
       for (const a of ACHIEVEMENTS_CATALOG) {
@@ -14923,6 +15109,7 @@ NOTE CAMPI:
 - squadra_cuore (se presente): la squadra di calcio del cuore del giocatore — puoi usarla per un parallelo o una battuta se pertinente, ma non è obbligatorio
 - autogol_totali / rigori_sbagliati / rigori_parati (se presenti): episodi rilevanti, ottimo materiale ironico
 - volte_fuori_porta_con_contributo (solo per i Portieri, se presente): quante volte quest'anno ha fatto gol/assist/rigore sbagliato in una partita dove non era chiaro chi fosse il portiere titolare quel giorno — ottimo spunto ironico ("anche i portieri sognano il gol"), menzionalo solo se presente
+- infortunio_attuale (se presente): il giocatore è attualmente infortunato — puoi scherzarci sopra con leggerezza (es. "il fantasma della stagione"), ma resta rispettoso, mai crudele
 LUNGHEZZA (importante, rispettala sempre allo stesso modo per ogni giocatore, non allungarti anche se hai margine):
 - confronto: 1-2 frasi, massimo 30 parole
 - motivazione: 2-3 frasi, massimo 60 parole in totale
@@ -14982,6 +15169,9 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
           if (p.descrizione) obj.descrizione_qualita = p.descrizione;
           if (p.numeroMaglia) obj.numero_preferito = p.numeroMaglia;
           if (p.squadraCuore) obj.squadra_cuore = p.squadraCuore;
+          // Infortuni con storico (19/8/2026, richiesta di Alby): se attualmente infortunato,
+          // buon materiale ironico per il soprannome ("il fantasma della stagione" e simili).
+          if (p.infortunio) obj.infortunio_attuale = p.infortunio;
           // Portiere dichiarato, Fase 4 (13/8/2026): quante volte quest'anno ha giocato "a turno"
           // (ambiguo, non sappiamo con certezza chi era in porta) E ha comunque fatto gol/assist/
           // rigore sbagliato — probabile che quelle volte non fosse lui in porta. Solo per Portieri.
@@ -17068,6 +17258,24 @@ Niente altro, nessuna spiegazione.`;
       const pMax = Math.max(...uids.map(uid => statsMap[uid]?.partiteTotali||0), 1);
       const trackAssist = currentGroup.value?.trackAssist !== false;
 
+      // Infortuni con storico (19/8/2026, richiesta di Alby): giorni di assenza nella stagione che
+      // si sta per archiviare — la stagione corrente inizia subito dopo l'archiviazione precedente
+      // più recente (o "da sempre" se questa è la primissima stagione del gruppo). Un infortunio
+      // ancora in corso (senza "Al") conta i giorni fino a oggi.
+      const _archiviatePrecedenti = [...currentGroupArchivedSeasons.value].sort((a,b) => (b.dataArchiviazione||'').localeCompare(a.dataArchiviazione||''));
+      const _inizioStagioneCorrente = _archiviatePrecedenti[0]?.dataArchiviazione || null;
+      const _giorniInfortunioStagione = (infortuni) => {
+        if (!Array.isArray(infortuni) || !infortuni.length) return 0;
+        const oggi = new Date();
+        return infortuni
+          .filter(inf => inf.dal && (!_inizioStagioneCorrente || inf.dal >= _inizioStagioneCorrente))
+          .reduce((sum, inf) => {
+            const dal = new Date(inf.dal);
+            const al = inf.al ? new Date(inf.al) : oggi;
+            return sum + Math.max(0, Math.round((al - dal) / 86400000));
+          }, 0);
+      };
+
       return players
         .map(p => {
           const uid = p.uid || String(p.id);
@@ -17102,7 +17310,8 @@ Niente altro, nessuna spiegazione.`;
             incubo: rivalries[uid]?.incubo || null,
             soprannomeAI: nick?.soprannome_ai || null,
             confrontoAI: nick?.confronto || null,
-            vittorie, pareggi, sconfitte, formHistory
+            vittorie, pareggi, sconfitte, formHistory,
+            giorniInfortunioStagione: _giorniInfortunioStagione(p.infortuni)
           };
         })
         .filter(Boolean)
@@ -17449,6 +17658,13 @@ Media voto (top): ${d.sezioneC.topMediaVoto.slice(0,5).map(p=>p.soprannome||p.no
 Il Gabbione 2vs2 (sfida "rivincita" suggerita, non giocata davvero): ${gabTxt(gab.gabbione2v2)}
 Il Gabbione 3vs3 (sfida "rivincita" suggerita, non giocata davvero): ${gabTxt(gab.gabbione3v3)}
 Achievement sbloccati in stagione: ${d.sezioneF && d.sezioneF.length ? d.sezioneF.map(p=>`${p.nome} (${p.count})`).join(', ') : 'nessuno quest\'anno'}
+${(() => {
+  // Infortuni con storico (19/8/2026, richiesta di Alby): materiale per commentoE, solo se
+  // qualcuno ha avuto davvero giorni di assenza in stagione — altrimenti non menzionarlo.
+  const conInfortuni = (d.sezioneE||[]).filter(p => p.giorniInfortunioStagione > 0).sort((a,b) => b.giorniInfortunioStagione - a.giorniInfortunioStagione);
+  if (!conInfortuni.length) return '';
+  return `Infortuni della stagione: ${conInfortuni.slice(0,3).map(p=>`${p.nome} (${p.giorniInfortunioStagione} giorni)`).join(', ')}`;
+})()}
 
 Scrivi un breve testo per ciascuna di queste parti (2-3 frasi ciascuna, tranne dove indicato diversamente):
 - intro: apertura del diario di stagione
@@ -17456,7 +17672,7 @@ Scrivi un breve testo per ciascuna di queste parti (2-3 frasi ciascuna, tranne d
 - commentoB: commento sugli Oscar, citane almeno 2
 - commentoC: commento sulle classifiche
 - commentoD: 1 sola frase, introduce la sezione partite
-- commentoE: 1 sola frase, introduce l'Annuario dei giocatori
+- commentoE: 1 sola frase, introduce l'Annuario dei giocatori — se ci sono infortuni della stagione elencati sopra, puoi menzionarli con leggerezza (mai in tono triste)
 - commentoF: 1 sola frase, introduce il capitolo Achievement della stagione (se nessuno ne ha sbloccati, scrivi una frase leggera tipo "quest'anno niente trofei, ma la prossima stagione è ancora tutta da giocare")
 - commentoGabbione: telecronaca ironica che presenta le sfide del Gabbione, ricordando che è un abbinamento suggerito, non una partita reale
 - chiusura: saluto finale di chiusura stagione (fino a 3 frasi)
@@ -17864,6 +18080,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             if (live?.descrizione) obj.descrizione_qualita = live.descrizione;
             if (live?.numeroMaglia) obj.numero_preferito = live.numeroMaglia;
             if (live?.squadraCuore) obj.squadra_cuore = live.squadraCuore;
+            if (live?.infortunio) obj.infortunio_attuale = live.infortunio;
             return obj;
           });
 
@@ -24700,6 +24917,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       loadGroups, loadGroupData, selectGroup, createGroup, renameGroup, deleteGroup, toggleTrackAssist,
       groupPlayerCount, groupMatchCount,
       openPlayerForm, savePlayer, deletePlayer, openPlayerDetail, getPlayerNick, handlePhotoUpload,
+      newInfortunioForm, aggiungiInfortunio, rimuoviInfortunio, _infortuniByStagione,
       startNewMatch, startPlayerSelection, togglePlayerSelection, selectAll,
       ensureStats, incrementRigoreSegnato, decrementRigoreSegnato, setUomoPartita, getPlayer, sortByRole,
       generateFormationsAI, generateFormationsWithAI,
