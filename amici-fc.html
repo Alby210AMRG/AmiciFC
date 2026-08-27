@@ -8972,7 +8972,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.878',date:'2026-08-19',items:[
+    const changelogEntries = [{version:'v1.879',date:'2026-08-20',items:[
+      'Fix bug sistemico (segnalato da Alby: 8v8, 16 giocatori, ma la classifica Punti ne mostrava solo 15): tutte le classifiche complete in Statistiche (Punti, Overall gia corretto, Gol, Assist, Media Voto, Uomo Partita, Autogol, Clean Sheet, Media Punti) avevano un taglio fisso a 10-15 giocatori "nascosto" dentro il calcolo che alimenta la lista visibile - con un gruppo di 27-28 persone, chi superava quella soglia spariva silenziosamente dalla classifica. Rimosso il taglio da tutte le classifiche complete, verificato che non tocca ne le card "leader" (prendono sempre e solo il primo classificato) ne il PNG condivisibile (ha gia un proprio taglio separato per restare unimmagine compatta).',
+    ]},{version:'v1.878',date:'2026-08-19',items:[
       'Infortuni: un infortunio che attraversa il confine tra due stagioni ora compare in ENTRAMBE (richiesta di Alby, dopo aver visto un caso reale confuso: un infortunio ancora in corso compariva solo nella vecchia stagione). Corretto anche il conteggio "giorni di assenza" nel Riepilogo Stagione, che prima escludeva del tutto un infortunio iniziato prima dell inizio stagione anche se continuato al suo interno - ora conta solo i giorni realmente dentro i confini della stagione.',
     ]},{version:'v1.877',date:'2026-08-19',items:[
       'Fix (segnalato da Alby con screenshot): la vista Infortuni (app e Inspector) mostrava il nome sbagliato per una stagione archiviata - "Stagione 1" (un campo generico spesso rimasto al default) invece del nome vero scelto in fase di archiviazione ("Stagione 25/26"). Corretta la priorita tra i due campi in entrambi i punti (app e Inspector) piu un terzo punto trovato con lo stesso bug: la card "Si riparte!" mostrata dopo larchiviazione.',
@@ -10266,7 +10268,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.878');
+    const appVersion = ref('1.879');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -19496,11 +19498,21 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     const statsTotalGoals = computed(() =>
       statsSourceMatches.value.reduce((s, m) => s + (m.risultato?.goalA||0) + (m.risultato?.goalB||0), 0)
     );
+    // Bug trovato 20/8/2026 (segnalato da Alby: "8 contro 8, 16 giocatori, ma la classifica Punti
+    // ne mostra solo 15"): questi computed alimentano DIRETTAMENTE la classifica completa mostrata
+    // in Statistiche (non solo le card "leader" o il PNG condivisibile, che tagliano già per conto
+    // proprio più a valle) — un taglio fisso qui tronca silenziosamente il gruppo oltre N giocatori,
+    // sbagliato per una classifica che deve mostrare tutti quelli che si qualificano. Rimosso il
+    // taglio da tutti i computed usati direttamente da una vista "classifica completa" (verificato
+    // ogni utilizzo: le card leader prendono solo l'elemento [0], il PNG condivisibile applica già
+    // un proprio .slice(0,10) separato più a valle — nessuno dei due risente di questa rimozione).
+    // statsTopRated invece resta invariato: non alimenta nessuna classifica visibile (quella è
+    // statsTopRatedClassifica, con soglia dinamica), serve solo per hero card/export (Regola d'Oro 11).
     const statsTopScorers = computed(() =>
-      [...statsSourcePlayers.value].sort((a,b) => (b.goalTotali||0)-(a.goalTotali||0)).slice(0,10)
+      [...statsSourcePlayers.value].sort((a,b) => (b.goalTotali||0)-(a.goalTotali||0))
     );
     const statsTopAssists = computed(() =>
-      [...statsSourcePlayers.value].sort((a,b) => (b.assistTotali||0)-(a.assistTotali||0)).slice(0,10)
+      [...statsSourcePlayers.value].sort((a,b) => (b.assistTotali||0)-(a.assistTotali||0))
     );
     const statsTopRated = computed(() =>
       [...statsSourcePlayers.value].filter(p => p.votiTotali > 0)
@@ -19515,15 +19527,15 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // Computed indipendente (Regola d'Oro 11) — statsTopRated resta invariato per hero card/export/altri usi.
     const statsMediaVotoDinamica = computed(() => _dynamicMediaVotoEligible(statsSourcePlayers.value));
     const statsTopRatedClassifica = computed(() =>
-      [...statsMediaVotoDinamica.value.giocatori].sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0)).slice(0,10)
+      [...statsMediaVotoDinamica.value.giocatori].sort((a,b) => (b.mediaVoto||0)-(a.mediaVoto||0))
     );
     const statsTopUomoPartita = computed(() =>
       [...statsSourcePlayers.value].filter(p => p.uomoPartitaTotali > 0)
-        .sort((a,b) => (b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0)).slice(0,10)
+        .sort((a,b) => (b.uomoPartitaTotali||0)-(a.uomoPartitaTotali||0))
     );
     const statsTopAutogol = computed(() =>
       [...statsSourcePlayers.value].filter(p => p.autogolTotali > 0)
-        .sort((a,b) => (b.autogolTotali||0)-(a.autogolTotali||0)).slice(0,10)
+        .sort((a,b) => (b.autogolTotali||0)-(a.autogolTotali||0))
     );
     // Classifica Clean Sheet (11/8/2026, richiesta di Alby, feature "Portiere dichiarato" Fase 2):
     // calcCleanSheets ora usa portiereDichiarato quando presente (partite nuove) — mostra QUALSIASI
@@ -19533,16 +19545,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       [...statsSourcePlayers.value]
         .map(p => ({ ...p, _cs: calcCleanSheets(p.uid||String(p.id), statsSourceMatches.value) }))
         .filter(p => p._cs > 0)
-        .sort((a,b) => (b._cs||0)-(a._cs||0)).slice(0,10)
+        .sort((a,b) => (b._cs||0)-(a._cs||0))
     );
     const statsTopPoints = computed(() =>
       [...statsSourcePlayers.value].filter(p => (p.partiteTotali||0) > 0)
-        .sort((a,b) => (b.puntiTotali||0)-(a.puntiTotali||0)).slice(0,15)
+        .sort((a,b) => (b.puntiTotali||0)-(a.puntiTotali||0))
     );
     const statsTopAvgPoints = computed(() => {
       const minP = Math.max(10, Math.floor((statsSourceMatches.value.length||0) * 0.25));
       return [...statsSourcePlayers.value].filter(p => (p.partiteTotali||0) >= minP)
-        .sort((a,b) => (b.mediaPunti||0)-(a.mediaPunti||0)).slice(0,12);
+        .sort((a,b) => (b.mediaPunti||0)-(a.mediaPunti||0));
     });
     const statsTopOverall = computed(() => {
       const matches = statsSourceMatches.value, players = statsSourcePlayers.value;
