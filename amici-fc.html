@@ -8972,7 +8972,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.879',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.880',date:'2026-08-20',items:[
+      'Fix bug archiviazione (segnalato da Alby: dopo aver iniziato la nuova stagione con 1 sola partita, alcuni achievement di stagione risultavano gia sbloccati come se ci fossero 10+ presenze, e comparivano Identikit AI anche per chi non aveva ancora giocato): l azzeramento del registro achievement e di tutte le cache AI (Identikit, TrashTalk, Pronostico, Hall of Fame) avveniva troppo tardi nella sequenza di archiviazione - dopo aver gia ricaricato i dati del gruppo e reso visibile la home. In quella finestra, funzioni interne potevano ricaricare/ri-mostrare dati ancora della vecchia stagione prima che la pulizia esplicita arrivasse. Riordinata la sequenza: tutti gli azzeramenti avvengono ora per primi, prima che qualsiasi altro codice possa leggerli.',
+    ]},{version:'v1.879',date:'2026-08-20',items:[
       'Fix bug sistemico (segnalato da Alby: 8v8, 16 giocatori, ma la classifica Punti ne mostrava solo 15): tutte le classifiche complete in Statistiche (Punti, Overall gia corretto, Gol, Assist, Media Voto, Uomo Partita, Autogol, Clean Sheet, Media Punti) avevano un taglio fisso a 10-15 giocatori "nascosto" dentro il calcolo che alimenta la lista visibile - con un gruppo di 27-28 persone, chi superava quella soglia spariva silenziosamente dalla classifica. Rimosso il taglio da tutte le classifiche complete, verificato che non tocca ne le card "leader" (prendono sempre e solo il primo classificato) ne il PNG condivisibile (ha gia un proprio taglio separato per restare unimmagine compatta).',
     ]},{version:'v1.878',date:'2026-08-19',items:[
       'Infortuni: un infortunio che attraversa il confine tra due stagioni ora compare in ENTRAMBE (richiesta di Alby, dopo aver visto un caso reale confuso: un infortunio ancora in corso compariva solo nella vecchia stagione). Corretto anche il conteggio "giorni di assenza" nel Riepilogo Stagione, che prima escludeva del tutto un infortunio iniziato prima dell inizio stagione anche se continuato al suo interno - ora conta solo i giorni realmente dentro i confini della stagione.',
@@ -10268,7 +10270,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.879');
+    const appVersion = ref('1.880');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -22721,58 +22723,16 @@ const toggleFont = () => {
         // prossimo reload completo dell'app.
         const _freshGroup = groups.value.find(g2 => g2.id === gid);
         if (_freshGroup) currentGroup.value = _freshGroup;
-        await loadGroupData();
-        if (g.firebaseUrl) {
-          // skipMerge=true: il locale ha appena, di proposito, zero partite per questo gruppo — il
-          // merge "partite mancanti in locale = aggiunte da un altro dispositivo" le resusciterebbe
-          // per errore, vanificando l'archiviazione appena fatta (vedi REGOLE-PROGETTO.md, 20/6).
-          logEvent('info', 'app', `📤 Pubblico lo stato pulito su Firebase (skipMerge=true)...`);
-          let _syncOk = null;
-          try {
-            _syncOk = await syncToCloud(true);
-          } catch(e) {
-            logEvent('error', 'app', `❌ Pubblicazione su Firebase fallita: ${e.message} — le partite eliminate potrebbero ricomparire al prossimo sync da un altro dispositivo. Riprova manualmente da Impostazioni → Sincronizza.`);
-          }
-          if (_syncOk === true) {
-            // Non ci fidiamo solo che la richiesta sia andata a buon fine — rileggiamo davvero da
-            // Firebase e contiamo le partite rimaste, per una conferma esplicita nel log.
-            try {
-              const _tok2 = await getValidToken();
-              const _liveRoot = await _fbReadFromGroup(g, '', _tok2, 'shallow=false');
-              const _liveGroups = _liveRoot?.groups ? (Array.isArray(_liveRoot.groups) ? _liveRoot.groups : Object.values(_liveRoot.groups)) : [];
-              const _liveGrp = _liveGroups.find(e => e?.group?.nome === g.nome);
-              const _liveMatchesRaw = _liveGrp?.matches;
-              const _liveMatches = _liveMatchesRaw ? (Array.isArray(_liveMatchesRaw) ? _liveMatchesRaw : Object.values(_liveMatchesRaw)) : [];
-              if (_liveMatches.length === 0) {
-                logEvent('info', 'app', `✅ Verificato rileggendo da Firebase: 0 partite rimaste per "${g.nome}" — archiviazione confermata, non resuscitata dal merge`);
-              } else {
-                logEvent('error', 'app', `⚠️⚠️ ATTENZIONE: rileggendo da Firebase risultano ANCORA ${_liveMatches.length} partite per "${g.nome}" dopo l'archiviazione — controllare manualmente con l'Inspector, l'archiviazione potrebbe non essere andata a buon fine su Firebase`);
-              }
-            } catch(e) {
-              logEvent('warn', 'app', `Verifica post-archiviazione saltata (non bloccante): ${e.message}`);
-            }
-          } else if (_syncOk === false) {
-            logEvent('error', 'app', `❌ Pubblicazione su Firebase non riuscita (risposta negativa) — i dati locali sono corretti ma Firebase potrebbe avere ancora le vecchie partite. Riprova la sincronizzazione manualmente.`);
-          }
-        }
-
-        logEvent('info', 'app', `✅ Stagione "${snapshot.nome}" archiviata — nuova stagione: "${archiveStepData.nomeStagioneNuova}"`);
-        toast(`✅ Stagione archiviata! Nuova stagione: ${archiveStepData.nomeStagioneNuova}`, 'success', 4000);
-        archiveWizard.value = null;
-        currentView.value = 'home';
-        // Fix 10/8/2026 (bug segnalato da Alby, persisteva nonostante il fix precedente in
-        // _heroLaunch): tutorialEnabled è un'impostazione GLOBALE (non per stagione), disattivata
-        // automaticamente non appena viene inserita la prima partita in un gruppo (riga ~14898).
-        // Se questo gruppo aveva già partite prima di archiviare, tutorialEnabled era già false da
-        // prima — quindi il controllo "zero partite && tutorialEnabled" in _heroLaunch() non
-        // scattava mai, e la home mostrava le card AI stantie della stagione appena archiviata
-        // invece delle tutorial. L'archiviazione è concettualmente un "si riparte da zero": riattivo
-        // qui la guida tutorial per il nuovo inizio.
-        tutorialEnabled.value = true;
-        // Sistema Achievement Fase B (13/8/2026): i badge sono di stagione — già salvati per
-        // sempre dentro lo snapshot poco sopra, ora azzero il registro live per far ripartire
-        // da zero la nuova stagione (stesso identico principio già applicato alle statistiche
-        // giocatore e alle altre cache AI in questa stessa funzione).
+        // Bug trovato 20/8/2026 (segnalato da Alby: dopo l'archiviazione, giocatori con appena 1
+        // partita nella nuova stagione risultavano con achievement di stagione già sbloccati, come
+        // "10 presenze"): loadGroupData() (chiamata subito sotto) ricarica il registro achievement
+        // da localStorage E lo ri-salva (anche su Firebase, in modo "fire-and-forget" senza await)
+        // se non vuoto — se questo girava PRIMA dell'azzeramento esplicito (come accadeva finora,
+        // l'azzeramento era più in basso, DOPO questa chiamata), il salvataggio in volo poteva
+        // completarsi DOPO la pulizia esplicita e resuscitare il registro vecchio su Firebase, con
+        // tempistiche di rete non garantite. Spostato l'azzeramento qui, PRIMA di loadGroupData():
+        // così, quando la funzione ricarica/ri-salva il registro, lavora già sui dati corretti
+        // (vuoti) invece che su quelli della stagione appena chiusa.
         achievementsUnlocked.value = {};
         localStorage.removeItem('amicifc_achv_' + gid);
         if (g.firebaseUrl) {
@@ -22784,6 +22744,14 @@ const toggleFont = () => {
             logEvent('warn', 'app', `Registro achievement azzerato solo in locale — pulizia Firebase non riuscita: ${e.message}`);
           }
         }
+        // Bug trovato 20/8/2026, stesso principio di quello appena sopra per gli achievement
+        // (segnalato da Alby: Identikit AI visibili in home per giocatori che non avevano ancora
+        // giocato la prima partita della nuova stagione): TUTTI questi azzeramenti cache AI erano
+        // posizionati DOPO loadGroupData() E dopo currentView.value='home' — la home diventava
+        // visibile, e funzioni interne (init AI, hero launch) potevano ricaricare/mostrare dati
+        // ancora della vecchia stagione PRIMA che questo blocco li ripulisse. Spostato tutto qui,
+        // prima di loadGroupData() e di currentView='home', così quando la home diventa visibile
+        // (più sotto) tutte le cache sono già correttamente vuote.
         // Fix 10/8/2026 (domanda di Alby, molto pertinente): gli Identikit AI (soprannomi)
         // restavano "congelati" con il riferimento partiteAl della vecchia stagione — con le
         // statistiche azzerate a 0, sarebbero serviti MOLTI PIÙ incontri della nuova stagione prima
@@ -22860,6 +22828,57 @@ const toggleFont = () => {
             }
           }
         }
+        await loadGroupData();
+        if (g.firebaseUrl) {
+          // skipMerge=true: il locale ha appena, di proposito, zero partite per questo gruppo — il
+          // merge "partite mancanti in locale = aggiunte da un altro dispositivo" le resusciterebbe
+          // per errore, vanificando l'archiviazione appena fatta (vedi REGOLE-PROGETTO.md, 20/6).
+          logEvent('info', 'app', `📤 Pubblico lo stato pulito su Firebase (skipMerge=true)...`);
+          let _syncOk = null;
+          try {
+            _syncOk = await syncToCloud(true);
+          } catch(e) {
+            logEvent('error', 'app', `❌ Pubblicazione su Firebase fallita: ${e.message} — le partite eliminate potrebbero ricomparire al prossimo sync da un altro dispositivo. Riprova manualmente da Impostazioni → Sincronizza.`);
+          }
+          if (_syncOk === true) {
+            // Non ci fidiamo solo che la richiesta sia andata a buon fine — rileggiamo davvero da
+            // Firebase e contiamo le partite rimaste, per una conferma esplicita nel log.
+            try {
+              const _tok2 = await getValidToken();
+              const _liveRoot = await _fbReadFromGroup(g, '', _tok2, 'shallow=false');
+              const _liveGroups = _liveRoot?.groups ? (Array.isArray(_liveRoot.groups) ? _liveRoot.groups : Object.values(_liveRoot.groups)) : [];
+              const _liveGrp = _liveGroups.find(e => e?.group?.nome === g.nome);
+              const _liveMatchesRaw = _liveGrp?.matches;
+              const _liveMatches = _liveMatchesRaw ? (Array.isArray(_liveMatchesRaw) ? _liveMatchesRaw : Object.values(_liveMatchesRaw)) : [];
+              if (_liveMatches.length === 0) {
+                logEvent('info', 'app', `✅ Verificato rileggendo da Firebase: 0 partite rimaste per "${g.nome}" — archiviazione confermata, non resuscitata dal merge`);
+              } else {
+                logEvent('error', 'app', `⚠️⚠️ ATTENZIONE: rileggendo da Firebase risultano ANCORA ${_liveMatches.length} partite per "${g.nome}" dopo l'archiviazione — controllare manualmente con l'Inspector, l'archiviazione potrebbe non essere andata a buon fine su Firebase`);
+              }
+            } catch(e) {
+              logEvent('warn', 'app', `Verifica post-archiviazione saltata (non bloccante): ${e.message}`);
+            }
+          } else if (_syncOk === false) {
+            logEvent('error', 'app', `❌ Pubblicazione su Firebase non riuscita (risposta negativa) — i dati locali sono corretti ma Firebase potrebbe avere ancora le vecchie partite. Riprova la sincronizzazione manualmente.`);
+          }
+        }
+
+        logEvent('info', 'app', `✅ Stagione "${snapshot.nome}" archiviata — nuova stagione: "${archiveStepData.nomeStagioneNuova}"`);
+        toast(`✅ Stagione archiviata! Nuova stagione: ${archiveStepData.nomeStagioneNuova}`, 'success', 4000);
+        archiveWizard.value = null;
+        currentView.value = 'home';
+        // Fix 10/8/2026 (bug segnalato da Alby, persisteva nonostante il fix precedente in
+        // _heroLaunch): tutorialEnabled è un'impostazione GLOBALE (non per stagione), disattivata
+        // automaticamente non appena viene inserita la prima partita in un gruppo (riga ~14898).
+        // Se questo gruppo aveva già partite prima di archiviare, tutorialEnabled era già false da
+        // prima — quindi il controllo "zero partite && tutorialEnabled" in _heroLaunch() non
+        // scattava mai, e la home mostrava le card AI stantie della stagione appena archiviata
+        // invece delle tutorial. L'archiviazione è concettualmente un "si riparte da zero": riattivo
+        // qui la guida tutorial per il nuovo inizio.
+        tutorialEnabled.value = true;
+        // Registro achievement e tutte le cache AI (Identikit, TrashTalk, Pronostico, Hall of Fame
+        // del mese corrente) già azzerate più sopra, prima di loadGroupData() e di currentView=
+        // 'home' — vedi commento lì per il perché (fix 20/8/2026, bug segnalato da Alby).
         // Reset sistema hero: _heroLaunched=false + _heroRawData=[] fanno sì che _heroLaunch veda
         // 0 partite e mostri le tutorial cards invece delle card AI stantie della stagione appena
         // archiviata (assenze, portiere, marcatori ecc. non hanno più senso a inizio stagione).
