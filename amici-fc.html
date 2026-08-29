@@ -8972,7 +8972,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.880',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.881',date:'2026-08-20',items:[
+      'Fix importante (segnalato da Alby: dopo l aggiornamento vedeva ancora dati della vecchia stagione su PC/Chrome, ma non su Android): il fix di ieri (v1.880) sistemava la sequenza di pulizia SOLO sul dispositivo che esegue materialmente l archiviazione - un altro dispositivo che riceve i dati via sync (partite azzerate, giocatori resettati) non passa mai da quel codice, quindi le sue cache locali per-dispositivo (achievement, Identikit AI, TrashTalk, Pronostico, Hall of Fame, tutorial - nessuna delle quali vive su Firebase) restavano quelle della vecchia stagione per sempre. Aggiunto un nuovo rilevatore che gira su QUALSIASI dispositivo: confronta la data dell ultima stagione archiviata con un marcatore locale, e se non coincide (prima volta che questo dispositivo la vede) ripulisce tutto in automatico, con lo stesso identico set gia usato per il dispositivo che archivia.',
+    ]},{version:'v1.880',date:'2026-08-20',items:[
       'Fix bug archiviazione (segnalato da Alby: dopo aver iniziato la nuova stagione con 1 sola partita, alcuni achievement di stagione risultavano gia sbloccati come se ci fossero 10+ presenze, e comparivano Identikit AI anche per chi non aveva ancora giocato): l azzeramento del registro achievement e di tutte le cache AI (Identikit, TrashTalk, Pronostico, Hall of Fame) avveniva troppo tardi nella sequenza di archiviazione - dopo aver gia ricaricato i dati del gruppo e reso visibile la home. In quella finestra, funzioni interne potevano ricaricare/ri-mostrare dati ancora della vecchia stagione prima che la pulizia esplicita arrivasse. Riordinata la sequenza: tutti gli azzeramenti avvengono ora per primi, prima che qualsiasi altro codice possa leggerli.',
     ]},{version:'v1.879',date:'2026-08-20',items:[
       'Fix bug sistemico (segnalato da Alby: 8v8, 16 giocatori, ma la classifica Punti ne mostrava solo 15): tutte le classifiche complete in Statistiche (Punti, Overall gia corretto, Gol, Assist, Media Voto, Uomo Partita, Autogol, Clean Sheet, Media Punti) avevano un taglio fisso a 10-15 giocatori "nascosto" dentro il calcolo che alimenta la lista visibile - con un gruppo di 27-28 persone, chi superava quella soglia spariva silenziosamente dalla classifica. Rimosso il taglio da tutte le classifiche complete, verificato che non tocca ne le card "leader" (prendono sempre e solo il primo classificato) ne il PNG condivisibile (ha gia un proprio taglio separato per restare unimmagine compatta).',
@@ -10270,7 +10272,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.880');
+    const appVersion = ref('1.881');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10963,6 +10965,12 @@ createApp({
       }
       try { currentGroupArchivedSeasons.value = await db.archivedSeasons.where('groupId').equals(gid).toArray(); }
       catch(e) { currentGroupArchivedSeasons.value = []; }
+      // Bug segnalato da Alby 20/8/2026 (rilevabile su qualsiasi dispositivo, non solo dopo un
+      // download da Firebase — copre anche il caso di un dispositivo che aveva GIÀ la stagione
+      // archiviata in locale da prima, ma non aveva mai pulito le sue cache): chiamata qui, PRIMA
+      // di caricare achievement/soprannomi qualche riga sotto, così se c'è da pulire avviene
+      // prima che qualsiasi altro codice provi a leggere le cache vecchie in questo stesso giro.
+      _syncLocalCachesToCurrentSeason();
       _loadAchievementsUnlocked(gid);
       // Fix 13/8/2026 (bug segnalato da Alby: "0 achievement nonostante partite già giocate"):
       // il caricamento sopra legge solo il registro SALVATO — il controllo vero e proprio
@@ -11018,6 +11026,60 @@ createApp({
     // e può essere diverso su ogni dispositivo nuovo, ma il nome del gruppo è stabile.
     // Abbinamento: preferisce snapshot.groupNome (introdotto da v1.575); cade su "unico gruppo su questo
     // URL Firebase" come fallback per snapshot precedenti privi del campo.
+    // Rileva se QUESTO dispositivo non ha ancora "visto" l'ultima archiviazione — perché non
+    // l'ha eseguita lui stesso, l'ha solo ricevuta via sync da un altro dispositivo (bug segnalato
+    // da Alby 20/8/2026: dopo l'archiviazione, PC/Chrome mostrava ancora achievement/Identikit AI/
+    // tutorial della vecchia stagione, mentre Android — dove presumibilmente aveva archiviato e
+    // giocato la prima partita — era corretto). Il fix precedente (v1.880) riordina la pulizia
+    // SOLO dentro doArchiveStagione, che gira esclusivamente sul dispositivo che archivia — ogni
+    // altro dispositivo riceve i dati "puliti" (giocatori azzerati, partite svuotate) via sync, ma
+    // non passa MAI da quel codice, quindi le sue cache locali per-dispositivo (achievement,
+    // Identikit AI, TrashTalk, Pronostico, Hall of Fame, tutorial — nessuna delle quali vive su
+    // Firebase, sono tutte solo localStorage) restano quelle della stagione precedente per sempre.
+    // Uso la data di archiviazione più recente (non il nome/testo della stagione, che potrebbe
+    // essere semplicemente rinominato senza una vera archiviazione) come "firma" univoca e
+    // confrontabile: se diversa da quella vista l'ultima volta su QUESTO dispositivo, è la prima
+    // volta che vede questa specifica archiviazione — pulisce e aggiorna il marcatore locale.
+    const _syncLocalCachesToCurrentSeason = () => {
+      if (!currentGroup.value) return;
+      const gid = currentGroup.value.id;
+      const archiviate = currentGroupArchivedSeasons.value;
+      if (!archiviate.length) return; // nessuna stagione archiviata per questo gruppo, niente da rilevare
+      const ultimaData = [...archiviate].sort((a,b) => (b.dataArchiviazione||'').localeCompare(a.dataArchiviazione||''))[0]?.dataArchiviazione;
+      if (!ultimaData) return;
+      const markerKey = 'amicifc_lastarchive_' + gid;
+      const marker = localStorage.getItem(markerKey);
+      if (marker === ultimaData) return; // questo dispositivo è già allineato, niente da fare
+
+      // Stesso identico set di pulizia già usato in doArchiveStagione (v1.880) per il dispositivo
+      // che esegue l'archiviazione — qui lo replichiamo per qualsiasi altro dispositivo che la
+      // riceva solo via sync.
+      achievementsUnlocked.value = {};
+      localStorage.removeItem('amicifc_achv_' + gid);
+      aiNicknames.value = {};
+      localStorage.removeItem('amicifc_nicks_' + gid);
+      aiFlagClear('nicks', gid);
+      aiCardsTrashTalk.value = [];
+      aiCardsTrashTalkFirma.value = '';
+      aiFlagClear('tt', gid);
+      localStorage.removeItem('amicifc_tt_' + gid);
+      aiPronostico.value = null;
+      aiFlagClear('pronostico', gid);
+      localStorage.removeItem('amicifc_prono_' + gid);
+      const _mkCorr = _localMonthKey(new Date());
+      if (aiCardsHallOfFame.value?.mese === _mkCorr) aiCardsHallOfFame.value = null;
+      localStorage.removeItem('amicifc_hof_' + _mkCorr);
+      aiFlagClear('hof', gid);
+      tutorialEnabled.value = true;
+
+      localStorage.setItem(markerKey, ultimaData);
+      logEvent('info', 'app', `🔄 Dispositivo allineato alla nuova stagione (archiviazione del ${ultimaData} rilevata via sync) — cache locali pulite`);
+
+      _heroLaunched = false;
+      _heroRawData.value = [];
+      nextTick(() => _heroLaunch());
+    };
+
     const _pullArchivedSeasonsFromFirebase = async (group) => {
       if (!group?.firebaseUrl) return;
       const gid = group.id;
@@ -11094,6 +11156,11 @@ createApp({
             const counts = {};
             for (const s of allArchived) counts[s.groupId] = (counts[s.groupId] || 0) + 1;
             archivedSeasonsCountByGroup.value = counts;
+            // Bug segnalato da Alby 20/8/2026 (vedi commento su _syncLocalCachesToCurrentSeason):
+            // se questo dispositivo ha appena scaricato una stagione archiviata che non conosceva
+            // ancora, è il momento giusto per verificare se deve anche ripulire le sue cache
+            // locali per-dispositivo (achievement, Identikit AI, ecc.), mai toccate da un sync.
+            if (downloaded > 0) _syncLocalCachesToCurrentSeason();
           }
           if (downloaded > 0) logEvent('info', 'app', `Scaricate ${downloaded} stagioni archiviate mancanti da Firebase per "${group.nome}"`);
           if (removed > 0) logEvent('info', 'app', `🧹 Rimosse ${removed} stagioni archiviate locali non più presenti su Firebase per "${group.nome}"`);
@@ -22744,6 +22811,14 @@ const toggleFont = () => {
             logEvent('warn', 'app', `Registro achievement azzerato solo in locale — pulizia Firebase non riuscita: ${e.message}`);
           }
         }
+        // Segno subito questo dispositivo come "già allineato" a questa archiviazione (20/8/2026)
+        // — stesso marcatore usato da _syncLocalCachesToCurrentSeason per rilevare, su QUALSIASI
+        // altro dispositivo, se ha già visto questa specifica archiviazione. Senza questo, anche il
+        // dispositivo che sta archiviando ORA attiverebbe ridondantemente quel rilevatore al giro
+        // successivo — innocuo (ripulirebbe cache già vuote) ma con un effetto collaterale reale:
+        // rimetterebbe tutorialEnabled a true anche qui, facendo ricomparire il tutorial pure sul
+        // dispositivo dove l'admin lo ha già chiuso giocando la prima partita della nuova stagione.
+        localStorage.setItem('amicifc_lastarchive_' + gid, snapshot.dataArchiviazione);
         // Bug trovato 20/8/2026, stesso principio di quello appena sopra per gli achievement
         // (segnalato da Alby: Identikit AI visibili in home per giocatori che non avevano ancora
         // giocato la prima partita della nuova stagione): TUTTI questi azzeramenti cache AI erano
