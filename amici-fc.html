@@ -289,7 +289,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 [data-theme="light"] .welcome-logo { filter: drop-shadow(0 8px 24px rgba(0,0,0,0.2)); }
 
 html { scroll-behavior: smooth; }
-html, body { scroll-snap-type: none; overscroll-behavior-y: contain; }
+html, body { scroll-snap-type: none; overscroll-behavior-y: none; }
 
 body {
   font-family: var(--font-body);
@@ -323,6 +323,7 @@ body {
   padding-top: env(safe-area-inset-top, 0px);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  transform: translateZ(0); -webkit-transform: translateZ(0);
 }
 
 .topbar-logo { width: 40px; height: 40px; object-fit: contain; }
@@ -382,6 +383,7 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  transform: translateZ(0); -webkit-transform: translateZ(0);
 }
 .nav-item {
   flex: 1; display: flex; flex-direction: column;
@@ -528,7 +530,7 @@ button { font-family: inherit; font-size: inherit; color: inherit; }
   border: 1.5px solid var(--border);
   border-radius: 12px;
   color: var(--text);
-  font-family: var(--font-body); font-size: 0.95rem;
+  font-family: var(--font-body); font-size: max(16px, 0.95rem);
   padding: 12px 16px;
   outline: none;
   transition: border-color 0.2s;
@@ -1258,12 +1260,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   z-index: 90;
   width: 56px; height: 56px; border-radius: 50%;
   background: var(--lime);
+  color: var(--dark); font-weight: 800;
   border: none; cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 1.6rem;
   box-shadow: 0 6px 24px rgba(166,255,77,0.5);
   transition: all 0.2s;
   -webkit-tap-highlight-color: transparent;
+  transform: translateZ(0); -webkit-transform: translateZ(0);
 }
 .fab:hover  { transform: scale(1.08); }
 .fab:active { transform: scale(0.94); }
@@ -2508,7 +2512,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
       <!-- ── HOME HERO CAROSELLO UNIFICATO ── -->
       <div v-if="currentGroup"
-        :style="'position:relative;border-radius:20px;overflow:hidden;margin-bottom:10px;height:320px;cursor:pointer;user-select:none;transition:box-shadow .5s ease;'+({'trend':'box-shadow:0 0 0 2px #A6FF4D,0 0 28px rgba(166,255,77,.35)','bestVote':'box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.4)','trashTalk':'box-shadow:0 0 0 2px #f87171,0 0 28px rgba(248,113,113,.35)','hallFame':'box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.4)','hallShame':'box-shadow:0 0 0 2px #94a3b8,0 0 20px rgba(148,163,184,.25)','duel':'box-shadow:0 0 0 2px #FF6B35,0 0 24px rgba(255,107,53,.3)','ovr3':'box-shadow:0 0 0 2px #fbbf24,0 0 32px rgba(251,191,36,.5)','recap':'box-shadow:0 0 0 2px #60a5fa,0 0 24px rgba(96,165,250,.3)','h2hCard':'box-shadow:0 0 0 2px #f87171,0 0 24px rgba(248,113,113,.3)','manualCard':'box-shadow:0 0 0 2px #c026d3,0 0 28px rgba(192,38,211,.4)'}[heroUnifiedData?.[heroUnifiedIdx]?.type]||'box-shadow:none')"
+        :style="'touch-action:pan-y;position:relative;border-radius:20px;overflow:hidden;margin-bottom:10px;height:320px;cursor:pointer;user-select:none;transition:box-shadow .5s ease;'+({'trend':'box-shadow:0 0 0 2px #A6FF4D,0 0 28px rgba(166,255,77,.35)','bestVote':'box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.4)','trashTalk':'box-shadow:0 0 0 2px #f87171,0 0 28px rgba(248,113,113,.35)','hallFame':'box-shadow:0 0 0 2px #fbbf24,0 0 28px rgba(251,191,36,.4)','hallShame':'box-shadow:0 0 0 2px #94a3b8,0 0 20px rgba(148,163,184,.25)','duel':'box-shadow:0 0 0 2px #FF6B35,0 0 24px rgba(255,107,53,.3)','ovr3':'box-shadow:0 0 0 2px #fbbf24,0 0 32px rgba(251,191,36,.5)','recap':'box-shadow:0 0 0 2px #60a5fa,0 0 24px rgba(96,165,250,.3)','h2hCard':'box-shadow:0 0 0 2px #f87171,0 0 24px rgba(248,113,113,.3)','manualCard':'box-shadow:0 0 0 2px #c026d3,0 0 28px rgba(192,38,211,.4)'}[heroUnifiedData?.[heroUnifiedIdx]?.type]||'box-shadow:none')"
         @mousedown="heroMD" @mousemove="heroMM" @mouseup="heroMU"
         @touchstart.passive="heroTS" @touchmove.passive="heroTM" @touchend.passive="heroTE"
         @click="heroClick">
@@ -3799,7 +3803,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- ════ NUOVA PARTITA – Risultato ════ -->
     <!-- ── STEP BY STEP ── -->
     <template v-if="currentView === 'stepbystep'">
-      <div style="min-height:100vh;display:flex;flex-direction:column">
+      <div style="min-height:100dvh;display:flex;flex-direction:column">
 
         <!-- Header con progresso -->
         <div style="padding:12px 16px;background:var(--bg2);border-bottom:1px solid var(--border)">
@@ -5379,7 +5383,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- ════ RIEPILOGO STAGIONE ════ -->
     <template v-if="currentView === 'seasonSummary' && seasonSummarySnapshot">
       <div v-if="seasonSummarySnapshot.isLightweight" class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;cursor:pointer" @click="backFromSeasonSummaryHistory()">
-        <span style="font-size:0.82rem">📄 Stagione passata (storico, solo testo)</span>
+        <span style="font-size:16px">📄 Stagione passata (storico, solo testo)</span>
         <span style="font-size:0.82rem;color:var(--lime);font-weight:700">← Torna allo storico</span>
       </div>
       <div class="card-title">📖 Riepilogo Stagione — {{ seasonSummarySnapshot.stagione }}</div>
@@ -6178,7 +6182,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 :style="ioGroupId===g.id?'background:var(--lime);border-color:var(--lime);color:#000':''">
                 {{ ioGroupId===g.id?'✓':'' }}
               </div>
-              <span style="font-size:0.82rem">{{ g.nome }}</span>
+              <span style="font-size:16px">{{ g.nome }}</span>
               <span style="font-size:0.7rem;color:var(--text2);margin-left:auto">{{ groupMatchCount(g.id) }} partite</span>
             </div>
           </div>
@@ -6507,7 +6511,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     {{ zpAnnuarioSeasonsLoading ? '⏳ Carico...' : '📂 Carica elenco Riepiloghi di questo gruppo' }}
                   </button>
                   <template v-else>
-                    <select v-model="zpAnnuarioTargetId" class="input-field" style="margin-bottom:8px;font-size:0.8rem">
+                    <select v-model="zpAnnuarioTargetId" class="input-field" style="margin-bottom:8px;font-size:16px">
                       <option :value="null" disabled>Scegli quale Riepilogo rigenerare...</option>
                       <option v-for="s in zpAnnuarioSeasonsList" :key="s.id" :value="s.id">
                         {{ s.stagione || 'Stagione senza nome' }}{{ s.isLightweight===false ? ' (corrente)' : '' }} — {{ s.sezioneE?.length||0 }} giocatori
@@ -6838,7 +6842,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div>
             <div style="font-size:0.78rem;color:var(--red);font-weight:700;margin-bottom:6px">⚔️ Rivali</div>
             <div v-for="(rid,ri) in (Array.isArray(playerForm.rivali)?playerForm.rivali:[]).slice(0,3)" :key="ri" style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
-              <select class="select-field" style="flex:1;font-size:0.8rem;padding:4px 6px"
+              <select class="select-field" style="flex:1;font-size:16px;padding:4px 6px"
                 :value="rid" @change="e=>setRivalità(ri, e.target.value)">
                 <option value="">-- Nessuno --</option>
                 <option v-for="p in otherPlayers" :key="p.id" :value="p.id">{{ p.soprannome||p.nome }}</option>
@@ -6850,7 +6854,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div>
             <div style="font-size:0.78rem;color:var(--lime);font-weight:700;margin-bottom:6px">🤝 Affinità</div>
             <div v-for="(aid,ai) in (Array.isArray(playerForm.affinita)?playerForm.affinita:[]).slice(0,3)" :key="ai" style="display:flex;gap:4px;margin-bottom:4px;align-items:center">
-              <select class="select-field" style="flex:1;font-size:0.8rem;padding:4px 6px"
+              <select class="select-field" style="flex:1;font-size:16px;padding:4px 6px"
                 :value="aid" @change="e=>setAffinita(ai, e.target.value)">
                 <option value="">-- Nessuno --</option>
                 <option v-for="p in otherPlayers" :key="p.id" :value="p.id">{{ p.soprannome||p.nome }}</option>
@@ -7440,13 +7444,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="btn btn-sm" style="flex:1" :class="editSostForm.squadra==='A'?'btn-blue':'btn-ghost'" @click="editSostForm.squadra='A';editSostForm.infortunatoUid=''">🔵 A</button>
           <button class="btn btn-sm" style="flex:1" :class="editSostForm.squadra==='B'?'btn-orange':'btn-ghost'" @click="editSostForm.squadra='B';editSostForm.infortunatoUid=''">🟠 B</button>
         </div>
-        <select v-model="editSostForm.infortunatoUid" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:0.8rem;margin-bottom:6px">
+        <select v-model="editSostForm.infortunatoUid" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:16px;margin-bottom:6px">
           <option value="">— chi è uscito infortunato —</option>
           <option v-for="pid in (editSostForm.squadra==='A'?editingMatch.squadraA:editingMatch.squadraB)||[]" :key="pid" :value="pid">
             {{ getPlayer(pid)?.soprannome||getPlayer(pid)?.nome }}
           </option>
         </select>
-        <select v-model="editSostForm.sostitutoUid" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:0.8rem;margin-bottom:8px">
+        <select v-model="editSostForm.sostitutoUid" style="width:100%;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:6px;font-size:16px;margin-bottom:8px">
           <option value="">— chi è entrato —</option>
           <option v-for="p in editSostitutoOptions" :key="p.uid" :value="p.uid">{{ p.soprannome||p.nome }}</option>
         </select>
@@ -7502,7 +7506,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           style="display:flex;align-items:center;gap:8px;margin-bottom:6px;background:var(--bg3);border-radius:8px;padding:8px">
           <!-- Giocatore -->
           <select v-model="rig.playerId"
-            style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:0.8rem">
+            style="flex:1;background:var(--bg2);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:4px 6px;font-size:16px">
             <option :value="null" disabled>Giocatore</option>
             <optgroup v-if="(editingMatch.squadraA||[]).length" :label="editingMatch.nomeSquadraA||'Squadra A'">
               <option v-for="pid in editingMatch.squadraA||[]" :key="pid" :value="pid">
@@ -7517,7 +7521,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </select>
           <!-- Tipo -->
           <select v-model="rig.tipo"
-            style="width:110px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:0.8rem"
+            style="width:110px;background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:4px 6px;font-size:16px"
             :style="rig.tipo==='segnato'?'color:#4ade80':rig.tipo==='parato'?'color:#60a5fa':'color:var(--red)'">
             <option value="segnato">✅ Segnato</option>
             <option value="sbagliato">❌ Sbagliato</option>
@@ -7688,9 +7692,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px">
         <div style="font-size:0.78rem;font-weight:700;color:var(--text);margin-bottom:8px">🔑 Accesso Firebase</div>
         <div v-if="!firebaseUser" style="display:flex;flex-direction:column;gap:8px">
-          <input class="input-field" v-model="fbLoginEmail" placeholder="Email Firebase" type="email" style="font-size:0.82rem">
+          <input class="input-field" v-model="fbLoginEmail" placeholder="Email Firebase" type="email" style="font-size:16px">
           <div style="position:relative">
-            <input class="input-field" v-model="fbLoginPwd" :type="showFbPwd?'text':'password'" placeholder="Password" style="font-size:0.82rem;padding-right:44px">
+            <input class="input-field" v-model="fbLoginPwd" :type="showFbPwd?'text':'password'" placeholder="Password" style="font-size:16px;padding-right:44px">
             <button @click="showFbPwd=!showFbPwd" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text2)">
               {{ showFbPwd ? '🙈' : '👁️' }}
             </button>
@@ -8972,7 +8976,16 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.882',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.885',date:'2026-08-20',items:[
+      'Fix Card Tutorial, corretto dopo precisazione di Alby: il fix precedente usava un controllo statico ("esiste gia una partita?") che ridisattivava il tutorial quasi subito anche dopo averlo riattivato apposta a mano, senza dare il tempo di vederlo. Ora e un rilevamento a evento: si disattiva solo quando arriva una partita NUOVA rispetto allultima volta che questo dispositivo lha controllata (salvata qui o arrivata via sync, indifferente) - se lo si riattiva mentre ci sono gia partite, resta acceso finche non ne arriva davvero una in piu.',
+    ]},{version:'v1.884',date:'2026-08-20',items:[
+      'Fix Card Tutorial (domanda di Alby con un esempio concreto - Bruno, che riceve una partita via sync senza averla salvata lui, aveva ancora il tutorial attivo): il fix di ieri disattivava il tutorial solo dentro la funzione di salvataggio partita, quindi solo sul dispositivo che la salva materialmente. Spostato il controllo dentro il caricamento dati generale (gira su qualsiasi dispositivo ad ogni apertura/sync): se esiste almeno una partita nel gruppo, il tutorial si disattiva - indipendentemente da chi l ha salvata o come sia arrivata su quel dispositivo.',
+    ]},{version:'v1.883',date:'2026-08-20',items:[
+      'Card Tutorial: ora si disattiva ad OGNI salvataggio partita in cui risulta attivo, non solo alla primissima in assoluto (richiesta di Alby, confermata: si disattiva a chiunque salvi una partita sullo stesso dispositivo) - se la si riattiva a mano da Impostazioni dopo aver gia giocato, si ridisattiva da sola alla partita successiva.',
+      'Fix contrasto (segnalato da Alby): il simbolo "+" nel pulsante rotondo "Aggiungi Giocatore" era quasi invisibile in tema scuro. Ora scuro e in grassetto.',
+      'Tentativo di fix per due bug solo su iPhone segnalati da Alby (barra di navigazione e carosello home che si muovono durante lo scroll/swipe): applicate le correzioni CSS standard per questa classe nota di comportamento di iOS Safari. Non verificabile con certezza senza un vero iPhone.',
+      'Verifica proattiva iOS aggiuntiva (su richiesta di Alby "c e altro che conosci?"): trovate e corrette altre 2 classi di problemi noti - un punto residuo con 100vh invece di 100dvh nella schermata Uno alla Volta (stessa causa dei bug segnalati, "salto" quando la barra indirizzi compare/scompare), e diversi campi di testo/menu (login Firebase, rigori, sostituzioni, rivali/affinita, selettore stagione Zona Pericolo) con carattere sotto i 16px - su iOS Safari, sotto quella soglia il tocco su un campo zooma automaticamente la pagina, un fastidio comune. Portati tutti ad almeno 16px.',
+    ]},{version:'v1.882',date:'2026-08-20',items:[
       'Fix (segnalato da Alby testando in locale la v1.881: Identikit AI corretti, ma il tutorial restava bloccato attivo anche dopo aver gia giocato una partita): il rilevatore di nuova stagione (v1.881) riattivava SEMPRE il tutorial quando scattava. Se scattava DOPO che la prima partita della stagione era gia stata salvata su quel dispositivo, il meccanismo "disattiva il tutorial alla prima partita" non aveva piu occasione di scattare (controlla "zero partite", condizione vera una sola volta, gia passata) - il tutorial restava riattivato per sempre, senza modo di disattivarsi da solo. Ora il rilevatore riattiva il tutorial solo se non e ancora stata giocata nessuna partita in quella stagione su quel dispositivo.',
     ]},{version:'v1.881',date:'2026-08-20',items:[
       'Fix importante (segnalato da Alby: dopo l aggiornamento vedeva ancora dati della vecchia stagione su PC/Chrome, ma non su Android): il fix di ieri (v1.880) sistemava la sequenza di pulizia SOLO sul dispositivo che esegue materialmente l archiviazione - un altro dispositivo che riceve i dati via sync (partite azzerate, giocatori resettati) non passa mai da quel codice, quindi le sue cache locali per-dispositivo (achievement, Identikit AI, TrashTalk, Pronostico, Hall of Fame, tutorial - nessuna delle quali vive su Firebase) restavano quelle della vecchia stagione per sempre. Aggiunto un nuovo rilevatore che gira su QUALSIASI dispositivo: confronta la data dell ultima stagione archiviata con un marcatore locale, e se non coincide (prima volta che questo dispositivo la vede) ripulisce tutto in automatico, con lo stesso identico set gia usato per il dispositivo che archivia.',
@@ -10274,7 +10287,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.882');
+    const appVersion = ref('1.885');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10951,6 +10964,29 @@ createApp({
       const gid = currentGroup.value.id;
       groupPlayers.value  = await db.players.where('groupId').equals(gid).toArray();
       groupMatches.value  = await db.matches.where('groupId').equals(gid).toArray();
+      // Fix 20/8/2026 (precisato da Alby dopo la prima versione di questo fix, con un esempio
+      // concreto — Bruno che riceve una partita via sync): il tutorial deve disattivarsi
+      // "ogni volta che all'utente si aggiunge una partita, indipendentemente se l'ha salvata lui
+      // o arriva da Firebase" — NON con un controllo statico "esiste almeno una partita" (la mia
+      // prima versione), che avrebbe ridisattivato il tutorial quasi subito anche se un utente lo
+      // riattiva apposta a mano mentre ci sono già partite: la chiamata successiva a
+      // loadGroupData() (che scatta spessissimo, anche solo cambiando schermata) lo avrebbe
+      // spento di nuovo prima ancora che l'utente riuscisse a vederlo. Serve invece un evento:
+      // confronto l'elenco di partite CONOSCIUTE da questo dispositivo (matchUUID, l'identificativo
+      // stabile tra dispositivi — mai l'id locale) con quello attuale — se c'è almeno una partita
+      // MAI VISTA PRIMA su questo dispositivo, quella è la "nuova partita aggiunta" che disattiva
+      // il tutorial, sia che l'abbia salvata questo dispositivo sia che sia arrivata via sync.
+      if (tutorialEnabled.value) {
+        const _matchIdsKey = 'amicifc_knownmatches_' + gid;
+        const _currentIds = groupMatches.value.map(m => m.matchUUID || m.id).filter(Boolean);
+        let _knownIds = [];
+        try { _knownIds = JSON.parse(localStorage.getItem(_matchIdsKey) || '[]'); } catch(e) {}
+        const _knownSet = new Set(_knownIds);
+        if (_currentIds.some(id => !_knownSet.has(id))) tutorialEnabled.value = false;
+      }
+      // Aggiorno sempre l'elenco conosciuto (anche a tutorial già disattivato), così il confronto
+      // resta accurato per il prossimo giro — indipendentemente da quale delle due situazioni sopra si sia verificata.
+      localStorage.setItem('amicifc_knownmatches_' + gid, JSON.stringify(groupMatches.value.map(m => m.matchUUID || m.id).filter(Boolean)));
       groupFormations.value = await db.formations.where('groupId').equals(gid).reverse().sortBy('dataCreazione');
       // Normalizzazione automatica: mediaPunti è un valore derivato (puntiTotali/partiteTotali) —
       // se partiteTotali=0 deve essere 0 per definizione, indipendentemente da cosa c'è nel DB.
@@ -16303,10 +16339,10 @@ Niente altro, nessuna spiegazione.`;
         return;
       }
 
-      // Catturato PRIMA di qualsiasi await/scrittura (Regola 6/8/2026): se questa è la primissima
-      // partita del gruppo e "Card Tutorial" è ancora attivo, va disattivato automaticamente a
-      // salvataggio riuscito — l'utente può sempre riattivarlo da Impostazioni→Aspetto.
-      const _wasFirstMatchForTutorial = tutorialEnabled.value && groupMatches.value.length === 0;
+      // Nota 20/8/2026: la disattivazione del tutorial NON è più gestita qui — spostata dentro
+      // loadGroupData() (chiamata comunque alla fine di questa funzione), perché deve girare su
+      // qualsiasi dispositivo del gruppo, non solo su quello che salva materialmente la partita.
+      // Vedi commento lì per il perché.
 
       const goalA = matchGoalA.value, goalB = matchGoalB.value;
       const teamAWon = goalA > goalB, isDraw = goalA === goalB;
@@ -16389,8 +16425,6 @@ Niente altro, nessuna spiegazione.`;
       };
 
       await db.matches.add(match);
-
-      if (_wasFirstMatchForTutorial) tutorialEnabled.value = false;
 
       if (activeFormation.value?.id) {
         await db.formations.update(activeFormation.value.id, { stato: 'giocata', matchId: match.id });
