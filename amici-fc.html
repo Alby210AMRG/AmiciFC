@@ -8972,7 +8972,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.881',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.882',date:'2026-08-20',items:[
+      'Fix (segnalato da Alby testando in locale la v1.881: Identikit AI corretti, ma il tutorial restava bloccato attivo anche dopo aver gia giocato una partita): il rilevatore di nuova stagione (v1.881) riattivava SEMPRE il tutorial quando scattava. Se scattava DOPO che la prima partita della stagione era gia stata salvata su quel dispositivo, il meccanismo "disattiva il tutorial alla prima partita" non aveva piu occasione di scattare (controlla "zero partite", condizione vera una sola volta, gia passata) - il tutorial restava riattivato per sempre, senza modo di disattivarsi da solo. Ora il rilevatore riattiva il tutorial solo se non e ancora stata giocata nessuna partita in quella stagione su quel dispositivo.',
+    ]},{version:'v1.881',date:'2026-08-20',items:[
       'Fix importante (segnalato da Alby: dopo l aggiornamento vedeva ancora dati della vecchia stagione su PC/Chrome, ma non su Android): il fix di ieri (v1.880) sistemava la sequenza di pulizia SOLO sul dispositivo che esegue materialmente l archiviazione - un altro dispositivo che riceve i dati via sync (partite azzerate, giocatori resettati) non passa mai da quel codice, quindi le sue cache locali per-dispositivo (achievement, Identikit AI, TrashTalk, Pronostico, Hall of Fame, tutorial - nessuna delle quali vive su Firebase) restavano quelle della vecchia stagione per sempre. Aggiunto un nuovo rilevatore che gira su QUALSIASI dispositivo: confronta la data dell ultima stagione archiviata con un marcatore locale, e se non coincide (prima volta che questo dispositivo la vede) ripulisce tutto in automatico, con lo stesso identico set gia usato per il dispositivo che archivia.',
     ]},{version:'v1.880',date:'2026-08-20',items:[
       'Fix bug archiviazione (segnalato da Alby: dopo aver iniziato la nuova stagione con 1 sola partita, alcuni achievement di stagione risultavano gia sbloccati come se ci fossero 10+ presenze, e comparivano Identikit AI anche per chi non aveva ancora giocato): l azzeramento del registro achievement e di tutte le cache AI (Identikit, TrashTalk, Pronostico, Hall of Fame) avveniva troppo tardi nella sequenza di archiviazione - dopo aver gia ricaricato i dati del gruppo e reso visibile la home. In quella finestra, funzioni interne potevano ricaricare/ri-mostrare dati ancora della vecchia stagione prima che la pulizia esplicita arrivasse. Riordinata la sequenza: tutti gli azzeramenti avvengono ora per primi, prima che qualsiasi altro codice possa leggerli.',
@@ -10272,7 +10274,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.881');
+    const appVersion = ref('1.882');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11070,7 +11072,15 @@ createApp({
       if (aiCardsHallOfFame.value?.mese === _mkCorr) aiCardsHallOfFame.value = null;
       localStorage.removeItem('amicifc_hof_' + _mkCorr);
       aiFlagClear('hof', gid);
-      tutorialEnabled.value = true;
+      // Riattivo il tutorial SOLO se non è ancora stata giocata nessuna partita in questa stagione
+      // (bug trovato da Alby testando in locale, 20/8/2026): se questo rilevatore scatta DOPO che
+      // la prima partita della nuova stagione è già stata salvata su questo dispositivo, il
+      // meccanismo "disattiva il tutorial al salvataggio della prima partita" (condizione
+      // groupMatches.value.length===0, verificata una sola volta, prima di quel salvataggio) non
+      // avrà mai più un'altra occasione per scattare in questa stagione — riattivarlo qui
+      // incondizionatamente lo avrebbe bloccato attivo per sempre, senza alcun modo per
+      // disattivarsi di nuovo da solo.
+      if (groupMatches.value.length === 0) tutorialEnabled.value = true;
 
       localStorage.setItem(markerKey, ultimaData);
       logEvent('info', 'app', `🔄 Dispositivo allineato alla nuova stagione (archiviazione del ${ultimaData} rilevata via sync) — cache locali pulite`);
