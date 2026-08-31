@@ -1890,7 +1890,38 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           Inserisci risultato/gol/assist, poi apri una votazione condivisa per i voti — invece di inserirli tu.
         </div>
       </div>
+      <!-- Live (20/8/2026, Fase 1) -->
+      <div @click="startLiveMode"
+        style="border:2px solid #f87171;border-radius:12px;padding:16px;margin-top:10px;cursor:pointer;background:rgba(248,113,113,0.06);transition:background .2s"
+        @mouseover="$event.currentTarget.style.background='rgba(248,113,113,0.12)'"
+        @mouseleave="$event.currentTarget.style.background='rgba(248,113,113,0.06)'">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+          <span style="font-size:1.4rem">🔴</span>
+          <div>
+            <div style="font-weight:800;font-size:0.95rem;color:#f87171">Live</div>
+            <div style="font-size:0.72rem;color:var(--text2)">Diretta</div>
+          </div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
+          Segui la partita dal campo: timer, eventi in tempo reale, due tempi. Il risultato si costruisce da solo mentre gioca.
+        </div>
+      </div>
       <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showModeChoice=false">Annulla</button>
+    </div>
+  </div>
+
+  <!-- ── RECUPERO PARTITA LIVE INTERROTTA (20/8/2026) — globale, visibile appena rilevata ── -->
+  <div v-if="liveRecoverableMatch" style="position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:220;display:flex;align-items:center;justify-content:center;padding:16px">
+    <div style="background:var(--bg1);border:2px solid #f87171;border-radius:16px;width:100%;max-width:420px;padding:24px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:8px">🔴</div>
+      <div style="font-weight:800;font-size:1.05rem;margin-bottom:8px">Partita Live interrotta</div>
+      <div style="font-size:0.82rem;color:var(--text2);line-height:1.5;margin-bottom:18px">
+        C'è una partita in modalità Live rimasta a metà — probabilmente l'app si è chiusa o il dispositivo si è scaricato prima di finire. Tutto quello che era stato registrato è salvato, puoi riprendere da dove eri rimasto.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-primary btn-full" @click="liveResumeRecovered">▶️ Riprendi la partita</button>
+        <button class="btn btn-ghost btn-full" style="color:var(--red)" @click="liveDiscardRecovered">🗑️ Scarta (elimina tutto)</button>
+      </div>
     </div>
   </div>
 
@@ -4094,6 +4125,126 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
       </div>
+    </template>
+
+    <!-- ══════════════ MODALITÀ LIVE — Fase 1 (20/8/2026) ══════════════ -->
+    <template v-if="currentView === 'livematch' && liveMatchState">
+      <div style="display:flex;flex-direction:column;gap:14px;padding-bottom:20px">
+        <!-- Timer e punteggio -->
+        <div class="card" style="text-align:center;background:linear-gradient(145deg,#1a0d0d,#2a1414 60%,#3a1a1a);border-color:rgba(248,113,113,.3)">
+          <div style="font-size:0.72rem;color:#f87171;font-weight:800;letter-spacing:1px;margin-bottom:6px">
+            🔴 LIVE — {{ liveMatchState.status==='halftime' ? 'INTERVALLO' : (liveMatchState.currentHalf===1?'1° TEMPO':'2° TEMPO') }}
+          </div>
+          <div style="font-size:2.8rem;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;line-height:1">{{ liveFormattedTime }}</div>
+          <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:10px 0 14px;font-size:1.4rem;font-weight:800">
+            <span style="color:var(--blue)">{{ activeFormation?.nomeSquadraA||'Squadra A' }}</span>
+            <span style="font-size:1.8rem">{{ matchGoalA }} - {{ matchGoalB }}</span>
+            <span style="color:#FF8C00">{{ activeFormation?.nomeSquadraB||'Squadra B' }}</span>
+          </div>
+          <!-- Controlli timer, contestuali allo stato -->
+          <div style="display:flex;gap:8px;justify-content:center">
+            <button v-if="liveMatchState.status==='not_started'" class="btn btn-primary" @click="liveTimerStart">▶️ Avvia 1° Tempo</button>
+            <template v-if="liveMatchState.status==='running'">
+              <button class="btn btn-ghost" @click="liveTimerPause">⏸️ Pausa</button>
+              <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)" @click="liveMatchState.currentHalf===1?liveEndHalf():liveEndMatchPhase1()">
+                🏁 {{ liveMatchState.currentHalf===1 ? 'Fine 1° Tempo' : 'Fine Partita' }}
+              </button>
+            </template>
+            <template v-if="liveMatchState.status==='paused'">
+              <button class="btn btn-primary" @click="liveTimerStart">▶️ Riprendi</button>
+              <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)" @click="liveMatchState.currentHalf===1?liveEndHalf():liveEndMatchPhase1()">
+                🏁 {{ liveMatchState.currentHalf===1 ? 'Fine 1° Tempo' : 'Fine Partita' }}
+              </button>
+            </template>
+            <button v-if="liveMatchState.status==='halftime'" class="btn btn-primary" @click="liveStartHalf2">▶️ Inizia 2° Tempo</button>
+          </div>
+        </div>
+
+        <!-- Griglia giocatori: tocca un giocatore per registrare un evento -->
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div v-for="(team, tk) in {A: teamA, B: teamB}" :key="tk" class="card" style="padding:12px">
+            <div style="font-size:0.72rem;font-weight:800;margin-bottom:8px;letter-spacing:0.5px"
+              :style="{color: tk==='A' ? 'var(--blue)' : '#FF8C00'}">
+              {{ tk==='A' ? (activeFormation?.nomeSquadraA||'Squadra A') : (activeFormation?.nomeSquadraB||'Squadra B') }}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <div v-for="pid in team" :key="pid" @click="liveOpenEventPicker(pid)"
+                style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--bg3);cursor:pointer">
+                <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, pid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, pid)" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0">
+                <div v-else style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);flex-shrink:0"></div>
+                <div style="flex:1;font-size:0.85rem;font-weight:600">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                <div style="display:flex;gap:4px;font-size:0.7rem">
+                  <span v-if="playerStats[pid]?.goal" style="background:rgba(166,255,77,.15);color:var(--lime);padding:2px 6px;border-radius:6px">⚽{{ playerStats[pid].goal }}</span>
+                  <span v-if="playerStats[pid]?.assist" style="background:rgba(96,165,250,.15);color:#60a5fa;padding:2px 6px;border-radius:6px">🅰️{{ playerStats[pid].assist }}</span>
+                  <span v-if="playerStats[pid]?.autogol" style="background:rgba(248,113,113,.15);color:#f87171;padding:2px 6px;border-radius:6px">🙈{{ playerStats[pid].autogol }}</span>
+                </div>
+                <span style="color:var(--text2);font-size:1.1rem">＋</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Timeline eventi -->
+        <div v-if="liveMatchState.eventi.length" class="card">
+          <div class="card-title" style="font-size:0.85rem;margin-bottom:8px">📋 Eventi della partita</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div v-for="ev in [...liveMatchState.eventi].reverse()" :key="ev.id"
+              style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg3);font-size:0.78rem">
+              <span style="color:var(--text2);font-variant-numeric:tabular-nums;width:32px;flex-shrink:0">{{ ev.minuto }}'</span>
+              <span style="flex-shrink:0">{{ {gol:'⚽',assist:'🅰️',autogol:'🙈',rigore_segnato:'🎯',rigore_sbagliato:'❌',rigore_parato:'🧤'}[ev.tipo] }}</span>
+              <span style="flex:1">{{ getPlayer(ev.playerId)?.soprannome || getPlayer(ev.playerId)?.nome }} — {{ {gol:'Gol',assist:'Assist',autogol:'Autogol',rigore_segnato:'Rigore segnato',rigore_sbagliato:'Rigore sbagliato',rigore_parato:'Rigore parato'}[ev.tipo] }}</span>
+              <button @click="liveRemoveEvent(ev.id)" style="background:none;border:none;color:var(--red);cursor:pointer;font-size:0.85rem;padding:2px 6px">✕</button>
+            </div>
+          </div>
+        </div>
+        <div v-else class="card" style="text-align:center;color:var(--text2);font-size:0.8rem;padding:20px">
+          Nessun evento ancora — tocca un giocatore per iniziare a registrare
+        </div>
+      </div>
+
+      <!-- Selettore evento (appare toccando un giocatore) -->
+      <div v-if="liveEventPickerFor" style="position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:210;display:flex;align-items:flex-end;justify-content:center" @click.self="liveCloseEventPicker">
+        <div style="background:var(--bg1);border:1px solid var(--border);border-radius:20px 20px 0 0;width:100%;max-width:420px;padding:20px">
+          <div style="text-align:center;font-weight:800;margin-bottom:14px">
+            {{ getPlayer(liveEventPickerFor)?.soprannome || getPlayer(liveEventPickerFor)?.nome }}
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <button class="btn btn-ghost" style="padding:16px;flex-direction:column;gap:4px" @click="liveLogEvent('gol')"><div style="font-size:1.6rem">⚽</div>Gol</button>
+            <button class="btn btn-ghost" style="padding:16px;flex-direction:column;gap:4px" @click="liveLogEvent('assist')"><div style="font-size:1.6rem">🅰️</div>Assist</button>
+            <button class="btn btn-ghost" style="padding:16px;flex-direction:column;gap:4px" @click="liveLogEvent('autogol')"><div style="font-size:1.6rem">🙈</div>Autogol</button>
+            <button class="btn btn-ghost" style="padding:16px;flex-direction:column;gap:4px" @click="liveLogEvent('rigore_segnato')"><div style="font-size:1.6rem">🎯</div>Rigore Segnato</button>
+            <button class="btn btn-ghost" style="padding:16px;flex-direction:column;gap:4px" @click="liveLogEvent('rigore_sbagliato')"><div style="font-size:1.6rem">❌</div>Rigore Sbagliato</button>
+            <button class="btn btn-ghost" style="padding:16px;flex-direction:column;gap:4px" @click="liveLogEvent('rigore_parato')"><div style="font-size:1.6rem">🧤</div>Rigore Parato</button>
+          </div>
+          <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="liveCloseEventPicker">Annulla</button>
+        </div>
+      </div>
+    </template>
+
+    <!-- Riepilogo di sola lettura fine Fase 1 — il salvataggio definitivo arriva in Fase 3 -->
+    <template v-if="currentView === 'liverecap' && liveMatchState">
+      <div class="card-title">🔴 Riepilogo Live</div>
+      <div class="card" style="text-align:center;margin-bottom:14px">
+        <div style="font-size:1.6rem;font-weight:800">{{ matchGoalA }} - {{ matchGoalB }}</div>
+        <div style="font-size:0.8rem;color:var(--text2)">{{ activeFormation?.nomeSquadraA }} vs {{ activeFormation?.nomeSquadraB }}</div>
+        <div style="font-size:0.72rem;color:var(--text2);margin-top:6px">Durata: 1° tempo {{ Math.floor((liveMatchState.elapsedHalf1||0)/60) }}' — 2° tempo {{ Math.floor((liveMatchState.elapsedHalf2||0)/60) }}'</div>
+      </div>
+      <div class="card" style="border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.05);margin-bottom:14px">
+        <div style="font-size:0.8rem;color:var(--text2);line-height:1.6">
+          ⚠️ Questa è la Fase 1 della modalità Live — timer ed eventi funzionano, ma il salvataggio definitivo (con riepilogo modificabile, voti e Uomo Partita) arriva nella prossima fase. Per ora i dati restano solo qui, non ancora nelle statistiche del gruppo.
+        </div>
+      </div>
+      <div v-if="liveMatchState.eventi.length" class="card">
+        <div class="card-title" style="font-size:0.85rem;margin-bottom:8px">📋 Eventi registrati</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <div v-for="ev in liveMatchState.eventi" :key="ev.id" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg3);font-size:0.78rem">
+            <span style="color:var(--text2);width:32px;flex-shrink:0">{{ ev.minuto }}'</span>
+            <span>{{ {gol:'⚽',assist:'🅰️',autogol:'🙈',rigore_segnato:'🎯',rigore_sbagliato:'❌',rigore_parato:'🧤'}[ev.tipo] }}</span>
+            <span>{{ getPlayer(ev.playerId)?.soprannome || getPlayer(ev.playerId)?.nome }}</span>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-full" style="margin-top:14px" @click="currentView='home'">← Torna alla Home</button>
     </template>
 
     <template v-if="currentView === 'newmatch'">
@@ -8795,6 +8946,20 @@ db.version(9).stores({
   _ssMigrationStash = null;
 });
 
+// Modalità "Live" (20/8/2026, Fase 1 — timer, eventi, salvataggio anti-crash): nuova tabella per
+// lo stato di lavoro di una partita tracciata in diretta, separata da "matches" (che contiene solo
+// partite CONCLUSE e salvate definitivamente). Puramente additiva, nessuna migrazione necessaria.
+db.version(10).stores({
+  groups:         '++id, nome',
+  players:        '++id, groupId, uid, nome, cognome',
+  matches:        '++id, groupId, data, matchUUID',
+  formations:     '++id, groupId, stato, dataCreazione',
+  playerPhotos:   'uid, updatedAt',
+  archivedSeasons:'archivioId, groupId',
+  seasonSummaries:'++id, groupId, archivioId',
+  liveMatches:    '++id, groupId, formationId, status, updatedAt'
+});
+
 // ──────────────────────────────────────
 // HELPER: UUID
 // ──────────────────────────────────────
@@ -8976,7 +9141,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.885',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.886',date:'2026-08-20',items:[
+      'Nuovo: modalita "Live" (Fase 1 di 3, progettata insieme ad Alby) - quarta opzione accanto a Uno alla Volta/Tutti Insieme/Vota con gli amici, per seguire la partita dal campo in tempo reale. Timer a cronometro con avvio/pausa/ripristino e due tempi, registrazione eventi per ogni giocatore (gol, assist, autogol, rigore segnato/sbagliato/parato) con possibilita di annullare un errore, e soprattutto salvataggio automatico continuo su ogni azione (protegge da crash/batteria scarica/chiusura accidentale) con recupero automatico della partita interrotta al riavvio dell app. Il timer usa orari assoluti, non un semplice contatore - se il telefono si blocca il cronometro riflette il tempo reale trascorso anche durante linterruzione, non resta fermo. Nelle prossime fasi: voto dinamico, portiere dichiarato e Uomo Partita durante la partita (Fase 2), cambi per infortunio e riepilogo finale modificabile con salvataggio definitivo (Fase 3) - per ora i dati restano solo nella schermata Live, non ancora nelle statistiche del gruppo.',
+    ]},{version:'v1.885',date:'2026-08-20',items:[
       'Fix Card Tutorial, corretto dopo precisazione di Alby: il fix precedente usava un controllo statico ("esiste gia una partita?") che ridisattivava il tutorial quasi subito anche dopo averlo riattivato apposta a mano, senza dare il tempo di vederlo. Ora e un rilevamento a evento: si disattiva solo quando arriva una partita NUOVA rispetto allultima volta che questo dispositivo lha controllata (salvata qui o arrivata via sync, indifferente) - se lo si riattiva mentre ci sono gia partite, resta acceso finche non ne arriva davvero una in piu.',
     ]},{version:'v1.884',date:'2026-08-20',items:[
       'Fix Card Tutorial (domanda di Alby con un esempio concreto - Bruno, che riceve una partita via sync senza averla salvata lui, aveva ancora il tutorial attivo): il fix di ieri disattivava il tutorial solo dentro la funzione di salvataggio partita, quindi solo sul dispositivo che la salva materialmente. Spostato il controllo dentro il caricamento dati generale (gira su qualsiasi dispositivo ad ogni apertura/sync): se esiste almeno una partita nel gruppo, il tutorial si disattiva - indipendentemente da chi l ha salvata o come sia arrivata su quel dispositivo.',
@@ -10287,7 +10454,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.885');
+    const appVersion = ref('1.886');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -10988,6 +11155,10 @@ createApp({
       // resta accurato per il prossimo giro — indipendentemente da quale delle due situazioni sopra si sia verificata.
       localStorage.setItem('amicifc_knownmatches_' + gid, JSON.stringify(groupMatches.value.map(m => m.matchUUID || m.id).filter(Boolean)));
       groupFormations.value = await db.formations.where('groupId').equals(gid).reverse().sortBy('dataCreazione');
+      // Modalità Live (20/8/2026): controllo recupero da crash ad ogni caricamento gruppo — se
+      // c'è una partita live rimasta "in corso" (es. app chiusa/crashata senza finire), la
+      // segnala per l'eventuale ripresa (vedi liveRecoverableMatch e il banner in home).
+      liveCheckForRecovery();
       // Normalizzazione automatica: mediaPunti è un valore derivato (puntiTotali/partiteTotali) —
       // se partiteTotali=0 deve essere 0 per definizione, indipendentemente da cosa c'è nel DB.
       // Gestisce retroattivamente i giocatori archiviati prima di v1.575 (che non azzerava mediaPunti)
@@ -12646,6 +12817,240 @@ Rispondi SOLO con questo JSON (niente altro testo):
       matchUomoPartitaVotato.value = false;
       _initMatchData(f);
       currentView.value = 'newmatch';
+    };
+
+    // ══════════════════════════════════════════════════════════════
+    // ── Modalità "Live" (20/8/2026) — Fase 1: timer, eventi, salvataggio anti-crash ──
+    // Progettata insieme ad Alby: un solo dispositivo (l'admin dal campo), cronometro che conta
+    // in su (non un countdown), due tempi, cambi solo per infortunio (Fase 3), voto dinamico e
+    // portiere/Uomo Partita in Fase 2. Riusa DELIBERATAMENTE le stesse strutture reattive già
+    // usate da "Tutti Insieme" (teamA/teamB/playerStats/matchGoalA/B) — ogni evento live aggiorna
+    // quelle stesse variabili esattamente come farebbero i pulsanti +/- di "Tutti Insieme", così
+    // il salvataggio finale (Fase 3) potrà riusare saveMatch() così com'è, senza doverlo
+    // riscrivere. L'elenco eventi (liveMatchState.eventi) è un'aggiunta SOPRA quello — dà il
+    // dettaglio con orario per la timeline, l'undo e il futuro minutaggio (altro punto del
+    // backlog), senza cambiare come funziona il resto dell'app.
+    const liveMatchState = ref(null); // record della tabella liveMatches in corso, o null
+    const liveTimerTick = ref(0);     // contatore fittizio, incrementato ogni secondo mentre il
+                                       // timer gira, serve solo per forzare il ricalcolo del
+                                       // tempo trascorso mostrato a schermo (che altrimenti è
+                                       // calcolato da timestamp, non da un valore reattivo diretto)
+    let _liveTickInterval = null;
+    let _liveAutosaveInterval = null;
+    const liveEventPickerFor = ref(null); // uid del giocatore per cui è aperto il selettore evento
+
+    const _liveClearIntervals = () => {
+      if (_liveTickInterval) { clearInterval(_liveTickInterval); _liveTickInterval = null; }
+      if (_liveAutosaveInterval) { clearInterval(_liveAutosaveInterval); _liveAutosaveInterval = null; }
+    };
+
+    // Salvataggio continuo (richiesta esplicita di Alby: "protocollo di salvataggio continuo o
+    // periodico per evitare la perdita dei dati in caso di crash"): scritto su IndexedDB — non
+    // richiede connessione, protegge da crash dell'app/chiusura accidentale/batteria scarica.
+    // Chiamato dopo OGNI azione (avvio/pausa/evento) più un giro periodico di sicurezza ogni 20s
+    // mentre il timer è in corso, per coprire anche lunghi tratti di gioco senza eventi.
+    const _saveLiveMatchState = async () => {
+      if (!liveMatchState.value) return;
+      liveMatchState.value.updatedAt = Date.now();
+      try {
+        await db.liveMatches.put({ ...liveMatchState.value, eventi: liveMatchState.value.eventi.map(e => ({...e})) });
+      } catch(e) {
+        logEvent('warn', 'app', '🔴 Live: salvataggio locale non riuscito — ' + e.message);
+      }
+    };
+
+    const startLiveMode = async () => {
+      const f = modeChoiceFormation.value;
+      showModeChoice.value = false;
+      matchIsVoteMode.value = false;
+      matchUomoPartitaVotato.value = false;
+      _initMatchData(f);
+      const record = {
+        groupId: currentGroup.value.id,
+        formationId: f.id,
+        matchUUID: uuid(), // pre-generato: diventerà l'id definitivo della partita in Fase 3
+        status: 'not_started',
+        currentHalf: 1,
+        elapsedHalf1: 0,
+        elapsedHalf2: 0,
+        runningSince: null,
+        eventi: [],
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      const id = await db.liveMatches.add(record);
+      liveMatchState.value = { ...record, id };
+      currentView.value = 'livematch';
+      _liveTickInterval = setInterval(() => { liveTimerTick.value++; }, 1000);
+      _liveAutosaveInterval = setInterval(() => { if (liveMatchState.value?.status === 'running') _saveLiveMatchState(); }, 20000);
+    };
+
+    // Secondi trascorsi nel tempo CORRENTE (non totali) — somma l'accumulato (congelato quando in
+    // pausa) più, se il timer sta girando ora, il tempo passato da quando è ripartito l'ultima
+    // volta. liveTimerTick nella dipendenza forza il ricalcolo ogni secondo mentre gira.
+    const liveElapsedSeconds = computed(() => {
+      liveTimerTick.value; // dipendenza reattiva, valore non usato direttamente
+      const s = liveMatchState.value;
+      if (!s) return 0;
+      const base = s.currentHalf === 1 ? (s.elapsedHalf1 || 0) : (s.elapsedHalf2 || 0);
+      const running = s.runningSince ? Math.floor((Date.now() - s.runningSince) / 1000) : 0;
+      return base + running;
+    });
+    const liveFormattedTime = computed(() => {
+      const tot = liveElapsedSeconds.value;
+      const mm = Math.floor(tot / 60).toString().padStart(2, '0');
+      const ss = (tot % 60).toString().padStart(2, '0');
+      return `${mm}:${ss}`;
+    });
+    // Minuto "di partita" per un evento appena registrato — nel secondo tempo continua a contare
+    // dalla fine del primo (es. 47'), come nel calcio vero, non riparte da 0.
+    const _liveCurrentMatchMinute = () => {
+      const s = liveMatchState.value;
+      if (!s) return 0;
+      if (s.currentHalf === 1) return Math.floor(liveElapsedSeconds.value / 60);
+      return Math.floor((s.elapsedHalf1 || 0) / 60) + Math.floor(liveElapsedSeconds.value / 60);
+    };
+
+    const liveTimerStart = () => {
+      if (!liveMatchState.value || liveMatchState.value.runningSince) return;
+      liveMatchState.value.status = 'running';
+      liveMatchState.value.runningSince = Date.now();
+      _saveLiveMatchState();
+    };
+    const liveTimerPause = () => {
+      const s = liveMatchState.value;
+      if (!s || !s.runningSince) return;
+      const elapsed = Math.floor((Date.now() - s.runningSince) / 1000);
+      if (s.currentHalf === 1) s.elapsedHalf1 = (s.elapsedHalf1 || 0) + elapsed;
+      else s.elapsedHalf2 = (s.elapsedHalf2 || 0) + elapsed;
+      s.runningSince = null;
+      s.status = 'paused';
+      _saveLiveMatchState();
+    };
+    const liveEndHalf = () => {
+      if (liveMatchState.value?.runningSince) liveTimerPause();
+      if (!liveMatchState.value) return;
+      liveMatchState.value.status = 'halftime';
+      _saveLiveMatchState();
+    };
+    const liveStartHalf2 = () => {
+      if (!liveMatchState.value) return;
+      liveMatchState.value.currentHalf = 2;
+      liveMatchState.value.status = 'running';
+      liveMatchState.value.runningSince = Date.now();
+      _saveLiveMatchState();
+    };
+
+    const liveOpenEventPicker = (pid) => { liveEventPickerFor.value = pid; };
+    const liveCloseEventPicker = () => { liveEventPickerFor.value = null; };
+
+    // Applica l'evento alle stesse strutture reattive di "Tutti Insieme" (playerStats/
+    // matchGoalA/B), poi lo registra con orario nell'elenco eventi del Live per la timeline/undo.
+    const liveLogEvent = (tipo) => {
+      const pid = liveEventPickerFor.value;
+      const s = liveMatchState.value;
+      if (!pid || !s) return;
+      ensureStats(pid);
+      const squadra = teamA.value.includes(pid) ? 'A' : 'B';
+      if (tipo === 'gol') {
+        playerStats.value[pid].goal = (playerStats.value[pid].goal || 0) + 1;
+        if (squadra === 'A') matchGoalA.value++; else matchGoalB.value++;
+      } else if (tipo === 'assist') {
+        playerStats.value[pid].assist = (playerStats.value[pid].assist || 0) + 1;
+      } else if (tipo === 'autogol') {
+        playerStats.value[pid].autogol = (playerStats.value[pid].autogol || 0) + 1;
+        // l'autogol conta per la squadra AVVERSARIA
+        if (squadra === 'A') matchGoalB.value++; else matchGoalA.value++;
+      } else if (tipo === 'rigore_segnato') {
+        incrementRigoreSegnato(pid);
+        if (squadra === 'A') matchGoalA.value++; else matchGoalB.value++;
+      } else if (tipo === 'rigore_sbagliato') {
+        playerStats.value[pid].rigoriSbagliati = (playerStats.value[pid].rigoriSbagliati || 0) + 1;
+      } else if (tipo === 'rigore_parato') {
+        playerStats.value[pid].rigoriParati = (playerStats.value[pid].rigoriParati || 0) + 1;
+      }
+      s.eventi.push({
+        id: uuid(), tipo, playerId: pid, squadra,
+        minuto: _liveCurrentMatchMinute(), tempo: s.currentHalf, timestamp: Date.now(),
+      });
+      liveEventPickerFor.value = null;
+      _saveLiveMatchState();
+    };
+
+    // Corregge un errore inserito dal vivo: toglie l'evento dalla timeline E annulla il suo
+    // effetto sulle statistiche/risultato, simmetrico a liveLogEvent.
+    const liveRemoveEvent = (eventId) => {
+      const s = liveMatchState.value;
+      if (!s) return;
+      const idx = s.eventi.findIndex(e => e.id === eventId);
+      if (idx === -1) return;
+      const ev = s.eventi[idx];
+      const st = playerStats.value[ev.playerId];
+      if (st) {
+        if (ev.tipo === 'gol') { st.goal = Math.max(0, (st.goal||0)-1); if (ev.squadra==='A') matchGoalA.value=Math.max(0,matchGoalA.value-1); else matchGoalB.value=Math.max(0,matchGoalB.value-1); }
+        else if (ev.tipo === 'assist') { st.assist = Math.max(0, (st.assist||0)-1); }
+        else if (ev.tipo === 'autogol') { st.autogol = Math.max(0, (st.autogol||0)-1); if (ev.squadra==='A') matchGoalB.value=Math.max(0,matchGoalB.value-1); else matchGoalA.value=Math.max(0,matchGoalA.value-1); }
+        else if (ev.tipo === 'rigore_segnato') { st.rigoriSegnati = Math.max(0,(st.rigoriSegnati||0)-1); st.goal = Math.max(0,(st.goal||0)-1); if (ev.squadra==='A') matchGoalA.value=Math.max(0,matchGoalA.value-1); else matchGoalB.value=Math.max(0,matchGoalB.value-1); }
+        else if (ev.tipo === 'rigore_sbagliato') { st.rigoriSbagliati = Math.max(0,(st.rigoriSbagliati||0)-1); }
+        else if (ev.tipo === 'rigore_parato') { st.rigoriParati = Math.max(0,(st.rigoriParati||0)-1); }
+      }
+      s.eventi.splice(idx, 1);
+      _saveLiveMatchState();
+    };
+
+    // Fine Fase 1: ferma tutto e mostra un riepilogo di sola lettura di quanto tracciato. Il
+    // salvataggio definitivo in "matches" (con riepilogo MODIFICABILE, voti, Uomo Partita ecc.)
+    // arriva in Fase 3, come concordato con Alby — qui NON si scrive ancora su db.matches.
+    const liveEndMatchPhase1 = () => {
+      if (liveMatchState.value?.runningSince) liveTimerPause();
+      if (liveMatchState.value) {
+        liveMatchState.value.status = 'finished_phase1';
+        _saveLiveMatchState();
+      }
+      _liveClearIntervals();
+      currentView.value = 'liverecap';
+    };
+
+    // Recupero da crash: un liveMatches con stato ancora "in corso" (non finito) trovato al
+    // caricamento del gruppo va riproposto per la ripresa — vedi hook in loadGroupData.
+    const liveCheckForRecovery = async () => {
+      if (!currentGroup.value) return;
+      const pending = await db.liveMatches
+        .where('groupId').equals(currentGroup.value.id)
+        .and(r => ['not_started','running','paused','halftime'].includes(r.status))
+        .toArray();
+      liveRecoverableMatch.value = pending.length ? pending.sort((a,b)=>b.updatedAt-a.updatedAt)[0] : null;
+    };
+    const liveRecoverableMatch = ref(null);
+
+    const liveResumeRecovered = async () => {
+      const rec = liveRecoverableMatch.value;
+      if (!rec) return;
+      const f = groupFormations.value.find(x => x.id === rec.formationId) || await db.formations.get(rec.formationId);
+      if (!f) { toast('⚠️ Formazione originale non trovata, impossibile riprendere', 'error'); return; }
+      _initMatchData(f);
+      // Ricostruisco playerStats/matchGoalA/B dagli eventi già registrati (la sessione precedente
+      // potrebbe essersi interrotta senza un salvataggio finale coerente in memoria).
+      rec.eventi.forEach(ev => {
+        ensureStats(ev.playerId);
+        const st = playerStats.value[ev.playerId];
+        if (ev.tipo === 'gol') { st.goal=(st.goal||0)+1; if(ev.squadra==='A') matchGoalA.value++; else matchGoalB.value++; }
+        else if (ev.tipo === 'assist') { st.assist=(st.assist||0)+1; }
+        else if (ev.tipo === 'autogol') { st.autogol=(st.autogol||0)+1; if(ev.squadra==='A') matchGoalB.value++; else matchGoalA.value++; }
+        else if (ev.tipo === 'rigore_segnato') { st.rigoriSegnati=(st.rigoriSegnati||0)+1; st.goal=(st.goal||0)+1; if(ev.squadra==='A') matchGoalA.value++; else matchGoalB.value++; }
+        else if (ev.tipo === 'rigore_sbagliato') { st.rigoriSbagliati=(st.rigoriSbagliati||0)+1; }
+        else if (ev.tipo === 'rigore_parato') { st.rigoriParati=(st.rigoriParati||0)+1; }
+      });
+      liveMatchState.value = rec;
+      liveRecoverableMatch.value = null;
+      currentView.value = 'livematch';
+      _liveTickInterval = setInterval(() => { liveTimerTick.value++; }, 1000);
+      _liveAutosaveInterval = setInterval(() => { if (liveMatchState.value?.status === 'running') _saveLiveMatchState(); }, 20000);
+      toast('🔴 Partita live ripresa', 'success');
+    };
+    const liveDiscardRecovered = async () => {
+      if (liveRecoverableMatch.value?.id) await db.liveMatches.delete(liveRecoverableMatch.value.id);
+      liveRecoverableMatch.value = null;
     };
 
     const startStepByStep = () => {
@@ -25133,6 +25538,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, matchUomoPartitaVotato, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
+      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveEndMatchPhase1, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered,
       matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
