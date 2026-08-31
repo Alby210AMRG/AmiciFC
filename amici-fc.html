@@ -1897,13 +1897,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         @mouseleave="$event.currentTarget.style.background='rgba(248,113,113,0.06)'">
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <span style="font-size:1.4rem">🔴</span>
-          <div>
-            <div style="font-weight:800;font-size:0.95rem;color:#f87171">Live</div>
+          <div style="flex:1">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="font-weight:800;font-size:0.95rem;color:#f87171">Live</div>
+              <!-- Etichetta "in fase di rilascio" (20/8/2026, richiesta di Alby) — Fase 1 di 3,
+                   niente ancora nel salvataggio definitivo delle partite, va reso ben visibile
+                   finché non è completa. -->
+              <span style="font-size:0.62rem;font-weight:800;color:#000;background:var(--yellow);padding:2px 7px;border-radius:6px;letter-spacing:0.3px">🚧 BETA</span>
+            </div>
             <div style="font-size:0.72rem;color:var(--text2)">Diretta</div>
           </div>
         </div>
         <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
-          Segui la partita dal campo: timer, eventi in tempo reale, due tempi. Il risultato si costruisce da solo mentre gioca.
+          Segui la partita dal campo: timer, eventi in tempo reale, Tempo Unico o Due Tempi. Il risultato si costruisce da solo mentre gioca.
+          <span style="color:var(--yellow)">Ancora in sviluppo: per ora i dati non finiscono nelle statistiche del gruppo.</span>
         </div>
       </div>
       <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showModeChoice=false">Annulla</button>
@@ -4173,6 +4180,39 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
         </div>
 
+        <!-- Fase 2 (20/8/2026): Portiere Dichiarato e Uomo Partita, entrambi modificabili in
+             qualsiasi momento durante la partita — riusano esattamente lo stesso meccanismo già
+             usato da "Tutti Insieme" (matchPortiereDichiarato, setUomoPartita/computedUomoPartita),
+             nessuna nuova struttura dati. A differenza delle altre modalità, qui NON sono
+             obbligatori per proseguire (si può giocare senza deciderli subito, e correggerli
+             quante volte serve mentre la partita è in corso). -->
+        <div class="card" style="padding:12px">
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px">🥅 Portiere (modificabile in ogni momento)</div>
+          <div style="display:flex;gap:8px;margin-bottom:12px">
+            <div style="flex:1">
+              <label style="font-size:0.68rem;color:var(--blue);display:block;margin-bottom:3px">🔵 {{ activeFormation?.nomeSquadraA || 'Squadra A' }}</label>
+              <select class="select-field" v-model="matchPortiereDichiarato.A" @change="liveSyncExtraState" style="width:100%">
+                <option value="">Non ancora scelto</option>
+                <option value="__turno__">A turno</option>
+                <option v-for="pid in teamA" :key="'livePdA-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+              </select>
+            </div>
+            <div style="flex:1">
+              <label style="font-size:0.68rem;color:#FF8C00;display:block;margin-bottom:3px">🟠 {{ activeFormation?.nomeSquadraB || 'Squadra B' }}</label>
+              <select class="select-field" v-model="matchPortiereDichiarato.B" @change="liveSyncExtraState" style="width:100%">
+                <option value="">Non ancora scelto</option>
+                <option value="__turno__">A turno</option>
+                <option v-for="pid in teamB" :key="'livePdB-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+              </select>
+            </div>
+          </div>
+          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">⭐ Uomo Partita (modificabile in ogni momento)</div>
+          <select class="select-field" :value="computedUomoPartita" @change="liveSetUomoPartita($event.target.value)" style="width:100%">
+            <option value="" disabled>Non ancora scelto</option>
+            <option v-for="pid in [...teamA, ...teamB]" :key="'liveUP-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+          </select>
+        </div>
+
         <!-- Griglia giocatori: tocca un giocatore per registrare un evento -->
         <div style="display:flex;flex-direction:column;gap:10px">
           <div v-for="(team, tk) in {A: teamA, B: teamB}" :key="tk" class="card" style="padding:12px">
@@ -4181,17 +4221,30 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               {{ tk==='A' ? (activeFormation?.nomeSquadraA||'Squadra A') : (activeFormation?.nomeSquadraB||'Squadra B') }}
             </div>
             <div style="display:flex;flex-direction:column;gap:6px">
-              <div v-for="pid in team" :key="pid" @click="liveOpenEventPicker(pid)"
-                style="display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:10px;background:var(--bg3);cursor:pointer">
-                <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, pid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, pid)" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0">
-                <div v-else style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);flex-shrink:0"></div>
-                <div style="flex:1;font-size:0.85rem;font-weight:600">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
-                <div style="display:flex;gap:4px;font-size:0.7rem">
-                  <span v-if="playerStats[pid]?.goal" style="background:rgba(166,255,77,.15);color:var(--lime);padding:2px 6px;border-radius:6px">⚽{{ playerStats[pid].goal }}</span>
-                  <span v-if="playerStats[pid]?.assist" style="background:rgba(96,165,250,.15);color:#60a5fa;padding:2px 6px;border-radius:6px">🅰️{{ playerStats[pid].assist }}</span>
-                  <span v-if="playerStats[pid]?.autogol" style="background:rgba(248,113,113,.15);color:#f87171;padding:2px 6px;border-radius:6px">🙈{{ playerStats[pid].autogol }}</span>
+              <div v-for="pid in team" :key="pid" style="border-radius:10px;background:var(--bg3);overflow:hidden">
+                <div @click="liveOpenEventPicker(pid)" style="display:flex;align-items:center;gap:10px;padding:8px 10px;cursor:pointer">
+                  <img v-if="getPlayerPhoto(getPlayer(pid)?.foto, pid)" :src="getPlayerPhoto(getPlayer(pid)?.foto, pid)" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0">
+                  <img v-else :src="SILHOUETTE" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;opacity:0.6">
+                  <div style="flex:1;font-size:0.85rem;font-weight:600">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</div>
+                  <div style="display:flex;gap:4px;font-size:0.7rem">
+                    <span v-if="playerStats[pid]?.goal" style="background:rgba(166,255,77,.15);color:var(--lime);padding:2px 6px;border-radius:6px">⚽{{ playerStats[pid].goal }}</span>
+                    <span v-if="playerStats[pid]?.assist" style="background:rgba(96,165,250,.15);color:#60a5fa;padding:2px 6px;border-radius:6px">🅰️{{ playerStats[pid].assist }}</span>
+                    <span v-if="playerStats[pid]?.autogol" style="background:rgba(248,113,113,.15);color:#f87171;padding:2px 6px;border-radius:6px">🙈{{ playerStats[pid].autogol }}</span>
+                  </div>
+                  <!-- Fix contrasto (20/8/2026, segnalato da Alby): il "+" testuale grigio chiaro
+                       era poco visibile e non in linea con lo stile dell'app — sostituito con un
+                       piccolo pulsante circolare pieno, stesso lime scuro-su-chiaro già usato con
+                       successo per il FAB "Aggiungi Giocatore". -->
+                  <span style="width:22px;height:22px;border-radius:50%;background:var(--lime);color:var(--dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0">＋</span>
                 </div>
-                <span style="color:var(--text2);font-size:1.1rem">＋</span>
+                <!-- Voto dinamico (Fase 2, 20/8/2026) — tap-target separato (click.stop) dal resto
+                     della riga, così non apre per sbaglio il selettore evento. -->
+                <div @click.stop style="display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 10px 8px">
+                  <span style="font-size:0.65rem;color:var(--text2)">Voto</span>
+                  <button class="counter-btn" style="width:22px;height:22px" @click="liveAdjustVoto(pid, -0.5)">−</button>
+                  <span style="font-size:0.82rem;font-weight:800;color:var(--yellow);min-width:26px;text-align:center">{{ (playerStats[pid]?.voto ?? 6).toFixed(1) }}</span>
+                  <button class="counter-btn" style="width:22px;height:22px" @click="liveAdjustVoto(pid, 0.5)">+</button>
+                </div>
               </div>
             </div>
           </div>
@@ -6769,6 +6822,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
   </main>
 
+  <!-- ── INDICATORE "TORNA ALLA PARTITA LIVE" (20/8/2026) — visibile su qualsiasi schermata
+       mentre una partita Live è in corso e non si è già su quella vista. Richiesto da Alby: si
+       può uscire a fare altro nell'app (Stats, Partite, ecc.) e la partita continua a girare in
+       sottofondo (il timer usa timestamp assoluti, non un contatore legato alla schermata) — ma
+       serve un modo per tornarci. Stile "mini player", sopra la barra di navigazione. ── -->
+  <div v-if="liveMatchState && liveMatchState.status !== 'finished_phase1' && currentView !== 'livematch'"
+    @click="liveReturnToMatch"
+    style="position:fixed;left:0;right:0;bottom:var(--nav-h);z-index:95;background:linear-gradient(90deg,#2a1414,#3a1a1a);border-top:1px solid rgba(248,113,113,.4);padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer">
+    <span style="font-size:1.1rem">🔴</span>
+    <span style="font-weight:800;font-size:0.82rem;color:#fff;font-variant-numeric:tabular-nums">{{ liveFormattedTime }}</span>
+    <span style="font-size:0.8rem;color:var(--text2)">{{ matchGoalA }} - {{ matchGoalB }}</span>
+    <span style="flex:1;font-size:0.72rem;color:#f87171;text-align:right;font-weight:700">Torna alla partita →</span>
+  </div>
+
   <!-- ── BOTTOM NAV ── -->
   <nav class="bottom-nav">
     <!-- Home -->
@@ -9154,7 +9221,16 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.887',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.889',date:'2026-08-20',items:[
+      'Modalita Live: fix contrasto (segnalato da Alby) - il simbolo "+" a fianco dei giocatori era poco visibile, sostituito con un pulsante circolare pieno coerente con lo stile dell app. Corretta anche la silhouette di default mancante quando il giocatore non ha una foto.',
+      'Modalita Live: nuovo indicatore "torna alla partita" - visibile su qualsiasi schermata mentre una partita Live e in corso (richiesto da Alby: come si rientra dopo essere usciti a fare altro nell app?). Si puo navigare liberamente (Stats, Partite, ecc.) e la partita continua a girare in sottofondo, con un modo chiaro per tornarci.',
+      'Fix architetturale importante trovato durante lo sviluppo: le variabili di squadra/statistiche usate dal Live sono le stesse condivise da tutte le altre modalita - se si apriva unaltra partita altrove nell app mentre si era usciti dal Live, quei dati sarebbero stati sovrascritti. Ora il rientro nella partita ricostruisce sempre tutto da capo da IndexedDB, mai fidandosi di quello che e rimasto in memoria.',
+    ]},{version:'v1.888',date:'2026-08-20',items:[
+      'Modalita Live: aggiunta etichetta "BETA" ben visibile nella schermata di scelta modalita, per far capire che e ancora in fase di rilascio (richiesta di Alby dopo aver confermato che la Fase 1 funziona).',
+      'Modalita Live - Fase 2: Portiere Dichiarato e Uomo Partita, entrambi modificabili in qualsiasi momento durante la partita (non solo alla fine). Aggiunto anche il voto dinamico: ogni giocatore ha ora uno stepper +/-0.5 per aggiustare il voto dal vivo mentre si segue la partita.',
+      'Fix critico trovato durante lo sviluppo: voto/portiere/Uomo Partita non sopravvivevano al recupero da crash - un oggetto annidato veniva copiato per riferimento invece che spacchettato, causando un fallimento silenzioso nel salvataggio (stesso tipo di bug gia visto altrove in questa sessione). Corretto e verificato: ora tutto lo stato della partita live sopravvive a un crash simulato, non solo gli eventi.',
+      'Fix critico trovato durante la verifica visiva: una funzione richiamata nel template iniziava con underscore, causando schermo nero (stesso identico bug gia risolto altrove in questa sessione per un motivo diverso). Rinominata.',
+    ]},{version:'v1.887',date:'2026-08-20',items:[
       'Modalita Live: aggiunta la scelta tra "Tempo Unico" e "Due Tempi" (segnalato da Alby dopo aver provato la Fase 1: non tutte le partite amatoriali hanno un vero intervallo). Scelta esplicita richiesta prima di avviare il cronometro, nessun default silenzioso. Con Tempo Unico si passa direttamente da "in corso" a "Fine Partita", senza mai passare per lintervallo/secondo tempo.',
     ]},{version:'v1.886',date:'2026-08-20',items:[
       'Nuovo: modalita "Live" (Fase 1 di 3, progettata insieme ad Alby) - quarta opzione accanto a Uno alla Volta/Tutti Insieme/Vota con gli amici, per seguire la partita dal campo in tempo reale. Timer a cronometro con avvio/pausa/ripristino e due tempi, registrazione eventi per ogni giocatore (gol, assist, autogol, rigore segnato/sbagliato/parato) con possibilita di annullare un errore, e soprattutto salvataggio automatico continuo su ogni azione (protegge da crash/batteria scarica/chiusura accidentale) con recupero automatico della partita interrotta al riavvio dell app. Il timer usa orari assoluti, non un semplice contatore - se il telefono si blocca il cronometro riflette il tempo reale trascorso anche durante linterruzione, non resta fermo. Nelle prossime fasi: voto dinamico, portiere dichiarato e Uomo Partita durante la partita (Fase 2), cambi per infortunio e riepilogo finale modificabile con salvataggio definitivo (Fase 3) - per ora i dati restano solo nella schermata Live, non ancora nelle statistiche del gruppo.',
@@ -10469,7 +10545,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.887');
+    const appVersion = ref('1.889');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12868,7 +12944,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
       if (!liveMatchState.value) return;
       liveMatchState.value.updatedAt = Date.now();
       try {
-        await db.liveMatches.put({ ...liveMatchState.value, eventi: liveMatchState.value.eventi.map(e => ({...e})) });
+        // Bug trovato 20/8/2026 (Fase 2, voto/portiere/Uomo Partita non superstiti al crash test):
+        // uno spread superficiale copia "voti" (oggetto annidato) per riferimento — Vue lo avvolge
+        // automaticamente in un Proxy reattivo quando assegnato a un genitore reattivo (vedi
+        // liveSyncExtraState), e Dexie fallisce silenziosamente nel salvarlo. Stesso identico
+        // problema già risolto altrove in questa sessione per "eventi" — ora spacchetto
+        // esplicitamente anche "voti".
+        await db.liveMatches.put({
+          ...liveMatchState.value,
+          eventi: liveMatchState.value.eventi.map(e => ({...e})),
+          voti: { ...liveMatchState.value.voti },
+        });
       } catch(e) {
         logEvent('warn', 'app', '🔴 Live: salvataggio locale non riuscito — ' + e.message);
       }
@@ -12897,6 +12983,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
         elapsedHalf2: 0,
         runningSince: null,
         eventi: [],
+        // Fase 2 (20/8/2026): voto/portiere/Uomo Partita non sono "eventi" della timeline (non
+        // hanno un orario, sono stato continuo modificabile in ogni momento) — vanno quindi
+        // salvati qui separatamente, altrimenti andrebbero persi in caso di crash (il recupero
+        // ricostruisce playerStats/matchGoalA/B SOLO dagli eventi, che non li includono).
+        voti: {}, // { playerId: voto }
+        portiereA: '', portiereB: '', // stessa codifica di matchPortiereDichiarato: ''|'__turno__'|playerId
+        uomoPartitaUid: '',
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -12968,6 +13061,32 @@ Rispondi SOLO con questo JSON (niente altro testo):
       liveMatchState.value.status = 'running';
       liveMatchState.value.runningSince = Date.now();
       _saveLiveMatchState();
+    };
+
+    // Fase 2 (20/8/2026): copia lo stato "continuo" (voto/portiere/Uomo Partita — non sono eventi
+    // della timeline, ma vanno comunque protetti dal crash) dentro liveMatchState e salva subito.
+    const liveSyncExtraState = () => {
+      const s = liveMatchState.value;
+      if (!s) return;
+      const voti = {};
+      [...teamA.value, ...teamB.value].forEach(pid => { if (playerStats.value[pid]?.voto != null) voti[pid] = playerStats.value[pid].voto; });
+      s.voti = voti;
+      s.portiereA = matchPortiereDichiarato.value.A;
+      s.portiereB = matchPortiereDichiarato.value.B;
+      s.uomoPartitaUid = computedUomoPartita.value || '';
+      _saveLiveMatchState();
+    };
+    // Regolazione voto dal vivo, ±0.5 con limiti 1-10 — stessa scala già usata altrove nell'app.
+    const liveAdjustVoto = (pid, delta) => {
+      ensureStats(pid);
+      const attuale = playerStats.value[pid].voto ?? 6;
+      playerStats.value[pid].voto = Math.max(1, Math.min(10, +(attuale + delta).toFixed(1)));
+      liveSyncExtraState();
+    };
+    const liveSetUomoPartita = (pid) => {
+      if (!pid) return;
+      setUomoPartita(pid);
+      liveSyncExtraState();
     };
 
     const liveOpenEventPicker = (pid) => { liveEventPickerFor.value = pid; };
@@ -13052,14 +13171,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
     };
     const liveRecoverableMatch = ref(null);
 
-    const liveResumeRecovered = async () => {
-      const rec = liveRecoverableMatch.value;
-      if (!rec) return;
+    // Ricostruisce teamA/teamB/playerStats/matchGoalA/B/portiere/Uomo Partita da un record
+    // liveMatches — SEMPRE da capo, mai fidandosi di quello che è rimasto nelle variabili
+    // condivise (teamA/playerStats/matchGoalA/B sono LE STESSE usate da tutte le altre modalità:
+    // se nel frattempo l'utente ha aperto un'altra partita altrove nell'app, quelle variabili
+    // sarebbero sovrascritte con dati di tutt'altro). Usata sia dal recupero da crash sia dal
+    // semplice rientro nella partita dopo essere usciti a fare altro (20/8/2026, richiesta di
+    // Alby — "come si fa a rientrare nella partita?").
+    const liveRebuildMatchStateFrom = async (rec) => {
       const f = groupFormations.value.find(x => x.id === rec.formationId) || await db.formations.get(rec.formationId);
-      if (!f) { toast('⚠️ Formazione originale non trovata, impossibile riprendere', 'error'); return; }
+      if (!f) { toast('⚠️ Formazione originale non trovata, impossibile riprendere', 'error'); return false; }
       _initMatchData(f);
-      // Ricostruisco playerStats/matchGoalA/B dagli eventi già registrati (la sessione precedente
-      // potrebbe essersi interrotta senza un salvataggio finale coerente in memoria).
       rec.eventi.forEach(ev => {
         ensureStats(ev.playerId);
         const st = playerStats.value[ev.playerId];
@@ -13070,7 +13192,30 @@ Rispondi SOLO con questo JSON (niente altro testo):
         else if (ev.tipo === 'rigore_sbagliato') { st.rigoriSbagliati=(st.rigoriSbagliati||0)+1; }
         else if (ev.tipo === 'rigore_parato') { st.rigoriParati=(st.rigoriParati||0)+1; }
       });
+      Object.entries(rec.voti || {}).forEach(([pid, voto]) => { ensureStats(pid); playerStats.value[pid].voto = voto; });
+      if (rec.portiereA) matchPortiereDichiarato.value.A = rec.portiereA;
+      if (rec.portiereB) matchPortiereDichiarato.value.B = rec.portiereB;
+      if (rec.uomoPartitaUid) setUomoPartita(rec.uomoPartitaUid);
       liveMatchState.value = rec;
+      return true;
+    };
+
+    // Rientro nella partita Live dopo essere usciti a fare altro nell'app (NON un crash — lo
+    // stato è ancora nella tabella liveMatches, semplicemente potrebbe non essere più affidabile
+    // nelle variabili condivise). Rilegge sempre da IndexedDB, mai dalla sola memoria.
+    const liveReturnToMatch = async () => {
+      if (!liveMatchState.value?.id) { currentView.value = 'livematch'; return; }
+      const rec = await db.liveMatches.get(liveMatchState.value.id);
+      if (!rec) { currentView.value = 'livematch'; return; }
+      const ok = await liveRebuildMatchStateFrom(rec);
+      if (ok) currentView.value = 'livematch';
+    };
+
+    const liveResumeRecovered = async () => {
+      const rec = liveRecoverableMatch.value;
+      if (!rec) return;
+      const ok = await liveRebuildMatchStateFrom(rec);
+      if (!ok) return;
       liveRecoverableMatch.value = null;
       currentView.value = 'livematch';
       _liveTickInterval = setInterval(() => { liveTimerTick.value++; }, 1000);
@@ -25567,7 +25712,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, matchUomoPartitaVotato, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
-      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveEndMatchPhase1, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempoAndStart,
+      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveEndMatchPhase1, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempoAndStart, liveAdjustVoto, liveSetUomoPartita, liveSyncExtraState, liveReturnToMatch,
       matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
