@@ -4133,7 +4133,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <!-- Timer e punteggio -->
         <div class="card" style="text-align:center;background:linear-gradient(145deg,#1a0d0d,#2a1414 60%,#3a1a1a);border-color:rgba(248,113,113,.3)">
           <div style="font-size:0.72rem;color:#f87171;font-weight:800;letter-spacing:1px;margin-bottom:6px">
-            🔴 LIVE — {{ liveMatchState.status==='halftime' ? 'INTERVALLO' : (liveMatchState.currentHalf===1?'1° TEMPO':'2° TEMPO') }}
+            🔴 LIVE —
+            <template v-if="!liveMatchState.modalitaTempo">PRONTO</template>
+            <template v-else-if="liveMatchState.modalitaTempo==='tempo_unico'">IN CORSO</template>
+            <template v-else>{{ liveMatchState.status==='halftime' ? 'INTERVALLO' : (liveMatchState.currentHalf===1?'1° TEMPO':'2° TEMPO') }}</template>
           </div>
           <div style="font-size:2.8rem;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;line-height:1">{{ liveFormattedTime }}</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:10px 0 14px;font-size:1.4rem;font-weight:800">
@@ -4141,19 +4144,29 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <span style="font-size:1.8rem">{{ matchGoalA }} - {{ matchGoalB }}</span>
             <span style="color:#FF8C00">{{ activeFormation?.nomeSquadraB||'Squadra B' }}</span>
           </div>
-          <!-- Controlli timer, contestuali allo stato -->
-          <div style="display:flex;gap:8px;justify-content:center">
-            <button v-if="liveMatchState.status==='not_started'" class="btn btn-primary" @click="liveTimerStart">▶️ Avvia 1° Tempo</button>
+          <!-- Scelta iniziale Tempo Unico / Due Tempi (20/8/2026, richiesta di Alby) — una sola
+               volta, prima di avviare il cronometro. Nessun default silenzioso. -->
+          <div v-if="liveMatchState.status==='not_started' && !liveMatchState.modalitaTempo" style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:2px">Come si gioca oggi?</div>
+            <div style="display:flex;gap:8px;justify-content:center">
+              <button class="btn btn-primary" @click="liveChooseModalitaTempoAndStart('tempo_unico')">▶️ Tempo Unico</button>
+              <button class="btn btn-primary" @click="liveChooseModalitaTempoAndStart('due_tempi')">▶️ Due Tempi</button>
+            </div>
+          </div>
+          <!-- Controlli timer, contestuali allo stato (dopo aver scelto la modalità tempo) -->
+          <div v-else style="display:flex;gap:8px;justify-content:center">
             <template v-if="liveMatchState.status==='running'">
               <button class="btn btn-ghost" @click="liveTimerPause">⏸️ Pausa</button>
-              <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)" @click="liveMatchState.currentHalf===1?liveEndHalf():liveEndMatchPhase1()">
-                🏁 {{ liveMatchState.currentHalf===1 ? 'Fine 1° Tempo' : 'Fine Partita' }}
+              <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)"
+                @click="liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2 ? liveEndMatchPhase1() : liveEndHalf()">
+                🏁 {{ (liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2) ? 'Fine Partita' : 'Fine 1° Tempo' }}
               </button>
             </template>
             <template v-if="liveMatchState.status==='paused'">
               <button class="btn btn-primary" @click="liveTimerStart">▶️ Riprendi</button>
-              <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)" @click="liveMatchState.currentHalf===1?liveEndHalf():liveEndMatchPhase1()">
-                🏁 {{ liveMatchState.currentHalf===1 ? 'Fine 1° Tempo' : 'Fine Partita' }}
+              <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)"
+                @click="liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2 ? liveEndMatchPhase1() : liveEndHalf()">
+                🏁 {{ (liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2) ? 'Fine Partita' : 'Fine 1° Tempo' }}
               </button>
             </template>
             <button v-if="liveMatchState.status==='halftime'" class="btn btn-primary" @click="liveStartHalf2">▶️ Inizia 2° Tempo</button>
@@ -9141,7 +9154,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.886',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.887',date:'2026-08-20',items:[
+      'Modalita Live: aggiunta la scelta tra "Tempo Unico" e "Due Tempi" (segnalato da Alby dopo aver provato la Fase 1: non tutte le partite amatoriali hanno un vero intervallo). Scelta esplicita richiesta prima di avviare il cronometro, nessun default silenzioso. Con Tempo Unico si passa direttamente da "in corso" a "Fine Partita", senza mai passare per lintervallo/secondo tempo.',
+    ]},{version:'v1.886',date:'2026-08-20',items:[
       'Nuovo: modalita "Live" (Fase 1 di 3, progettata insieme ad Alby) - quarta opzione accanto a Uno alla Volta/Tutti Insieme/Vota con gli amici, per seguire la partita dal campo in tempo reale. Timer a cronometro con avvio/pausa/ripristino e due tempi, registrazione eventi per ogni giocatore (gol, assist, autogol, rigore segnato/sbagliato/parato) con possibilita di annullare un errore, e soprattutto salvataggio automatico continuo su ogni azione (protegge da crash/batteria scarica/chiusura accidentale) con recupero automatico della partita interrotta al riavvio dell app. Il timer usa orari assoluti, non un semplice contatore - se il telefono si blocca il cronometro riflette il tempo reale trascorso anche durante linterruzione, non resta fermo. Nelle prossime fasi: voto dinamico, portiere dichiarato e Uomo Partita durante la partita (Fase 2), cambi per infortunio e riepilogo finale modificabile con salvataggio definitivo (Fase 3) - per ora i dati restano solo nella schermata Live, non ancora nelle statistiche del gruppo.',
     ]},{version:'v1.885',date:'2026-08-20',items:[
       'Fix Card Tutorial, corretto dopo precisazione di Alby: il fix precedente usava un controllo statico ("esiste gia una partita?") che ridisattivava il tutorial quasi subito anche dopo averlo riattivato apposta a mano, senza dare il tempo di vederlo. Ora e un rilevamento a evento: si disattiva solo quando arriva una partita NUOVA rispetto allultima volta che questo dispositivo lha controllata (salvata qui o arrivata via sync, indifferente) - se lo si riattiva mentre ci sono gia partite, resta acceso finche non ne arriva davvero una in piu.',
@@ -10454,7 +10469,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.886');
+    const appVersion = ref('1.887');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12870,6 +12885,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
         formationId: f.id,
         matchUUID: uuid(), // pre-generato: diventerà l'id definitivo della partita in Fase 3
         status: 'not_started',
+        // Tempo Unico vs Due Tempi (20/8/2026, segnalato da Alby dopo aver provato la Fase 1: non
+        // tutte le partite amatoriali hanno un vero intervallo, spesso si gioca un tempo solo senza
+        // pausa). Scelta esplicita richiesta prima di avviare — null finché non si sceglie, niente
+        // default silenzioso (stesso principio già usato per il Portiere Dichiarato). Con
+        // 'tempo_unico' il concetto di "secondo tempo"/intervallo semplicemente non esiste: si passa
+        // direttamente da "in corso" a "Fine Partita", currentHalf resta sempre 1.
+        modalitaTempo: null, // null | 'tempo_unico' | 'due_tempi'
         currentHalf: 1,
         elapsedHalf1: 0,
         elapsedHalf2: 0,
@@ -12883,6 +12905,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
       currentView.value = 'livematch';
       _liveTickInterval = setInterval(() => { liveTimerTick.value++; }, 1000);
       _liveAutosaveInterval = setInterval(() => { if (liveMatchState.value?.status === 'running') _saveLiveMatchState(); }, 20000);
+    };
+
+    // Scelta esplicita della modalità tempo, fatta una sola volta prima di avviare il cronometro.
+    const liveChooseModalitaTempoAndStart = (modalita) => {
+      if (!liveMatchState.value) return;
+      liveMatchState.value.modalitaTempo = modalita;
+      liveTimerStart();
     };
 
     // Secondi trascorsi nel tempo CORRENTE (non totali) — somma l'accumulato (congelato quando in
@@ -25538,7 +25567,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, matchUomoPartitaVotato, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
-      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveEndMatchPhase1, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered,
+      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveEndMatchPhase1, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempoAndStart,
       matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
