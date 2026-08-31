@@ -4165,14 +4165,14 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <template v-if="liveMatchState.status==='running'">
               <button class="btn btn-ghost" @click="liveTimerPause">⏸️ Pausa</button>
               <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)"
-                @click="liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2 ? liveEndMatchPhase1() : liveEndHalf()">
+                @click="liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2 ? liveFinishAndReview() : liveEndHalf()">
                 🏁 {{ (liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2) ? 'Fine Partita' : 'Fine 1° Tempo' }}
               </button>
             </template>
             <template v-if="liveMatchState.status==='paused'">
               <button class="btn btn-primary" @click="liveTimerStart">▶️ Riprendi</button>
               <button class="btn btn-ghost" style="color:#f87171;border-color:rgba(248,113,113,.4)"
-                @click="liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2 ? liveEndMatchPhase1() : liveEndHalf()">
+                @click="liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2 ? liveFinishAndReview() : liveEndHalf()">
                 🏁 {{ (liveMatchState.modalitaTempo==='tempo_unico' || liveMatchState.currentHalf===2) ? 'Fine Partita' : 'Fine 1° Tempo' }}
               </button>
             </template>
@@ -4212,6 +4212,13 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <option v-for="pid in [...teamA, ...teamB]" :key="'liveUP-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
           </select>
         </div>
+
+        <!-- Sostituzioni per infortunio (Fase 3, 20/8/2026) — stesso pulsante/modal già usato
+             dalle altre modalità, nessuna interfaccia nuova. -->
+        <button class="btn btn-ghost btn-sm btn-full" style="border-color:rgba(255,140,0,0.4);color:#FF8C00"
+          @click="openSostituzioneModal">
+          🩹 Sostituzioni per infortunio{{ matchSostituzioni.length ? ' ('+matchSostituzioni.length+')' : '' }}
+        </button>
 
         <!-- Griglia giocatori: tocca un giocatore per registrare un evento -->
         <div style="display:flex;flex-direction:column;gap:10px">
@@ -4288,31 +4295,6 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </template>
 
     <!-- Riepilogo di sola lettura fine Fase 1 — il salvataggio definitivo arriva in Fase 3 -->
-    <template v-if="currentView === 'liverecap' && liveMatchState">
-      <div class="card-title">🔴 Riepilogo Live</div>
-      <div class="card" style="text-align:center;margin-bottom:14px">
-        <div style="font-size:1.6rem;font-weight:800">{{ matchGoalA }} - {{ matchGoalB }}</div>
-        <div style="font-size:0.8rem;color:var(--text2)">{{ activeFormation?.nomeSquadraA }} vs {{ activeFormation?.nomeSquadraB }}</div>
-        <div style="font-size:0.72rem;color:var(--text2);margin-top:6px">Durata: 1° tempo {{ Math.floor((liveMatchState.elapsedHalf1||0)/60) }}' — 2° tempo {{ Math.floor((liveMatchState.elapsedHalf2||0)/60) }}'</div>
-      </div>
-      <div class="card" style="border-color:rgba(251,191,36,.3);background:rgba(251,191,36,.05);margin-bottom:14px">
-        <div style="font-size:0.8rem;color:var(--text2);line-height:1.6">
-          ⚠️ Questa è la Fase 1 della modalità Live — timer ed eventi funzionano, ma il salvataggio definitivo (con riepilogo modificabile, voti e Uomo Partita) arriva nella prossima fase. Per ora i dati restano solo qui, non ancora nelle statistiche del gruppo.
-        </div>
-      </div>
-      <div v-if="liveMatchState.eventi.length" class="card">
-        <div class="card-title" style="font-size:0.85rem;margin-bottom:8px">📋 Eventi registrati</div>
-        <div style="display:flex;flex-direction:column;gap:6px">
-          <div v-for="ev in liveMatchState.eventi" :key="ev.id" style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:var(--bg3);font-size:0.78rem">
-            <span style="color:var(--text2);width:32px;flex-shrink:0">{{ ev.minuto }}'</span>
-            <span>{{ {gol:'⚽',assist:'🅰️',autogol:'🙈',rigore_segnato:'🎯',rigore_sbagliato:'❌',rigore_parato:'🧤'}[ev.tipo] }}</span>
-            <span>{{ getPlayer(ev.playerId)?.soprannome || getPlayer(ev.playerId)?.nome }}</span>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-ghost btn-full" style="margin-top:14px" @click="currentView='home'">← Torna alla Home</button>
-    </template>
-
     <template v-if="currentView === 'newmatch'">
       <div class="card-title">⚽ Registra Partita
         <span class="badge badge-blue">Step {{ matchStep }}/2</span>
@@ -6827,7 +6809,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
        può uscire a fare altro nell'app (Stats, Partite, ecc.) e la partita continua a girare in
        sottofondo (il timer usa timestamp assoluti, non un contatore legato alla schermata) — ma
        serve un modo per tornarci. Stile "mini player", sopra la barra di navigazione. ── -->
-  <div v-if="liveMatchState && liveMatchState.status !== 'finished_phase1' && currentView !== 'livematch'"
+  <div v-if="liveMatchState && liveMatchState.status !== 'finished_phase1' && liveMatchState.status !== 'reviewing' && currentView !== 'livematch'"
     @click="liveReturnToMatch"
     style="position:fixed;left:0;right:0;bottom:var(--nav-h);z-index:95;background:linear-gradient(90deg,#2a1414,#3a1a1a);border-top:1px solid rgba(248,113,113,.4);padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer">
     <span style="font-size:1.1rem">🔴</span>
@@ -9221,7 +9203,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.889',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.890',date:'2026-08-20',items:[
+      'Modalita Live - Fase 3 COMPLETATA: cambi per infortunio (stesso pulsante/modal gia usato altrove nell app), riepilogo finale modificabile (invece di una schermata nuova, la fine partita porta alla schermata "Tutti Insieme" gia esistente e gia completamente modificabile - voti, gol, portiere, Uomo Partita, tutto), e il salvataggio definitivo vero e proprio nelle statistiche del gruppo. La partita salvata include ora anche la cronaca dettagliata con orario di ogni evento (gol, assist, ecc.), utile anche per un futuro minutaggio manuale.',
+      'Fix critico trovato testando la Fase 3 con una sostituzione reale: un bug PREESISTENTE (non introdotto oggi) nel salvataggio partita - le sostituzioni per infortunio venivano copiate per riferimento invece che per valore, causando un DataCloneError al salvataggio quando era presente una sostituzione vera. Probabilmente mai esercitato prima con questo caso specifico. Corretto - riguarda tutte le modalita, non solo Live.',
+      'Fix: il recupero da crash non copriva la fase di revisione (dopo Fine Partita ma prima del salvataggio definitivo) - un crash in quella finestra avrebbe reso la partita irrecuperabile. Corretto, ora riporta direttamente alla schermata di revisione con tutti i dati intatti.',
+    ]},{version:'v1.889',date:'2026-08-20',items:[
       'Modalita Live: fix contrasto (segnalato da Alby) - il simbolo "+" a fianco dei giocatori era poco visibile, sostituito con un pulsante circolare pieno coerente con lo stile dell app. Corretta anche la silhouette di default mancante quando il giocatore non ha una foto.',
       'Modalita Live: nuovo indicatore "torna alla partita" - visibile su qualsiasi schermata mentre una partita Live e in corso (richiesto da Alby: come si rientra dopo essere usciti a fare altro nell app?). Si puo navigare liberamente (Stats, Partite, ecc.) e la partita continua a girare in sottofondo, con un modo chiaro per tornarci.',
       'Fix architetturale importante trovato durante lo sviluppo: le variabili di squadra/statistiche usate dal Live sono le stesse condivise da tutte le altre modalita - se si apriva unaltra partita altrove nell app mentre si era usciti dal Live, quei dati sarebbero stati sovrascritti. Ora il rientro nella partita ricostruisce sempre tutto da capo da IndexedDB, mai fidandosi di quello che e rimasto in memoria.',
@@ -10545,7 +10531,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.889');
+    const appVersion = ref('1.890');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12882,6 +12868,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       matchSostituzioni.value.push({ squadra: f.squadra, infortunatoUid: f.infortunatoUid, sostitutoUid: f.sostitutoUid });
       toast(`🩹 ${getPlayer(f.sostitutoUid)?.soprannome || getPlayer(f.sostitutoUid)?.nome} aggiunto come sostituto`, 'success');
       showSostituzioneModal.value = false;
+      liveSyncExtraState(); // Fase 3: se in modalità Live, protegge la sostituzione dal crash — no-op altrimenti
     };
 
     // Toglie una sostituzione già registrata — rimuove anche il sostituto dalla squadra, dato che
@@ -12896,6 +12883,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         stepByStepPlayers.value = stepByStepPlayers.value.filter(id => id !== s.sostitutoUid);
       }
       matchSostituzioni.value.splice(idx, 1);
+      liveSyncExtraState(); // Fase 3: aggiorna il salvataggio anti-crash — no-op se non in Live
     };
 
     const startVoteWithFriendsMode = () => {
@@ -12954,6 +12942,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           ...liveMatchState.value,
           eventi: liveMatchState.value.eventi.map(e => ({...e})),
           voti: { ...liveMatchState.value.voti },
+          sostituzioni: (liveMatchState.value.sostituzioni||[]).map(x => ({...x})),
         });
       } catch(e) {
         logEvent('warn', 'app', '🔴 Live: salvataggio locale non riuscito — ' + e.message);
@@ -12990,6 +12979,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         voti: {}, // { playerId: voto }
         portiereA: '', portiereB: '', // stessa codifica di matchPortiereDichiarato: ''|'__turno__'|playerId
         uomoPartitaUid: '',
+        sostituzioni: [], // Fase 3 (20/8/2026): cambi per infortunio, stesso formato di matchSostituzioni
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };
@@ -13074,6 +13064,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       s.portiereA = matchPortiereDichiarato.value.A;
       s.portiereB = matchPortiereDichiarato.value.B;
       s.uomoPartitaUid = computedUomoPartita.value || '';
+      s.sostituzioni = matchSostituzioni.value.map(x => ({...x})); // Fase 3: cambi per infortunio
       _saveLiveMatchState();
     };
     // Regolazione voto dal vivo, ±0.5 con limiti 1-10 — stessa scala già usata altrove nell'app.
@@ -13149,14 +13140,26 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // Fine Fase 1: ferma tutto e mostra un riepilogo di sola lettura di quanto tracciato. Il
     // salvataggio definitivo in "matches" (con riepilogo MODIFICABILE, voti, Uomo Partita ecc.)
     // arriva in Fase 3, come concordato con Alby — qui NON si scrive ancora su db.matches.
-    const liveEndMatchPhase1 = () => {
+    // Fase 3 (20/8/2026): invece di un riepilogo di sola lettura, porta alla schermata "newmatch"
+    // già esistente — la stessa di "Tutti Insieme", già completamente modificabile (voti, gol,
+    // assist, portiere, Uomo Partita, tutto) e già collegata al bottone "Salva" che chiama
+    // saveMatch() così com'è. Non serve costruire un riepilogo nuovo: teamA/teamB/playerStats
+    // sono già popolati correttamente dagli eventi live. liveMatchState resta attivo (stato
+    // 'reviewing') finché non si salva davvero — così anche la fase di revisione è protetta dal
+    // crash, e l'ammnistratore può ancora tornare indietro se necessario.
+    const liveFinishAndReview = () => {
       if (liveMatchState.value?.runningSince) liveTimerPause();
       if (liveMatchState.value) {
-        liveMatchState.value.status = 'finished_phase1';
+        liveMatchState.value.status = 'reviewing';
         _saveLiveMatchState();
       }
       _liveClearIntervals();
-      currentView.value = 'liverecap';
+      stepByStepDone.value = false;
+      stepByStepIdx.value = 0;
+      stepByStepPlayers.value = [];
+      matchIsVoteMode.value = false;
+      matchUomoPartitaVotato.value = false;
+      currentView.value = 'newmatch';
     };
 
     // Recupero da crash: un liveMatches con stato ancora "in corso" (non finito) trovato al
@@ -13165,7 +13168,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       if (!currentGroup.value) return;
       const pending = await db.liveMatches
         .where('groupId').equals(currentGroup.value.id)
-        .and(r => ['not_started','running','paused','halftime'].includes(r.status))
+        .and(r => ['not_started','running','paused','halftime','reviewing'].includes(r.status))
         .toArray();
       liveRecoverableMatch.value = pending.length ? pending.sort((a,b)=>b.updatedAt-a.updatedAt)[0] : null;
     };
@@ -13182,6 +13185,15 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const f = groupFormations.value.find(x => x.id === rec.formationId) || await db.formations.get(rec.formationId);
       if (!f) { toast('⚠️ Formazione originale non trovata, impossibile riprendere', 'error'); return false; }
       _initMatchData(f);
+      // Fase 3 (20/8/2026): ripristino i cambi per infortunio PRIMA di processare gli eventi — un
+      // evento potrebbe riguardare un giocatore entrato solo grazie a una sostituzione, che deve
+      // già risultare in squadra quando gli eventi lo cercano.
+      (rec.sostituzioni || []).forEach(s => {
+        const teamRef = s.squadra === 'A' ? teamA : teamB;
+        if (!teamRef.value.includes(s.sostitutoUid)) teamRef.value.push(s.sostitutoUid);
+        ensureStats(s.sostitutoUid);
+      });
+      matchSostituzioni.value = (rec.sostituzioni || []).map(x => ({...x}));
       rec.eventi.forEach(ev => {
         ensureStats(ev.playerId);
         const st = playerStats.value[ev.playerId];
@@ -13208,7 +13220,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const rec = await db.liveMatches.get(liveMatchState.value.id);
       if (!rec) { currentView.value = 'livematch'; return; }
       const ok = await liveRebuildMatchStateFrom(rec);
-      if (ok) currentView.value = 'livematch';
+      if (ok) currentView.value = rec.status === 'reviewing' ? 'newmatch' : 'livematch';
     };
 
     const liveResumeRecovered = async () => {
@@ -13217,10 +13229,18 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const ok = await liveRebuildMatchStateFrom(rec);
       if (!ok) return;
       liveRecoverableMatch.value = null;
-      currentView.value = 'livematch';
-      _liveTickInterval = setInterval(() => { liveTimerTick.value++; }, 1000);
-      _liveAutosaveInterval = setInterval(() => { if (liveMatchState.value?.status === 'running') _saveLiveMatchState(); }, 20000);
-      toast('🔴 Partita live ripresa', 'success');
+      if (rec.status === 'reviewing') {
+        // La partita era già finita, in attesa di conferma/modifiche prima del salvataggio
+        // definitivo — non serve riavviare il timer, si torna direttamente alla revisione.
+        matchIsVoteMode.value = false;
+        currentView.value = 'newmatch';
+        toast('🔴 Partita live ripresa — controlla i dati prima di salvare', 'success');
+      } else {
+        currentView.value = 'livematch';
+        _liveTickInterval = setInterval(() => { liveTimerTick.value++; }, 1000);
+        _liveAutosaveInterval = setInterval(() => { if (liveMatchState.value?.status === 'running') _saveLiveMatchState(); }, 20000);
+        toast('🔴 Partita live ripresa', 'success');
+      }
     };
     const liveDiscardRecovered = async () => {
       if (liveRecoverableMatch.value?.id) await db.liveMatches.delete(liveRecoverableMatch.value.id);
@@ -16974,7 +16994,13 @@ Niente altro, nessuna spiegazione.`;
         formato:    activeFormation.value?.formato || '',
         riserveA:   [...(activeFormation.value?.riserveA || [])],
         riserveB:   [...(activeFormation.value?.riserveB || [])],
-        sostituzioni: [...matchSostituzioni.value],
+        // Bug trovato 20/8/2026 (testando a fondo la Fase 3 Live con una sostituzione reale):
+        // uno spread superficiale dell'array copia ogni oggetto sostituzione per riferimento —
+        // Vue lo avvolge in un Proxy reattivo, e Dexie fallisce con DataCloneError al salvataggio.
+        // Bug preesistente in saveMatch() (non introdotto da Live), probabilmente mai esercitato
+        // prima con una sostituzione realmente presente al momento del salvataggio. Stesso
+        // identico tipo di problema già risolto più volte in questa sessione per altri campi.
+        sostituzioni: matchSostituzioni.value.map(x => ({...x})),
         // Portiere dichiarato (10/8/2026): {A,B} playerId o null (="a turno"). Il form usa
         // '__turno__' come valore del menu per forzare una scelta esplicita — qui lo traduco in
         // null per tenere il dato salvato pulito (solo playerId o null, mai la stringa sentinella).
@@ -16996,6 +17022,11 @@ Niente altro, nessuna spiegazione.`;
         mvp:         mvpName,
         uomoPartita: upName,   // nome per compatibilità display
         uomoPartitaUid: upId,  // uid per confronti cross-device
+        // Fase 3 Live (20/8/2026): cronaca dettagliata con orario di ogni evento (gol, assist,
+        // ecc.) — popolata solo se la partita viene dalla modalità Live, vuota per le altre 3
+        // modalità (che non hanno questo livello di dettaglio). Utile anche come base per un
+        // futuro minutaggio "manuale" (altro punto del backlog), oltre che come cronaca di per sé.
+        eventiPartita: liveMatchState.value ? liveMatchState.value.eventi.map(e => ({...e})) : [],
         pngFormazione: pngForm,
         pngRisultato:  pngRes,
         pngPagelle:    pngPag,
@@ -17004,6 +17035,17 @@ Niente altro, nessuna spiegazione.`;
       };
 
       await db.matches.add(match);
+
+      // Fase 3 Live (20/8/2026): partita salvata definitivamente — elimino il record di lavoro
+      // liveMatches (non serve più, i dati sono già dentro "match" salvato sopra) e azzero lo
+      // stato Live, altrimenti l'indicatore "torna alla partita" e il recupero da crash
+      // continuerebbero a proporre una partita che in realtà è già stata salvata.
+      if (liveMatchState.value) {
+        try { await db.liveMatches.delete(liveMatchState.value.id); } catch(e) {}
+        liveMatchState.value = null;
+        liveRecoverableMatch.value = null;
+        _liveClearIntervals();
+      }
 
       if (activeFormation.value?.id) {
         await db.formations.update(activeFormation.value.id, { stato: 'giocata', matchId: match.id });
@@ -25712,7 +25754,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, matchUomoPartitaVotato, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
-      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveEndMatchPhase1, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempoAndStart, liveAdjustVoto, liveSetUomoPartita, liveSyncExtraState, liveReturnToMatch,
+      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveFinishAndReview, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempoAndStart, liveAdjustVoto, liveSetUomoPartita, liveSyncExtraState, liveReturnToMatch,
       matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
