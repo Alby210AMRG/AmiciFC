@@ -2288,6 +2288,7 @@ function renderMatches(q){
             ${m.formato?`<span class="badge" style="font-size:0.62rem;background:rgba(58,123,255,.15);color:#3A7BFF">🏟️ ${m.formato}</span>`:''}
             ${(m.riserveA?.length||0)+(m.riserveB?.length||0)>0?`<span class="badge badge-yellow" style="font-size:0.62rem">🪑 ${(m.riserveA?.length||0)+(m.riserveB?.length||0)} riserva/e</span>`:''}
             ${(m.sostituzioni?.length||0)>0?`<span class="badge" style="font-size:0.62rem;background:rgba(255,140,0,.15);color:#FF8C00">🩹 ${m.sostituzioni.length} sostituzione/i</span>`:''}
+            ${m.durataLive && ((m.durataLive.secondiTempo1||0)+(m.durataLive.secondiTempo2||0))>0?`<span class="badge" style="font-size:0.62rem;background:rgba(248,113,113,.15);color:#f87171">🔴 ${Math.round(((m.durataLive.secondiTempo1||0)+(m.durataLive.secondiTempo2||0))/60)}' Live</span>`:''}
             ${(()=>{
               if(!('portiereDichiarato' in m)) return `<span class="badge" style="font-size:0.62rem;background:rgba(148,163,184,.15);color:#94a3b8">🧤 portiere non dichiarato (partita vecchia)</span>`;
               const dA = m.portiereDichiarato?.A, dB = m.portiereDichiarato?.B;
@@ -2321,6 +2322,13 @@ function renderMatches(q){
           const infOk = PLAYERS.some(p=>p.uid===s.infortunatoUid||String(p.id)===String(s.infortunatoUid));
           const sosOk = PLAYERS.some(p=>p.uid===s.sostitutoUid||String(p.id)===String(s.sostitutoUid));
           return `<div style="color:var(--text2);padding:1px 0">${s.squadra==='A'?'🔵':'🔴'} ${getPlayerName(s.infortunatoUid)}${infOk?'':' <span class=\"badge badge-red\" style=\"font-size:0.6rem\">uid non trovato</span>'} ➜ ${getPlayerName(s.sostitutoUid)}${sosOk?'':' <span class=\"badge badge-red\" style=\"font-size:0.6rem\">uid non trovato</span>'}</div>`;
+        }).join('')}
+      </div>`:''}
+      ${(m.eventiPartita?.length||0)>0?`<div style="margin-top:8px;padding:8px 10px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.2);border-radius:8px;font-size:0.72rem">
+        <div style="color:#f87171;font-weight:700;margin-bottom:4px">🔴 Cronologia eventi (Live)</div>
+        ${[...m.eventiPartita].sort((a,b)=>a.minuto-b.minuto).map(ev=>{
+          const icona = {gol:'⚽',assist:'🅰️',autogol:'🙈',rigore_segnato:'🎯',rigore_sbagliato:'❌',rigore_parato:'🧤'}[ev.tipo]||'•';
+          return `<div style="color:var(--text2);padding:1px 0">${ev.minuto}' ${icona} ${getPlayerName(ev.playerId)}</div>`;
         }).join('')}
       </div>`:''}
       ${m.commentoAI?`<div style="margin-top:8px;padding:8px 10px;background:rgba(166,255,77,.06);border:1px solid rgba(166,255,77,.15);border-radius:8px;font-size:0.72rem;color:var(--text2);font-style:italic;line-height:1.5">

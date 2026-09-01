@@ -1898,19 +1898,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
           <span style="font-size:1.4rem">🔴</span>
           <div style="flex:1">
-            <div style="display:flex;align-items:center;gap:8px">
-              <div style="font-weight:800;font-size:0.95rem;color:#f87171">Live</div>
-              <!-- Etichetta "in fase di rilascio" (20/8/2026, richiesta di Alby) — Fase 1 di 3,
-                   niente ancora nel salvataggio definitivo delle partite, va reso ben visibile
-                   finché non è completa. -->
-              <span style="font-size:0.62rem;font-weight:800;color:#000;background:var(--yellow);padding:2px 7px;border-radius:6px;letter-spacing:0.3px">🚧 BETA</span>
-            </div>
+            <div style="font-weight:800;font-size:0.95rem;color:#f87171">Live</div>
             <div style="font-size:0.72rem;color:var(--text2)">Diretta</div>
           </div>
         </div>
         <div style="font-size:0.75rem;color:var(--text2);line-height:1.5">
-          Segui la partita dal campo: timer, eventi in tempo reale, Tempo Unico o Due Tempi. Il risultato si costruisce da solo mentre gioca.
-          <span style="color:var(--yellow)">Ancora in sviluppo: per ora i dati non finiscono nelle statistiche del gruppo.</span>
+          Segui la partita dal campo: timer, eventi in tempo reale, Tempo Unico o Due Tempi. Scegli anche chi darà i voti a fine partita — tu, oppure i partecipanti con "Vota con gli amici".
         </div>
       </div>
       <button class="btn btn-ghost btn-full" style="margin-top:12px" @click="showModeChoice=false">Annulla</button>
@@ -1928,6 +1921,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div style="display:flex;flex-direction:column;gap:10px">
         <button class="btn btn-primary btn-full" @click="liveResumeRecovered">▶️ Riprendi la partita</button>
         <button class="btn btn-ghost btn-full" style="color:var(--red)" @click="liveDiscardRecovered">🗑️ Scarta (elimina tutto)</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── CONFERMA ANNULLA PARTITA LIVE (20/8/2026) — richiesta di Alby: mancava un modo per
+       annullare senza uscire e rientrare nell'app aspettando il popup di recupero. ── -->
+  <div v-if="liveCancelConfirmOpen" style="position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:220;display:flex;align-items:center;justify-content:center;padding:16px" @click.self="liveCancelConfirmOpen=false">
+    <div style="background:var(--bg1);border:2px solid var(--red);border-radius:16px;width:100%;max-width:420px;padding:24px;text-align:center">
+      <div style="font-size:2rem;margin-bottom:8px">⚠️</div>
+      <div style="font-weight:800;font-size:1.05rem;margin-bottom:8px">Annullare questa partita?</div>
+      <div style="font-size:0.82rem;color:var(--text2);line-height:1.5;margin-bottom:18px">
+        Tutti gli eventi, i voti e le sostituzioni registrati finora andranno persi definitivamente. Questa azione non si può annullare.
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn btn-red btn-full" @click="liveConfirmCancelMatch">🗑️ Sì, annulla la partita</button>
+        <button class="btn btn-ghost btn-full" @click="liveCancelConfirmOpen=false">Torna indietro</button>
       </div>
     </div>
   </div>
@@ -4141,26 +4150,38 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div class="card" style="text-align:center;background:linear-gradient(145deg,#1a0d0d,#2a1414 60%,#3a1a1a);border-color:rgba(248,113,113,.3)">
           <div style="font-size:0.72rem;color:#f87171;font-weight:800;letter-spacing:1px;margin-bottom:6px">
             🔴 LIVE —
-            <template v-if="!liveMatchState.modalitaTempo">PRONTO</template>
+            <template v-if="!liveMatchState.modalitaTempo || !liveMatchState.chiVota">PRONTO</template>
             <template v-else-if="liveMatchState.modalitaTempo==='tempo_unico'">IN CORSO</template>
             <template v-else>{{ liveMatchState.status==='halftime' ? 'INTERVALLO' : (liveMatchState.currentHalf===1?'1° TEMPO':'2° TEMPO') }}</template>
           </div>
           <div style="font-size:2.8rem;font-weight:900;font-variant-numeric:tabular-nums;color:#fff;line-height:1">{{ liveFormattedTime }}</div>
           <div style="display:flex;align-items:center;justify-content:center;gap:16px;margin:10px 0 14px;font-size:1.4rem;font-weight:800">
-            <span style="color:var(--blue)">{{ activeFormation?.nomeSquadraA||'Squadra A' }}</span>
-            <span style="font-size:1.8rem">{{ matchGoalA }} - {{ matchGoalB }}</span>
-            <span style="color:#FF8C00">{{ activeFormation?.nomeSquadraB||'Squadra B' }}</span>
+            <span style="color:var(--blue);min-width:0">{{ activeFormation?.nomeSquadraA||'Squadra A' }}</span>
+            <span style="font-size:1.8rem;flex-shrink:0;white-space:nowrap">{{ matchGoalA }} - {{ matchGoalB }}</span>
+            <span style="color:#FF8C00;min-width:0">{{ activeFormation?.nomeSquadraB||'Squadra B' }}</span>
           </div>
-          <!-- Scelta iniziale Tempo Unico / Due Tempi (20/8/2026, richiesta di Alby) — una sola
-               volta, prima di avviare il cronometro. Nessun default silenzioso. -->
+          <!-- Scelta iniziale in due passaggi (20/8/2026, richiesta di Alby) — una sola volta,
+               prima di avviare il cronometro. Nessun default silenzioso. -->
+          <!-- Passo 1: Tempo Unico / Due Tempi (non avvia ancora il cronometro) -->
           <div v-if="liveMatchState.status==='not_started' && !liveMatchState.modalitaTempo" style="display:flex;flex-direction:column;gap:8px">
             <div style="font-size:0.75rem;color:var(--text2);margin-bottom:2px">Come si gioca oggi?</div>
             <div style="display:flex;gap:8px;justify-content:center">
-              <button class="btn btn-primary" @click="liveChooseModalitaTempoAndStart('tempo_unico')">▶️ Tempo Unico</button>
-              <button class="btn btn-primary" @click="liveChooseModalitaTempoAndStart('due_tempi')">▶️ Due Tempi</button>
+              <button class="btn btn-primary" @click="liveChooseModalitaTempo('tempo_unico')">Tempo Unico</button>
+              <button class="btn btn-primary" @click="liveChooseModalitaTempo('due_tempi')">Due Tempi</button>
             </div>
           </div>
-          <!-- Controlli timer, contestuali allo stato (dopo aver scelto la modalità tempo) -->
+          <!-- Passo 2: Chi dà i voti a fine partita (questo avvia il cronometro) — la scelta
+               "Vota con gli amici" nasconde voto/Uomo Partita durante il tracciamento, che
+               verranno decisi dai partecipanti a fine partita; il Portiere resta comunque
+               sempre selezionabile dal vivo in entrambi i casi. -->
+          <div v-else-if="liveMatchState.status==='not_started' && liveMatchState.modalitaTempo && !liveMatchState.chiVota" style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:0.75rem;color:var(--text2);margin-bottom:2px">Chi darà i voti a fine partita?</div>
+            <div style="display:flex;gap:8px;justify-content:center">
+              <button class="btn btn-primary" @click="liveChooseChiVotaAndStart('admin')">✋ Li do io</button>
+              <button class="btn btn-primary" @click="liveChooseChiVotaAndStart('partecipanti')">🗳️ Vota con gli amici</button>
+            </div>
+          </div>
+          <!-- Controlli timer, contestuali allo stato (dopo entrambe le scelte) -->
           <div v-else style="display:flex;gap:8px;justify-content:center">
             <template v-if="liveMatchState.status==='running'">
               <button class="btn btn-ghost" @click="liveTimerPause">⏸️ Pausa</button>
@@ -4178,6 +4199,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </template>
             <button v-if="liveMatchState.status==='halftime'" class="btn btn-primary" @click="liveStartHalf2">▶️ Inizia 2° Tempo</button>
           </div>
+          <!-- Annulla Partita (20/8/2026, richiesta di Alby: non c'era modo di annullare senza
+               uscire e rientrare nell'app aspettando il popup di recupero) — visibile appena
+               scelta almeno la modalità tempo, in qualsiasi stato successivo. -->
+          <button v-if="liveMatchState.modalitaTempo" class="btn btn-ghost btn-sm" style="margin-top:10px;color:var(--text2);font-size:0.72rem" @click="liveAskCancelMatch">
+            ✕ Annulla Partita
+          </button>
         </div>
 
         <!-- Fase 2 (20/8/2026): Portiere Dichiarato e Uomo Partita, entrambi modificabili in
@@ -4206,11 +4233,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </select>
             </div>
           </div>
-          <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">⭐ Uomo Partita (modificabile in ogni momento)</div>
-          <select class="select-field" :value="computedUomoPartita" @change="liveSetUomoPartita($event.target.value)" style="width:100%">
-            <option value="" disabled>Non ancora scelto</option>
-            <option v-for="pid in [...teamA, ...teamB]" :key="'liveUP-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
-          </select>
+          <!-- Uomo Partita: nascosto se si è scelto "Vota con gli amici" — lo decideranno i
+               partecipanti a fine partita, non ha senso sceglierlo qui (20/8/2026). -->
+          <template v-if="liveMatchState.chiVota !== 'partecipanti'">
+            <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">⭐ Uomo Partita (modificabile in ogni momento)</div>
+            <select class="select-field" :value="computedUomoPartita" @change="liveSetUomoPartita($event.target.value)" style="width:100%">
+              <option value="" disabled>Non ancora scelto</option>
+              <option v-for="pid in [...teamA, ...teamB]" :key="'liveUP-'+pid" :value="pid">{{ getPlayer(pid)?.soprannome || getPlayer(pid)?.nome }}</option>
+            </select>
+          </template>
+          <div v-else style="font-size:0.72rem;color:var(--text2);text-align:center;padding:6px 0">
+            🗳️ Voti e Uomo Partita li daranno i partecipanti a fine partita
+          </div>
         </div>
 
         <!-- Sostituzioni per infortunio (Fase 3, 20/8/2026) — stesso pulsante/modal già usato
@@ -4245,8 +4279,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   <span style="width:22px;height:22px;border-radius:50%;background:var(--lime);color:var(--dark);font-weight:800;display:flex;align-items:center;justify-content:center;font-size:0.95rem;flex-shrink:0">＋</span>
                 </div>
                 <!-- Voto dinamico (Fase 2, 20/8/2026) — tap-target separato (click.stop) dal resto
-                     della riga, così non apre per sbaglio il selettore evento. -->
-                <div @click.stop style="display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 10px 8px">
+                     della riga, così non apre per sbaglio il selettore evento. Nascosto se si è
+                     scelto "Vota con gli amici" (20/8/2026): inutile farlo toccare, verrà comunque
+                     deciso dai partecipanti a fine partita. -->
+                <div v-if="liveMatchState.chiVota !== 'partecipanti'" @click.stop style="display:flex;align-items:center;justify-content:flex-end;gap:6px;padding:0 10px 8px">
                   <span style="font-size:0.65rem;color:var(--text2)">Voto</span>
                   <button class="counter-btn" style="width:22px;height:22px" @click="liveAdjustVoto(pid, -0.5)">−</button>
                   <span style="font-size:0.82rem;font-weight:800;color:var(--yellow);min-width:26px;text-align:center">{{ (playerStats[pid]?.voto ?? 6).toFixed(1) }}</span>
@@ -7472,6 +7508,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <span v-if="detailMatch.uomoPartita" class="badge badge-yellow">🏅 {{ detailMatch.uomoPartita }}</span>
         <span v-if="detailMatch.mvp" class="badge badge-lime">⚽ {{ detailMatch.mvp }}</span>
         <span v-if="detailMatch.formato" class="badge" style="background:rgba(58,123,255,0.15);color:var(--blue)">🏟️ {{ detailMatch.formato }}</span>
+        <span v-if="detailMatch.durataLive && (detailMatch.durataLive.secondiTempo1 || detailMatch.durataLive.secondiTempo2)" class="badge" style="background:rgba(248,113,113,0.15);color:#f87171">
+          🔴 {{ Math.round(((detailMatch.durataLive.secondiTempo1||0)+(detailMatch.durataLive.secondiTempo2||0))/60) }}'
+          {{ detailMatch.durataLive.modalitaTempo==='due_tempi' ? '(2 tempi)' : '(tempo unico)' }}
+        </span>
       </div>
 
       <!-- Sostituzioni per infortunio (Modalità Sostituzioni, Consegna C — 6/8/2026) -->
@@ -7479,6 +7519,16 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="font-size:0.68rem;font-weight:700;color:#FF8C00;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🩹 Sostituzioni per infortunio</div>
         <div v-for="(s,idx) in detailMatch.sostituzioni" :key="idx" style="font-size:0.8rem;color:var(--text);padding:2px 0">
           {{ s.squadra==='A'?'🟠':'🔵' }} {{ getPlayerForDetail(s.infortunatoUid)?.soprannome||getPlayerForDetail(s.infortunatoUid)?.nome }} ➜ {{ getPlayerForDetail(s.sostitutoUid)?.soprannome||getPlayerForDetail(s.sostitutoUid)?.nome }}
+        </div>
+      </div>
+
+      <!-- Cronologia eventi (Modalità Live, 20/8/2026) — solo se presente -->
+      <div v-if="detailMatch.eventiPartita && detailMatch.eventiPartita.length" style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);border-radius:10px;padding:10px 12px;margin-bottom:12px">
+        <div style="font-size:0.68rem;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">🔴 Cronologia eventi (Live)</div>
+        <div v-for="ev in [...detailMatch.eventiPartita].sort((a,b)=>a.minuto-b.minuto)" :key="ev.id" style="display:flex;align-items:center;gap:8px;font-size:0.8rem;color:var(--text);padding:3px 0">
+          <span style="color:var(--text2);font-variant-numeric:tabular-nums;width:28px;flex-shrink:0">{{ ev.minuto }}'</span>
+          <span>{{ {gol:'⚽',assist:'🅰️',autogol:'🙈',rigore_segnato:'🎯',rigore_sbagliato:'❌',rigore_parato:'🧤'}[ev.tipo] }}</span>
+          <span>{{ getPlayerForDetail(ev.playerId)?.soprannome || getPlayerForDetail(ev.playerId)?.nome }}</span>
         </div>
       </div>
       <button v-if="!detailMatchReadonly" class="btn btn-primary btn-full" style="font-size:1rem;padding:14px;margin-bottom:12px" @click="regenerateNewspaper(detailMatch)">
@@ -9203,7 +9253,14 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.891',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.892',date:'2026-08-20',items:[
+      'Fix estetico Live (segnalato da Alby): il punteggio si spezzava su due righe quando i nomi squadra erano lunghi e andavano a capo. Corretto - il punteggio non si restringe/spezza piu.',
+      'Aggiunta cronologia eventi e durata nel dettaglio partita, sia nell app (Partite) sia in Inspector - solo per le partite giocate in Live, che sono le uniche ad avere questo dettaglio.',
+      'Nuovo: modalita "Live + Vota con gli amici" - dopo aver scelto Tempo Unico/Due Tempi, si sceglie anche chi dara i voti a fine partita: "Li do io" (come prima, tutto modificabile dal vivo) oppure "Vota con gli amici" (durante il tracciamento si vedono solo gli eventi - voto e Uomo Partita nascosti, decisi dai partecipanti con una votazione condivisa aperta automaticamente a fine partita). Il Portiere Dichiarato resta sempre modificabile dal vivo in entrambi i casi.',
+      'Nuovo pulsante "Annulla Partita" nella modalita Live (segnalato da Alby: non cera modo di annullare una partita in corso senza uscire e rientrare nell app aspettando il popup di recupero da crash) - con conferma prima di procedere.',
+      'Rimossa letichetta "Beta" e lavviso "ancora in sviluppo" dalla schermata di scelta modalita (le 3 fasi della modalita Live sono ormai complete) - descrizione aggiornata.',
+      'Aggiornato il manuale (MANUALE-AMICI-FC.md) con una sezione dedicata alla modalita Live.',
+    ]},{version:'v1.891',date:'2026-08-20',items:[
       'Modalita Live: omissione trovata da Alby (che ha chiesto "viene salvata anche la durata totale?") - la Fase 3 salvava la cronaca degli eventi ma non la durata effettiva registrata dal cronometro. Aggiunto nuovo campo durataLive sulla partita salvata (modalita tempo unico/due tempi + secondi per ciascun tempo) - il minuto dellultimo evento da solo non basta a ricostruirla con certezza.',
     ]},{version:'v1.890',date:'2026-08-20',items:[
       'Modalita Live - Fase 3 COMPLETATA: cambi per infortunio (stesso pulsante/modal gia usato altrove nell app), riepilogo finale modificabile (invece di una schermata nuova, la fine partita porta alla schermata "Tutti Insieme" gia esistente e gia completamente modificabile - voti, gol, portiere, Uomo Partita, tutto), e il salvataggio definitivo vero e proprio nelle statistiche del gruppo. La partita salvata include ora anche la cronaca dettagliata con orario di ogni evento (gol, assist, ecc.), utile anche per un futuro minutaggio manuale.',
@@ -10533,7 +10590,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.891');
+    const appVersion = ref('1.892');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12969,6 +13026,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
         // 'tempo_unico' il concetto di "secondo tempo"/intervallo semplicemente non esiste: si passa
         // direttamente da "in corso" a "Fine Partita", currentHalf resta sempre 1.
         modalitaTempo: null, // null | 'tempo_unico' | 'due_tempi'
+        // Chi darà i voti a fine partita (20/8/2026, richiesta di Alby): scelta esplicita dopo
+        // modalitaTempo, prima di avviare il cronometro. 'admin' = come sempre (voto/Uomo Partita
+        // dal vivo durante il tracciamento). 'partecipanti' = si vedono solo gli eventi durante il
+        // tracciamento — voto e Uomo Partita nascosti, decisi dai partecipanti con "Vota con gli
+        // amici" a fine partita (il Portiere resta comunque sempre scelto dal vivo, in entrambi i
+        // casi — non esiste un sistema di voto per quello).
+        chiVota: null, // null | 'admin' | 'partecipanti'
         currentHalf: 1,
         elapsedHalf1: 0,
         elapsedHalf2: 0,
@@ -12993,9 +13057,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
     };
 
     // Scelta esplicita della modalità tempo, fatta una sola volta prima di avviare il cronometro.
-    const liveChooseModalitaTempoAndStart = (modalita) => {
+    // Passo 1 delle due scelte iniziali: solo la modalità tempo, NON avvia ancora il cronometro
+    // — serve prima decidere anche chi vota (passo 2).
+    const liveChooseModalitaTempo = (modalita) => {
       if (!liveMatchState.value) return;
       liveMatchState.value.modalitaTempo = modalita;
+      _saveLiveMatchState();
+    };
+    // Passo 2: chi darà i voti a fine partita — QUESTO avvia davvero il cronometro.
+    const liveChooseChiVotaAndStart = (chiVota) => {
+      if (!liveMatchState.value) return;
+      liveMatchState.value.chiVota = chiVota;
       liveTimerStart();
     };
 
@@ -13149,8 +13221,24 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // sono già popolati correttamente dagli eventi live. liveMatchState resta attivo (stato
     // 'reviewing') finché non si salva davvero — così anche la fase di revisione è protetta dal
     // crash, e l'ammnistratore può ancora tornare indietro se necessario.
+    // Annulla Partita (20/8/2026, richiesta di Alby: non c'era modo di annullare una partita Live
+    // in corso senza uscire e rientrare nell'app aspettando il popup di recupero da crash).
+    const liveCancelConfirmOpen = ref(false);
+    const liveAskCancelMatch = () => { liveCancelConfirmOpen.value = true; };
+    const liveConfirmCancelMatch = async () => {
+      if (liveMatchState.value?.runningSince) liveTimerPause();
+      _liveClearIntervals();
+      if (liveMatchState.value?.id) { try { await db.liveMatches.delete(liveMatchState.value.id); } catch(e) {} }
+      liveMatchState.value = null;
+      liveRecoverableMatch.value = null;
+      liveCancelConfirmOpen.value = false;
+      currentView.value = 'home';
+      toast('🗑️ Partita Live annullata', 'info');
+    };
+
     const liveFinishAndReview = () => {
       if (liveMatchState.value?.runningSince) liveTimerPause();
+      const chiVota = liveMatchState.value?.chiVota;
       if (liveMatchState.value) {
         liveMatchState.value.status = 'reviewing';
         _saveLiveMatchState();
@@ -13159,8 +13247,14 @@ Rispondi SOLO con questo JSON (niente altro testo):
       stepByStepDone.value = false;
       stepByStepIdx.value = 0;
       stepByStepPlayers.value = [];
-      matchIsVoteMode.value = false;
-      matchUomoPartitaVotato.value = false;
+      // Se durante il tracciamento è stato scelto "Vota con gli amici", attivo qui lo stesso
+      // interruttore già usato dalle altre modalità — riusa integralmente il meccanismo
+      // esistente (voto azzerato al salvataggio, bottone "Salva e Apri Voto", votazione aperta
+      // in automatico) invece di costruirne uno nuovo. matchUomoPartitaVotato=true perché,
+      // scegliendo questa strada, l'Uomo Partita non è mai stato impostato dal vivo — va deciso
+      // anche lui dai partecipanti, stesso principio già in uso in "Vota con gli amici".
+      matchIsVoteMode.value = chiVota === 'partecipanti';
+      matchUomoPartitaVotato.value = chiVota === 'partecipanti';
       currentView.value = 'newmatch';
     };
 
@@ -25766,7 +25860,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
       playFormation, startClassicMode, startStepByStep, startVoteWithFriendsMode, matchIsVoteMode, matchUomoPartitaVotato, sbsNext, sbsPrev, sbsGoAI, showModeChoice, modeChoiceFormation, stepByStepIdx, stepByStepPlayers, stepByStepDone, shareFormationPNG, drawPlayerCardCanvas, sharePlayerCardPNG,
-      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveFinishAndReview, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempoAndStart, liveAdjustVoto, liveSetUomoPartita, liveSyncExtraState, liveReturnToMatch,
+      startLiveMode, liveMatchState, liveFormattedTime, liveTimerStart, liveTimerPause, liveEndHalf, liveStartHalf2, liveOpenEventPicker, liveCloseEventPicker, liveEventPickerFor, liveLogEvent, liveRemoveEvent, liveFinishAndReview, liveRecoverableMatch, liveResumeRecovered, liveDiscardRecovered, liveChooseModalitaTempo, liveChooseChiVotaAndStart, liveAdjustVoto, liveSetUomoPartita, liveSyncExtraState, liveReturnToMatch, liveCancelConfirmOpen, liveAskCancelMatch, liveConfirmCancelMatch,
       matchSostituzioni, showSostituzioneModal, sostituzioneForm, openSostituzioneModal, sostitutoOptions, addSostituzione, removeSostituzione, matchPortiereDichiarato,
       generateTeamsRandom, generateTeamsAI, generateCommentAI,
       generatePNG, downloadPNG, viewMatchPNG,
