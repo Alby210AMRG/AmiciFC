@@ -9203,7 +9203,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.890',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.891',date:'2026-08-20',items:[
+      'Modalita Live: omissione trovata da Alby (che ha chiesto "viene salvata anche la durata totale?") - la Fase 3 salvava la cronaca degli eventi ma non la durata effettiva registrata dal cronometro. Aggiunto nuovo campo durataLive sulla partita salvata (modalita tempo unico/due tempi + secondi per ciascun tempo) - il minuto dellultimo evento da solo non basta a ricostruirla con certezza.',
+    ]},{version:'v1.890',date:'2026-08-20',items:[
       'Modalita Live - Fase 3 COMPLETATA: cambi per infortunio (stesso pulsante/modal gia usato altrove nell app), riepilogo finale modificabile (invece di una schermata nuova, la fine partita porta alla schermata "Tutti Insieme" gia esistente e gia completamente modificabile - voti, gol, portiere, Uomo Partita, tutto), e il salvataggio definitivo vero e proprio nelle statistiche del gruppo. La partita salvata include ora anche la cronaca dettagliata con orario di ogni evento (gol, assist, ecc.), utile anche per un futuro minutaggio manuale.',
       'Fix critico trovato testando la Fase 3 con una sostituzione reale: un bug PREESISTENTE (non introdotto oggi) nel salvataggio partita - le sostituzioni per infortunio venivano copiate per riferimento invece che per valore, causando un DataCloneError al salvataggio quando era presente una sostituzione vera. Probabilmente mai esercitato prima con questo caso specifico. Corretto - riguarda tutte le modalita, non solo Live.',
       'Fix: il recupero da crash non copriva la fase di revisione (dopo Fine Partita ma prima del salvataggio definitivo) - un crash in quella finestra avrebbe reso la partita irrecuperabile. Corretto, ora riporta direttamente alla schermata di revisione con tutti i dati intatti.',
@@ -10531,7 +10533,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.890');
+    const appVersion = ref('1.891');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -17026,6 +17028,16 @@ Niente altro, nessuna spiegazione.`;
         // ecc.) — popolata solo se la partita viene dalla modalità Live, vuota per le altre 3
         // modalità (che non hanno questo livello di dettaglio). Utile anche come base per un
         // futuro minutaggio "manuale" (altro punto del backlog), oltre che come cronaca di per sé.
+        // Fase 3 Live — omissione trovata da Alby (20/8/2026): avevo salvato la cronaca eventi ma
+        // non la durata effettiva registrata dal cronometro. Il minuto dell'ultimo evento non
+        // basta a ricostruirla con certezza (se la partita finisce senza eventi negli ultimi
+        // minuti, sarebbe sbagliata per difetto). Salvata qui separatamente, in secondi — un
+        // oggetto vuoto {} per le altre 3 modalità, che non hanno mai avuto questo dato.
+        durataLive: liveMatchState.value ? {
+          modalitaTempo: liveMatchState.value.modalitaTempo,
+          secondiTempo1: liveMatchState.value.elapsedHalf1 || 0,
+          secondiTempo2: liveMatchState.value.elapsedHalf2 || 0,
+        } : {},
         eventiPartita: liveMatchState.value ? liveMatchState.value.eventi.map(e => ({...e})) : [],
         pngFormazione: pngForm,
         pngRisultato:  pngRes,
