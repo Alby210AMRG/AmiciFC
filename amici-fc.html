@@ -3750,7 +3750,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             </div>
           </div>
           <div style="font-size:0.85rem;color:var(--text2);text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;line-height:1.4">
-            {{ getCachedPrediction(f)?.verdict }}
+            {{ f.commentoFormazione || getCachedPrediction(f)?.verdict }}
           </div>
         </div>
 
@@ -9302,7 +9302,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.895',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.896',date:'2026-08-20',items:[
+      'Fix PNG formazione (segnalato da Alby): la silhouette dei Mercenari nel PNG condivisibile mostrava sempre quella standard, mai quella viola. Causa: il disegno canvas ha una sua silhouette "a mano" separata dalle costanti usate nel resto dell app, mai aggiornata per i Mercenari. Corretta in entrambi i punti dove compare.',
+      'Bug critico trovato e corretto: il commento AI per le formazioni chiamava una funzione ("callAI") che non esiste - quella reale si chiama "_callAI" con firma diversa. Ogni tentativo falliva silenziosamente e tornava sempre al testo algoritmico, anche con AI configurata correttamente.',
+      'Testo di previsione riscritto: prima solo 3 frasi fisse possibili in tutto, ora 15 varianti (5 per ogni fascia di scarto tra le squadre), scelte in modo deterministico dalla composizione della formazione - stessa formazione sempre stesso testo, formazioni diverse testi diversi. Anche il punteggio previsto non è più casuale ad ogni ricalcolo.',
+      'Nuovo comportamento per il testo di previsione, concordato con Alby: le formazioni "Equilibrata" usano sempre e solo l algoritmo (mai l AI, anche se configurata); le formazioni "AI" e manuali provano l AI se disponibile, altrimenti usano lo stesso algoritmo migliorato. Anteprima e condivisione mostrano ora sempre lo stesso identico testo.',
+      'Modificando una formazione e premendo Salva, il testo di previsione si ricalcola automaticamente con i dati aggiornati (le quote si ricalcolavano gia da sole).',
+    ]},{version:'v1.895',date:'2026-08-20',items:[
       'Rifiniture Mercenari (5 segnalazioni di Alby dopo aver provato la feature): 1) nuovo filtro "Mercenari" nella schermata Giocatori, con default preso dallimpostazione di gruppo "Nascondi Mercenari" ma modificabile liberamente; 2-5) badge Admin/Infortunato/Mercenario riorganizzati in colonne fisse agli angoli della card (come gia era per Infortunato/PIN), invece di icone inline poco chiare accanto al nome; nella scheda dettaglio il Mercenario ha ora un badge con scritta "MERCENARIO" per esteso (stesso stile del badge INFORTUNATO gia esistente); silhouette Mercenario molto piu satura e vivida (viola acceso invece di un tono scuro-mutato), per distinguersi nettamente da quella standard.',
     ]},{version:'v1.894',date:'2026-08-20',items:[
       'Fix sincronizzazione Mercenari (Alby ha chiesto: "e sincronizzato su Firebase e nel backup JSON?"): il campo mercenario sul giocatore e il backup JSON erano gia corretti (nessun campo escluso), ma la ricostruzione del gruppo scaricato da Firebase (syncFromCloud) era fatta campo-per-campo e non includeva nascondiMercenari - veniva silenziosamente perso ad ogni sync da cloud, anche se il caricamento verso Firebase lo includeva correttamente. Corretto, stesso pattern gia usato per limpostazione Assist nelle Card AI.',
@@ -10647,7 +10653,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.895');
+    const appVersion = ref('1.896');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12452,6 +12458,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           const formato = computeFormato(aIds, bIds, riserveA, riserveB);
 
           await db.formations.add({
+            generazioneMetodo: 'ai', // 20/8/2026: da chi/come è nata questa formazione, per decidere in seguito se il testo di previsione userà l'AI o l'algoritmo migliorato
             ...buildFormationBase(),
             nome:         fz.nome || getRandomFormationName(),
             nomeSquadraA: fz.squadraA?.nome || pickTeamNames(i).nameA,
@@ -12660,7 +12667,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
         const riserveB = splitTitolariRiserve(b, formationRiserve.value);
         const formato = computeFormato(a, b, riserveA, riserveB);
         lastFormato = formato;
-        await db.formations.add({...buildFormationBase(),nome:getRandomFormationName(),nomeSquadraA:pickTeamNames(ni).nameA,nomeSquadraB:pickTeamNames(ni).nameB,squadraA:a,squadraB:b,riserveA,riserveB,formato});
+        await db.formations.add({...buildFormationBase(),generazioneMetodo:'equilibrata',nome:getRandomFormationName(),nomeSquadraA:pickTeamNames(ni).nameA,nomeSquadraB:pickTeamNames(ni).nameB,squadraA:a,squadraB:b,riserveA,riserveB,formato});
         generated++;
       }
       await loadFormations();aiLoading.value=false;
@@ -12702,11 +12709,22 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const formato = computeFormato(mf.squadraA, mf.squadraB, mf.riserveA, mf.riserveB);
       // Stesso bug DataCloneError di saveFormationEdit (v1.863, 18/8/2026): riserveA/B senza spread
       // restano riferimento diretto all'array reattivo di Vue, non clonabile da IndexedDB.
-      await db.formations.add({...buildFormationBase(),nome:mf.nome.trim(),nomeSquadraA:mf.nomeSquadraA||'Squadra A',nomeSquadraB:mf.nomeSquadraB||'Squadra B',squadraA:sortByRole(mf.squadraA),squadraB:sortByRole(mf.squadraB),riserveA:[...(mf.riserveA||[])],riserveB:[...(mf.riserveB||[])],formato,matchData:mf.matchData,matchOrario:mf.matchOrario,matchLuogo:mf.matchLuogo});
+      await db.formations.add({...buildFormationBase(),generazioneMetodo:'manuale',nome:mf.nome.trim(),nomeSquadraA:mf.nomeSquadraA||'Squadra A',nomeSquadraB:mf.nomeSquadraB||'Squadra B',squadraA:sortByRole(mf.squadraA),squadraB:sortByRole(mf.squadraB),riserveA:[...(mf.riserveA||[])],riserveB:[...(mf.riserveB||[])],formato,matchData:mf.matchData,matchOrario:mf.matchOrario,matchLuogo:mf.matchLuogo});
       await loadFormations();toast('✅ Formazione manuale salvata!');currentView.value='formations';
     };
 
+    // Hash deterministico di una stringa — usato per scegliere sempre la stessa variante di testo
+    // per la stessa formazione (invece di puro Math.random(), che darebbe un risultato diverso a
+    // ogni ricalcolo — causa di una delle incongruenze segnalate da Alby: chiamate diverse per la
+    // stessa formazione, es. anteprima vs condivisione, davano punteggio previsto diverso).
+    const _hashStr = (s) => { let h=0; for(let i=0;i<s.length;i++){h=((h<<5)-h+s.charCodeAt(i))|0;} return Math.abs(h); };
+
     // ── PREDIZIONE RISULTATO FORMAZIONE ──
+    // Testo algoritmico riscritto (20/8/2026, richiesta di Alby dopo aver notato "scrive sempre le
+    // stesse cose"): prima c'erano solo 3 frasi fisse possibili in tutto; ora 5 varianti per ciascuna
+    // delle 3 fasce di scarto (equilibrio/vantaggio leggero/vantaggio netto), 15 combinazioni totali,
+    // scelte in modo deterministico dalla composizione della formazione — la stessa formazione dà
+    // sempre lo stesso testo (utile per la cache), formazioni diverse hanno testi diversi.
     const computeFormationPrediction = (f) => {
       const getAvg = (pids) => {
         if (!pids?.length) return 6;
@@ -12748,19 +12766,59 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const nA = f.nomeSquadraA || 'Squadra A';
       const nB = f.nomeSquadraB || 'Squadra B';
 
+      // Miglior giocatore per squadra (per media voto), per rendere il testo più concreto — stesso
+      // criterio già usato dal commento AI, così le due fonti si somigliano anche nello stile.
+      const gp = (pid) => groupPlayers.value.find(p => String(p.uid)===String(pid)||String(p.id)===String(pid));
+      const playersA = (f.squadraA||[]).map(gp).filter(Boolean);
+      const playersB = (f.squadraB||[]).map(gp).filter(Boolean);
+      const topA = [...playersA].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))[0];
+      const topB = [...playersB].sort((a,b)=>(b.mediaVoto||0)-(a.mediaVoto||0))[0];
+      const topAName = topA ? (topA.soprannome||topA.nome) : '';
+      const topBName = topB ? (topB.soprannome||topB.nome) : '';
+
+      const hash = _hashStr((f.squadraA||[]).join(',') + '|' + (f.squadraB||[]).join(','));
+
       let verdict = '';
       if (diff < 5) {
-        verdict = `⚖️ Equilibrio totale! Potrebbe vincere chiunque. Atteso un risultato combattuto.`;
+        const varianti = [
+          `⚖️ Equilibrio totale! Potrebbe vincere chiunque. Atteso un risultato combattuto.`,
+          `⚖️ Squadre pari pari — qui la decide un episodio o un guizzo dei singoli.`,
+          `⚖️ Nessuna vera favorita: valori molto simili, si deciderà punto a punto.`,
+          `⚖️ Partita apertissima, sulla carta è testa a testa fino alla fine.`,
+          `⚖️ Formazioni bilanciate — chi ci mette più cattiveria agonistica la spunta.`,
+        ];
+        verdict = varianti[hash % varianti.length];
+        if (topAName && topBName) verdict += ` Da tenere d'occhio ${topAName} e ${topBName}.`;
       } else if (diff < 15) {
         const fav = favA ? nA : nB;
-        verdict = `📊 ${fav} parte favorita ma non di molto. Aspettatevi gol da entrambe le parti.`;
+        const topFav = favA ? topAName : topBName;
+        const varianti = [
+          `📊 ${fav} parte favorita ma non di molto. Aspettatevi gol da entrambe le parti.`,
+          `📊 Leggero pronostico per ${fav}, ma il margine è stretto — occhio alle sorprese.`,
+          `📊 ${fav} un gradino sopra sulla carta, senza però un vero divario.`,
+          `📊 Vantaggio contenuto per ${fav}: basta poco per ribaltare tutto.`,
+          `📊 ${fav} leggermente avanti nei numeri, partita comunque equilibrata.`,
+        ];
+        verdict = varianti[hash % varianti.length];
+        if (topFav) verdict += ` ${topFav} può fare la differenza.`;
       } else {
         const fav = favA ? nA : nB;
         const under = favA ? nB : nA;
-        verdict = `⚡ ${fav} nettamente favorita per forma e statistiche. ${under} dovrà fare l'impresa!`;
+        const topFav = favA ? topAName : topBName;
+        const varianti = [
+          `⚡ ${fav} nettamente favorita per forma e statistiche. ${under} dovrà fare l'impresa!`,
+          `⚡ Distacco netto sulla carta a favore di ${fav} — per ${under} serve una serata perfetta.`,
+          `⚡ ${fav} decisamente davanti nei numeri, ${under} chiamata alla rimonta.`,
+          `⚡ Pronostico chiaro per ${fav}: ${under} può sovvertirlo solo con l'impresa.`,
+          `⚡ I numeri parlano forte a favore di ${fav}. ${under} avvisata, mezza salvata.`,
+        ];
+        verdict = varianti[hash % varianti.length];
+        if (topFav) verdict += ` Attenzione a ${topFav}.`;
       }
 
-      const totalGoalsExpected = 5 + Math.floor(Math.random()*3);
+      // Punteggio previsto deterministico (non più Math.random()) — stessa formazione, stesso
+      // punteggio previsto ad ogni ricalcolo, non solo finché resta in cache.
+      const totalGoalsExpected = 5 + (hash % 3);
       const goalsA = Math.round(totalGoalsExpected*(adjA/(adjA+adjB)));
       const goalsB = totalGoalsExpected - goalsA;
       verdict += ` Risultato probabile: ${goalsA}-${goalsB}.`;
@@ -12835,7 +12893,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
         matchData:    f.matchData,
         matchOrario:  f.matchOrario,
         matchLuogo:   f.matchLuogo,
-        stato:        f.stato
+        stato:        f.stato,
+        generazioneMetodo: f.generazioneMetodo, // 20/8/2026: serve al salvataggio per decidere se il testo può usare l'AI o deve restare sempre algoritmico ("equilibrata")
       };
       showFormationEditor.value = true;
     };
@@ -12890,12 +12949,22 @@ Rispondi SOLO con questo JSON (niente altro testo):
       if (!ed || !ed.nome?.trim()) { toast('Inserisci un nome!', 'error'); return; }
       if (!ed.squadraA.length || !ed.squadraB.length) { toast('Ogni squadra deve avere almeno 1 giocatore!', 'error'); return; }
       const formato = computeFormato(ed.squadraA, ed.squadraB, ed.riserveA, ed.riserveB);
+      const nuovaSquadraA = sortByRole(ed.squadraA);
+      const nuovaSquadraB = sortByRole(ed.squadraB);
+      // Ricalcolo testo di previsione (20/8/2026, richiesta di Alby: al Salva, ricalcola sia il
+      // testo sia le quote) — le quote si ricalcolano già da sole (computeFormationPrediction è
+      // sempre chiamata al volo con i dati aggiornati, nessuna cache da invalidare esplicitamente).
+      // Il testo salvato (commentoFormazione) invece andrebbe altrimenti lasciato con la vecchia
+      // composizione squadra — lo rigenero qui con i dati appena modificati, prima del salvataggio,
+      // così va tutto insieme in un'unica scrittura.
+      const fPerCommento = { ...ed, squadraA: nuovaSquadraA, squadraB: nuovaSquadraB };
+      const { testo: nuovoCommento, isAI: nuovoCommentoIsAI } = await generateFormationComment(fPerCommento);
       await db.formations.update(ed.id, {
         nome:         ed.nome.trim(),
         nomeSquadraA: ed.nomeSquadraA.trim() || 'Squadra A',
         nomeSquadraB: ed.nomeSquadraB.trim() || 'Squadra B',
-        squadraA:     sortByRole(ed.squadraA),
-        squadraB:     sortByRole(ed.squadraB),
+        squadraA:     nuovaSquadraA,
+        squadraB:     nuovaSquadraB,
         // BUG TROVATO 18/8/2026 (segnalato da Alby: "Salva" nell'editor formazione dava
         // sempre DataCloneError "[object Array] could not be cloned"): a differenza di
         // squadraA/squadraB (che passano per sortByRole, il cui [...pids] li rende array
@@ -12909,7 +12978,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
         formato,
         matchData:    ed.matchData,
         matchOrario:  ed.matchOrario,
-        matchLuogo:   ed.matchLuogo
+        matchLuogo:   ed.matchLuogo,
+        commentoFormazione:     nuovoCommento,
+        commentoFormazioneIsAI: nuovoCommentoIsAI,
       });
       await loadFormations();
       showFormationEditor.value = false;
@@ -13687,7 +13758,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           ctx.save();ctx.beginPath();ctx.arc(px,py,R,0,Math.PI*2);ctx.clip();
           const ph=pc[pid];
           if(ph){const iw=ph.naturalWidth||100,ih=ph.naturalHeight||100,s=Math.min(iw,ih),sx=(iw-s)/2,sy=(ih-s)/2;ctx.drawImage(ph,sx,sy,s,s,px-R,py-R,R*2,R*2);}
-          else{ctx.fillStyle='#e8eaf0';ctx.fillRect(px-R,py-R,R*2,R*2);ctx.fillStyle='#1a1a2a';ctx.beginPath();ctx.arc(px,py-R*0.28,R*0.34,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(px,py+R*0.42,R*0.58,R*0.48,0,Math.PI,0);ctx.fill();}
+          else{const _isMerc=p&&p.mercenario;ctx.fillStyle=_isMerc?'#f3e8ff':'#e8eaf0';ctx.fillRect(px-R,py-R,R*2,R*2);ctx.fillStyle=_isMerc?'#6b21a8':'#1a1a2a';ctx.beginPath();ctx.arc(px,py-R*0.28,R*0.34,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(px,py+R*0.42,R*0.58,R*0.48,0,Math.PI,0);ctx.fill();}
           ctx.restore();
           // Nome: wrap su 2 righe se necessario invece di sovrapporre o uscire dai bordi
           const ns=(p.soprannome||p.nome||'').toUpperCase();
@@ -14083,7 +14154,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           ctx.save();ctx.beginPath();ctx.arc(px,py,R,0,Math.PI*2);ctx.clip();
           const ph=pc[pid];
           if(ph){const iw=ph.naturalWidth||100,ih=ph.naturalHeight||100,s=Math.min(iw,ih),sx=(iw-s)/2,sy=(ih-s)/2;ctx.drawImage(ph,sx,sy,s,s,px-R,py-R,R*2,R*2);}
-          else{ctx.fillStyle='#e8eaf0';ctx.fillRect(px-R,py-R,R*2,R*2);ctx.fillStyle='#1a1a2a';ctx.beginPath();ctx.arc(px,py-R*0.28,R*0.34,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(px,py+R*0.42,R*0.58,R*0.48,0,Math.PI,0);ctx.fill();}
+          else{const _isMerc=p&&p.mercenario;ctx.fillStyle=_isMerc?'#f3e8ff':'#e8eaf0';ctx.fillRect(px-R,py-R,R*2,R*2);ctx.fillStyle=_isMerc?'#6b21a8':'#1a1a2a';ctx.beginPath();ctx.arc(px,py-R*0.28,R*0.34,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(px,py+R*0.42,R*0.58,R*0.48,0,Math.PI,0);ctx.fill();}
           ctx.restore();
           if(isMvp){
             ctx.font=`${Math.max(20,R*0.5)}px ${EMOJI},Arial`;ctx.textAlign='center';
@@ -14259,8 +14330,10 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const topAName = topA ? (topA.soprannome||topA.nome) : '';
       const topBName = topB ? (topB.soprannome||topB.nome) : '';
 
-      // Prova con AI se disponibile
-      const hasAI = !!(settings.value?.aiProvider && settings.value?.apiKey);
+      // Prova con AI se disponibile — MA solo se la formazione non è "equilibrata" (20/8/2026,
+      // richiesta esplicita di Alby: le formazioni generate con l'algoritmo bilanciato usano
+      // SEMPRE il testo algoritmico, mai l'AI, indipendentemente da cosa è configurato).
+      const hasAI = f.generazioneMetodo !== 'equilibrata' && !!(settings.value?.aiProvider && settings.value?.apiKey);
       if (hasAI) {
         try {
           const profiliFull = [...playersA, ...playersB].map(p => ({
@@ -14272,23 +14345,24 @@ Rispondi SOLO con questo JSON (niente altro testo):
 Squadra ${nomeB} (quota ${pred.quoteB}): ${playersB.map(p=>p.soprannome||p.nome).join(', ')}
 Squadra ${nomeA} (quota ${pred.quoteA}): ${playersA.map(p=>p.soprannome||p.nome).join(', ')}
 Statistiche: ${JSON.stringify(profiliFull)}`;
-          const aiResp = await callAI(aiPrompt, { maxTokens: 120 });
+          // Bug critico trovato 20/8/2026 (Alby: "temo l'AI non venga mai chiamata qui") — CONFERMATO:
+          // la funzione richiamata si chiamava "callAI", ma quella realmente esistente è "_callAI"
+          // (underscore), con firma diversa (maxTokens è un numero semplice, non un oggetto
+          // {maxTokens:120}). Ogni chiamata lanciava un ReferenceError, silenziosamente catturato
+          // dal catch sotto — l'AI non veniva MAI davvero interpellata, si tornava sempre
+          // all'algoritmo senza nessun errore visibile.
+          const aiResp = await _callAI(aiPrompt, 120);
           if (aiResp && aiResp.trim().length > 20) {
             return { testo: aiResp.trim(), isAI: true };
           }
         } catch(e) { /* fallback algoritmico */ }
       }
 
-      // Commento algoritmico
-      const favored = parseFloat(pred.quoteB) < parseFloat(pred.quoteA) ? nomeB : nomeA;
-      const topFav = parseFloat(pred.quoteB) < parseFloat(pred.quoteA) ? topBName : topAName;
-      const topSfav = parseFloat(pred.quoteB) < parseFloat(pred.quoteA) ? topAName : topBName;
-      const nomeSfav = parseFloat(pred.quoteB) < parseFloat(pred.quoteA) ? nomeA : nomeB;
-      let testo = `${favored} parte favorita`;
-      if (topFav) testo += ` con ${topFav} in grande forma`;
-      testo += `.`;
-      if (topSfav) testo += ` ${nomeSfav} si affida a ${topSfav} per l'impresa.`;
-      return { testo, isAI: false };
+      // Commento algoritmico — riusa lo stesso testo (con 15 varianti possibili) già calcolato da
+      // computeFormationPrediction, invece di avere un secondo algoritmo separato e più povero.
+      // Così anteprima e condivisione mostrano sempre lo stesso identico testo quando l'AI non è
+      // disponibile (20/8/2026, richiesta di Alby).
+      return { testo: pred.verdict, isAI: false };
     };
 
     // ── Genera testo WhatsApp per condivisione ──
