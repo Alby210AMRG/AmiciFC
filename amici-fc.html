@@ -9302,7 +9302,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.896',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.897',date:'2026-08-20',items:[
+      'Bug critico trovato e corretto (segnalato da Alby: Uomo Partita votato dai partecipanti a volte spariva dal dettaglio partita): la scelta finale veniva impostata solo su un oggetto in memoria, mai davvero scritta su database - ne locale ne su Firebase. Corretto in entrambi i punti di scrittura, azzerando anche il vecchio MVP statistico per coerenza (i due non devono coesistere in visualizzazione).',
+      'Trovata e corretta una terza silhouette Mercenario non aggiornata: dentro le pagelle individuali condivisibili (drawPlayerCardCanvas), oltre alle due gia corrette in precedenza (formazione e risultato partita) - schema colori diverso dagli altri due canvas, corretto con lo stesso viola gia usato nell app normale.',
+    ]},{version:'v1.896',date:'2026-08-20',items:[
       'Fix PNG formazione (segnalato da Alby): la silhouette dei Mercenari nel PNG condivisibile mostrava sempre quella standard, mai quella viola. Causa: il disegno canvas ha una sua silhouette "a mano" separata dalle costanti usate nel resto dell app, mai aggiornata per i Mercenari. Corretta in entrambi i punti dove compare.',
       'Bug critico trovato e corretto: il commento AI per le formazioni chiamava una funzione ("callAI") che non esiste - quella reale si chiama "_callAI" con firma diversa. Ogni tentativo falliva silenziosamente e tornava sempre al testo algoritmico, anche con AI configurata correttamente.',
       'Testo di previsione riscritto: prima solo 3 frasi fisse possibili in tutto, ora 15 varianti (5 per ogni fascia di scarto tra le squadre), scelte in modo deterministico dalla composizione della formazione - stessa formazione sempre stesso testo, formazioni diverse testi diversi. Anche il punteggio previsto non è più casuale ad ogni ricalcolo.',
@@ -10653,7 +10656,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.896');
+    const appVersion = ref('1.897');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14499,8 +14502,9 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
         const iw=photoImg.width*scale, ih=photoImg.height*scale;
         ctx.drawImage(photoImg, phCX-iw/2, phCY-ih/2, iw, ih);
       } else {
-        ctx.fillStyle='#2a3a4a';ctx.fillRect(phCX-PH_R,phCY-PH_R,PH_R*2,PH_R*2);
-        ctx.fillStyle='#4a5a6a';
+        const _isMerc = p && p.mercenario;
+        ctx.fillStyle=_isMerc?'#4c1d95':'#2a3a4a';ctx.fillRect(phCX-PH_R,phCY-PH_R,PH_R*2,PH_R*2);
+        ctx.fillStyle=_isMerc?'#a855f7':'#4a5a6a';
         ctx.beginPath();ctx.arc(phCX,phCY-PH_R*0.15,PH_R*0.45,0,Math.PI*2);ctx.fill();
         ctx.beginPath();ctx.ellipse(phCX,phCY+PH_R*0.75,PH_R*0.75,PH_R*0.6,0,0,Math.PI*2);ctx.fill();
       }
@@ -22373,7 +22377,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       const localMatch = await db.matches.where('matchUUID').equals(match.matchUUID).first();
       if (!localMatch) throw new Error('partita non trovata nel database locale');
       const _nuovoUpdatedAt = Date.now();
-      await db.matches.update(localMatch.id, { statisticheGiocatori: nuoveStat, votazioneCondivisaPending: false, updatedAt: _nuovoUpdatedAt });
+      // Bug trovato 20/8/2026 (segnalato da Alby: Uomo Partita votato dai partecipanti a volte
+      // "spariva" nel dettaglio partita) — confermaChiusuraVotazioneConMvp impostava
+      // modal.match.uomoPartita SOLO sull'oggetto in memoria (mai persistito), e questa scrittura
+      // su IndexedDB non includeva affatto il campo. La scelta dei partecipanti rischiava di non
+      // essere mai davvero salvata. Aggiunto qui, azzerando anche il vecchio mvp statistico per
+      // coerenza (stesso principio "sono alternativi, non coesistono" già usato in saveEditMatch).
+      await db.matches.update(localMatch.id, {
+        statisticheGiocatori: nuoveStat, votazioneCondivisaPending: false, updatedAt: _nuovoUpdatedAt,
+        ...(match.uomoPartita !== undefined ? { uomoPartita: match.uomoPartita, mvp: match.uomoPartita ? null : localMatch.mvp } : {}),
+      });
 
       // BUG TROVATO 29/7/2026 (secondo giro — segnalato da Alby col log alla mano: il primo fix
       // aveva reso il sync affidabile, ma un ALTRO meccanismo lo vanificava lo stesso): syncToCloud
@@ -22397,7 +22410,10 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             if (_mi >= 0) {
               await fetch(`${_base}/groups/${_gi}/matches/${_mi}.json?auth=${fbIdToken.value}`, {
                 method:'PATCH', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({ statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt })
+                body: JSON.stringify({
+                  statisticheGiocatori: nuoveStat, updatedAt: _nuovoUpdatedAt,
+                  ...(match.uomoPartita !== undefined ? { uomoPartita: match.uomoPartita, mvp: match.uomoPartita ? null : localMatch.mvp } : {}),
+                })
               });
             } else {
               logEvent('warn','votes','⚠️ Partita non trovata su Firebase per scrittura diretta — proseguo solo col sync generico');
