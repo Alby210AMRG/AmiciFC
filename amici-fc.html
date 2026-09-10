@@ -7977,7 +7977,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       <div class="setting-row" style="margin:10px 0;padding:10px;background:var(--bg3);border-radius:10px">
         <div>
           <div class="setting-label">🔄 Sincronizza all'avvio</div>
-          <div class="setting-sub">Scarica i dati Firebase ogni volta che apri l'app</div>
+          <div class="setting-sub">Scarica i dati Firebase ogni volta che apri l'app. Un sync forzato dall'admin (via Inspector) viene sempre eseguito, anche disattivando questo interruttore.</div>
           <div v-if="lastSyncTime" style="font-size:0.7rem;color:var(--lime);margin-top:3px">
             ✅ Ultima sync: {{ lastSyncTime }}
           </div>
@@ -9302,7 +9302,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.897',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.898',date:'2026-08-20',items:[
+      'Fix sicurezza sync (richiesta di Alby dopo lincidente di duplicazione partite): il controllo "Forza Risync Globale" (syncVersion incrementata da Inspector) ora viene SEMPRE eseguito all avvio, anche se un dispositivo ha disattivato "Sincronizza allavvio". Prima, un dispositivo con quellinterruttore spento sarebbe rimasto invisibile anche allo strumento pensato apposta per riparare situazioni come quella vissuta.',
+    ]},{version:'v1.897',date:'2026-08-20',items:[
       'Bug critico trovato e corretto (segnalato da Alby: Uomo Partita votato dai partecipanti a volte spariva dal dettaglio partita): la scelta finale veniva impostata solo su un oggetto in memoria, mai davvero scritta su database - ne locale ne su Firebase. Corretto in entrambi i punti di scrittura, azzerando anche il vecchio MVP statistico per coerenza (i due non devono coesistere in visualizzazione).',
       'Trovata e corretta una terza silhouette Mercenario non aggiornata: dentro le pagelle individuali condivisibili (drawPlayerCardCanvas), oltre alle due gia corrette in precedenza (formazione e risultato partita) - schema colori diverso dagli altri due canvas, corretto con lo stesso viola gia usato nell app normale.',
     ]},{version:'v1.896',date:'2026-08-20',items:[
@@ -10656,7 +10658,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.897');
+    const appVersion = ref('1.898');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -24501,15 +24503,22 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       setTimeout(_scheduleNewsCompute, 1000);
 
       // ── Startup sync intelligente ──
-      if (currentGroup.value?.firebaseUrl && currentGroup.value?.syncOnStartup !== false) {
+      // Fix 20/8/2026 (richiesta di Alby, dopo l'incidente di duplicazione partite): il controllo
+      // "force" (syncVersion incrementata da un admin via Inspector, "Forza Risync Globale") è ora
+      // SEMPRE eseguito, indipendentemente dall'interruttore "Sincronizza all'avvio" — quel toggle
+      // continua a controllare solo il normale controllo periodico "c'è qualcosa di più recente?",
+      // ma un override amministrativo esplicito come il force resync deve valere SEMPRE: altrimenti
+      // un dispositivo con quell'interruttore disattivato (per qualsiasi motivo, anche per errore)
+      // resterebbe "invisibile" pure allo strumento pensato apposta per riparare casi come questo.
+      if (currentGroup.value?.firebaseUrl) {
         logEvent('info', 'sync', '🔍 Controllo aggiornamenti Firebase...');
         try {
           const syncNeeded = await checkSyncNeeded();
           if (syncNeeded === 'force') {
-            logEvent('info', 'sync', '🔄 Sync forzato — syncVersion aggiornata da admin');
+            logEvent('info', 'sync', '🔄 Sync forzato — syncVersion aggiornata da admin (eseguito sempre, anche con "Sincronizza all\'avvio" disattivato)');
             await syncFromCloud(true); // force = cancella tutto e riscarica
-          } else if (syncNeeded === 'update') {
-            await syncFromCloud(false); // aggiornamento normale
+          } else if (syncNeeded === 'update' && currentGroup.value?.syncOnStartup !== false) {
+            await syncFromCloud(false); // aggiornamento normale — solo se l'interruttore è attivo
           } else {
             // Aggiorna timestamp verifica anche se non serve sync
             lastCheckTime.value = new Date().toLocaleString('it-IT');
