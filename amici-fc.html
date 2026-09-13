@@ -7546,7 +7546,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           ← {{detailMatchFromPlayer.player?.soprannome||detailMatchFromPlayer.player?.nome}}
         </button>
       </div>
-      <div class="modal-title">⚽ Dettaglio Partita</div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="modal-title">⚽ Dettaglio Partita</div>
+        <button class="modal-close" @click="showMatchDetail=false;detailMatchFromPlayer=null">✕</button>
+      </div>
       <div class="match-date" style="text-align:center;margin-bottom:10px">{{ formatDate(detailMatch.data) }}</div>
       <div class="match-score">
         <span class="score-num score-a">{{ detailMatch.risultato.goalA }}</span>
@@ -9302,7 +9305,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.898',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.899',date:'2026-08-20',items:[
+      'Fix mirato di prevenzione (concordato con Alby dopo lincidente di duplicazione partite): larchiviazione stagione ora pubblica subito lo stato corretto su Firebase e forza il sync su tutti i dispositivi, invece di aspettare un sync generico successivo. Un dispositivo rimasto indietro viene sempre forzato a scaricare i dati freschi alla prossima apertura, prima di poter scrivere qualcosa di suo.',
+      'Aggiunto il pulsante di chiusura (✕) in alto a destra nel dettaglio partita.',
+    ]},{version:'v1.898',date:'2026-08-20',items:[
       'Fix sicurezza sync (richiesta di Alby dopo lincidente di duplicazione partite): il controllo "Forza Risync Globale" (syncVersion incrementata da Inspector) ora viene SEMPRE eseguito all avvio, anche se un dispositivo ha disattivato "Sincronizza allavvio". Prima, un dispositivo con quellinterruttore spento sarebbe rimasto invisibile anche allo strumento pensato apposta per riparare situazioni come quella vissuta.',
     ]},{version:'v1.897',date:'2026-08-20',items:[
       'Bug critico trovato e corretto (segnalato da Alby: Uomo Partita votato dai partecipanti a volte spariva dal dettaglio partita): la scelta finale veniva impostata solo su un oggetto in memoria, mai davvero scritta su database - ne locale ne su Firebase. Corretto in entrambi i punti di scrittura, azzerando anche il vecchio MVP statistico per coerenza (i due non devono coesistere in visualizzazione).',
@@ -10658,7 +10664,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.898');
+    const appVersion = ref('1.899');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -23912,6 +23918,33 @@ const toggleFont = () => {
 
         logEvent('info', 'app', `✅ Stagione "${snapshot.nome}" archiviata — nuova stagione: "${archiveStepData.nomeStagioneNuova}"`);
         toast(`✅ Stagione archiviata! Nuova stagione: ${archiveStepData.nomeStagioneNuova}`, 'success', 4000);
+
+        // Fix mirato prevenzione incidente (20/8/2026, concordato con Alby dopo la duplicazione
+        // partite capitata in produzione): l'archiviazione cancella tutto in locale, ma un
+        // dispositivo rimasto indietro (che non ha partecipato a QUESTA archiviazione) non aveva
+        // nessun segnale per accorgersene prima di scrivere le sue vecchie partite sopra allo stato
+        // corretto. Pubblico QUI, subito, lo stato appena archiviato su Firebase (non aspetto/spero
+        // che un sync generico successivo lo catturi correttamente) e incremento syncVersion —
+        // stesso meccanismo già usato da "Forza Risync Globale" in Inspector, ora reso
+        // incondizionato: qualunque dispositivo, alla prossima apertura, viene SEMPRE forzato a
+        // scaricare prima di poter scrivere qualsiasi cosa di suo.
+        if (g.firebaseUrl) {
+          try {
+            const _tokArch = await getValidToken();
+            if (_tokArch) {
+              await syncToCloud();
+              const _baseArch = getFirebaseBase();
+              const _verResp = await fetch(`${_baseArch}/syncVersion.json?auth=${_tokArch}`);
+              const _verAttuale = parseInt(await _verResp.json()) || 1;
+              await fetch(`${_baseArch}/syncVersion.json?auth=${_tokArch}`, {
+                method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(_verAttuale + 1)
+              });
+              logEvent('info', 'app', `☁️ Archiviazione pubblicata su Firebase — sync forzato per tutti i dispositivi (v${_verAttuale}→${_verAttuale + 1})`);
+            }
+          } catch(e) {
+            logEvent('warn', 'app', `⚠️ Archiviazione riuscita in locale, ma pubblicazione/forzatura sync su Firebase non riuscita: ${e.message} — altri dispositivi potrebbero non allinearsi da soli, valutare "Forza Risync Globale" da Inspector`);
+          }
+        }
         archiveWizard.value = null;
         currentView.value = 'home';
         // Fix 10/8/2026 (bug segnalato da Alby, persisteva nonostante il fix precedente in
