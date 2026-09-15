@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.16';
+const INSPECTOR_VERSION = '1.24';
 
 async function checkInspectorUpdate(){
   try {
@@ -622,6 +622,7 @@ function buildSidebar(){
     ${ni('ai-hof','👑','Hall of Fame',hofCount,'ai-hof')}
     ${ni('ai-nicks','🧬','Soprannomi',nickCount,'ai-nicks')}
     ${ni('ai-prono','🔮','Pronostico',AI&&AI.pronostico?'✓':'','ai-prono')}
+    ${AUTH_TOKEN ? `
     <div class="nav-sep"></div><div class="nav-group" style="color:var(--orange)">🛠️ Manutenzione</div>
     ${ni('maint-check','🩺','Analisi DB','','maint-check')}
     ${ni('maint-votazioni','🗳️','Votazioni','','maint-votazioni')}
@@ -635,10 +636,12 @@ function buildSidebar(){
     ${ni('audit-view','🩻','Audit ID'+auditWarnFlag,'','audit-view')}
     ${ni('backup-view','💾','Backup','','backup-view')}
     ${ni('test-suite','🧪','Test Suite','','test-suite')}
+    ` : ''}
+    ${AUTH_TOKEN ? `
     <div class="nav-sep"></div><div class="nav-group" style="color:var(--gray)">⏸️ Deprecato</div>
     ${ni('maint-obsoleti','🗄️','Obsoleti','','maint-obsoleti')}
     ${ni('maint-ai-meta','🤖','Migrazione AI Metadata','','maint-ai-meta')}
-    ${!AUTH_TOKEN?`<div style="padding:8px 16px;font-size:0.68rem;color:var(--gray)">🔑 Login richiesto per le azioni di scrittura in questa sezione</div>`:''}`;
+    ` : ''}`;
 }
 
 // ── Sidebar mobile (menu a scomparsa sotto 768px) ──
@@ -1379,6 +1382,30 @@ function renderClean(){
         <button class="btn btn-orange btn-sm" onclick="deduplicateMatches()">🧹 Deduplica partite Firebase</button>
       </div>
       <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:12px">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--orange)">📦 Rimuovi partite già archiviate dalla stagione corrente</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">
+          Rimuove dalla stagione CORRENTE le partite che sono ANCHE presenti in una stagione già archiviata (l'archivio non viene mai toccato).<br>
+          <strong>Usa questa funzione se dopo un'archiviazione ricompaiono partite vecchie nella stagione attuale</strong> — capita quando un dispositivo non ancora sincronizzato al momento dell'archiviazione fa un sync successivo e "resuscita" le vecchie partite. Dopo la pulizia, sincronizza ogni dispositivo e poi usa "Ricalcola statistiche" nell'app.
+        </div>
+        <button class="btn btn-orange btn-sm" onclick="removeArchivedMatchesFromCurrent()">📦 Rimuovi partite archiviate dalla stagione corrente</button>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:12px">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--orange)">🧩 Recupera giocatori orfani (uid senza nome)</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">
+          Trova gli uid referenziati nelle partite ma senza un giocatore corrispondente (mostrati come codice invece che nome nel dettaglio partita) — capita quando un giocatore che ha già partite salvate viene eliminato dal gruppo (es. un Mercenario rimosso dopo l'uso). Per ciascuno mostra in quali partite compare, cosi puoi risalire al nome guardando i PNG/screenshot salvati — poi lo scrivi qui e viene ricreato con lo STESSO uid originale (le partite torneranno a mostrare il nome giusto), segnato come Mercenario e con statistiche a zero: usa poi "Ricalcola statistiche" nell'app per farle ricalcolare correttamente dalle partite già giocate.
+        </div>
+        <button class="btn btn-orange btn-sm" onclick="findOrphanPlayers()">🔍 Trova giocatori orfani</button>
+        <div id="orphanPlayersForm" style="margin-top:12px"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:12px">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--orange)">🏷️ Correggi nome stagione corrente</div>
+        <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">
+          Il nome della stagione corrente ("Stagione 1", "Stagione 26/27" ecc.) è un campo del gruppo — lo stesso dispositivo stale che ha causato la duplicazione partite (segnalato da Alby, 20/8/2026) aveva probabilmente ancora il nome DI DEFAULT (quello assegnato alla creazione del gruppo, prima di essere mai rinominato), e la sua scrittura durante l'incidente lo ha sovrascritto sopra a quello corretto. Mostra il valore attuale su Firebase e permette di correggerlo.
+        </div>
+        <button class="btn btn-orange btn-sm" onclick="showStagioneFix()">🔍 Mostra nome stagione attuale</button>
+        <div id="stagioneFixForm" style="margin-top:12px"></div>
+      </div>
+      <div style="border-top:1px solid var(--border);padding-top:16px;margin-top:12px">
         <div style="font-weight:700;margin-bottom:6px;color:var(--red)">⛔ Zona Pericolo</div>
         <div style="font-size:0.82rem;color:var(--text2);margin-bottom:10px">Cancella l'intero database. Usa solo se vuoi ripartire da zero. IRREVERSIBILE.</div>
         <button class="btn btn-red btn-sm" onclick="deleteEntireDB()">💣 Cancella TUTTO il database</button>
@@ -1407,6 +1434,45 @@ async function deleteNode(nodePath){
   }catch(e){
     log('❌ Errore: '+e.message,'err');
   }
+}
+
+// Fix 20/8/2026 (Alby: "NetworkError" scrivendo dopo "Rimuovi partite già archiviate" — il
+// payload includeva l'intero database, e le partite possono avere PNG in base64 allegati
+// (pngFormazione/pngRisultato/pngPagelle), che il sync normale dell'app esclude apposta prima
+// di caricare (vedi syncToCloud) ma questi strumenti di Inspector no, leggendo/riscrivendo tutto
+// il DB così com'è. Due correzioni condivise da tutti gli strumenti di scrittura sotto:
+// 1) togliere i PNG dalle partite prima di riscrivere (stessa esclusione già fatta dall'app),
+// 2) scrivere SOLO sul nodo /groups invece che sull'intero database — molto più piccolo e mirato.
+function _stripPngFromGroups(groups){
+  return groups.map(entry=>{
+    if(!entry) return entry;
+    const matches=Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{});
+    const puliti=matches.map(m=>{
+      if(!m) return m;
+      const {pngFormazione, pngRisultato, pngPagelle, ...resto}=m;
+      return resto;
+    });
+    return {...entry, matches:puliti};
+  });
+}
+async function _writeGroupsOnly(base, cleanGroups){
+  const payload=JSON.stringify(cleanGroups);
+  log(`📏 Dimensione scrittura: ${(payload.length/1024).toFixed(0)} KB`,'info');
+  // Bug trovato 20/8/2026 (Alby: scrittura "riuscita" ma le partite non cambiavano mai): la vera
+  // radice dei dati è {base}/amicifc, NON {base} — confermato da getFirebaseBase() nell'app
+  // stessa ("${url}/amicifc"). Una PUT a {base}/groups.json scrive in un nodo root-level che
+  // nessuno legge mai: nessun errore (Firebase accetta scritture ovunque), ma nessun effetto
+  // reale — esattamente il sintomo segnalato. Stesso bug era presente anche nella preesistente
+  // deduplicateMatches (mai, probabilmente, eseguita con successo contro un caso reale prima
+  // d'ora — un fallimento silenzioso di questo tipo passa inosservato finché qualcuno non
+  // ricontrolla i dati dopo, come ha fatto Alby).
+  const wr=await fetch(`${base}/amicifc/groups.json?auth=${AUTH_TOKEN}`,{
+    method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:payload
+  });
+  if(wr.status===401) throw new Error('Token scaduto. Rifai il login.');
+  if(!wr.ok) throw new Error('HTTP '+wr.status);
 }
 
 async function deduplicateMatches(){
@@ -1464,18 +1530,345 @@ async function deduplicateMatches(){
     }
 
     log(`🗑️ Trovati ${totalDuplicates} duplicati. Scrittura su Firebase...`,'warn');
-    const payload={...data, groups:cleanGroups};
-    const wr=await fetch(`${base}.json?auth=${AUTH_TOKEN}`,{
-      method:'PUT',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(payload)
-    });
-    if(wr.status===401) throw new Error('Token scaduto. Rifai il login.');
-    if(!wr.ok) throw new Error('HTTP '+wr.status);
+    await _writeGroupsOnly(base, _stripPngFromGroups(cleanGroups));
 
     log(`🎉 Deduplicazione completata! Rimossi ${totalDuplicates} duplicati.`,'ok');
     log('📱 Ora apri l\'app e vai in Zona Pericolo → "Ricalcola statistiche" per correggere i contatori.','info');
 
+    await loadAll();
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+  }
+}
+
+// Bug segnalato da Alby (20/8/2026): dopo un'archiviazione stagione corretta, un dispositivo che
+// non aveva ancora ricevuto quell'archiviazione (ancora con le vecchie partite in locale) ha fatto
+// un sync successivo, sovrascrivendo lo stato corretto su Firebase e "resuscitando" le partite già
+// archiviate dentro la stagione corrente — con conseguente corruzione delle statistiche e giocatori
+// "mercenari" (eliminati alla fine della stagione vecchia) mostrati come codice invece che nome,
+// dato che le loro vecchie partite li referenziano ma non esistono più nell'elenco giocatori attuale.
+// Questa funzione ripara SOLO la stagione corrente — non tocca mai archivedSeasons, che restava
+// intatto durante tutto l'incidente (confermato da Alby su Inspector).
+async function removeArchivedMatchesFromCurrent(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!DB){alert('Clicca prima Connetti per caricare il database.');return;}
+  if(!confirm('Questa operazione rimuove dalla stagione CORRENTE le partite che sono ANCHE già presenti in una stagione archiviata.\nL\'archivio non viene mai toccato.\n\nProcedere con l\'analisi?')) return;
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  log('🔍 Uso dati già caricati in memoria...','info');
+  try{
+    const data=DB;
+    if(!data) throw new Error('DB vuoto — clicca Connetti prima');
+
+    // Raccoglie TUTTI i matchUUID presenti in QUALSIASI stagione archiviata, indipendentemente da
+    // sotto quale chiave/gruppo sono salvati — più robusto di un abbinamento preciso per gruppo (la
+    // chiave usata per archivedSeasons può differire dal gid del gruppo corrente su un altro
+    // dispositivo, vedi commenti altrove in questo file), e comunque sicuro: una partita archiviata
+    // in QUALUNQUE punto non deve mai comparire come "corrente" in nessun gruppo.
+    const archivedUUIDs=new Set();
+    Object.values(data.archivedSeasons||{}).forEach(seasonsForGroup=>{
+      Object.values(seasonsForGroup||{}).forEach(snapshot=>{
+        (snapshot?.partite||[]).forEach(m=>{ if(m?.matchUUID) archivedUUIDs.add(m.matchUUID); });
+      });
+    });
+
+    if(archivedUUIDs.size===0){
+      log('Nessuna stagione archiviata trovata — niente da controllare.','info');
+      return;
+    }
+    log(`📦 Trovati ${archivedUUIDs.size} matchUUID nell'archivio (tutte le stagioni, tutti i gruppi).`,'info');
+
+    const rawGroups=data.groups?(Array.isArray(data.groups)?data.groups:Object.values(data.groups)):[];
+    let totalRimosse=0;
+    const dettagli=[];
+
+    const cleanGroups=rawGroups.map(entry=>{
+      if(!entry) return entry;
+      const rawMatches=Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{});
+      const keptMatches=[];
+      rawMatches.forEach(m=>{
+        if(m&&m.matchUUID&&archivedUUIDs.has(m.matchUUID)){
+          totalRimosse++;
+          dettagli.push(`${entry.group?.nome||'?'}: ${m.data||'?'} — ${m.nomeSquadraA||'?'} ${m.risultato?.goalA??'?'}-${m.risultato?.goalB??'?'} ${m.nomeSquadraB||'?'}`);
+        } else {
+          keptMatches.push(m);
+        }
+      });
+      log(`Gruppo "${entry.group?.nome||'?'}": ${rawMatches.length} → ${keptMatches.length} partite correnti (-${rawMatches.length-keptMatches.length} già archiviate)`,'info');
+      return {...entry, matches:keptMatches};
+    });
+
+    if(totalRimosse===0){
+      log('✅ Nessuna partita già archiviata trovata tra quelle correnti. Database già pulito.','ok');
+      return;
+    }
+
+    log(`⚠️ Trovate ${totalRimosse} partite correnti duplicate con l'archivio:`,'warn');
+    dettagli.forEach(d=>log('  • '+d,'warn'));
+
+    if(!confirm(`Trovate ${totalRimosse} partite nella stagione corrente che sono ANCHE già nell'archivio.\n\nVerranno rimosse SOLO dalla stagione corrente — l'archivio resta intatto, come già confermato.\n\nScrivere su Firebase?`)){
+      log('Operazione annullata.','info');
+      return;
+    }
+
+    log('🗑️ Scrittura su Firebase...','warn');
+    await _writeGroupsOnly(base, _stripPngFromGroups(cleanGroups));
+
+    log(`🎉 Pulizia completata! Rimosse ${totalRimosse} partite duplicate dalla stagione corrente. L'archivio NON è stato toccato.`,'ok');
+    log('📱 IMPORTANTE — fai così su OGNI dispositivo che usa questo gruppo, uno alla volta:','warn');
+    log('  1. Apri l\'app e lascia che sincronizzi (scarica da Firebase)','warn');
+    log('  2. Vai in Zona Pericolo → "Ricalcola statistiche" per correggere i contatori','warn');
+    log('⚠️ Se un dispositivo ha ancora la vecchia situazione e fa un sync PRIMA di aver scaricato questa pulizia, rischia di ripetere lo stesso problema — meglio sincronizzarli il prima possibile, uno alla volta.','warn');
+
+    await loadAll();
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+  }
+}
+
+// Bug segnalato da Alby (20/8/2026, stesso incidente della duplicazione archivio): 8 uid
+// referenziati nelle partite della stagione corrente ma senza un giocatore corrispondente —
+// mostrati come codice invece che nome nel dettaglio partita. Causa: un giocatore (in questo
+// caso dei Mercenari) che ha già partite salvate viene eliminato dal gruppo — la partita
+// continua a referenziare il suo uid, ma quel giocatore non esiste più nell'elenco. Questo
+// strumento trova questi uid orfani per ogni gruppo, mostra in quali partite compaiono (per
+// aiutare a risalire al nome guardando PNG/screenshot salvati altrove), e permette di
+// ricrearli con lo STESSO uid originale — così i riferimenti nelle partite tornano a
+// risolversi correttamente.
+window._orphanContext = [];
+
+async function findOrphanPlayers(){
+  if(!DB){alert('Clicca prima Connetti per caricare il database.');return;}
+  const rawGroups=DB.groups?(Array.isArray(DB.groups)?DB.groups:Object.values(DB.groups)):[];
+  const container=$('orphanPlayersForm');
+  let html='';
+  let totalOrphans=0;
+  window._orphanContext=[];
+
+  rawGroups.forEach((entry,gi)=>{
+    if(!entry) return;
+    const players=Array.isArray(entry.players)?entry.players:Object.values(entry.players||{});
+    const matches=Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{});
+    const knownUids=new Set(players.filter(Boolean).map(p=>p.uid));
+    const orphanMap=new Map(); // uid -> [dettagli partecipazione]
+
+    matches.forEach(m=>{
+      if(!m) return;
+      const inA=new Set(m.squadraA||[]);
+      const inB=new Set(m.squadraB||[]);
+      const uidsInMatch=new Set([...inA,...inB]);
+      (m.statisticheGiocatori||[]).forEach(s=>{ if(s?.playerId) uidsInMatch.add(s.playerId); });
+      uidsInMatch.forEach(uid=>{
+        if(!uid || knownUids.has(uid)) return;
+        if(!orphanMap.has(uid)) orphanMap.set(uid,[]);
+        const s=(m.statisticheGiocatori||[]).find(x=>x?.playerId===uid)||{};
+        const squadra = inA.has(uid) ? (m.nomeSquadraA||'Squadra A') : inB.has(uid) ? (m.nomeSquadraB||'Squadra B') : '?';
+        // Dettaglio completo della partecipazione (20/8/2026, richiesta di Alby: "mi occorre
+        // sapere anche in che squadra giocavano, che voto, se hanno fatto gol ecc.") — stessi
+        // campi salvati da saveMatch() nell'app, per riconoscerli confrontando con i PNG.
+        const pezzi=[];
+        if(s.voto) pezzi.push(`⭐${s.voto}`);
+        if(s.goal) pezzi.push(`⚽${s.goal}`);
+        if(s.assist) pezzi.push(`🅰️${s.assist}`);
+        if(s.autogol) pezzi.push(`🙈${s.autogol}`);
+        if(s.rigoriSegnati) pezzi.push(`🎯${s.rigoriSegnati}`);
+        if(s.rigoriSbagliati) pezzi.push(`❌${s.rigoriSbagliati}`);
+        if(s.rigoriParati) pezzi.push(`🧤${s.rigoriParati}`);
+        if(s.uomoPartita) pezzi.push(`🏅Uomo Partita`);
+        orphanMap.get(uid).push({
+          data:m.data||'?', squadra, risultato:`${m.nomeSquadraA||'?'} ${m.risultato?.goalA??'?'}-${m.risultato?.goalB??'?'} ${m.nomeSquadraB||'?'}`,
+          dettaglio: pezzi.length?pezzi.join(' '):'(nessuna statistica registrata)',
+        });
+      });
+    });
+
+    if(orphanMap.size>0){
+      html+=`<div style="margin-top:10px;padding:10px;background:rgba(255,140,0,.06);border:1px solid rgba(255,140,0,.2);border-radius:8px">
+        <div style="font-weight:700;margin-bottom:8px;color:var(--orange)">Gruppo "${entry.group?.nome||'?'}" — ${orphanMap.size} giocatori orfani</div>`;
+      orphanMap.forEach((partecipazioni,uid)=>{
+        const idx=window._orphanContext.length;
+        window._orphanContext.push({groupIndex:gi,uid});
+        const righe=partecipazioni.map(p=>
+          `<div style="padding:4px 0;border-top:1px dashed var(--border)">
+            <div>${p.data} — <span style="color:var(--text)">${p.squadra}</span> — ${p.risultato}</div>
+            <div style="color:var(--lime,#a6ff4d)">${p.dettaglio}</div>
+          </div>`
+        ).join('');
+        // Opzione "è già un giocatore esistente" (20/8/2026, richiesta di Alby: un orfano può
+        // essere in realtà un giocatore già presente nel gruppo, non uno nuovo da creare) —
+        // dropdown con i giocatori già esistenti in QUESTO gruppo, alternativo al campo nome.
+        const opzioniEsistenti = players.filter(Boolean).map(p=>`<option value="${p.uid}">${p.soprannome||p.nome}</option>`).join('');
+        html+=`<div style="margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid var(--border)">
+          <div style="font-size:0.7rem;color:var(--text2);font-family:monospace;word-break:break-all">${uid}</div>
+          <div style="font-size:0.72rem;color:var(--text2);margin:4px 0">${righe}</div>
+          <input type="text" id="orphanName_${idx}" placeholder="Nome del giocatore (guarda i PNG per capire chi era)" style="width:100%;padding:6px;border-radius:4px;border:1px solid var(--border);background:var(--bg1,#0b0f19);color:var(--text);margin-top:4px">
+          <div style="font-size:0.68rem;color:var(--text2);margin:6px 0 2px">...oppure è già un giocatore esistente in questo gruppo:</div>
+          <select id="orphanExisting_${idx}" style="width:100%;padding:6px;border-radius:4px;border:1px solid var(--border);background:var(--bg1,#0b0f19);color:var(--text)">
+            <option value="">— Nessuno, è un giocatore nuovo —</option>
+            ${opzioniEsistenti}
+          </select>
+        </div>`;
+        totalOrphans++;
+      });
+      html+=`</div>`;
+    }
+  });
+
+  if(totalOrphans===0){
+    container.innerHTML='<div style="color:var(--ok,#4ade80);margin-top:10px">✅ Nessun giocatore orfano trovato.</div>';
+    log('✅ Nessun giocatore orfano trovato.','ok');
+    return;
+  }
+
+  html+=`<button class="btn btn-orange btn-sm" style="margin-top:6px" onclick="recreateOrphanPlayers()">💾 Sistema ${totalOrphans} giocatori orfani</button>`;
+  container.innerHTML=html;
+  log(`🔍 Trovati ${totalOrphans} giocatori orfani in totale — per ciascuno scrivi un nome nuovo OPPURE seleziona un giocatore già esistente.`,'warn');
+}
+
+async function recreateOrphanPlayers(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!window._orphanContext||window._orphanContext.length===0){alert('Prima clicca "Trova giocatori orfani".');return;}
+
+  const scelte=window._orphanContext.map((ctx,idx)=>({
+    ...ctx,
+    nome: $(`orphanName_${idx}`)?.value?.trim()||'',
+    esistenteUid: $(`orphanExisting_${idx}`)?.value||'',
+  }));
+  // Deve esserci ESATTAMENTE una delle due scelte per ciascun orfano — nessuna delle due è un errore
+  // (validazione originale), ma anche ENTRAMBE insieme sono ambigue (quale vince?) e vanno segnalate.
+  const mancanti=scelte.filter(n=>!n.nome && !n.esistenteUid);
+  const ambigui=scelte.filter(n=>n.nome && n.esistenteUid);
+  if(mancanti.length>0){
+    alert(`Per ${mancanti.length} giocatore/i non hai né scritto un nome né selezionato un giocatore esistente — scegli una delle due opzioni per ciascuno prima di procedere.`);
+    return;
+  }
+  if(ambigui.length>0){
+    alert(`Per ${ambigui.length} giocatore/i hai sia scritto un nome SIA selezionato un giocatore esistente — scegline solo una delle due per ciascuno (svuota l'altra).`);
+    return;
+  }
+
+  const daCreare=scelte.filter(n=>n.nome);
+  const daRiassegnare=scelte.filter(n=>n.esistenteUid);
+
+  const msgConferma=[
+    daCreare.length?`${daCreare.length} nuovi giocatori (stesso uid originale, segnati Mercenario, statistiche a zero da ricalcolare dopo)`:null,
+    daRiassegnare.length?`${daRiassegnare.length} riassegnazioni a giocatori già esistenti (le partite verranno aggiornate per puntare al giocatore giusto — le sue statistiche includeranno queste partite dopo "Ricalcola statistiche")`:null,
+  ].filter(Boolean).join('\n');
+  if(!confirm(`Verranno applicate queste modifiche:\n\n${msgConferma}\n\nProcedere?`)) return;
+
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  try{
+    const data=DB;
+    const rawGroups=data.groups?(Array.isArray(data.groups)?data.groups:Object.values(data.groups)):[];
+
+    const nuoviPerGruppo={};
+    daCreare.forEach(n=>{
+      nuoviPerGruppo[n.groupIndex]=nuoviPerGruppo[n.groupIndex]||[];
+      nuoviPerGruppo[n.groupIndex].push({
+        uid:n.uid, nome:n.nome, soprannome:n.nome, ruolo:'Jolly', mercenario:true, piede:'Destro',
+        descrizione:'', fraseCelebre:'', storicoPartite:[], rivali:[], affinita:[], infortuni:[],
+        numeroMaglia:null, squadraCuore:'',
+        goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0,
+        puntiTotali:0, partiteTotali:0, mediaPunti:0, mediaVoto:0, votiTotali:0,
+        rigoriParatiTotali:0, rigoriSbagliatiTotali:0, rigoriSegnatiTotali:0,
+      });
+    });
+    // Mappa orfano→esistente per gruppo, per riscrivere i riferimenti nelle partite
+    const riassegnazioniPerGruppo={};
+    daRiassegnare.forEach(n=>{
+      riassegnazioniPerGruppo[n.groupIndex]=riassegnazioniPerGruppo[n.groupIndex]||{};
+      riassegnazioniPerGruppo[n.groupIndex][n.uid]=n.esistenteUid;
+    });
+
+    const cleanGroups=rawGroups.map((entry,gi)=>{
+      if(!entry) return entry;
+      const nuovi=nuoviPerGruppo[gi]||[];
+      const mappaRiassegnazioni=riassegnazioniPerGruppo[gi];
+      let matches=Array.isArray(entry.matches)?entry.matches:Object.values(entry.matches||{});
+      if(mappaRiassegnazioni){
+        matches=matches.map(m=>{
+          if(!m) return m;
+          const rimappa=uid=>mappaRiassegnazioni[uid]||uid;
+          const nuovaSquadraA=(m.squadraA||[]).map(rimappa);
+          const nuovaSquadraB=(m.squadraB||[]).map(rimappa);
+          const nuoveStat=(m.statisticheGiocatori||[]).map(s=>s?.playerId&&mappaRiassegnazioni[s.playerId]?{...s,playerId:mappaRiassegnazioni[s.playerId]}:s);
+          return {...m, squadraA:nuovaSquadraA, squadraB:nuovaSquadraB, statisticheGiocatori:nuoveStat};
+        });
+      }
+      if(nuovi.length===0 && !mappaRiassegnazioni) return entry;
+      const players=Array.isArray(entry.players)?entry.players:Object.values(entry.players||{});
+      return {...entry, players:[...players,...nuovi], matches};
+    });
+
+    log('🗑️ Scrittura su Firebase...','warn');
+    await _writeGroupsOnly(base, _stripPngFromGroups(cleanGroups));
+
+    log(`🎉 Fatto! ${daCreare.length?daCreare.length+' giocatori creati. ':''}${daRiassegnare.length?daRiassegnare.length+' partite riassegnate a giocatori esistenti.':''} Ora sincronizza ogni dispositivo per scaricare, poi usa "Ricalcola statistiche" nell'app.`,'ok');
+    $('orphanPlayersForm').innerHTML='';
+    window._orphanContext=[];
+    await loadAll();
+  }catch(e){
+    log('❌ Errore: '+e.message,'err');
+  }
+}
+
+// Fix nome stagione (20/8/2026, segnalato da Alby: la stagione corrente mostrava "Stagione 1"
+// invece del nome che aveva impostato archiviando, es. "Stagione 26/27") — stessa causa
+// dell'incidente di duplicazione partite: il dispositivo stale che ha sovrascritto Firebase
+// aveva probabilmente ancora il nome DI DEFAULT (assegnato alla creazione del gruppo, mai
+// rinominato su quel dispositivo), sovrascrivendo il nome corretto insieme a tutto il resto.
+window._stagioneContext=[];
+
+async function showStagioneFix(){
+  if(!DB){alert('Clicca prima Connetti per caricare il database.');return;}
+  const rawGroups=DB.groups?(Array.isArray(DB.groups)?DB.groups:Object.values(DB.groups)):[];
+  const container=$('stagioneFixForm');
+  let html='';
+  window._stagioneContext=[];
+  rawGroups.forEach((entry,gi)=>{
+    if(!entry) return;
+    const idx=window._stagioneContext.length;
+    window._stagioneContext.push({groupIndex:gi});
+    html+=`<div style="margin-top:10px;padding:10px;background:rgba(255,140,0,.06);border:1px solid rgba(255,140,0,.2);border-radius:8px">
+      <div style="font-weight:700;margin-bottom:6px;color:var(--orange)">Gruppo "${entry.group?.nome||'?'}"</div>
+      <div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">Nome attuale su Firebase: <span style="font-family:monospace;color:var(--text)">${entry.group?.stagione||'(vuoto)'}</span></div>
+      <input type="text" id="stagioneNome_${idx}" placeholder="Nuovo nome stagione (es. Stagione 26/27)" value="${entry.group?.stagione||''}" style="width:100%;padding:6px;border-radius:4px;border:1px solid var(--border);background:var(--bg1,#0b0f19);color:var(--text)">
+    </div>`;
+  });
+  if(window._stagioneContext.length===0){
+    container.innerHTML='<div style="color:var(--text2);margin-top:10px">Nessun gruppo trovato.</div>';
+    return;
+  }
+  html+=`<button class="btn btn-orange btn-sm" style="margin-top:6px" onclick="saveStagioneFix()">💾 Salva nome/i stagione</button>`;
+  container.innerHTML=html;
+}
+
+async function saveStagioneFix(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!window._stagioneContext||window._stagioneContext.length===0){alert('Prima clicca "Mostra nome stagione attuale".');return;}
+
+  const nomi=window._stagioneContext.map((ctx,idx)=>({...ctx, nome: $(`stagioneNome_${idx}`)?.value?.trim()||''}));
+  const vuoti=nomi.filter(n=>!n.nome);
+  if(vuoti.length>0){ alert('Il nome stagione non può essere vuoto — compilalo prima di procedere.'); return; }
+
+  if(!confirm(`Aggiornare il nome stagione per ${nomi.length} gruppo/i?\n\n${nomi.map(n=>'- '+n.nome).join('\n')}`)) return;
+
+  const base=$('fbUrl').value.trim().replace(/\/$/,'');
+  try{
+    const data=DB;
+    const rawGroups=data.groups?(Array.isArray(data.groups)?data.groups:Object.values(data.groups)):[];
+    const cleanGroups=rawGroups.map((entry,gi)=>{
+      if(!entry) return entry;
+      const ctx=nomi.find(n=>n.groupIndex===gi);
+      if(!ctx) return entry;
+      return {...entry, group:{...entry.group, stagione:ctx.nome}};
+    });
+
+    log('🗑️ Scrittura su Firebase...','warn');
+    await _writeGroupsOnly(base, _stripPngFromGroups(cleanGroups));
+
+    log(`🎉 Nome stagione aggiornato. Ora sincronizza ogni dispositivo (o usa "Forza Risync Globale") per scaricare il valore corretto.`,'ok');
+    $('stagioneFixForm').innerHTML='';
+    window._stagioneContext=[];
     await loadAll();
   }catch(e){
     log('❌ Errore: '+e.message,'err');

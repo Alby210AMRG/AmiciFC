@@ -1910,6 +1910,24 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     </div>
   </div>
 
+  <!-- ── OVERLAY SYNC FORZATO (20/8/2026, richiesta di Alby) — z-index più alto di qualunque
+       altro modal: un sync forzato dall'admin deve sempre vincere su tutto il resto, l'utente
+       non deve poter continuare a usare dati che stanno per essere cancellati e riscaricati. ── -->
+  <div v-if="showForceSyncOverlay" style="position:fixed;inset:0;background:var(--bg1,#0a0a0f);z-index:99999;display:flex;align-items:center;justify-content:center;padding:24px;text-align:center">
+    <div>
+      <div style="font-size:3.2rem;margin-bottom:16px" :style="!forceSyncDone?'animation:spin 1.4s linear infinite':''">{{ forceSyncDone ? '✅' : '🔄' }}</div>
+      <div style="font-size:1.15rem;font-weight:800;margin-bottom:10px;color:var(--lime)">
+        {{ forceSyncDone ? 'Fatto! Tutto rimesso a nuovo 🧽' : "L'arbitro ha fermato il gioco 🟨" }}
+      </div>
+      <div style="font-size:0.85rem;color:var(--text2);line-height:1.6;max-width:320px;margin:0 auto 22px">
+        {{ forceSyncDone
+          ? 'I dati sono aggiornati e al posto giusto. Ricarica per rivedere tutto — squadre, partite e classifiche come devono essere.'
+          : "L'admin ha chiamato un time-out amministrativo 📋 — stiamo scaricando la versione ufficiale dei dati direttamente dal cloud. Non tentare la ripartenza, la sessione si riprende da sola tra un attimo ⏳" }}
+      </div>
+      <button v-if="forceSyncDone" class="btn btn-primary" @click="location.reload()">🔄 Ricarica ora</button>
+    </div>
+  </div>
+
   <!-- ── RECUPERO PARTITA LIVE INTERROTTA (20/8/2026) — globale, visibile appena rilevata ── -->
   <div v-if="liveRecoverableMatch" style="position:fixed;inset:0;background:rgba(0,0,0,0.9);z-index:220;display:flex;align-items:center;justify-content:center;padding:16px">
     <div style="background:var(--bg1);border:2px solid #f87171;border-radius:16px;width:100%;max-width:420px;padding:24px;text-align:center">
@@ -6724,6 +6742,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               </div>
             </div>
 
+            <!-- Ricalcola Achievement (20/8/2026, richiesta di Alby dopo l'incidente di
+                 duplicazione partite): a differenza delle statistiche, gli achievement una volta
+                 sbloccati NON si "ribloccano" mai da soli anche se poi le statistiche vengono
+                 corrette — servono uno strumento dedicato per ripulire eventuali sblocchi ottenuti
+                 per errore con dati temporaneamente gonfiati. -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(251,191,36,.25)">
+              <div @click="zpSection='achv'===zpSection?null:'achv'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
+                <span style="font-size:0.82rem;font-weight:700;color:#fbbf24">🏅 Ricalcola Achievement</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='achv'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='achv'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(251,191,36,.15)">
+                <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                  Gli achievement, a differenza delle statistiche, restano sbloccati per sempre una volta ottenuti — anche se le statistiche vengono corrette dopo. Usa questo se sospetti che qualcuno abbia sbloccato qualcosa per errore (es. con dati temporaneamente sbagliati): azzera tutto e lo ricostruisce da capo in base alle statistiche di ADESSO. <strong>Nota</strong>: le date di sblocco originali vengono perse, tutto quello che risulta sbloccato ora prende la data di oggi.
+                </div>
+                <button class="btn btn-full btn-sm" style="background:rgba(251,191,36,0.12);border:1.5px solid #fbbf24;color:#fbbf24"
+                  @click="forceRecomputeAchievements">
+                  🏅 Ricalcola Achievement
+                </button>
+              </div>
+            </div>
+
             <!-- Riepilogo Stagione TEST (collassabile) -->
             <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(200,255,0,.25)">
               <div @click="zpSection='riepilogo'===zpSection?null:'riepilogo'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,255,255,.03)">
@@ -9305,7 +9344,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.899',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.900',date:'2026-08-20',items:[
+      'Trovata terza conseguenza dellincidente di duplicazione partite: gli achievement, a differenza delle statistiche, si sbloccano una volta e restano sbloccati per sempre - se durante lincidente qualche soglia era stata superata per errore con dati temporaneamente gonfiati, quello sblocco restava anche dopo la riparazione delle statistiche. Nuovo pulsante "Ricalcola Achievement" in Zona Pericolo, azzera e ricostruisce tutto da zero (le date di sblocco originali si perdono, tutto ciò che risulta sbloccato ora prende la data di oggi).',
+      'Sicurezza Inspector: lintera sezione Manutenzione (e Deprecato) ora e visibile solo dopo il login - prima tutte le voci di menu comparivano comunque, anche senza credenziali.',
+      'Nuovo overlay a schermo intero quando scatta un sync forzato dallamministratore: avvisa che i dati si stanno aggiornando dal cloud, poi invita a ricaricare la pagina per vedere tutto aggiornato - prima il dispositivo si aggiornava senza nessun avviso.',
+    ]},{version:'v1.899',date:'2026-08-20',items:[
       'Fix mirato di prevenzione (concordato con Alby dopo lincidente di duplicazione partite): larchiviazione stagione ora pubblica subito lo stato corretto su Firebase e forza il sync su tutti i dispositivi, invece di aspettare un sync generico successivo. Un dispositivo rimasto indietro viene sempre forzato a scaricare i dati freschi alla prossima apertura, prima di poter scrivere qualcosa di suo.',
       'Aggiunto il pulsante di chiusura (✕) in alto a destra nel dettaglio partita.',
     ]},{version:'v1.898',date:'2026-08-20',items:[
@@ -10266,6 +10309,11 @@ createApp({
     const isOnline          = ref(navigator.onLine);
     const lastSyncTime      = ref(localStorage.getItem('amicifc_last_sync') || '');
     const lastCheckTime     = ref(localStorage.getItem('amicifc_last_check') || '');
+    // Overlay Sync Forzato (20/8/2026, richiesta di Alby): quando un admin forza il sync da
+    // Inspector ("Forza Risync Globale"), il dispositivo cancellava e riscaricava tutto senza
+    // nessun avviso — poteva sembrare un crash o un bug agli occhi di chi lo vedeva succedere.
+    const showForceSyncOverlay = ref(false);
+    const forceSyncDone        = ref(false);
     const localSyncVersion  = ref(parseInt(localStorage.getItem('amicifc_sync_version') || '0'));
     const localSyncTs       = ref(parseInt(localStorage.getItem('amicifc_sync_ts') || '0'));
     const lastSyncError     = ref(localStorage.getItem('amicifc_last_sync_error') || '');
@@ -10664,7 +10712,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.899');
+    const appVersion = ref('1.900');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -15864,6 +15912,22 @@ OUTPUT: Rispondi SOLO con JSON valido:
         _saveAchievementsUnlocked();
       }
       return nuovi;
+    };
+
+    // Ricalcola Achievement da zero (20/8/2026, richiesta di Alby dopo l'incidente di
+    // duplicazione partite) — a differenza delle statistiche, un achievement sbloccato non si
+    // "riblocca" mai da solo anche se le statistiche vengono corrette dopo (comportamento voluto
+    // in generale — non si "toglie" un traguardo — ma problematico se lo sblocco è avvenuto con
+    // dati temporaneamente gonfiati durante l'incidente). Azzera il registro e lo ricostruisce da
+    // capo con _updateAchievementsUnlocked(), la stessa funzione già usata normalmente dopo ogni
+    // salvataggio/modifica partita — nessuna logica nuova, solo applicata da uno stato pulito.
+    const forceRecomputeAchievements = async () => {
+      if (!currentGroup.value) return;
+      if (!confirm('Azzerare e ricalcolare tutti gli achievement da zero?\n\nLe date di sblocco originali andranno perse — tutto quello che risulta sbloccato ora prenderà la data di oggi.\n\nProcedere?')) return;
+      achievementsUnlocked.value = {};
+      _updateAchievementsUnlocked();
+      toast('🏅 Achievement ricalcolati da zero!', 'success', 3000);
+      logEvent('info', 'app', '🏅 Achievement azzerati e ricalcolati da zero (Zona Pericolo)');
     };
 
     // Achievement sbloccati di un giocatore, raggruppati per categoria — ordine di categoria e
@@ -24549,7 +24613,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           const syncNeeded = await checkSyncNeeded();
           if (syncNeeded === 'force') {
             logEvent('info', 'sync', '🔄 Sync forzato — syncVersion aggiornata da admin (eseguito sempre, anche con "Sincronizza all\'avvio" disattivato)');
+            showForceSyncOverlay.value = true;
             await syncFromCloud(true); // force = cancella tutto e riscarica
+            forceSyncDone.value = true;
           } else if (syncNeeded === 'update' && currentGroup.value?.syncOnStartup !== false) {
             await syncFromCloud(false); // aggiornamento normale — solo se l'interruttore è attivo
           } else {
@@ -26108,7 +26174,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
-      syncLoading, syncStatus, lastSyncDate, lastSyncTime, lastCheckTime, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids,
+      syncLoading, syncStatus, lastSyncDate, lastSyncTime, lastCheckTime, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids, showForceSyncOverlay, forceSyncDone, forceRecomputeAchievements,
       restoreStatus, restoreFromBackup, forceRecomputeStats, expandedGroupId, archiveWizard, archiveStepData, openArchiveWizard, archiveSelectAll, archiveTogglePlayer, archiveStep1Next, archiveStep2Next, archiveStep3Next, archiveDownloadSafetyBackup, archiveDownloadZipGiornale, doArchiveStagione, groupFirstMatch, deleteGroupConfirmText, deleteGroupTarget, confirmDeleteGroup, doDeleteGroup,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
