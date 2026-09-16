@@ -6003,6 +6003,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
     <!-- ════ MANUALE DEL CAMPETTO (vista propria, spostato da Impostazioni il 6/8/2026) ════ -->
     <template v-if="currentView === 'manuale'">
       <div class="card-title">📖 Manuale del Campetto</div>
+      <button class="btn btn-ghost btn-full" style="margin-bottom:12px;border-color:rgba(166,255,77,.4);color:var(--lime)" @click="scrollToEsempiPratici">
+        🎓 Vai agli Esempi Pratici
+      </button>
 
       <div class="card" style="border-color:rgba(96,165,250,0.3)">
 
@@ -6012,7 +6015,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
             <li>Vai in <strong>Giocatori</strong> e aggiungi i tuoi amici — foto, ruolo, soprannome, Numero Preferito e Squadra del Cuore</li>
             <li>Tocca il <strong>pallone colorato</strong> al centro della barra in basso, poi "➕ Nuova" → "⚽ Nuova Formazione"</li>
-            <li>Seleziona chi gioca oggi e genera le squadre: <strong>AI</strong> (bilanciate dall'intelligenza artificiale), <strong>Consigliata</strong> (algoritmo statistico), oppure <strong>Manuale</strong> (le trascini tu)</li>
+            <li>Seleziona chi gioca oggi e genera le squadre: <strong>AI</strong> (bilanciate dall'intelligenza artificiale), <strong>Consigliata</strong> (algoritmo statistico), oppure <strong>Manuale</strong> (le trascini tu) — ogni squadra prende anche un nome buffo, generato da sola o con il pulsante 🎲 in Manuale</li>
             <li>Quando è ora di giocare, apri la formazione e premi <strong>"⚽ Gioca questa"</strong> — scegli tra Uno alla Volta, Tutti Insieme, o Vota con gli amici per registrare voti, gol e assist</li>
             <li>Le <strong>statistiche</strong> e le <strong>card AI</strong> si aggiornano automaticamente</li>
             <li>Configura una <strong>API key AI</strong> per le card intelligenti</li>
@@ -6028,6 +6031,18 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>❤️ <strong>Squadra del Cuore</strong> — testo libero, usato da Identikit AI, Trash Talk e Pronostico</div>
             <div>🔑 <strong>PIN di voto</strong> — dalla scheda giocatore, serve per votare nelle Pagelle Multi-Utente (vedi sotto). Si vede una sola volta alla generazione</div>
             <div>👑 <strong>Admin del gruppo</strong> — chi ha accesso Firebase in scrittura, ha sempre diritto di voto nelle Pagelle Multi-Utente anche senza aver giocato</div>
+          </div>
+        </div>
+
+        <!-- Giocatori Mercenario -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#c084fc;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">⚔️ Giocatori Mercenario</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>Per chi viene "spot" a completare le formazioni, senza far parte stabile del gruppo</div>
+            <div>Dalla scheda giocatore, spunta <strong>"Giocatore Mercenario"</strong> — riceve un badge ⚔️ viola distintivo e una silhouette dedicata ovunque compaia</div>
+            <div>📊 Le sue statistiche continuano comunque a essere conteggiate normalmente — l'unico effetto è visivo</div>
+            <div>👁️ Nelle Impostazioni Gruppo puoi attivare <strong>"Nascondi Mercenari da statistiche e home"</strong> per toglierli da classifiche e carosello, senza toccare i loro numeri</div>
+            <div>🔍 Nella schermata Giocatori c'è un filtro rapido per mostrarli/nasconderli al volo, indipendentemente dall'impostazione di gruppo</div>
           </div>
         </div>
 
@@ -6059,6 +6074,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>🗳️ La card "Votazione in corso" appare ovunque nelle liste partite finché la votazione resta aperta</div>
             <div>⭐ <strong>Uomo Partita votato dai partecipanti</strong>: quando apri la votazione, scegli se l'Uomo Partita lo decidi tu a fine serata (come sempre) oppure lo votano direttamente i partecipanti insieme alle pagelle — in quel caso, ogni votante deve scegliere qualcuno prima di poter concludere il proprio voto (non è possibile saltare)</div>
             <div>🏆 Chiudendo la votazione con questa opzione attiva, vedi un riepilogo di chi ha preso più voti come Uomo Partita, prima di confermare — resta comunque un suggerimento, puoi sempre cambiarlo lì</div>
+          </div>
+        </div>
+
+        <!-- Modalità Live -->
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
+          <div style="font-weight:700;font-size:0.78rem;color:#f87171;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">🔴 Modalità Live</div>
+          <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
+            <div>Per seguire la partita dal campo in tempo reale, invece di inserire tutto a fine serata a memoria</div>
+            <div>Da "Gioca questa" → <strong>Live</strong>: scegli Tempo Unico o Due Tempi, poi chi darà i voti a fine partita — tu, oppure i partecipanti con "Vota con gli amici"</div>
+            <div>⚽ Tocca un giocatore per registrare un gol, assist, autogol o rigore, con il minuto calcolato in automatico</div>
+            <div>🥅 Il Portiere Dichiarato resta sempre modificabile dal vivo, qualunque scelta tu faccia sui voti</div>
+            <div>🩹 I cambi per infortunio si registrano direttamente da lì, stesso pulsante usato nelle altre modalità</div>
+            <div>📱 Se esci dall'app o il telefono si blocca, il cronometro continua a girare correttamente — alla riapertura ti viene proposto di riprendere esattamente da dove eri rimasto</div>
+            <div>✕ Un pulsante "Annulla Partita" permette di scartare tutto se hai iniziato per errore</div>
           </div>
         </div>
 
@@ -6169,13 +6198,74 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
 
         <!-- Riepilogo Stagione -->
-        <div>
+        <div style="margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid rgba(255,255,255,.08)">
           <div style="font-weight:700;font-size:0.78rem;color:#2dd4bf;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">📖 Riepilogo Stagione</div>
           <div style="font-size:0.75rem;color:var(--text2);line-height:2.1">
             <div>A fine stagione, durante l'Archiviazione, viene generato un PDF completo e scaricabile</div>
             <div>📕 Copertina, numeri della stagione, Gli Oscar, classifiche, Le Partite, Annuario giocatori, Formazioni, curiosità</div>
             <div>📂 Si trova sempre in "Altro" → <strong>Riepilogo Stagione</strong>, o tra i <strong>Riepiloghi Stagionali</strong> per le stagioni passate</div>
             <div>🎉 Un box in home lo segnala appena pronto — basta toccarlo per aprirlo</div>
+          </div>
+        </div>
+
+        <!-- Esempi Pratici (20/8/2026, richiesta di Alby: capitolo passo-passo con casi d'uso
+             concreti, raggiungibile con un salto rapido dal pulsante sotto il titolo) -->
+        <div id="capitolo-esempi">
+          <div style="font-weight:700;font-size:0.9rem;color:var(--lime);margin-bottom:12px;text-transform:uppercase;letter-spacing:1px">🎓 Esempi Pratici</div>
+
+          <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-weight:700;font-size:0.78rem;color:#fb923c;margin-bottom:8px">👤 Come inserire un giocatore</div>
+            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+              <li>Vai su <strong>Giocatori</strong> → tocca il pulsante <strong>+</strong> in basso a destra</li>
+              <li>Inserisci almeno il nome — foto, ruolo, soprannome, piede preferito sono facoltativi ma consigliati</li>
+              <li>Se è qualcuno preso "spot" per una sola serata, spunta <strong>"Giocatore Mercenario"</strong> — riceve un badge dedicato e puoi nasconderlo dalle classifiche in un secondo momento senza perdere le sue statistiche</li>
+              <li>Salva — è subito disponibile per essere inserito in una formazione</li>
+            </ol>
+          </div>
+
+          <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:8px">⚽ Come creare una formazione — differenze tra le 3 modalità</div>
+            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+              <li>Tocca il pallone colorato al centro della barra in basso → <strong>"➕ Nuova"</strong> → <strong>"⚽ Nuova Formazione"</strong></li>
+              <li>Seleziona chi gioca stasera</li>
+              <li>Scegli come bilanciare le squadre:
+                <ul style="padding-left:18px;line-height:1.8;margin:6px 0">
+                  <li><strong>📊 Consigliata</strong> — un algoritmo statistico calcola squadre equilibrate in base a voti/gol/presenze di ognuno. Veloce, nessuna AI richiesta, nome squadra scelto da una lista buffa</li>
+                  <li><strong>🤖 AI</strong> — la stessa idea ma affidata all'intelligenza artificiale, che tiene conto anche di ruoli/caratteristiche e propone nomi squadra più mirati (usa rivalità/affinità tra i presenti quando ha senso). Richiede una API key configurata</li>
+                  <li><strong>✏️ Manuale</strong> — le formi tu trascinando i giocatori, per il controllo totale. Per il nome squadra c'è un pulsante 🎲 "Genera nome" (usa l'AI se configurata, altrimenti la stessa lista buffa della Consigliata)</li>
+                </ul>
+              </li>
+              <li>Salva — la trovi tra le formazioni pronte, pronta per "⚽ Gioca questa" quando è il momento</li>
+            </ol>
+          </div>
+
+          <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-weight:700;font-size:0.78rem;color:#4ade80;margin-bottom:8px">🤖 Come configurare l'AI</div>
+            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+              <li>Vai su <strong>Altro</strong> → <strong>Impostazioni</strong> → sezione AI</li>
+              <li>Scegli un provider (Gemini è quello consigliato, ha un livello gratuito generoso)</li>
+              <li>Tocca <strong>"❓ Come prendere una API key gratuita?"</strong> per le istruzioni passo-passo dirette al sito del provider</li>
+              <li>Incolla la chiave nel campo apposito — si salva da sola</li>
+              <li>Da questo momento tutte le funzioni AI (formazioni, card, commenti, nomi squadra mirati) si attivano da sole — senza chiave, l'app usa comunque dei ripieghi automatici dove possibile</li>
+            </ol>
+          </div>
+
+          <div>
+            <div style="font-weight:700;font-size:0.78rem;color:#c084fc;margin-bottom:8px">🗳️ Come mettere i voti — o farli votare agli altri</div>
+            <div style="font-size:0.74rem;color:var(--text2);margin-bottom:10px;font-style:italic">Per inserire tu i voti a fine partita, usa "Uno alla Volta" o "Tutti Insieme" da "Gioca questa" — qui invece il percorso per farli votare direttamente ai partecipanti.</div>
+            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+              <li>Inserita la formazione, vai su <strong>"⚽ Gioca questa"</strong></li>
+              <li>Scegli <strong>"🗳️ Vota con gli amici"</strong></li>
+              <li>Indica chi ha fatto il portiere fisso, o metti <strong>"A turno"</strong> se non c'è stato uno fisso</li>
+              <li>Inserisci chi ha segnato, fatto autogol, assist ecc. (il resto delle statistiche, i voti li daranno i partecipanti)</li>
+              <li><strong>Avanti</strong></li>
+              <li>Decidi: l'Uomo Partita lo scegli tu, o lo votano anche quello i partecipanti?</li>
+              <li><strong>Salva e Apri il voto</strong></li>
+              <li>Ti arriva un link — incollalo nel gruppo WhatsApp. Se lo perdi, lo ritrovi sempre andando sull'ultima partita in <strong>Partite</strong> → <strong>Modifica</strong></li>
+              <li>Per votare serve un <strong>PIN personale</strong> a testa (segreto). Si genera da <strong>Giocatori</strong> → apri il giocatore → <strong>"➕ Genera"</strong> in basso — esce un PIN a 6 cifre, comunicalo tu. Va fatto per ogni giocatore che vuoi far votare; se qualcuno lo perde, si rigenera dallo stesso punto</li>
+              <li>Chi riceve il link inserisce il PIN e il sistema lo riconosce da solo — nessun login, nessuna app da scaricare. Si può votare e rivotare quante volte si vuole, conta sempre solo l'ultimo voto dato (vale anche per te: usa il tuo link e il tuo PIN, tocca votare pure a te!)</li>
+              <li>Quando ti sembra il momento giusto, vai sulla partita → <strong>Modifica</strong> → <strong>"Controlla stato votazione"</strong> (ti dice quanti hanno votato) → <strong>"🔒 Chiudi e Pubblica"</strong> — il sistema calcola la media (scartando i voti troppo fuori scala) e aggiorna tutto da solo. Ci mette 1-2 minuti, lascialo lavorare</li>
+            </ol>
           </div>
         </div>
 
@@ -9214,6 +9304,14 @@ createApp({
   setup() {
     // ── State ──
     const currentView   = ref('home');
+    // Salto al capitolo Esempi Pratici nel Manuale (20/8/2026) — funzione dedicata invece di
+    // un'espressione inline dentro @click: stesso pattern di bug già trovato più volte in questo
+    // progetto (espressioni inline complesse dentro @click che Vue non esegue, senza errore
+    // visibile — confermato con test diretto: la stessa chiamata funziona se invocata a mano,
+    // ma non se lasciata inline nel template).
+    const scrollToEsempiPratici = () => {
+      nextTick(() => document.getElementById('capitolo-esempi')?.scrollIntoView({behavior:'smooth', block:'start'}));
+    };
     const groups        = ref([]);
     const archivedSeasonsCountByGroup = ref({}); // {groupId: count} — popolato in loadGroups da db.archivedSeasons
     const currentGroup  = ref(null);
@@ -9350,7 +9448,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.903',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.904',date:'2026-08-20',items:[
+      'Manuale del Campetto (in-app + file esterno): nuovo capitolo "Esempi Pratici" con 4 casi duso concreti passo-passo (inserire un giocatore, creare una formazione con le differenze tra AI/Consigliata/Manuale, configurare lAI, mettere i voti o farli votare agli altri) - raggiungibile con un pulsante dedicato sotto il titolo del Manuale in-app. Aggiunti anche i capitoli mancanti su Giocatori Mercenario e Modalita Live (in-app, gia presente nel file esterno).',
+      'Bug trovato e corretto durante lo sviluppo: il pulsante "Vai agli Esempi Pratici" non funzionava con unespressione inline dentro @click (stesso pattern di bug gia trovato altre volte in questo progetto - Vue non la eseguiva, senza errore visibile) - corretto con una funzione dedicata.',
+    ]},{version:'v1.903',date:'2026-08-20',items:[
       'Firme AI storpiate (usate come firma del commento AI): corrette 3 firme deboli ("Zdenek Zemantico"->"Zdenek Zemone", "Marcello Lippo"->"Marcello Lippardo", "Giovanni Trapattoni il Vecchio"->"Giovanni Trapattonaccio", uniformato lo stile), e aggiunte 4 nuove ispirate a film comici di calcio italiani: Oronzo Canaglia (da Oronzo Cana, L Allenatore nel Pallone), Learco Borlottone (il presidente della Longobarda nello stesso film), Ugo Fantozzone e Lino Banfollone. Da 15 a 19 firme totali, aggiornate coerentemente nei tre punti del codice dove questa lista compare.',
     ]},{version:'v1.902',date:'2026-08-20',items:[
       'Liste nomi squadra buffi (Consigliata/Manuale senza AI) ampliate da 15 a 51 nomi ciascuna - richiesta di Alby: con solo 15, un utente senza AI configurata avrebbe visto presto sempre gli stessi nomi ripetersi.',
@@ -10724,7 +10825,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.903');
+    const appVersion = ref('1.904');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -26191,7 +26292,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
     };
 
     return {
-      currentView, groups, archivedSeasonsCountByGroup, currentGroup, groupPlayers, groupMatches, currentGroupArchivedSeasons, settings, appReady, _heroCards, _heroAddPhase, _heroFinalize, _heroLaunch, heroUnifiedData, heroNewsTicker, heroNewsTickerIdx,
+      currentView, scrollToEsempiPratici, groups, archivedSeasonsCountByGroup, currentGroup, groupPlayers, groupMatches, currentGroupArchivedSeasons, settings, appReady, _heroCards, _heroAddPhase, _heroFinalize, _heroLaunch, heroUnifiedData, heroNewsTicker, heroNewsTickerIdx,
       toasts, logoDataUrl, showGroupSelector, showPlayerForm, showAddPlayerMenu, showImportPlayerModal, importPlayerSearch, archivedPlayersNotInCurrent, filteredArchivedPlayers, openImportPlayerModal, importPlayerFromArchive, showPlayerDetail, showPhotoLightbox,
       showMatchDetail,
       obfuscateEmail,
