@@ -3559,11 +3559,17 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <div class="input-group" style="margin:0">
             <label class="input-label">🔵 Nome Squadra A</label>
-            <input class="input-field" v-model="manualFormation.nomeSquadraA" placeholder="Squadra A" style="padding:8px">
+            <div style="display:flex;gap:6px">
+              <input class="input-field" v-model="manualFormation.nomeSquadraA" placeholder="Squadra A" style="padding:8px">
+              <button type="button" class="btn btn-ghost btn-sm" style="padding:8px 10px;flex-shrink:0" title="Genera nome" @click="generaNomeSquadraManuale('A')">🎲</button>
+            </div>
           </div>
           <div class="input-group" style="margin:0">
             <label class="input-label">🔴 Nome Squadra B</label>
-            <input class="input-field" v-model="manualFormation.nomeSquadraB" placeholder="Squadra B" style="padding:8px">
+            <div style="display:flex;gap:6px">
+              <input class="input-field" v-model="manualFormation.nomeSquadraB" placeholder="Squadra B" style="padding:8px">
+              <button type="button" class="btn btn-ghost btn-sm" style="padding:8px 10px;flex-shrink:0" title="Genera nome" @click="generaNomeSquadraManuale('B')">🎲</button>
+            </div>
           </div>
         </div>
       </div>
@@ -9344,7 +9350,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.900',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.903',date:'2026-08-20',items:[
+      'Firme AI storpiate (usate come firma del commento AI): corrette 3 firme deboli ("Zdenek Zemantico"->"Zdenek Zemone", "Marcello Lippo"->"Marcello Lippardo", "Giovanni Trapattoni il Vecchio"->"Giovanni Trapattonaccio", uniformato lo stile), e aggiunte 4 nuove ispirate a film comici di calcio italiani: Oronzo Canaglia (da Oronzo Cana, L Allenatore nel Pallone), Learco Borlottone (il presidente della Longobarda nello stesso film), Ugo Fantozzone e Lino Banfollone. Da 15 a 19 firme totali, aggiornate coerentemente nei tre punti del codice dove questa lista compare.',
+    ]},{version:'v1.902',date:'2026-08-20',items:[
+      'Liste nomi squadra buffi (Consigliata/Manuale senza AI) ampliate da 15 a 51 nomi ciascuna - richiesta di Alby: con solo 15, un utente senza AI configurata avrebbe visto presto sempre gli stessi nomi ripetersi.',
+    ]},{version:'v1.901',date:'2026-08-20',items:[
+      'Nomi squadra simpatici, completato (mancava solo lultimo pezzo - Consigliata e AI erano gia coperte): nuovo pulsante "Genera nome" nella creazione formazione Manuale, accanto a ciascuna squadra - usa lAI se configurata, altrimenti pesca dalla stessa lista gia usata da Consigliata. La modalita AI ora tiene conto anche di rivalita e affinita tra i giocatori PRESENTI quella sera per nomi squadra piu mirati.',
+    ]},{version:'v1.900',date:'2026-08-20',items:[
       'Trovata terza conseguenza dellincidente di duplicazione partite: gli achievement, a differenza delle statistiche, si sbloccano una volta e restano sbloccati per sempre - se durante lincidente qualche soglia era stata superata per errore con dati temporaneamente gonfiati, quello sblocco restava anche dopo la riparazione delle statistiche. Nuovo pulsante "Ricalcola Achievement" in Zona Pericolo, azzera e ricostruisce tutto da zero (le date di sblocco originali si perdono, tutto ciò che risulta sbloccato ora prende la data di oggi).',
       'Sicurezza Inspector: lintera sezione Manutenzione (e Deprecato) ora e visibile solo dopo il login - prima tutte le voci di menu comparivano comunque, anche senza credenziali.',
       'Nuovo overlay a schermo intero quando scatta un sync forzato dallamministratore: avvisa che i dati si stanno aggiornando dal cloud, poi invita a ricaricare la pagina per vedere tutto aggiornato - prima il dispositivo si aggiornava senza nessun avviso.',
@@ -10712,7 +10724,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.900');
+    const appVersion = ref('1.903');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12348,8 +12360,11 @@ createApp({
     const AI_FORMATION_NAMES=['La Remontada dei Poveri 🔥','Piano Panino 🥪','Stile Oratorio 2.0 ⛪','La Banda del Buco 🕳️','Tiki-Taka col Kebab 🫔','Pressing Alto sui Tramezzini 🥪','Il Catenaccio Liquido 🔐','La Zona Mista (di Pizza) 🍕','Gegenpressing da Bar 🍺','Il Falso Nueve (e gli Otto Veri) 😂','La Filosofia del Portiere Che Attacca 🥅','Ultra-Offensiva con Difesa Speranza 🤞','Il Rombo della Malinconia 💎','Total Football (Budget Limitato) 💸','La Sorpresa della Nonna 👵'];
     const usedFormationNames=ref([]);
     const getRandomFormationName=()=>{const avail=AI_FORMATION_NAMES.filter(n=>!usedFormationNames.value.includes(n));const pool=avail.length?avail:AI_FORMATION_NAMES;const name=pool[Math.floor(Math.random()*pool.length)];usedFormationNames.value.push(name);return name;};
-    const TEAM_NAMES_A=['Gli Invincibili 🏆','I Fenomeni del Giovedi ⚡','La Macchina da Guerra 💪','I Dominatori della Pizza 🍕','Gli Imbattibili del Bar 🍺','I Campioni della Birra 🍺','La Banda del Martedi 🌙','I Maestri del Calcetto ⚽','I Goleador della Serata 🥅','I Terribili del Campo 😤','La Curva Sud 🎤','I Vecchi Leoni 🦁','Gli Idoli del Campo 🌟','I Fulmini del Calcetto ⚡','La Squadra della Pizzeria 🍕'];
-    const TEAM_NAMES_B=['I Disperati ma Belli 😅','I Coraggiosi della Birra 🍺','La Resistenza Calcistica 💪','Gli Sfidanti della Notte 🌙','I Guerrieri del Giovedi ⚽','La Banda Bassotti 🐾','I Superstiti del Campo 😂','I Tornanti del Campetto 🔄','Gli Ultimi della Classe 🏅','I Recuperati dalla Panchina 🪑','La Riscossa del Oratorio ⛪','I Dimenticati ma Forti 💎','Gli Eroi Senza Trofeo 🎖️','La Rimonta Impossibile 🔥','I Birraioli in Forma 🍺'];
+    // Ampliate da 15 a 50 nomi ciascuna (20/8/2026, richiesta di Alby: con solo 15, un utente
+    // senza AI configurata avrebbe visto presto sempre gli stessi nomi ripetersi) — stesso tono
+    // scherzoso/auto-ironico da calcetto amatoriale delle 15 originali, che restano in cima.
+    const TEAM_NAMES_A=['Gli Invincibili 🏆','I Fenomeni del Giovedi ⚡','La Macchina da Guerra 💪','I Dominatori della Pizza 🍕','Gli Imbattibili del Bar 🍺','I Campioni della Birra 🍺','La Banda del Martedi 🌙','I Maestri del Calcetto ⚽','I Goleador della Serata 🥅','I Terribili del Campo 😤','La Curva Sud 🎤','I Vecchi Leoni 🦁','Gli Idoli del Campo 🌟','I Fulmini del Calcetto ⚡','La Squadra della Pizzeria 🍕','I Signori del Rettangolo 👑','La Corazzata Amatoriale 🚢','I Padroni del Sintetico 🌱','Gli Sceriffi del Campetto 🤠','I Marziani del Pallone 👽','La Nazionale del Bar Sport 🇮🇹','I Gladiatori della Domenica ⚔️','Gli Alieni Palla al Piede 🛸','I Ras del Rigore 🎯','La Corte dei Miracoli ✨','I Faraoni del Campetto 🏺','Gli Dei del Sintetico ⚡','I Titani della Curva 💥','La Squadra che Non Trema 🗿','I Cecchini dell Area 🔫','Gli Intoccabili del Giovedi 🚫','I Predatori del Pallone 🦅','La Corazza Indistruttibile 🛡️','I Fenomeni da Baretto 🍻','Gli Highlander del Calcetto ⚔️','I Signori della Guerra ⚔️','La Squadra dei Sogni quasi 💭','I Vichinghi del Sintetico 🪓','Gli Immortali della Serata 🌟','I Ninja del Contropiede 🥷','La Banda dei Fenomeni 🎭','I Draghi Sputafuoco 🐉','Gli Spartani del Giovedi 🛡️','I Cannibali dell Area 🦈','La Macchina Perfetta ⚙️','I Guerrieri Invitti ⚔️','Gli Squali del Campetto 🦈','I Samurai del Pallone 🗡️','La Corazzata Scudetto 🚢','I Vendicatori del Giovedi 🦸','I Rullo Compressore 🚜'];
+    const TEAM_NAMES_B=['I Disperati ma Belli 😅','I Coraggiosi della Birra 🍺','La Resistenza Calcistica 💪','Gli Sfidanti della Notte 🌙','I Guerrieri del Giovedi ⚽','La Banda Bassotti 🐾','I Superstiti del Campo 😂','I Tornanti del Campetto 🔄','Gli Ultimi della Classe 🏅','I Recuperati dalla Panchina 🪑','La Riscossa del Oratorio ⛪','I Dimenticati ma Forti 💎','Gli Eroi Senza Trofeo 🎖️','La Rimonta Impossibile 🔥','I Birraioli in Forma 🍺','I Naufraghi del Campetto 🏝️','La Squadra degli Ultimi 🥉','Gli Acciaccati ma Presenti 🩹','I Fantasmi della Difesa 👻','La Ciofeca United 💩','I Panchinari Redenti 🪑','Gli Sconfitti con Onore 🎗️','I Ritardatari Cronici ⏰','La Squadra Improbabile 🎲','I Miracolati del Giovedi ✨','Gli Sfigati Fortunati 🍀','I Cadetti del Bar 🍺','La Brigata Scalcagnata 🥾','I Reduci della Domenica 🎖️','Gli Ultimi Romantici 🌹','I Sopravvissuti al Riscaldamento 🏃','La Vecchia Guardia Ammaccata 🛡️','Il Cirrosi Team 🍺','Gli Zoppi ma Combattivi 🦵','I Fuori Forma United 🍕','La Squadra del Mal di Schiena 🦴','I Ritirati e Pentiti 😔','Gli Illusi del Contropiede 💭','I Panzoni Scatenati 👕','La Combriccola del Bar 🍻','I Sempre Ultimi ma Presenti 🎫','Gli Sventurati Gloriosi 🎭','I Cronici Infortunati 🩼','La Squadra Fantozziana 📎','I Postumi della Sbronza 🍺','Gli Amatoriali DOC 📜','I Recidivi del Fallo 🟨','La Ciurma Improvvisata ⛵','I Testardi Senza Speranza 🐴','Gli Ultimi Baluardi 🏰','I Condannati al Girone 📉'];
     // Sceglie i nomi delle due squadre garantendo SEMPRE emoji diverse tra loro — anche se in
     // futuro TEAM_NAMES_A/B venissero modificati e reintroducessero per caso una coincidenza
     // allo stesso indice (bug reale trovato il 2/7: indice 2 aveva 💪 su entrambe le liste).
@@ -12364,6 +12379,37 @@ createApp({
         }
       }
       return { nameA, nameB };
+    };
+
+    // "Genera nome" per la formazione Manuale (20/8/2026, richiesta di Alby — "Nomi squadra
+    // simpatici", terzo dei tre punti: Consigliata e AI già coprivano rispettivamente la lista
+    // fissa e la generazione AI integrata nel prompt esistente). Con AI configurata, chiede un
+    // nome mirato ai giocatori di QUELLA squadra; altrimenti pesca dalla stessa lista già usata
+    // da "Consigliata" (TEAM_NAMES_A/B) — nessuna lista nuova, coerenza automatica con l'altra
+    // modalità algoritmica.
+    const generaNomeSquadraManuale = async (lato) => {
+      const uids = lato === 'A' ? manualFormation.value.squadraA : manualFormation.value.squadraB;
+      if (!uids || uids.length === 0) { toast('Aggiungi prima almeno un giocatore a questa squadra', 'info'); return; }
+      const giocatori = uids.map(getPlayer).filter(Boolean);
+
+      if (settings.value?.aiProvider && settings.value?.apiKey) {
+        try {
+          const nomiGiocatori = giocatori.map(p => p.soprannome || p.nome).join(', ');
+          const prompt = `Genera UN nome simpatico e ironico in italiano per una squadra di calcetto amatoriale composta da questi giocatori: ${nomiGiocatori}. Rispondi SOLO con il nome della squadra, niente altro testo, niente virgolette.`;
+          const risposta = await _callAI(prompt, 30);
+          const nomePulito = risposta?.trim()?.replace(/^["'«]+|["'»]+$/g, '');
+          if (nomePulito) {
+            if (lato === 'A') manualFormation.value.nomeSquadraA = nomePulito;
+            else manualFormation.value.nomeSquadraB = nomePulito;
+            return;
+          }
+        } catch(e) { /* silenzioso, cade nel ripiego sotto */ }
+      }
+      // Ripiego: stessa lista fissa già usata da "Consigliata", scelta a caso
+      const lista = lato === 'A' ? TEAM_NAMES_A : TEAM_NAMES_B;
+      const nome = lista[Math.floor(Math.random() * lista.length)];
+      if (lato === 'A') manualFormation.value.nomeSquadraA = nome;
+      else manualFormation.value.nomeSquadraB = nome;
     };
     
 
@@ -12381,8 +12427,16 @@ createApp({
 
       const ids = selectedForMatch.value;
       const players = ids.map(id => getPlayer(id)).filter(Boolean);
+      const presentiUids = new Set(players.map(p => p.uid || String(p.id)));
 
-      const playerProfiles = players.map(p => ({
+      const playerProfiles = players.map(p => {
+        // "Sfide possibili" (20/8/2026, richiesta di Alby — nomi squadra più mirati): rivali/affinità
+        // del giocatore, MA solo quelli presenti stasera — un rivale che non gioca è irrilevante qui.
+        const rivaliPresenti = (p.rivali||[]).filter(uid => uid && presentiUids.has(uid) && uid !== (p.uid||String(p.id)))
+          .map(uid => { const r = getPlayer(uid); return r ? (r.soprannome||r.nome) : null; }).filter(Boolean);
+        const affinitaPresenti = (p.affinita||[]).filter(uid => uid && presentiUids.has(uid) && uid !== (p.uid||String(p.id)))
+          .map(uid => { const r = getPlayer(uid); return r ? (r.soprannome||r.nome) : null; }).filter(Boolean);
+        return {
         id: p.uid || String(p.id),
         nome: p.soprannome || p.nome,
         ruolo: p.ruolo,
@@ -12391,6 +12445,8 @@ createApp({
         assist: p.assistTotali || 0,
         voto: Number((p.mediaVoto||6).toFixed(1)),
         mediaPunti: Number((p.mediaPunti||0).toFixed(2)),
+        rivaliStasera: rivaliPresenti,
+        affinitaStasera: affinitaPresenti,
         forma: (() => {
           const f = calcPlayerForm(p.uid||String(p.id));
           if (f >= 1.5) return '🔥 Ottima (vince spesso)';
@@ -12400,17 +12456,17 @@ createApp({
           return '😤 Pessima (non vince da molte partite)';
         })(),
         scoreForma: Number((statsScore(p)).toFixed(1))
-      }));
+      };});
 
       const prompt = `Sei un allenatore di calcetto a 5vs5. Hai questi ${players.length} giocatori disponibili per la partita di stasera:
 
-${playerProfiles.map(p => `- ${p.nome} (${p.ruolo}, piede:${p.piede}) | ⚽${p.goal} gol, 🅰️${p.assist} assist, ⭐${p.voto} voto medio, 🏆${p.puntiTot}pt(avg ${p.puntiMedi}/g) ${p.desc?'| Caratteristiche: '+p.desc:''}`).join('\n')}
+${playerProfiles.map(p => `- ${p.nome} (${p.ruolo}, piede:${p.piede}) | ⚽${p.goal} gol, 🅰️${p.assist} assist, ⭐${p.voto} voto medio, 🏆${p.puntiTot}pt(avg ${p.puntiMedi}/g) ${p.desc?'| Caratteristiche: '+p.desc:''}${p.rivaliStasera.length?' | 🔥 Rivale di: '+p.rivaliStasera.join(', '):''}${p.affinitaStasera.length?' | 🤝 Grande intesa con: '+p.affinitaStasera.join(', '):''}`).join('\n')}
 
 Crea ESATTAMENTE ${toGen} formazioni bilanciate per sfide equilibrate. Per ogni formazione:
 1. Dividi i ${players.length} giocatori equamente (o quasi) tra Squadra A e Squadra B
 2. Bilancia per: statistiche totali, ruoli (portiere separato in ogni squadra se possibile), piede preferito
 3. Dai un nome simpatico e ironico in italiano alla formazione
-4. Dai un nome alla Squadra A e uno alla Squadra B (nomi creativi e divertenti)
+4. Dai un nome alla Squadra A e uno alla Squadra B (nomi creativi e divertenti) — se tra i giocatori di una squadra ci sono "Rivali" o "Grande intesa" segnalati sopra, usa quello spunto per un nome più mirato e divertente quando ha senso, altrimenti un nome generico simpatico va benissimo
 ${formationRiserve.value > 0 ? `5. In OGNI squadra, indica anche quali ${formationRiserve.value} giocatori (tra quelli già assegnati a quella squadra) sono le riserve — scegli le riserve tra chi ha voto/forma più bassi, lasciando i migliori come titolari` : ''}
 
 Rispondi SOLO con questo JSON (niente altro testo):
@@ -15405,7 +15461,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     // Pool nomi storpiati per la firma del "telecronista" — condiviso tra generazione normale
     // e "Azzera e Rigenera", cosi non c'è un'unica fonte duplicata (vedi bug fix 10/7/2026:
     // _forceGenerateTrashTalk non gestiva affatto la firma, a differenza di _generateTrashTalk).
-    const _ttFirmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
+    const _ttFirmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattonaccio','Zdenek Zemone','Marcello Lippardo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio','Oronzo Canaglia','Learco Borlottone','Ugo Fantozzone','Lino Banfollone'];
 
     const _forceGenerateTrashTalk = async (match) => {
       if (!settings.value.apiKey || !currentGroup.value) return;
@@ -16507,10 +16563,11 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       const profili = players.slice(0,10).map(p=>({nome:p.soprannome||p.nome,gol:p.goalTotali||0,...(currentGroup.value?.trackAssist !== false ? {ast:p.assistTotali||0} : {}),voto:(p.mediaVoto||0).toFixed(1),uom:p.uomoPartitaTotali||0,pti:(p.mediaPunti||0).toFixed(1),...(p.squadraCuore ? {squadra_cuore:p.squadraCuore} : {})}));
       const _firmePool = [
         'Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone',
-        'Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattoni il Vecchio',
-        'Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico',
+        'Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattonaccio',
+        'Zdenek Zemone','Marcello Lippardo','Roberto Mancinifico',
         'Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone',
-        'Massimiliano Allegrigio','Sinisa Mihajlovicchio'
+        'Massimiliano Allegrigio','Sinisa Mihajlovicchio',
+        'Oronzo Canaglia','Learco Borlottone','Ugo Fantozzone','Lino Banfollone'
       ];
       const _firma = _firmePool[Math.floor(Date.now() / 86400000) % _firmePool.length];
       const prompt = `Sei un telecronista calcistico ironico. Basandoti SOLO sui dati reali, fai un pronostico per la prossima partita di calcetto tra amici.
@@ -24915,7 +24972,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           comment = dd.choices?.[0]?.message?.content || '';
         }
         if (comment) {
-          const _firmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattoni il Vecchio','Zdenek Zemantico','Marcello Lippo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio'];
+          const _firmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattonaccio','Zdenek Zemone','Marcello Lippardo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio','Oronzo Canaglia','Learco Borlottone','Ugo Fantozzone','Lino Banfollone'];
           const _firma = _firmePool[Math.floor(Date.now() / 86400000) % _firmePool.length];
           match.commentoAI = comment.trim() + '\n— ' + _firma;
           try {
@@ -26162,7 +26219,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       startNewMatch, startPlayerSelection, togglePlayerSelection, selectAll,
       ensureStats, incrementRigoreSegnato, decrementRigoreSegnato, setUomoPartita, getPlayer, sortByRole,
       generateFormationsAI, generateFormationsWithAI,
-      manualFormation, startManualFormation, addToManualTeam, removeFromManualTeam, saveManualFormation,
+      manualFormation, startManualFormation, addToManualTeam, removeFromManualTeam, saveManualFormation, generaNomeSquadraManuale,
       loadFormations, saveFormation, deleteFormation, editFormation,
       showFormationEditor, editingFormationData,
       movePlayerInEditor, addPlayerToEditorTeam, removePlayerFromEditor, saveFormationEdit,
