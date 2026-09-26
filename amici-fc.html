@@ -3788,13 +3788,23 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
       </div>
     </template>
 
-    <!-- ════ SELEZIONE GIOCATORI ════ -->
-    <template v-if="currentView === 'playerselect'">
-      <div class="card-title">👥 Chi gioca oggi?</div>
+    <!-- ════ CREA FORMAZIONE — WIZARD A 3 STEP (25/9/2026) ════
+         Prima era un'unica schermata densa (dettagli partita + selezione + 4 pulsanti compressi
+         in fondo, fino a 1/5 di uno schermo di cellulare) — su richiesta di Alby, divisa in 3
+         passi più chiari e leggibili, con lo stesso header a barra di progresso già usato in
+         "Inserimento passo passo" (stepbystep), per coerenza visiva. -->
 
-      <!-- Match info card -->
+    <!-- ── STEP 1/3: DETTAGLI PARTITA ── -->
+    <template v-if="currentView === 'formationstep1'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="card-title" style="margin:0">📅 Dettagli Partita</div>
+        <span style="font-size:0.72rem;color:var(--text2)">Passo 1 di 3</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;height:5px;overflow:hidden;margin-bottom:16px">
+        <div style="width:33%;height:100%;background:var(--lime);border-radius:10px"></div>
+      </div>
+
       <div class="card" style="margin-bottom:16px;background:linear-gradient(135deg,rgba(58,123,255,0.08),rgba(166,255,77,0.04))">
-        <div class="card-title" style="font-size:0.95rem">📅 Dettagli Partita</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
           <div class="input-group" style="margin:0">
             <label class="input-label">📅 Data</label>
@@ -3811,12 +3821,35 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- Filtro ruolo -->
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-ghost" @click="currentView='formations'" style="flex:1">✕ Annulla</button>
+        <button class="btn btn-primary" @click="currentView='playerselect'" style="flex:2">Avanti →</button>
+      </div>
+    </template>
+
+    <!-- ── STEP 2/3: CHI GIOCA OGGI? ── -->
+    <template v-if="currentView === 'playerselect'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="card-title" style="margin:0">👥 Chi gioca oggi?</div>
+        <span style="font-size:0.72rem;color:var(--text2)">Passo 2 di 3</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:10px;height:5px;overflow:hidden;margin-bottom:14px">
+        <div style="width:66%;height:100%;background:var(--lime);border-radius:10px"></div>
+      </div>
+
+      <!-- Filtro ruolo + Mercenari -->
       <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
         <button v-for="r in ['Tutti','Portiere','Difensore','Centrocampista','Attaccante','Jolly']" :key="r"
           class="platform-tab" :class="{active: roleFilter===r}"
           @click="roleFilter=r" style="font-size:0.75rem">
           {{ r==='Tutti'?'👥':roleEmoji(r) }} {{ r }}
+        </button>
+        <!-- Filtro Mercenari (25/9/2026, richiesta di Alby: prima mancava del tutto qui, i
+             Mercenari comparivano sempre — stesso chip già usato nella schermata Giocatori,
+             ma con stato indipendente, vedi formationSelectHideMercenari). -->
+        <button v-if="groupPlayers.some(p=>p.mercenario)" @click="formationSelectHideMercenari=!formationSelectHideMercenari"
+          :style="'flex-shrink:0;padding:6px 14px;border-radius:20px;font-size:0.7rem;font-weight:700;border:none;cursor:pointer;transition:background .18s,color .18s;background:'+(formationSelectHideMercenari?'#7c3aed':'var(--bg3)')+';color:'+(formationSelectHideMercenari?'#fff':'var(--text2)')">
+          ⚔️ {{ formationSelectHideMercenari ? 'Mercenari nascosti' : 'Mercenari visibili' }}
         </button>
       </div>
 
@@ -3869,21 +3902,67 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <div style="position:sticky;bottom:calc(var(--nav-h) + 8px);background:var(--bg);padding:12px 0;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn btn-ghost btn-sm" @click="currentView='formations'" style="flex:0 1 auto">← Annulla</button>
-        <button class="btn btn-yellow" style="flex:1 1 90px"
-          :disabled="selectedForMatch.length < (2 + formationRiserve*2) || aiLoading"
-          @click="generateFormationsWithAI">{{ aiLoading ? '⏳...' : '🤖 AI (3)' }}</button>
-        <button class="btn btn-primary" style="flex:1 1 100px"
-          :disabled="selectedForMatch.length < (2 + formationRiserve*2) || aiLoading"
-          @click="generateFormationsAI">{{ aiLoading ? '⏳...' : '📊 Consigliata (3)' }}</button>
-        <button class="btn btn-ghost" style="flex:1 1 80px"
-          :disabled="selectedForMatch.length < 2"
-          @click="startManualFormation">✏️ Manuale</button>
+      <div style="position:sticky;bottom:calc(var(--nav-h) + 8px);background:var(--bg);padding:12px 0;display:flex;gap:10px">
+        <button class="btn btn-ghost" @click="currentView='formationstep1'" style="flex:1">← Indietro</button>
+        <button class="btn btn-primary" :disabled="selectedForMatch.length < 2" @click="currentView='formationstep3'" style="flex:2">Avanti →</button>
       </div>
-      <div v-if="formationRiserve>0 && selectedForMatch.length < (2 + formationRiserve*2)" style="font-size:0.72rem;color:var(--yellow);text-align:center;padding-bottom:8px">
-        Servono almeno {{ 2 + formationRiserve*2 }} giocatori selezionati per {{formationRiserve}} riserva/e a testa (ne hai {{selectedForMatch.length}})
+    </template>
+
+    <!-- ── STEP 3/3: COME DIVIDIAMO LE SQUADRE? ── -->
+    <template v-if="currentView === 'formationstep3'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div class="card-title" style="margin:0">⚙️ Come dividiamo le squadre?</div>
+        <span style="font-size:0.72rem;color:var(--text2)">Passo 3 di 3</span>
       </div>
+      <div style="background:var(--bg3);border-radius:10px;height:5px;overflow:hidden;margin-bottom:14px">
+        <div style="width:100%;height:100%;background:var(--lime);border-radius:10px"></div>
+      </div>
+
+      <div style="font-size:0.8rem;color:var(--text2);margin-bottom:14px">
+        {{ selectedForMatch.length }} giocatori selezionati{{ formationRiserve ? ' · 🪑 '+formationRiserve+' riserva/e a testa' : '' }}
+      </div>
+
+      <!-- Card AI -->
+      <div class="card"
+        :style="'display:flex;gap:14px;align-items:center;margin-bottom:12px;'+(canGenerateAutoFormation?'cursor:pointer;':'opacity:0.5;')"
+        @click="canGenerateAutoFormation && generateFormationsWithAI()">
+        <span style="font-size:2rem;flex-shrink:0">🤖</span>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:0.95rem;color:var(--lime)">{{ aiLoading ? '⏳ Generazione in corso...' : 'AI' }}</div>
+          <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">Formazioni generate dall'intelligenza artificiale — tiene conto anche di rivalità e affinità tra i presenti</div>
+        </div>
+        <span v-if="!aiLoading" style="font-size:1.3rem;color:var(--text2);flex-shrink:0">›</span>
+      </div>
+
+      <!-- Card Consigliata -->
+      <div class="card"
+        :style="'display:flex;gap:14px;align-items:center;margin-bottom:12px;'+(canGenerateAutoFormation?'cursor:pointer;':'opacity:0.5;')"
+        @click="canGenerateAutoFormation && generateFormationsAI()">
+        <span style="font-size:2rem;flex-shrink:0">📊</span>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:0.95rem;color:var(--lime)">{{ aiLoading ? '⏳ Generazione in corso...' : 'Consigliata' }}</div>
+          <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">Algoritmo statistico su voti, gol e presenze — veloce, non richiede l'AI configurata</div>
+        </div>
+        <span v-if="!aiLoading" style="font-size:1.3rem;color:var(--text2);flex-shrink:0">›</span>
+      </div>
+
+      <!-- Card Manuale -->
+      <div class="card"
+        :style="'display:flex;gap:14px;align-items:center;margin-bottom:12px;'+(selectedForMatch.length>=2?'cursor:pointer;':'opacity:0.5;')"
+        @click="selectedForMatch.length>=2 && startManualFormation()">
+        <span style="font-size:2rem;flex-shrink:0">✏️</span>
+        <div style="flex:1">
+          <div style="font-weight:800;font-size:0.95rem;color:var(--lime)">Manuale</div>
+          <div style="font-size:0.78rem;color:var(--text2);margin-top:2px">Le componi tu trascinando i giocatori — controllo totale, riserve scelte a mano</div>
+        </div>
+        <span style="font-size:1.3rem;color:var(--text2);flex-shrink:0">›</span>
+      </div>
+
+      <div v-if="!canGenerateAutoFormation && !aiLoading" style="font-size:0.72rem;color:var(--yellow);text-align:center;margin-bottom:14px">
+        🤖 AI e 📊 Consigliata richiedono almeno {{ formationMinPlayersAuto }} giocatori per {{ formationRiserve }} riserva/e a testa (ne hai {{ selectedForMatch.length }}) — ✏️ Manuale resta disponibile
+      </div>
+
+      <button class="btn btn-ghost" @click="currentView='playerselect'" style="width:100%" :disabled="aiLoading">← Indietro</button>
     </template>
 
     <!-- ════ NUOVA PARTITA – Risultato ════ -->
@@ -9448,7 +9527,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.904',date:'2026-08-20',items:[
+    const changelogEntries = [{version:'v1.905',date:'2026-09-25',items:[
+      'Crea Formazione: la vecchia schermata unica (dettagli partita + selezione giocatori + 4 pulsanti compressi in fondo, fino a 1/5 di uno schermo di cellulare) e stata divisa in un wizard a 3 passi, richiesto da Alby per renderla piu leggibile - Passo 1: Dettagli Partita, Passo 2: Chi gioca oggi (con la stessa barra di progresso gia usata in Inserimento passo passo), Passo 3: come dividere le squadre, con 3 card grandi e descrittive (AI, Consigliata, Manuale) al posto dei vecchi pulsanti piccoli.',
+      'Fix trovato durante il redesign: nella schermata Chi gioca oggi mancava del tutto un filtro Mercenari (a differenza della schermata Giocatori, che lo ha gia) - i giocatori Mercenario comparivano sempre tra i selezionabili. Aggiunto lo stesso chip gia usato altrove, con stato indipendente (nascondere i Mercenari qui non li nasconde anche nella lista Giocatori, e viceversa), default che segue limpostazione di gruppo Nascondi Mercenari.',
+    ]},{version:'v1.904',date:'2026-08-20',items:[
       'Manuale del Campetto (in-app + file esterno): nuovo capitolo "Esempi Pratici" con 4 casi duso concreti passo-passo (inserire un giocatore, creare una formazione con le differenze tra AI/Consigliata/Manuale, configurare lAI, mettere i voti o farli votare agli altri) - raggiungibile con un pulsante dedicato sotto il titolo del Manuale in-app. Aggiunti anche i capitoli mancanti su Giocatori Mercenario e Modalita Live (in-app, gia presente nel file esterno).',
       'Bug trovato e corretto durante lo sviluppo: il pulsante "Vai agli Esempi Pratici" non funzionava con unespressione inline dentro @click (stesso pattern di bug gia trovato altre volte in questo progetto - Vue non la eseguiva, senza errore visibile) - corretto con una funzione dedicata.',
     ]},{version:'v1.903',date:'2026-08-20',items:[
@@ -10769,6 +10851,26 @@ createApp({
     // oltre ai titolari, in fase di creazione formazione. 0 = nessuna riserva (comportamento
     // invariato di prima). Si azzera ogni volta che si entra in "Chi gioca oggi?".
     const formationRiserve    = ref(0);
+    // Wizard "Crea Formazione" a 3 step (25/9/2026, richiesta di Alby: la vecchia schermata unica
+    // era troppo densa, coi 4 pulsanti finali che occupavano 1/5 dello schermo). Minimo giocatori
+    // per abilitare AI/Consigliata (rispettano il numero di riserve dichiarato); Manuale resta
+    // sempre disponibile da 2 in su, perché lì le riserve si scelgono a mano senza un conteggio
+    // imposto (vedi toggleManualRiserva).
+    const formationMinPlayersAuto = computed(() => 2 + formationRiserve.value * 2);
+    const canGenerateAutoFormation = computed(() =>
+      selectedForMatch.value.length >= formationMinPlayersAuto.value && !aiLoading.value);
+    // Filtro "Mercenari" nello step 2 del wizard — stesso pattern override già usato nella
+    // schermata Giocatori (playersViewHideMercenari), ma tenuto SEPARATO apposta: nascondere i
+    // Mercenari mentre sfogli l'elenco giocatori non deve per forza nasconderli anche mentre fai
+    // le squadre, e viceversa. Default = segue l'impostazione di gruppo, resettato ogni volta che
+    // si inizia una nuova formazione (startPlayerSelection).
+    const _formationSelectHideMercenariOverride = ref(null);
+    const formationSelectHideMercenari = computed({
+      get: () => _formationSelectHideMercenariOverride.value !== null
+        ? _formationSelectHideMercenariOverride.value
+        : !!currentGroup.value?.nascondiMercenari,
+      set: (v) => { _formationSelectHideMercenariOverride.value = v; },
+    });
     const teamA              = ref([]);
     const teamB              = ref([]);
     const matchGoalA         = ref(0);
@@ -10825,7 +10927,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.904');
+    const appVersion = ref('1.905');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12297,6 +12399,10 @@ createApp({
         ? [...groupPlayers.value]
         : groupPlayers.value.filter(p => p.ruolo === roleFilter.value);
 
+      // Filtro Mercenari (25/9/2026, richiesta di Alby: qui mancava del tutto — i Mercenari
+      // comparivano sempre in "Chi gioca oggi?", a differenza della schermata Giocatori).
+      if (formationSelectHideMercenari.value) list = list.filter(p => !p.mercenario);
+
       if (q) {
         list = list.filter(p =>
           (p.soprannome||'').toLowerCase().includes(q) ||
@@ -12346,8 +12452,10 @@ createApp({
       roleFilter.value = 'Tutti';
       playerSelectSearch.value = '';
       formationRiserve.value = 0;
+      _formationSelectHideMercenariOverride.value = null;
       matchInfo.value = { data: new Date().toISOString().slice(0,10), orario: '21:00', luogo: '' };
-      currentView.value = 'playerselect';
+      // Wizard a 3 step (25/9/2026): si parte sempre dallo Step 1 (Dettagli Partita).
+      currentView.value = 'formationstep1';
     };
 
     const togglePlayerSelection = id => {
@@ -26302,6 +26410,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       isSostituto, isInfortunato,
       playerStats, aiLoading, aiComment, generatedPNG, pngType, newGroupName,
       activeFormation, roleFilter, playerSelectSearch, manualSearch, sortedManualPlayers, groupFormations, activeFormations, pngFormation, filteredPlayersForSelect,
+      formationMinPlayersAuto, canGenerateAutoFormation, formationSelectHideMercenari,
       playerSortBy, playerSortDir, sortedGroupPlayers, playersViewHideMercenari, haptic, heroLightBg, heroWatermarkEmoji, shareHeroCardPNG, _avatarPhotoUrl,
       matchInfo, getPlayerRows,
       onboardingFirebaseUrl, onboardingScreen, onboardingStepNumber, onboardingStepTotal, deferredPrompt, installApp,
