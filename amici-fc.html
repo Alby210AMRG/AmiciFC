@@ -9527,7 +9527,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.905',date:'2026-09-25',items:[
+    const changelogEntries = [{version:'v1.906',date:'2026-09-27',items:[
+      'Invia/Ricevi Formazione (verifica richiesta da Alby dopo il wizard): trovati e corretti 4 problemi. Le riserve non venivano trasmesse - una formazione ricevuta su un altro dispositivo perdeva linformazione di chi era riserva. Il metodo di generazione (AI/Consigliata/Manuale) non veniva trasmesso - una formazione Consigliata ricevuta poteva finire per richiamare inutilmente lAI al posto di restare senza. Orario e luogo della partita non venivano trasmessi - restavano sempre vuoti dopo un Ricevi. Un giocatore non trovato nel gruppo di chi riceve veniva scartato in silenzio, ora compare un avviso (Formazione importata, ma N giocatore/i non trovato/i nel gruppo).',
+      'Condividi Formazione: nel testo WhatsApp generato, i giocatori riserva sono ora etichettati (riserva) accanto al nome. Nella PNG condivisibile della formazione, aggiunto un piccolo distintivo giallo con una sedia sopra lavatar dei giocatori riserva, per renderli riconoscibili a colpo docchio anche nellimmagine.',
+    ]},{version:'v1.905',date:'2026-09-25',items:[
       'Crea Formazione: la vecchia schermata unica (dettagli partita + selezione giocatori + 4 pulsanti compressi in fondo, fino a 1/5 di uno schermo di cellulare) e stata divisa in un wizard a 3 passi, richiesto da Alby per renderla piu leggibile - Passo 1: Dettagli Partita, Passo 2: Chi gioca oggi (con la stessa barra di progresso gia usata in Inserimento passo passo), Passo 3: come dividere le squadre, con 3 card grandi e descrittive (AI, Consigliata, Manuale) al posto dei vecchi pulsanti piccoli.',
       'Fix trovato durante il redesign: nella schermata Chi gioca oggi mancava del tutto un filtro Mercenari (a differenza della schermata Giocatori, che lo ha gia) - i giocatori Mercenario comparivano sempre tra i selezionabili. Aggiunto lo stesso chip gia usato altrove, con stato indipendente (nascondere i Mercenari qui non li nasconde anche nella lista Giocatori, e viceversa), default che segue limpostazione di gruppo Nascondi Mercenari.',
     ]},{version:'v1.904',date:'2026-08-20',items:[
@@ -10927,7 +10930,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.905');
+    const appVersion = ref('1.906');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -14048,7 +14051,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       drawTeamPill(f.nomeSquadraA||'Squadra A',PRX+PW/2,PY+14,aCol);
 
       // ── GIOCATORI: raggio dinamico per numero, con margini corretti ──
-      const drawPlayerGrid=async(ids,panelX,panelY,panelW,col)=>{
+      const drawPlayerGrid=async(ids,panelX,panelY,panelW,col,riserveIds)=>{
         if(!ids?.length)return;
         const n=ids.length;
         const PLAYER_Y_START=panelY+82;
@@ -14084,6 +14087,20 @@ Rispondi SOLO con questo JSON (niente altro testo):
           if(ph){const iw=ph.naturalWidth||100,ih=ph.naturalHeight||100,s=Math.min(iw,ih),sx=(iw-s)/2,sy=(ih-s)/2;ctx.drawImage(ph,sx,sy,s,s,px-R,py-R,R*2,R*2);}
           else{const _isMerc=p&&p.mercenario;ctx.fillStyle=_isMerc?'#f3e8ff':'#e8eaf0';ctx.fillRect(px-R,py-R,R*2,R*2);ctx.fillStyle=_isMerc?'#6b21a8':'#1a1a2a';ctx.beginPath();ctx.arc(px,py-R*0.28,R*0.34,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(px,py+R*0.42,R*0.58,R*0.48,0,Math.PI,0);ctx.fill();}
           ctx.restore();
+          // Badge riserva (25/9/2026, richiesta di Alby: il PNG non distingueva titolari da
+          // riserve, a differenza dell'anteprima a schermo della formazione Manuale) — piccolo
+          // cerchio giallo in alto a destra dell'avatar, stesso spirito dei badge ad angolo già
+          // usati altrove nell'app per Mercenario/Infortunato.
+          if(riserveIds && riserveIds.includes(pid)){
+            const bR=Math.max(10,R*0.32);
+            const bx2=px+R*0.72, by2=py-R*0.72;
+            ctx.beginPath();ctx.arc(bx2,by2,bR,0,Math.PI*2);ctx.fillStyle='#facc15';ctx.fill();
+            ctx.strokeStyle='#1a1a2a';ctx.lineWidth=2;ctx.stroke();
+            ctx.font=`900 ${Math.round(bR*1.15)}px "Segoe UI Emoji","Noto Color Emoji","Apple Color Emoji"`;
+            ctx.textAlign='center';ctx.textBaseline='middle';
+            ctx.fillText('🪑',bx2,by2+1);
+            ctx.textBaseline='alphabetic';
+          }
           // Nome: wrap su 2 righe se necessario invece di sovrapporre o uscire dai bordi
           const ns=(p.soprannome||p.nome||'').toUpperCase();
           const maxNameW=colW+COL_GAP*0.6; // un po' di margine extra per il testo, oltre la larghezza colonna
@@ -14111,8 +14128,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
           ctx.shadowBlur=0;
         }
       };
-      await drawPlayerGrid(f.squadraB||[],PLX,PY,PW,bCol);
-      await drawPlayerGrid(f.squadraA||[],PRX,PY,PW,aCol);
+      await drawPlayerGrid(f.squadraB||[],PLX,PY,PW,bCol,f.riserveB||[]);
+      await drawPlayerGrid(f.squadraA||[],PRX,PY,PW,aCol,f.riserveA||[]);
 
       // Filigrana stile "watermark sticker": emoji grande, ruotata, ancorata nell'angolo
       // basso-destra del panel — metà esce dal bordo (tagliata dal clip arrotondato) per un
@@ -14698,10 +14715,18 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
       const orarioStr = f.matchOrario ? ` ore ${f.matchOrario}` : '';
       const luogoStr = f.matchLuogo ? ` · 📍 ${f.matchLuogo}` : '';
 
+      // Etichetta le riserve (25/9/2026, richiesta di Alby: il testo WhatsApp le elencava insieme
+      // ai titolari senza nessuna distinzione, a differenza dell'anteprima a schermo della
+      // formazione Manuale che invece la mostra chiaramente).
+      const _fmtSquadra = (ids, riserveIds) => (ids||[]).map(pid=>{
+        const p=groupPlayers.value.find(x=>String(x.uid)===String(pid)||String(x.id)===String(pid));
+        const nome = p?(p.soprannome||p.nome):'?';
+        return (riserveIds||[]).includes(pid) ? nome+' (riserva)' : nome;
+      }).join(', ');
       let txt = `⚽ *SQUADRE UFFICIALI — ${(currentGroup.value?.nome||'Amici FC').toUpperCase()}*\n`;
       txt += `📅 ${dataStr}${orarioStr}${luogoStr}\n\n`;
-      txt += `🟠 *${nomeB}:* ${(f.squadraB||[]).map(pid=>{const p=groupPlayers.value.find(x=>String(x.uid)===String(pid)||String(x.id)===String(pid));return p?(p.soprannome||p.nome):'?';}).join(', ')}\n`;
-      txt += `🔵 *${nomeA}:* ${(f.squadraA||[]).map(pid=>{const p=groupPlayers.value.find(x=>String(x.uid)===String(pid)||String(x.id)===String(pid));return p?(p.soprannome||p.nome):'?';}).join(', ')}\n`;
+      txt += `🟠 *${nomeB}:* ${_fmtSquadra(f.squadraB, f.riserveB)}\n`;
+      txt += `🔵 *${nomeA}:* ${_fmtSquadra(f.squadraA, f.riserveA)}\n`;
       if (pred) txt += `\n📊 *Quote:* ${nomeB} ${pred.quoteB} · X ${pred.quoteX} · ${nomeA} ${pred.quoteA}\n`;
       if (commento) txt += `\n💬 _${commento}_ ${isAI ? '✨' : ''}\n`;
       txt += `\n🏆 _Generato con Amici FC_`;
@@ -26294,14 +26319,23 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         const p = players.find(p => p.id === id || String(p.id) === String(id));
         return p ? (p.uid || String(p.id)) : String(id);
       });
+      // v2 (25/9/2026, richiesta di Alby): prima si perdevano silenziosamente riserve, orario,
+      // campo e generazioneMetodo nel passaggio Invia→Ricevi — una formazione "Consigliata" (che
+      // non deve mai provare l'AI per il commento) arrivava senza questo campo e finiva per
+      // provare l'AI comunque sul dispositivo di chi la riceveva, se aveva l'AI configurata.
       const data = {
-        v: 1,
+        v: 2,
         nA: f.nomeSquadraA || 'Squadra A',
         nB: f.nomeSquadraB || 'Squadra B',
         a: toUids(f.squadraA || []),
         b: toUids(f.squadraB || []),
+        ra: toUids(f.riserveA || []),
+        rb: toUids(f.riserveB || []),
         g: currentGroup.value?.nome || '',
         d: f.matchData || '',
+        o: f.matchOrario || '',
+        l: f.matchLuogo || '',
+        m: f.generazioneMetodo || '',
       };
       try { return 'AMFC:' + btoa(unescape(encodeURIComponent(JSON.stringify(data)))); }
       catch(e) { return 'AMFC:' + btoa(JSON.stringify(data)); }
@@ -26368,31 +26402,54 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         try { parsed = JSON.parse(decodeURIComponent(escape(atob(text.slice(5))))); }
         catch(e) { parsed = JSON.parse(atob(text.slice(5))); }
         const players = groupPlayers.value;
+        // Conta anche quanti uid NON sono stati risolti (25/9/2026, richiesta di Alby: prima
+        // venivano scartati in silenzio — se 1 giocatore su 10 non veniva trovato, la formazione
+        // veniva comunque importata senza nessun avviso).
+        let _unresolvedCount = 0;
         const resolveIds = (uids) => uids.map(uid => {
           const p = players.find(p => p.uid === uid) ||
                     players.find(p => String(p.id) === String(uid));
+          if (!p) _unresolvedCount++;
           return p ? (p.uid || String(p.id)) : null;
         }).filter(Boolean);
         const squadraA = resolveIds(parsed.a || []);
         const squadraB = resolveIds(parsed.b || []);
         if (!squadraA.length && !squadraB.length)
           return toast('❌ Nessun giocatore trovato. Assicurati di usare lo stesso gruppo', 'error');
+        // Riserve (v2, 25/9/2026): prima andavano perse — chi riceveva vedeva tutti come
+        // titolari. Filtrate per sicurezza sui soli uid davvero risolti in quella squadra,
+        // stesso criterio difensivo già usato nel generatore AI.
+        const riserveA = resolveIds(parsed.ra || []).filter(uid => squadraA.includes(uid));
+        const riserveB = resolveIds(parsed.rb || []).filter(uid => squadraB.includes(uid));
+        const formato = computeFormato(squadraA, squadraB, riserveA, riserveB);
         const newForm = {
           groupId: currentGroup.value.id,
           dataCreazione: new Date().toISOString().slice(0,10),
           matchData: parsed.d || '',
-          matchOrario: '', matchLuogo: '',
+          matchOrario: parsed.o || '',
+          matchLuogo: parsed.l || '',
           stato: 'proposta',
           nome: `Formazione ricevuta ${new Date().toLocaleDateString('it')}`,
           nomeSquadraA: parsed.nA || 'Squadra A',
           nomeSquadraB: parsed.nB || 'Squadra B',
           squadraA, squadraB,
+          riserveA, riserveB, formato,
+          // v2: se il mittente aveva scelto "Consigliata" (equilibrata), questo campo impedisce
+          // che il commento/pronostico provi comunque l'AI su chi riceve — vedi Regola d'Oro sul
+          // pattern generazioneMetodo undefined="prova l'AI". Un payload v1 (senza 'm') non ha
+          // questa informazione: 'manuale' è il ripiego più neutro (stesso comportamento di 'ai',
+          // nessuna assunzione errata su un'eventuale Consigliata originale).
+          generazioneMetodo: parsed.m || 'manuale',
         };
         await db.formations.add(newForm);
         await loadGroupData();
         receiveInput.value = '';
         showReceiveForm.value = false;
-        toast('✅ Formazione importata! Vai in Formazioni per giocarla.', 'success', 3000);
+        if (_unresolvedCount > 0) {
+          toast(`⚠️ Formazione importata, ma ${_unresolvedCount} giocatore/i non trovato/i nel gruppo`, 'warning', 4500);
+        } else {
+          toast('✅ Formazione importata! Vai in Formazioni per giocarla.', 'success', 3000);
+        }
       } catch(e) {
         logEvent('error', 'formazione', 'Import fallito: ' + e.message);
         toast('❌ Errore importazione: ' + e.message, 'error');
