@@ -3756,21 +3756,21 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
         <!-- 🎯 PREDIZIONE RISULTATO -->
         <div v-if="f.stato!=='giocata'" style="margin-top:10px;background:linear-gradient(135deg,rgba(166,255,77,0.06),rgba(58,123,255,0.06));border:1px solid rgba(166,255,77,0.2);border-radius:12px;padding:12px">
-          <div style="font-size:0.72rem;font-weight:800;color:var(--lime);margin-bottom:8px;letter-spacing:0.5px">🎯 PREDIZIONE AI · QUOTE</div>
+          <div style="font-size:0.72rem;font-weight:800;color:var(--lime);margin-bottom:8px;letter-spacing:0.5px">🎯 PREDIZIONE AI · PROBABILITÀ</div>
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <div style="flex:1;text-align:center">
               <div style="font-size:0.72rem;color:#FF8C00;font-weight:700">{{ f.nomeSquadraB||'Squadra B' }}</div>
-              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteB }}</div>
-              <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.pctB }}%</div>
+              <div style="font-size:0.65rem;color:var(--text2)">probabilità vittoria</div>
             </div>
             <div style="text-align:center;padding:0 4px">
-              <div style="font-size:0.75rem;font-weight:900;color:var(--yellow)">{{ getCachedPrediction(f)?.quoteX }}</div>
+              <div style="font-size:0.75rem;font-weight:900;color:var(--yellow)">{{ getCachedPrediction(f)?.pctX }}%</div>
               <div style="font-size:0.6rem;color:var(--text2)">pareggio</div>
             </div>
             <div style="flex:1;text-align:center">
               <div style="font-size:0.72rem;color:#3A7BFF;font-weight:700">{{ f.nomeSquadraA||'Squadra A' }}</div>
-              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.quoteA }}</div>
-              <div style="font-size:0.65rem;color:var(--text2)">quota vittoria</div>
+              <div style="font-size:1.4rem;font-weight:900;color:var(--lime)">{{ getCachedPrediction(f)?.pctA }}%</div>
+              <div style="font-size:0.65rem;color:var(--text2)">probabilità vittoria</div>
             </div>
           </div>
           <div style="font-size:0.85rem;color:var(--text2);text-align:center;border-top:1px solid rgba(255,255,255,0.06);padding-top:8px;line-height:1.4">
@@ -9527,7 +9527,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.906',date:'2026-09-27',items:[
+    const changelogEntries = [{version:'v1.907',date:'2026-09-27',items:[
+      'Quote scommessa sostituite con percentuali di vittoria (richiesta di Alby: "le quote non sono molto capibili" per un gruppo di amici che non scommette) - sia nellanteprima in-app, sia nella PNG condivisibile ("PROBABILITA VITTORIA" al posto di "QUOTE SCOMMESSA"), sia nel testo WhatsApp. I numeri sotto restano gli stessi di prima (stesso algoritmo di calcolo equilibrio squadre), cambia solo come vengono mostrati.',
+      'Commento algoritmico (quando lAI non e configurata, o per le formazioni Consigliata che non la usano mai per scelta): ampliate le varianti di testo da 15 a 24, e aggiunta la possibilita di un dettaglio extra quando i dati lo permettono - una rivalita dichiarata tra due giocatori di squadre opposte, il capocannoniere di stagione tra i presenti, oppure la forma recente (ultime 3 partite) del miglior giocatore di una squadra. Richiesta di Alby dopo aver notato che il commento "scrive sempre le stesse cose".',
+    ]},{version:'v1.906',date:'2026-09-27',items:[
       'Invia/Ricevi Formazione (verifica richiesta da Alby dopo il wizard): trovati e corretti 4 problemi. Le riserve non venivano trasmesse - una formazione ricevuta su un altro dispositivo perdeva linformazione di chi era riserva. Il metodo di generazione (AI/Consigliata/Manuale) non veniva trasmesso - una formazione Consigliata ricevuta poteva finire per richiamare inutilmente lAI al posto di restare senza. Orario e luogo della partita non venivano trasmessi - restavano sempre vuoti dopo un Ricevi. Un giocatore non trovato nel gruppo di chi riceve veniva scartato in silenzio, ora compare un avviso (Formazione importata, ma N giocatore/i non trovato/i nel gruppo).',
       'Condividi Formazione: nel testo WhatsApp generato, i giocatori riserva sono ora etichettati (riserva) accanto al nome. Nella PNG condivisibile della formazione, aggiunto un piccolo distintivo giallo con una sedia sopra lavatar dei giocatori riserva, per renderli riconoscibili a colpo docchio anche nellimmagine.',
     ]},{version:'v1.905',date:'2026-09-25',items:[
@@ -10930,7 +10933,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.906');
+    const appVersion = ref('1.907');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13070,7 +13073,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const scoreA = getAvg(f.squadraA);
       const scoreB = getAvg(f.squadraB);
       const total = scoreA + scoreB;
-      if (total === 0) return {quoteA:'2.00',quoteX:'3.00',quoteB:'2.00',verdict:'Squadre equivalenti — tutto aperto!'};
+      if (total === 0) return {pctA:34,pctX:32,pctB:34,verdict:'Squadre equivalenti — tutto aperto!'};
 
       const probA = scoreA/total;
       const probB = scoreB/total;
@@ -13083,10 +13086,16 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const adjA = probA*(1-probX);
       const adjB = probB*(1-probX);
 
-      const margin = 1.10;
-      const oddA = Math.max(1.20, Math.round((1/adjA)*margin*100)/100);
-      const oddX = Math.max(2.50, Math.round((1/probX)*margin*100)/100);
-      const oddB = Math.max(1.20, Math.round((1/adjB)*margin*100)/100);
+      // Percentuali di vittoria (27/9/2026, richiesta di Alby: le quote da scommessa "non sono
+      // molto capibili" per un gruppo di amici — sostituite con probabilità dirette in %,
+      // arrotondate in modo che la somma faccia sempre 100).
+      let pctA = Math.round(adjA*100);
+      let pctB = Math.round(adjB*100);
+      let pctX = 100 - pctA - pctB;
+      if (pctX < 0) { // arrotondamento sfortunato — correggi togliendo dalla percentuale più alta
+        if (pctA >= pctB) pctA += pctX; else pctB += pctX;
+        pctX = 100 - pctA - pctB;
+      }
 
       const diff = Math.abs(scoreA - scoreB);
       const favA = scoreA > scoreB;
@@ -13113,6 +13122,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
           `⚖️ Nessuna vera favorita: valori molto simili, si deciderà punto a punto.`,
           `⚖️ Partita apertissima, sulla carta è testa a testa fino alla fine.`,
           `⚖️ Formazioni bilanciate — chi ci mette più cattiveria agonistica la spunta.`,
+          `⚖️ Difficile fare un pronostico netto: le due squadre si equivalgono sulla carta.`,
+          `⚖️ Poco a dividerle nei numeri — sarà la serata a fare la differenza.`,
+          `⚖️ Bilancino quasi fermo tra le due squadre: partita da dentro-o-fuori.`,
         ];
         verdict = varianti[hash % varianti.length];
         if (topAName && topBName) verdict += ` Da tenere d'occhio ${topAName} e ${topBName}.`;
@@ -13125,6 +13137,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
           `📊 ${fav} un gradino sopra sulla carta, senza però un vero divario.`,
           `📊 Vantaggio contenuto per ${fav}: basta poco per ribaltare tutto.`,
           `📊 ${fav} leggermente avanti nei numeri, partita comunque equilibrata.`,
+          `📊 ${fav} un filo davanti sulla carta, ma con questi numeri può succedere di tutto.`,
+          `📊 Equilibrio con un pizzico di vantaggio per ${fav} — nulla di scontato.`,
+          `📊 ${fav} favorita di misura: basta un episodio per cambiare tutto.`,
         ];
         verdict = varianti[hash % varianti.length];
         if (topFav) verdict += ` ${topFav} può fare la differenza.`;
@@ -13138,10 +13153,53 @@ Rispondi SOLO con questo JSON (niente altro testo):
           `⚡ ${fav} decisamente davanti nei numeri, ${under} chiamata alla rimonta.`,
           `⚡ Pronostico chiaro per ${fav}: ${under} può sovvertirlo solo con l'impresa.`,
           `⚡ I numeri parlano forte a favore di ${fav}. ${under} avvisata, mezza salvata.`,
+          `⚡ Divario marcato a favore di ${fav}: servirà una prestazione super per ${under}.`,
+          `⚡ Sulla carta è ${fav} contro ${under} in salita — ma il calcetto riserva sempre sorprese.`,
+          `⚡ ${fav} in vantaggio netto nei numeri, ${under} chiamata a un'impresa vera.`,
         ];
         verdict = varianti[hash % varianti.length];
         if (topFav) verdict += ` Attenzione a ${topFav}.`;
       }
+
+      // Ingredienti extra (27/9/2026, richiesta di Alby: il testo "scrive sempre le stesse cose")
+      // — aggiungono un dettaglio concreto in più quando i dati lo permettono, scelti in modo
+      // deterministico (stesso principio dell'hash sopra) così la stessa formazione dà sempre
+      // lo stesso risultato. Al massimo UNO viene aggiunto, per non appesantire il testo.
+      const allPlayers = [...playersA, ...playersB];
+
+      // 1) Rivalità dichiarata tra due giocatori in squadre opposte (stesso campo p.rivali già
+      // usato per i nomi squadra AI — vedi generateFormationsAI).
+      let rivalryLine = '';
+      for (const pa of playersA) {
+        const rivalUid = (pa.rivali||[]).find(uid => playersB.some(pb => String(pb.uid)===String(uid) || String(pb.id)===String(uid)));
+        if (rivalUid) {
+          const pb = playersB.find(pb => String(pb.uid)===String(rivalUid) || String(pb.id)===String(rivalUid));
+          if (pb) { rivalryLine = `🔥 Da non perdere il duello tra ${pa.soprannome||pa.nome} e ${pb.soprannome||pb.nome} — rivalità dichiarata.`; break; }
+        }
+      }
+
+      // 2) Capocannoniere di stagione tra i presenti in questa formazione (solo se diverso dai
+      // due migliori per media voto già citati sopra, altrimenti sarebbe ridondante).
+      let scorerLine = '';
+      const bestScorer = [...allPlayers].filter(p=>(p.goalTotali||0)>0).sort((a,b)=>(b.goalTotali||0)-(a.goalTotali||0))[0];
+      if (bestScorer && bestScorer !== topA && bestScorer !== topB) {
+        scorerLine = `⚽ Occhio a ${bestScorer.soprannome||bestScorer.nome}, capocannoniere di serata sulla carta con ${bestScorer.goalTotali} gol stagionali.`;
+      }
+
+      // 3) Forma recente (ultime 3 partite) del miglior giocatore di una delle due squadre —
+      // riusa _playerResultsHistory, lo stesso helper già usato per gli streak altrove nell'app.
+      let formLine = '';
+      const _checkForm = (p, teamName) => {
+        if (!p) return '';
+        const hist = _playerResultsHistory(p, groupMatches.value).slice(-3);
+        if (hist.length===3 && hist.every(r=>r==='V')) return `${p.soprannome||p.nome} arriva da 3 vittorie di fila — ${teamName} in fiducia.`;
+        if (hist.length===3 && hist.every(r=>r==='S')) return `${p.soprannome||p.nome} cerca il riscatto dopo 3 sconfitte di fila.`;
+        return '';
+      };
+      formLine = _checkForm(topA, nA) || _checkForm(topB, nB);
+
+      const extras = [rivalryLine, scorerLine, formLine].filter(Boolean);
+      if (extras.length) verdict += ' ' + extras[hash % extras.length];
 
       // Punteggio previsto deterministico (non più Math.random()) — stessa formazione, stesso
       // punteggio previsto ad ogni ricalcolo, non solo finché resta in cache.
@@ -13150,12 +13208,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const goalsB = totalGoalsExpected - goalsA;
       verdict += ` Risultato probabile: ${goalsA}-${goalsB}.`;
 
-      return {
-        quoteA: oddA.toFixed(2),
-        quoteX: oddX.toFixed(2),
-        quoteB: oddB.toFixed(2),
-        verdict
-      };
+      return { pctA, pctX, pctB, verdict };
     }
 
     const _predCache = new Map();
@@ -14213,13 +14266,15 @@ Rispondi SOLO con questo JSON (niente altro testo):
         ctx.shadowBlur=0;
       }
 
-      // ── QUOTE SCOMMESSA: titolo + 3 box, font scalato sulla zona — NESSUN tetto massimo fisso ──
+      // ── PROBABILITÀ VITTORIA: titolo + 3 box, font scalato sulla zona — NESSUN tetto massimo fisso ──
+      // (27/9/2026, richiesta di Alby: le quote da scommessa "non sono molto capibili" per un
+      // gruppo di amici — sostituite con percentuali dirette di vittoria/pareggio.)
       const quoteZoneY=innerY+commZoneH;
       if(pred){
         const titleSize=Math.round(28*Math.min(1.3,quoteZoneH/240));
         ctx.font=`900 ${titleSize}px "Segoe UI",Arial`;ctx.fillStyle='rgba(255,255,255,0.92)';ctx.textAlign='center';
         ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=4;
-        ctx.fillText('🎯  QUOTE SCOMMESSA  🎯',W/2,quoteZoneY+titleSize);
+        ctx.fillText('📊  PROBABILITÀ VITTORIA  📊',W/2,quoteZoneY+titleSize);
         ctx.shadowBlur=0;
 
         const boxesY=quoteZoneY+titleSize+20;
@@ -14227,9 +14282,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
         const boxH=quoteZoneH-titleSize-30;
         const oddSize=Math.round(boxH*0.48);
         const qBoxes=[
-          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(),odd:pred.quoteB,x:W*0.20,col:bCol},
-          {label:'PAREGGIO',odd:pred.quoteX,x:W*0.50,col:'#FFD700'},
-          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(),odd:pred.quoteA,x:W*0.80,col:aCol},
+          {label:(f.nomeSquadraB||'Squadra B').toUpperCase(),odd:pred.pctB+'%',x:W*0.20,col:bCol},
+          {label:'PAREGGIO',odd:pred.pctX+'%',x:W*0.50,col:'#FFD700'},
+          {label:(f.nomeSquadraA||'Squadra A').toUpperCase(),odd:pred.pctA+'%',x:W*0.80,col:aCol},
         ];
         for(const b of qBoxes){
           const bw=258,bx=b.x-bw/2,by=boxesY;
@@ -14251,7 +14306,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
         // ── RISULTATO PIÙ PROBABILE: tabellone stadio, font scalato — NESSUN tetto massimo fisso ──
         const resZoneY=boxesY+boxH+16;
-        const favorB=parseFloat(pred.quoteB)<parseFloat(pred.quoteA);
+        const favorB=pred.pctB>pred.pctA;
         const resA=favorB?Math.floor(1+Math.random()*1):Math.floor(2+Math.random()*2);
         const resB=favorB?Math.floor(2+Math.random()*2):Math.floor(1+Math.random()*1);
         const resLabelSize=Math.round(24*Math.min(1.3,resZoneH/110));
@@ -14683,8 +14738,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
             partite: p.partiteTotali||0
           }));
           const aiPrompt = `Sei un telecronista calcistico italiano ironico e simpatico. Scrivi UN commento narrativo di massimo 2 righe (50 parole) per presentare questa formazione di calcetto tra amici. Menziona i nomi dei giocatori più forti e spiega perché una squadra è favorita. Tono: colloquiale, calcistico, divertente. SOLO il testo, nessuna introduzione.
-Squadra ${nomeB} (quota ${pred.quoteB}): ${playersB.map(p=>p.soprannome||p.nome).join(', ')}
-Squadra ${nomeA} (quota ${pred.quoteA}): ${playersA.map(p=>p.soprannome||p.nome).join(', ')}
+Squadra ${nomeB} (probabilità vittoria ${pred.pctB}%): ${playersB.map(p=>p.soprannome||p.nome).join(', ')}
+Squadra ${nomeA} (probabilità vittoria ${pred.pctA}%): ${playersA.map(p=>p.soprannome||p.nome).join(', ')}
 Statistiche: ${JSON.stringify(profiliFull)}`;
           // Bug critico trovato 20/8/2026 (Alby: "temo l'AI non venga mai chiamata qui") — CONFERMATO:
           // la funzione richiamata si chiamava "callAI", ma quella realmente esistente è "_callAI"
@@ -14727,7 +14782,7 @@ Statistiche: ${JSON.stringify(profiliFull)}`;
       txt += `📅 ${dataStr}${orarioStr}${luogoStr}\n\n`;
       txt += `🟠 *${nomeB}:* ${_fmtSquadra(f.squadraB, f.riserveB)}\n`;
       txt += `🔵 *${nomeA}:* ${_fmtSquadra(f.squadraA, f.riserveA)}\n`;
-      if (pred) txt += `\n📊 *Quote:* ${nomeB} ${pred.quoteB} · X ${pred.quoteX} · ${nomeA} ${pred.quoteA}\n`;
+      if (pred) txt += `\n📊 *Probabilità:* ${nomeB} ${pred.pctB}% · X ${pred.pctX}% · ${nomeA} ${pred.pctA}%\n`;
       if (commento) txt += `\n💬 _${commento}_ ${isAI ? '✨' : ''}\n`;
       txt += `\n🏆 _Generato con Amici FC_`;
       return txt;
