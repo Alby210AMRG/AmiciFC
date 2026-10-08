@@ -6303,18 +6303,29 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
 
           <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08)">
-            <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:8px">⚽ Come creare una formazione — differenze tra le 3 modalità</div>
+            <div style="font-weight:700;font-size:0.78rem;color:#60a5fa;margin-bottom:8px">⚽ Come creare una formazione — wizard a 3 passi</div>
             <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
               <li>Tocca il pallone colorato al centro della barra in basso → <strong>"➕ Nuova"</strong> → <strong>"⚽ Nuova Formazione"</strong></li>
-              <li>Seleziona chi gioca stasera</li>
-              <li>Scegli come bilanciare le squadre:
+              <li><strong>Passo 1 — 📅 Dettagli Partita:</strong> data, orario, campo</li>
+              <li><strong>Passo 2 — 👥 Chi gioca oggi:</strong> seleziona chi gioca stasera, quante riserve per squadra, e se vuoi nascondere i Mercenari da questa selezione (chip dedicato, indipendente dal filtro della schermata Giocatori)</li>
+              <li><strong>Passo 3 — ⚙️ Come dividiamo le squadre:</strong> scegli come bilanciarle
                 <ul style="padding-left:18px;line-height:1.8;margin:6px 0">
                   <li><strong>📊 Consigliata</strong> — un algoritmo statistico calcola squadre equilibrate in base a voti/gol/presenze di ognuno. Veloce, nessuna AI richiesta, nome squadra scelto da una lista buffa</li>
                   <li><strong>🤖 AI</strong> — la stessa idea ma affidata all'intelligenza artificiale, che tiene conto anche di ruoli/caratteristiche e propone nomi squadra più mirati (usa rivalità/affinità tra i presenti quando ha senso). Richiede una API key configurata</li>
                   <li><strong>✏️ Manuale</strong> — le formi tu trascinando i giocatori, per il controllo totale. Per il nome squadra c'è un pulsante 🎲 "Genera nome" (usa l'AI se configurata, altrimenti la stessa lista buffa della Consigliata)</li>
                 </ul>
               </li>
-              <li>Salva — la trovi tra le formazioni pronte, pronta per "⚽ Gioca questa" quando è il momento</li>
+              <li>Salva — la trovi tra le formazioni pronte, pronta per "⚽ Gioca questa" quando è il momento. Sotto al nome trovi anche una previsione con le <strong>percentuali di vittoria</strong> di ciascuna squadra (e pareggio) e un breve commento — generato dall'AI se configurata (tranne che per la Consigliata, che usa sempre il commento algoritmico), altrimenti da un testo che varia in base a rivalità tra i presenti, capocannoniere di serata e forma recente dei giocatori più forti. Se modifichi la formazione (✏️) la previsione si ricalcola da sola, e conta anche quanti titolari ha ogni squadra: con un 10 contro 2 la squadra in superiorità numerica parte nettamente favorita</li>
+            </ol>
+          </div>
+
+          <div style="margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,.08)">
+            <div style="font-weight:700;font-size:0.78rem;color:#facc15;margin-bottom:8px">📤 Come condividere una formazione con un altro dispositivo</div>
+            <ol style="font-size:0.78rem;color:var(--text2);padding-left:18px;line-height:1.9;margin:0">
+              <li>Apri la formazione → <strong>"📤 Invia"</strong> — genera un codice a 6 cifre (valido 48 ore) oppure copia un testo da incollare direttamente su WhatsApp</li>
+              <li>Sull'altro dispositivo: <strong>"📥 Ricevi Formazione"</strong> → inserisci il codice, oppure incolla il testo ricevuto</li>
+              <li>Arrivano correttamente anche le riserve, l'orario/luogo partita, e il metodo con cui è stata generata (così una Consigliata ricevuta non richiama mai l'AI per errore). Se un giocatore non viene trovato nel gruppo di chi riceve, un avviso lo segnala invece di ometterlo in silenzio</li>
+              <li>Nel testo WhatsApp e nella PNG condivisibile, i giocatori riserva sono etichettati chiaramente (badge 🪑 nella PNG, "(riserva)" nel testo)</li>
             </ol>
           </div>
 
@@ -9527,7 +9538,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.907',date:'2026-09-27',items:[
+    const changelogEntries = [{version:'v1.909',date:'2026-10-08',items:[
+      'Fix previsioni formazione dopo la modifica (segnalato da Alby: passando da 6v6 a 10v2 percentuali e commento restavano praticamente uguali, 35/30/35 e testa a testa). Causa: la forza di una squadra era solo la MEDIA dei suoi giocatori, senza contare quanti titolari sono in campo. Ora la media pesa per il numero di titolari (con squadre pari non cambia nulla): un 10 contro 2 da circa 70% / 16% / 14% e il commento lo dice esplicitamente (superiorita numerica). Anche il prompt dellAI riceve ora il numero di titolari per squadra.',
+    ]},{version:'v1.908',date:'2026-09-27',items:[
+      'Manuale del Campetto aggiornato (in-app + file esterno) per le ultime 3 versioni, dimenticato per errore in tutte e tre (v1.905/v1.906/v1.907) nonostante fossero funzionalita utente-visibili - segnalato da Alby. Aggiornata la sezione Crea Formazione per il nuovo wizard a 3 passi, aggiunto un esempio pratico su come condividere una formazione con un altro dispositivo, aggiornata la menzione della previsione formazione (percentuali invece delle vecchie quote).',
+    ]},{version:'v1.907',date:'2026-09-27',items:[
       'Quote scommessa sostituite con percentuali di vittoria (richiesta di Alby: "le quote non sono molto capibili" per un gruppo di amici che non scommette) - sia nellanteprima in-app, sia nella PNG condivisibile ("PROBABILITA VITTORIA" al posto di "QUOTE SCOMMESSA"), sia nel testo WhatsApp. I numeri sotto restano gli stessi di prima (stesso algoritmo di calcolo equilibrio squadre), cambia solo come vengono mostrati.',
       'Commento algoritmico (quando lAI non e configurata, o per le formazioni Consigliata che non la usano mai per scelta): ampliate le varianti di testo da 15 a 24, e aggiunta la possibilita di un dettaglio extra quando i dati lo permettono - una rivalita dichiarata tra due giocatori di squadre opposte, il capocannoniere di stagione tra i presenti, oppure la forma recente (ultime 3 partite) del miglior giocatore di una squadra. Richiesta di Alby dopo aver notato che il commento "scrive sempre le stesse cose".',
     ]},{version:'v1.906',date:'2026-09-27',items:[
@@ -10933,7 +10948,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.907');
+    const appVersion = ref('1.909');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -13070,10 +13085,32 @@ Rispondi SOLO con questo JSON (niente altro testo):
         return scores.reduce((a,b)=>a+b,0)/scores.length;
       };
 
-      const scoreA = getAvg(f.squadraA);
-      const scoreB = getAvg(f.squadraB);
+      // Numero di titolari per squadra (le riserve sono un sottoinsieme di squadraA/B, come in
+      // computeFormato) — 8/10/2026, bug segnalato da Alby: modificando una formazione da 6v6 a
+      // 10v2 le previsioni restavano praticamente identiche (35%/30%/35%, "testa a testa"),
+      // perche la forza di una squadra era solo la MEDIA dei suoi giocatori, senza contare quanti
+      // sono in campo. Ora la media viene moltiplicata per i titolari (normalizzata sulla media
+      // dei titolari delle due squadre): con squadre pari cambia nulla rispetto a prima, con
+      // squadre sbilanciate la superiorita numerica pesa come deve.
+      const _titolari = (sq, ris) => {
+        const rSet = new Set((ris||[]).map(String));
+        const n = (sq||[]).filter(pid => !rSet.has(String(pid))).length;
+        return Math.max(1, n);
+      };
+      const titA = _titolari(f.squadraA, f.riserveA);
+      const titB = _titolari(f.squadraB, f.riserveB);
+      const meanTit = (titA + titB) / 2;
+      let scoreA = getAvg(f.squadraA) * titA / meanTit;
+      let scoreB = getAvg(f.squadraB) * titB / meanTit;
+      if (scoreA + scoreB === 0) {
+        // Nessuna statistica disponibile: a squadre pari resta il testo neutro di sempre; se i
+        // titolari sono sbilanciati, conta comunque la sola superiorita numerica (base 100,
+        // stesso ordine di grandezza dei punteggi reali).
+        if (titA === titB) return {pctA:34,pctX:32,pctB:34,verdict:'Squadre equivalenti — tutto aperto!'};
+        scoreA = 100 * titA / meanTit;
+        scoreB = 100 * titB / meanTit;
+      }
       const total = scoreA + scoreB;
-      if (total === 0) return {pctA:34,pctX:32,pctB:34,verdict:'Squadre equivalenti — tutto aperto!'};
 
       const probA = scoreA/total;
       const probB = scoreB/total;
@@ -13200,6 +13237,13 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
       const extras = [rivalryLine, scorerLine, formLine].filter(Boolean);
       if (extras.length) verdict += ' ' + extras[hash % extras.length];
+
+      // Squadre con un numero diverso di titolari (8/10/2026): lo dice esplicitamente, perche e
+      // il fattore che pesa di piu e non va lasciato implicito.
+      if (titA !== titB) {
+        const nomeMag = titA > titB ? nA : nB;
+        verdict += ` 👥 ${nomeMag} in superiorità numerica: ${Math.max(titA, titB)} contro ${Math.min(titA, titB)}.`;
+      }
 
       // Punteggio previsto deterministico (non più Math.random()) — stessa formazione, stesso
       // punteggio previsto ad ogni ricalcolo, non solo finché resta in cache.
@@ -14732,14 +14776,17 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const hasAI = f.generazioneMetodo !== 'equilibrata' && !!(settings.value?.aiProvider && settings.value?.apiKey);
       if (hasAI) {
         try {
+          // titolari = giocatori della squadra meno le riserve (sottoinsieme, come computeFormato)
+          const _titCount = (sq, ris) => (sq||[]).filter(pid => !(ris||[]).map(String).includes(String(pid))).length;
           const profiliFull = [...playersA, ...playersB].map(p => ({
             nome: p.soprannome||p.nome, squadra: playersA.includes(p)?nomeA:nomeB,
             mediaVoto: (p.mediaVoto||0).toFixed(1), gol: p.goalTotali||0,
             partite: p.partiteTotali||0
           }));
           const aiPrompt = `Sei un telecronista calcistico italiano ironico e simpatico. Scrivi UN commento narrativo di massimo 2 righe (50 parole) per presentare questa formazione di calcetto tra amici. Menziona i nomi dei giocatori più forti e spiega perché una squadra è favorita. Tono: colloquiale, calcistico, divertente. SOLO il testo, nessuna introduzione.
-Squadra ${nomeB} (probabilità vittoria ${pred.pctB}%): ${playersB.map(p=>p.soprannome||p.nome).join(', ')}
-Squadra ${nomeA} (probabilità vittoria ${pred.pctA}%): ${playersA.map(p=>p.soprannome||p.nome).join(', ')}
+Squadra ${nomeB} (${_titCount(f.squadraB, f.riserveB)} titolari, probabilità vittoria ${pred.pctB}%): ${playersB.map(p=>p.soprannome||p.nome).join(', ')}
+Squadra ${nomeA} (${_titCount(f.squadraA, f.riserveA)} titolari, probabilità vittoria ${pred.pctA}%): ${playersA.map(p=>p.soprannome||p.nome).join(', ')}
+Se le due squadre hanno un numero diverso di titolari, la superiorità numerica è il fattore decisivo: dillo chiaramente nel commento.
 Statistiche: ${JSON.stringify(profiliFull)}`;
           // Bug critico trovato 20/8/2026 (Alby: "temo l'AI non venga mai chiamata qui") — CONFERMATO:
           // la funzione richiamata si chiamava "callAI", ma quella realmente esistente è "_callAI"
