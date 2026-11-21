@@ -241,7 +241,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.27';
+const INSPECTOR_VERSION = '1.28';
 function toggleTheme(){ const d=document.documentElement; const n=d.getAttribute('data-theme')==='dark'?'light':'dark'; d.setAttribute('data-theme',n); try{localStorage.setItem('insp_theme',n)}catch(e){} }
 
 async function checkInspectorUpdate(){
@@ -2696,6 +2696,7 @@ function renderMatches(q){
   let html=`<div class="search-bar">
     <input class="search-input" placeholder="🔍 Cerca data, squadra..." value="${mSearch}" oninput="renderMatches(this.value)">
     <span class="badge badge-gray" style="white-space:nowrap">${filtered.length}/${MATCHES.length}</span>
+    ${AUTH_TOKEN?'<button class="btn btn-lime btn-sm" onclick="openMatchEditor(null)">➕ Nuova partita</button>':'<span style="font-size:0.7rem;color:var(--text2)">🔒 Fai il login per modificare/aggiungere</span>'}
   </div>`;
 
   const getPlayerName = uid => {
@@ -4169,6 +4170,7 @@ async function saveEditor() {
     if (_editTarget.type === 'player' && edited.foto === '[foto base64]') {
       edited.foto = _editTarget.item.foto || '';
     }
+    if (_editTarget.type === 'player') edited.updatedAt = Date.now(); // vince nel merge giocatori delle app (v1.912)
     const active = getActiveDb();
     const base = active.dbUrl.replace(/\/$/, '') + '/amicifc';
     // Trova il path del record nei gruppi
@@ -4611,11 +4613,339 @@ function doArchiveDownload(btn) {
   } catch(e) { alert('Errore download: ' + e.message); }
 }
 
-function openMatchEditorByUUID(uuid) {
+// ══════════════════════════════════════════════════════════════
+// ✏️ EDITOR PARTITE (v1.28) — correzione, inserimento nuova partita, statistiche per giocatore
+// Flusso: modifica → anteprima differenze (partita + totali giocatori) → conferma digitando SALVA →
+// backup completo scaricato in automatico → UNA sola scrittura atomica (multi-path PATCH su
+// amicifc.json: partita + totali dei soli giocatori toccati + lastModified) → riletta e verificata.
+// Non tocca syncVersion: le app lo vedono come un normale aggiornamento (lastModified) e scaricano
+// con la guardia anti-wipe, senza forzare nessun dispositivo.
+// ══════════════════════════════════════════════════════════════
+let _editTarget = null;
+function openEditor(type, item) {            // editor JSON grezzo, usato solo per i giocatori
   if (!AUTH_TOKEN) { alert('Devi fare il login per modificare'); return; }
+  _editTarget = { type, item };
+  const copy = { ...item }; delete copy._groupName; delete copy._fotoSource;
+  if (copy.foto && String(copy.foto).startsWith('data:')) copy.foto = '[foto base64]';
+  document.getElementById('editorJson').value = JSON.stringify(copy, null, 2);
+  document.getElementById('editorTitle').textContent = '✏️ Modifica giocatore (JSON)';
+  document.getElementById('editorModal').style.display = 'flex';
+}
+function closeEditor() { document.getElementById('editorModal').style.display = 'none'; _editTarget = null; }
+
+// Stessa formula di _aggregateMatchStats / recomputeStats dell'app (punti sempre derivati da risultato e squadre)
+function _meAggregate(matches, uids) {
+  const map = {};
+  uids.forEach(u => map[u] = { goalTotali:0, assistTotali:0, autogolTotali:0, uomoPartitaTotali:0, puntiTotali:0, partiteTotali:0, votiTotali:0, votiSum:0, rigoriParatiTotali:0, rigoriSbagliatiTotali:0 });
+  for (const m of matches) {
+    const gA = m.risultato?.goalA || 0, gB = m.risultato?.goalB || 0, aWon = gA > gB, draw = gA === gB;
+    const sqA = _toArr(m.squadraA);
+    for (const s of _toArr(m.statisticheGiocatori)) {
+      const st = map[s.playerId]; if (!st) continue;
+      const inA = sqA.includes(s.playerId);
+      st.goalTotali += s.goal || 0; st.assistTotali += s.assist || 0; st.autogolTotali += s.autogol || 0;
+      st.uomoPartitaTotali += s.uomoPartita ? 1 : 0;
+      st.puntiTotali += draw ? 1 : ((inA && aWon) || (!inA && !aWon)) ? 3 : 0;
+      st.partiteTotali += 1;
+      st.rigoriParatiTotali += s.rigoriParati || 0; st.rigoriSbagliatiTotali += s.rigoriSbagliati || 0;
+      if ((s.voto || 0) > 0) { st.votiTotali++; st.votiSum += s.voto; }
+    }
+  }
+  return map;
+}
+const _toArr = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+const _ME_TOT_FIELDS = ['goalTotali','assistTotali','autogolTotali','uomoPartitaTotali','puntiTotali','partiteTotali','mediaPunti','mediaVoto','votiTotali','rigoriParatiTotali','rigoriSbagliatiTotali'];
+function _meTotalsFor(st) {
+  return {
+    goalTotali: st.goalTotali, assistTotali: st.assistTotali, autogolTotali: st.autogolTotali, uomoPartitaTotali: st.uomoPartitaTotali,
+    puntiTotali: st.puntiTotali, partiteTotali: st.partiteTotali,
+    mediaPunti: st.partiteTotali > 0 ? st.puntiTotali / st.partiteTotali : 0,
+    mediaVoto: st.votiTotali > 0 ? st.votiSum / st.votiTotali : 0,
+    votiTotali: st.votiTotali, rigoriParatiTotali: st.rigoriParatiTotali, rigoriSbagliatiTotali: st.rigoriSbagliatiTotali
+  };
+}
+
+let ME = null; // stato dell'editor aperto
+const _meEsc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const _mePName = u => { const p = PLAYERS.find(p => p.uid === u); return p ? (p.soprannome || p.nome || u) : u; };
+const _meGroupPlayers = gname => PLAYERS.filter(p => p._groupName === gname && p.uid);
+
+function openMatchEditorByUUID(uuid) {
   const m = MATCHES.find(x => x.matchUUID === uuid);
   if (!m) { alert('Partita non trovata: ' + uuid); return; }
-  openEditor('match', m);
+  openMatchEditor(m);
+}
+function openMatchEditor(m) {
+  if (!AUTH_TOKEN) { alert('Devi fare il login per modificare'); return; }
+  if (!DB) { alert('Clicca prima Connetti per caricare il database.'); return; }
+  const isNew = !m;
+  const gname = isNew ? (GROUPS[0]?.nome || '') : m._groupName;
+  const o = isNew ? {} : JSON.parse(JSON.stringify(m));
+  const stats = {};
+  _toArr(o.statisticheGiocatori).forEach(s => { stats[s.playerId] = { ...s }; });
+  ME = {
+    isNew, gname, orig: isNew ? null : JSON.parse(JSON.stringify(m)), loadedUpdatedAt: o.updatedAt || 0,
+    f: {
+      data: o.data || new Date().toISOString().slice(0,10), orario: o.orario || '21:00', luogo: o.luogo || '', formato: o.formato || '',
+      nomeSquadraA: o.nomeSquadraA || 'Squadra A', nomeSquadraB: o.nomeSquadraB || 'Squadra B',
+      goalA: o.risultato?.goalA ?? 0, goalB: o.risultato?.goalB ?? 0
+    },
+    A: _toArr(o.squadraA).slice(), B: _toArr(o.squadraB).slice(), stats,
+    mvp: o.uomoPartitaUid || '', portA: o.portiereDichiarato?.A || '', portB: o.portiereDichiarato?.B || '',
+    hasPortiere: o.portiereDichiarato !== undefined
+  };
+  meRender();
+}
+function meSet(k, v) { ME.f[k] = (k === 'goalA' || k === 'goalB') ? Math.max(0, parseInt(v) || 0) : v; meUpdateScoreHint(); }
+function meStat(uid, k, v) {
+  const s = ME.stats[uid] = ME.stats[uid] || { assist:0, autogol:0, goal:0, playerId:uid, punti:0, rigoriParati:0, rigoriSbagliati:0, rigoriSegnati:0, uomoPartita:false, voto:0 };
+  s[k] = k === 'voto' ? (parseFloat(String(v).replace(',', '.')) || 0) : Math.max(0, parseInt(v) || 0);
+  meUpdateScoreHint();
+}
+function meCalcScore() {
+  const sum = (arr, k) => arr.reduce((t, u) => t + (ME.stats[u]?.[k] || 0), 0);
+  return { a: sum(ME.A, 'goal') + sum(ME.B, 'autogol'), b: sum(ME.B, 'goal') + sum(ME.A, 'autogol') };
+}
+function meUpdateScoreHint() {
+  const el = document.getElementById('meScoreHint'); if (!el) return;
+  const c = meCalcScore(); const ok = c.a === ME.f.goalA && c.b === ME.f.goalB;
+  el.innerHTML = ok ? '<span style="color:var(--c-green)">✅ Il risultato coincide con gol + autogol dei giocatori ('+c.a+'–'+c.b+')</span>'
+    : '<span style="color:var(--c-yellow)">⚠️ Gol dei giocatori (+autogol avversari) = '+c.a+'–'+c.b+' ma il risultato è '+ME.f.goalA+'–'+ME.f.goalB+'</span> <button class="btn btn-ghost btn-sm" style="font-size:0.68rem" onclick="meUseCalcScore()">Usa '+c.a+'–'+c.b+'</button>';
+}
+function meUseCalcScore() { const c = meCalcScore(); ME.f.goalA = c.a; ME.f.goalB = c.b; meRender(); }
+function meAddPlayer(team) {
+  const sel = document.getElementById('meAdd' + team); const u = sel?.value; if (!u) return;
+  ME[team].push(u);
+  if (!ME.stats[u]) ME.stats[u] = { assist:0, autogol:0, goal:0, playerId:u, punti:0, rigoriParati:0, rigoriSbagliati:0, rigoriSegnati:0, uomoPartita:false, voto:0 };
+  meRender();
+}
+function meRemovePlayer(team, u) {
+  ME[team] = ME[team].filter(x => x !== u);
+  if (!ME.A.includes(u) && !ME.B.includes(u)) { delete ME.stats[u]; if (ME.mvp === u) ME.mvp = ''; if (ME.portA === u) ME.portA = ''; if (ME.portB === u) ME.portB = ''; }
+  meRender();
+}
+function meChangeGroup(g) { ME.gname = g; ME.A = []; ME.B = []; ME.stats = {}; ME.mvp = ''; ME.portA = ''; ME.portB = ''; meRender(); }
+
+function meRender() {
+  let host = document.getElementById('matchEdModal');
+  if (!host) { host = document.createElement('div'); host.id = 'matchEdModal'; host.className = 'modal-bg'; host.style.alignItems = 'flex-start'; host.style.overflowY = 'auto'; document.body.appendChild(host); }
+  const gp = _meGroupPlayers(ME.gname);
+  const used = new Set([...ME.A, ...ME.B]);
+  const free = gp.filter(p => !used.has(p.uid)).sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+  const inp = (k, type, w) => `<input type="${type}" value="${_meEsc(ME.f[k])}" oninput="meSet('${k}',this.value)" style="${w?'width:'+w+';':''}padding:6px 8px;border-radius:8px;font-size:0.82rem">`;
+  const num = (uid, k, w) => `<input type="number" min="0" step="1" value="${ME.stats[uid]?.[k] || 0}" oninput="meStat('${uid}','${k}',this.value)" style="width:${w||'46px'};padding:4px;border-radius:6px;font-size:0.78rem;text-align:center">`;
+  const teamBlock = (team, label) => {
+    const rows = ME[team].map(u => `<tr>
+      <td style="padding:3px 4px;font-weight:600;white-space:nowrap">${_meEsc(_mePName(u))}</td>
+      <td>${num(u,'goal')}</td><td>${num(u,'assist')}</td><td>${num(u,'autogol')}</td>
+      <td>${num(u,'rigoriSegnati')}</td><td>${num(u,'rigoriSbagliati')}</td><td>${num(u,'rigoriParati')}</td>
+      <td><input type="text" inputmode="decimal" value="${ME.stats[u]?.voto || ''}" placeholder="—" oninput="meStat('${u}','voto',this.value)" style="width:46px;padding:4px;border-radius:6px;font-size:0.78rem;text-align:center"></td>
+      <td><button class="btn btn-ghost btn-sm" style="padding:2px 7px" onclick="meRemovePlayer('${team}','${u}')" title="Togli dalla formazione">✕</button></td></tr>`).join('');
+    return `<div style="margin-top:12px"><div style="font-weight:700;margin-bottom:4px">${_meEsc(label)} <span style="color:var(--text2);font-weight:400">(${ME[team].length} giocatori)</span></div>
+      <div style="overflow-x:auto"><table class="tbl" style="font-size:0.78rem"><thead><tr><th>Giocatore</th><th title="Gol">⚽</th><th title="Assist">🅰️</th><th title="Autogol">🙈</th><th title="Rigori segnati">🎯</th><th title="Rigori sbagliati">❌</th><th title="Rigori parati">🧤</th><th title="Voto (vuoto = nessun voto)">⭐</th><th></th></tr></thead><tbody>${rows || '<tr><td colspan="9" style="color:var(--text2);padding:8px">Nessun giocatore</td></tr>'}</tbody></table></div>
+      <div style="display:flex;gap:6px;margin-top:6px"><select id="meAdd${team}" style="flex:1;padding:5px;border-radius:8px;font-size:0.78rem"><option value="">➕ Aggiungi giocatore…</option>${free.map(p => `<option value="${p.uid}">${_meEsc(p.soprannome || p.nome)}${p.cognome ? ' (' + _meEsc(p.cognome) + ')' : ''}</option>`).join('')}</select>
+      <button class="btn btn-ghost btn-sm" onclick="meAddPlayer('${team}')">Aggiungi</button></div></div>`;
+  };
+  const playersAll = [...ME.A, ...ME.B];
+  const opt = (arr, sel, empty) => `<option value="">${empty}</option>` + arr.map(u => `<option value="${u}" ${u === sel ? 'selected' : ''}>${_meEsc(_mePName(u))}</option>`).join('');
+  host.innerHTML = `<div class="modal" style="max-width:860px;width:100%;margin:20px auto">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="font-weight:700;font-size:1.05rem">${ME.isNew ? '➕ Nuova partita' : '✏️ Modifica partita'} <span style="font-weight:400;color:var(--text2);font-size:0.78rem">${ME.isNew ? '' : '· ' + _meEsc(ME.orig.matchUUID.slice(0,8))}</span></div>
+      <button class="btn btn-ghost btn-sm" onclick="meClose()">✕</button></div>
+    <div style="font-size:0.72rem;color:var(--c-yellow);margin-bottom:10px">⚠️ Nulla viene scritto finché non confermi nell'anteprima. Prima della scrittura viene scaricato un backup completo.</div>
+    ${ME.isNew ? `<div style="margin-bottom:8px"><label style="font-size:0.72rem;color:var(--text2)">Gruppo</label><br><select onchange="meChangeGroup(this.value)" style="padding:6px;border-radius:8px">${GROUPS.map(g => `<option ${g.nome === ME.gname ? 'selected' : ''}>${_meEsc(g.nome)}</option>`).join('')}</select></div>` : `<div style="font-size:0.75rem;color:var(--text2);margin-bottom:8px">Gruppo: <b>${_meEsc(ME.gname)}</b></div>`}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px">
+      <div><label style="font-size:0.7rem;color:var(--text2)">Data</label><br>${inp('data','date','100%')}</div>
+      <div><label style="font-size:0.7rem;color:var(--text2)">Orario</label><br>${inp('orario','time','100%')}</div>
+      <div><label style="font-size:0.7rem;color:var(--text2)">Luogo</label><br>${inp('luogo','text','100%')}</div>
+      <div><label style="font-size:0.7rem;color:var(--text2)">Formato</label><br><select onchange="meSet('formato',this.value)" style="width:100%;padding:6px;border-radius:8px">${['','5v5','6v6','7v7','8v8','9v9','11v11'].map(x => `<option value="${x}" ${ME.f.formato === x ? 'selected' : ''}>${x || '—'}</option>`).join('')}</select></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:end;margin-top:10px">
+      <div><label style="font-size:0.7rem;color:var(--text2)">Squadra A</label><br>${inp('nomeSquadraA','text','100%')}</div>
+      <div style="display:flex;gap:4px;align-items:center"><input type="number" min="0" value="${ME.f.goalA}" oninput="meSet('goalA',this.value)" style="width:54px;padding:6px;text-align:center;border-radius:8px;font-weight:700"> – <input type="number" min="0" value="${ME.f.goalB}" oninput="meSet('goalB',this.value)" style="width:54px;padding:6px;text-align:center;border-radius:8px;font-weight:700"></div>
+      <div><label style="font-size:0.7rem;color:var(--text2)">Squadra B</label><br>${inp('nomeSquadraB','text','100%')}</div>
+    </div>
+    <div id="meScoreHint" style="font-size:0.72rem;margin-top:6px"></div>
+    ${teamBlock('A', ME.f.nomeSquadraA)}${teamBlock('B', ME.f.nomeSquadraB)}
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:12px">
+      <div><label style="font-size:0.7rem;color:var(--text2)">⭐ Uomo Partita</label><br><select onchange="ME.mvp=this.value" style="width:100%;padding:6px;border-radius:8px">${opt(playersAll, ME.mvp, '— nessuno —')}</select></div>
+      <div><label style="font-size:0.7rem;color:var(--text2)">🧤 Portiere A</label><br><select onchange="ME.portA=this.value;ME.hasPortiere=true" style="width:100%;padding:6px;border-radius:8px">${opt(ME.A, ME.portA, 'a turno / non dichiarato')}</select></div>
+      <div><label style="font-size:0.7rem;color:var(--text2)">🧤 Portiere B</label><br><select onchange="ME.portB=this.value;ME.hasPortiere=true" style="width:100%;padding:6px;border-radius:8px">${opt(ME.B, ME.portB, 'a turno / non dichiarato')}</select></div>
+    </div>
+    ${!ME.isNew && (_toArr(ME.orig.eventiPartita).length || _toArr(ME.orig.sostituzioni).length) ? '<div style="font-size:0.72rem;color:var(--c-yellow);margin-top:10px">ℹ️ Questa partita ha cronologia eventi/sostituzioni (Live): restano invariate, non vengono ricalcolate dalle modifiche qui.</div>' : ''}
+    <div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-ghost" onclick="meClose()">Annulla</button><button class="btn btn-lime" style="margin-left:auto" onclick="mePreview()">🔍 Anteprima modifiche</button></div>
+  </div>`;
+  meUpdateScoreHint();
+}
+function meClose() { document.getElementById('matchEdModal')?.remove(); document.getElementById('mePreviewModal')?.remove(); ME = null; }
+
+// Costruisce la partita nuova/modificata partendo dall'originale (campi sconosciuti preservati)
+function meBuildMatch() {
+  const base = ME.isNew ? {
+    id: uuid4(), matchUUID: uuid4(), groupId: _meGroupLocalId(ME.gname), commentoAI: '', fotoPartita: '', notePartita: '', noteAI: '', titoloGiornale: '',
+    uomoPartitaVotato: false, votazioneCondivisaPending: false
+  } : JSON.parse(JSON.stringify(ME.orig));
+  const { _groupName, ...clean } = base;
+  const f = ME.f, gA = f.goalA, gB = f.goalB, aWon = gA > gB, draw = gA === gB;
+  const rows = [...ME.A, ...ME.B].map(u => {
+    const s = ME.stats[u] || {};
+    const inA = ME.A.includes(u);
+    return { ...s, assist: s.assist || 0, autogol: s.autogol || 0, goal: s.goal || 0, playerId: u,
+      punti: draw ? 1 : ((inA && aWon) || (!inA && !aWon)) ? 3 : 0,
+      rigoriParati: s.rigoriParati || 0, rigoriSbagliati: s.rigoriSbagliati || 0, rigoriSegnati: s.rigoriSegnati || 0,
+      uomoPartita: ME.mvp === u, voto: s.voto || 0 };
+  });
+  const nm = { ...clean, data: f.data, orario: f.orario, luogo: f.luogo, formato: f.formato || clean.formato || '',
+    nomeSquadraA: f.nomeSquadraA, nomeSquadraB: f.nomeSquadraB, risultato: { goalA: gA, goalB: gB },
+    squadraA: ME.A.slice(), squadraB: ME.B.slice(), statisticheGiocatori: rows,
+    uomoPartitaUid: ME.mvp || '', uomoPartita: ME.mvp ? _mePName(ME.mvp) : '',
+    updatedAt: Date.now(), lastModifiedAt: new Date().toLocaleString('it-IT'), lastModifiedBy: (AUTH_EMAIL || 'admin') + ' (Inspector)',
+    appVersion: 'inspector-' + INSPECTOR_VERSION };
+  if (ME.hasPortiere || ME.portA || ME.portB) nm.portiereDichiarato = { A: ME.portA || '', B: ME.portB || '' };
+  return nm;
+}
+function _meGroupLocalId(gname) { const m = MATCHES.find(x => x._groupName === gname && x.groupId !== undefined); if (m) return m.groupId; const g = GROUPS.find(g => g.nome === gname); return g?.id ?? 1; }
+
+// Calcola tutto ciò che verrebbe scritto + l'elenco delle differenze, senza scrivere nulla
+function meComputePlan() {
+  const nm = meBuildMatch();
+  const errs = [], warns = [];
+  if (!nm.data) errs.push('Data mancante.');
+  if (!ME.A.length || !ME.B.length) errs.push('Entrambe le squadre devono avere almeno un giocatore.');
+  const dup = ME.A.filter(u => ME.B.includes(u)); if (dup.length) errs.push('Giocatore in entrambe le squadre: ' + dup.map(_mePName).join(', '));
+  const dupSame = [...ME.A, ...ME.B].filter((u, i, a) => a.indexOf(u) !== i); if (dupSame.length) errs.push('Giocatore ripetuto nella stessa squadra.');
+  const bad = [...ME.A, ...ME.B].filter(u => !PLAYERS.some(p => p.uid === u && p._groupName === ME.gname)); if (bad.length) errs.push('Giocatori non del gruppo: ' + bad.join(', '));
+  if (ME.mvp && ![...ME.A, ...ME.B].includes(ME.mvp)) errs.push('Uomo Partita non in formazione.');
+  const c = meCalcScore(); if (c.a !== nm.risultato.goalA || c.b !== nm.risultato.goalB) warns.push(`Il risultato ${nm.risultato.goalA}–${nm.risultato.goalB} non coincide con gol+autogol dei giocatori (${c.a}–${c.b}). Verrà salvato il risultato che hai scritto.`);
+  if (ME.isNew && MATCHES.some(m => m._groupName === ME.gname && m.data === nm.data && m.orario === nm.orario)) warns.push('Esiste già una partita dello stesso gruppo con la stessa data e orario.');
+  // Differenze della partita
+  const lines = [];
+  const o = ME.orig;
+  const chg = (label, a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) lines.push({ label, a, b }); };
+  if (ME.isNew) lines.push({ label: 'NUOVA PARTITA', a: '', b: `${nm.data} ${nm.orario} · ${nm.nomeSquadraA} ${nm.risultato.goalA}–${nm.risultato.goalB} ${nm.nomeSquadraB}` });
+  else {
+    chg('Data', o.data, nm.data); chg('Orario', o.orario || '', nm.orario); chg('Luogo', o.luogo || '', nm.luogo); chg('Formato', o.formato || '', nm.formato);
+    chg('Squadra A', o.nomeSquadraA, nm.nomeSquadraA); chg('Squadra B', o.nomeSquadraB, nm.nomeSquadraB);
+    chg('Risultato', `${o.risultato?.goalA}–${o.risultato?.goalB}`, `${nm.risultato.goalA}–${nm.risultato.goalB}`);
+    chg('Formazione A', _toArr(o.squadraA).map(_mePName).join(', '), nm.squadraA.map(_mePName).join(', '));
+    chg('Formazione B', _toArr(o.squadraB).map(_mePName).join(', '), nm.squadraB.map(_mePName).join(', '));
+    chg('Uomo Partita', o.uomoPartitaUid ? _mePName(o.uomoPartitaUid) : '', nm.uomoPartitaUid ? _mePName(nm.uomoPartitaUid) : '');
+    chg('Portiere A', o.portiereDichiarato?.A ? _mePName(o.portiereDichiarato.A) : '', nm.portiereDichiarato?.A ? _mePName(nm.portiereDichiarato.A) : '');
+    chg('Portiere B', o.portiereDichiarato?.B ? _mePName(o.portiereDichiarato.B) : '', nm.portiereDichiarato?.B ? _mePName(nm.portiereDichiarato.B) : '');
+    const oS = {}; _toArr(o.statisticheGiocatori).forEach(s => oS[s.playerId] = s);
+    const lab = { goal:'gol', assist:'assist', autogol:'autogol', rigoriSegnati:'rig.segnati', rigoriSbagliati:'rig.sbagliati', rigoriParati:'rig.parati', voto:'voto' };
+    nm.statisticheGiocatori.forEach(s => { const p = oS[s.playerId]; Object.keys(lab).forEach(k => { const before = p ? (p[k] || 0) : 0; if (p && before !== (s[k] || 0)) lines.push({ label: _mePName(s.playerId) + ' · ' + lab[k], a: before, b: s[k] || 0 }); else if (!p && (s[k] || 0)) lines.push({ label: _mePName(s.playerId) + ' (nuovo in partita) · ' + lab[k], a: 0, b: s[k] }); }); });
+    _toArr(o.statisticheGiocatori).forEach(s => { if (!nm.statisticheGiocatori.some(x => x.playerId === s.playerId)) lines.push({ label: _mePName(s.playerId), a: 'in partita', b: 'rimosso dalla partita' }); });
+  }
+  // Totali giocatori: ricalcolo su tutte le partite del gruppo con la partita sostituita/aggiunta
+  const gMatches = MATCHES.filter(m => m._groupName === ME.gname && (ME.isNew || m.matchUUID !== ME.orig.matchUUID));
+  const gPlayers = _meGroupPlayers(ME.gname);
+  const uids = gPlayers.map(p => p.uid);
+  const before = _meAggregate(MATCHES.filter(m => m._groupName === ME.gname), uids);
+  const after = _meAggregate([...gMatches, nm], uids);
+  const playerChanges = [];
+  gPlayers.forEach(p => {
+    const nt = _meTotalsFor(after[p.uid]);
+    const diff = {};
+    _ME_TOT_FIELDS.forEach(k => { const cur = p[k] || 0; if (Math.abs(cur - nt[k]) > 1e-9) diff[k] = [cur, nt[k]]; });
+    if (Object.keys(diff).length) playerChanges.push({ uid: p.uid, nome: p.soprannome || p.nome, diff, newTotals: nt });
+  });
+  // Segnala drift preesistente: totali salvati diversi da quelli ricalcolati PRIMA della modifica, su giocatori non coinvolti
+  const involved = new Set([...(ME.isNew ? [] : [..._toArr(ME.orig.squadraA), ..._toArr(ME.orig.squadraB)]), ...ME.A, ...ME.B]);
+  const stray = playerChanges.filter(pc => !involved.has(pc.uid));
+  if (stray.length) warns.push(`Anche ${stray.length} giocatore/i NON coinvolti in questa partita hanno totali salvati diversi da quelli ricalcolati (${stray.map(s => s.nome).join(', ')}): verranno riallineati (stessa logica di "Ricalcola Statistiche" dell'app).`);
+  return { nm, errs, warns, lines, playerChanges };
+}
+
+function mePreview() {
+  const plan = meComputePlan(); ME.plan = plan;
+  const fmtV = v => typeof v === 'number' ? (Number.isInteger(v) ? v : v.toFixed(2)) : _meEsc(v === '' ? '—' : v);
+  let host = document.getElementById('mePreviewModal'); if (host) host.remove();
+  host = document.createElement('div'); host.id = 'mePreviewModal'; host.className = 'modal-bg'; host.style.zIndex = 1100; host.style.alignItems = 'flex-start'; host.style.overflowY = 'auto';
+  const hasChanges = plan.lines.length || plan.playerChanges.length;
+  host.innerHTML = `<div class="modal" style="max-width:760px;width:100%;margin:20px auto">
+    <div style="font-weight:700;font-size:1.05rem;margin-bottom:10px">🔍 Anteprima — ${ME.isNew ? 'nuova partita' : 'modifica partita'}</div>
+    ${plan.errs.length ? `<div style="background:rgba(255,77,77,.1);border:1px solid var(--c-red);border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.8rem;color:var(--c-red)"><b>❌ Non posso salvare:</b><br>${plan.errs.map(e => '• ' + _meEsc(e)).join('<br>')}</div>` : ''}
+    ${plan.warns.length ? `<div style="background:rgba(251,191,36,.1);border:1px solid var(--c-yellow);border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.78rem"><b style="color:var(--c-yellow)">⚠️ Attenzione</b><br>${plan.warns.map(e => '• ' + _meEsc(e)).join('<br>')}</div>` : ''}
+    <div style="font-weight:700;margin:8px 0 4px">Partita</div>
+    ${plan.lines.length ? `<table class="tbl"><tbody>${plan.lines.map(l => `<tr><td style="font-weight:600">${_meEsc(l.label)}</td><td style="color:var(--c-red)">${fmtV(l.a)}</td><td>→</td><td style="color:var(--c-green);font-weight:700">${fmtV(l.b)}</td></tr>`).join('')}</tbody></table>` : '<div style="color:var(--text2);font-size:0.8rem">Nessuna modifica ai dati della partita.</div>'}
+    <div style="font-weight:700;margin:14px 0 4px">Totali giocatori che verranno ricalcolati (${plan.playerChanges.length})</div>
+    ${plan.playerChanges.length ? `<table class="tbl"><tbody>${plan.playerChanges.map(pc => `<tr><td style="font-weight:600">${_meEsc(pc.nome)}</td><td style="font-size:0.74rem">${Object.entries(pc.diff).map(([k, [a, b]]) => `${k.replace('Totali','')}: <span style="color:var(--c-red)">${fmtV(a)}</span>→<span style="color:var(--c-green)">${fmtV(b)}</span>`).join(' · ')}</td></tr>`).join('')}</tbody></table>` : '<div style="color:var(--text2);font-size:0.8rem">Nessun totale cambia.</div>'}
+    ${(!plan.errs.length && hasChanges) ? `<div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:0.78rem;margin-bottom:6px">Verrà scaricato un backup completo, poi scritta UNA modifica atomica su Firebase e riletta per verifica. Per confermare scrivi <b>SALVA</b>:</div>
+      <div style="display:flex;gap:8px"><input id="meConfirm" placeholder="SALVA" autocomplete="off" style="padding:8px;border-radius:8px;width:140px;text-transform:uppercase"><button class="btn btn-lime" id="meSaveBtn" onclick="meSave()">💾 Salva su Firebase</button></div>
+      <div id="meSaveLog" style="font-size:0.74rem;margin-top:8px"></div></div>` : (!plan.errs.length ? '<div style="margin-top:14px;color:var(--text2);font-size:0.8rem">Non c\'è nulla da salvare.</div>' : '')}
+    <div style="display:flex;margin-top:14px"><button class="btn btn-ghost" onclick="document.getElementById('mePreviewModal').remove()">← Torna a modificare</button></div>
+  </div>`;
+  document.body.appendChild(host);
+}
+
+async function meSave() {
+  const logEl = document.getElementById('meSaveLog'), btn = document.getElementById('meSaveBtn');
+  const say = (t, c) => { if (logEl) logEl.innerHTML += `<div style="color:${c || 'var(--text2)'}">${t}</div>`; log(t.replace(/<[^>]+>/g, ''), c === 'var(--c-red)' ? 'err' : 'info'); };
+  if ((document.getElementById('meConfirm')?.value || '').trim().toUpperCase() !== 'SALVA') { alert('Per confermare scrivi SALVA.'); return; }
+  const plan = meComputePlan(); if (plan.errs.length) { alert(plan.errs.join('\n')); return; }
+  btn.disabled = true;
+  try {
+    const base = (getActiveDb().dbUrl || $('fbUrl').value).trim().replace(/\/$/, '') + '/amicifc';
+    // 1) backup completo scaricato prima di toccare qualsiasi cosa
+    say('💾 Backup completo in download…'); await doFullBackup(true);
+    // 2) rilettura fresca del gruppo e controllo conflitti
+    say('🔎 Controllo che nessun altro abbia modificato nel frattempo…');
+    const gr = await fetch(`${base}/groups.json?auth=${AUTH_TOKEN}`, { cache: 'no-store' });
+    if (gr.status === 401) throw new Error('Token scaduto. Rifai il login.');
+    if (!gr.ok) throw new Error('HTTP ' + gr.status + ' leggendo i gruppi');
+    const groupsRaw = await gr.json();
+    const entries = Array.isArray(groupsRaw) ? groupsRaw.map((e, i) => [String(i), e]) : Object.entries(groupsRaw || {});
+    const hit = entries.find(([k, e]) => e && (e.group || e).nome === ME.gname);
+    if (!hit) throw new Error('Gruppo non trovato su Firebase');
+    const [gk, gEntry] = hit;
+    const fbMatches = _toArr(gEntry.matches), fbPlayers = _toArr(gEntry.players);
+    const matchesIsArray = Array.isArray(gEntry.matches);
+    let mKey;
+    if (ME.isNew) {
+      if (fbMatches.some(m => m && m.matchUUID === plan.nm.matchUUID)) throw new Error('matchUUID già presente (riprova).');
+      mKey = matchesIsArray ? String(fbMatches.length) : plan.nm.matchUUID;
+    } else {
+      const arr = matchesIsArray ? gEntry.matches.map((m, i) => [String(i), m]) : Object.entries(gEntry.matches || {});
+      const mm = arr.find(([k, m]) => m && m.matchUUID === ME.orig.matchUUID);
+      if (!mm) throw new Error('La partita non esiste più su Firebase (eliminata da un altro dispositivo?). Ricarica e riprova.');
+      if ((mm[1].updatedAt || 0) !== (ME.loadedUpdatedAt || 0)) throw new Error('La partita è stata modificata da un altro dispositivo dopo che l\'hai aperta. Premi 🔄 Aggiorna, riapri la partita e rifai la modifica.');
+      mKey = mm[0];
+    }
+    // I totali vanno ricalcolati sullo stato FRESCO di Firebase, non su quello caricato all'avvio
+    const freshMatches = fbMatches.filter(m => m && (ME.isNew || m.matchUUID !== ME.orig.matchUUID));
+    const gUids = fbPlayers.filter(p => p && p.uid).map(p => p.uid);
+    const aft = _meAggregate([...freshMatches, plan.nm], gUids);
+    const upd = {};
+    upd[`groups/${gk}/matches/${mKey}`] = plan.nm;
+    let nPl = 0;
+    const pArr = Array.isArray(gEntry.players) ? gEntry.players.map((p, i) => [String(i), p]) : Object.entries(gEntry.players || {});
+    const now = Date.now();
+    pArr.forEach(([pk, p]) => {
+      if (!p || !p.uid) return;
+      const nt = _meTotalsFor(aft[p.uid]); let changed = false;
+      _ME_TOT_FIELDS.forEach(k => { if (Math.abs((p[k] || 0) - nt[k]) > 1e-9) { upd[`groups/${gk}/players/${pk}/${k}`] = nt[k]; changed = true; } });
+      if (changed) { upd[`groups/${gk}/players/${pk}/updatedAt`] = now; nPl++; }
+    });
+    upd['lastModified'] = now;
+    // 3) scrittura atomica
+    say(`✍️ Scrittura atomica: 1 partita + ${nPl} giocatori…`);
+    const wr = await fetch(`${base}.json?auth=${AUTH_TOKEN}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(upd) });
+    if (wr.status === 401) throw new Error('Token scaduto. Rifai il login.');
+    if (!wr.ok) throw new Error('HTTP ' + wr.status + ' in scrittura — NESSUNA modifica applicata (scrittura atomica).');
+    // 4) verifica rileggendo
+    say('🔁 Verifica rileggendo da Firebase…');
+    const vr = await fetch(`${base}/groups/${gk}/matches/${mKey}.json?auth=${AUTH_TOKEN}`, { cache: 'no-store' });
+    const back = await vr.json();
+    const canon = o => JSON.stringify(o, (k, v) => (v && typeof v === 'object' && !Array.isArray(v)) ? Object.keys(v).sort().reduce((r, x) => (r[x] = v[x], r), {}) : v);
+    if (canon(back) !== canon(plan.nm)) throw new Error('VERIFICA FALLITA: il dato riletto è diverso da quello scritto. Controlla Firebase e usa il backup appena scaricato.');
+    say('✅ Salvato e verificato. Le app si aggiorneranno al prossimo controllo (entro ~2 minuti).', 'var(--c-green)');
+    log(`✏️ Partita ${ME.isNew ? 'creata' : 'modificata'} da Inspector: ${plan.nm.nomeSquadraA} ${plan.nm.risultato.goalA}–${plan.nm.risultato.goalB} ${plan.nm.nomeSquadraB} (${plan.nm.data}) · ${nPl} giocatori ricalcolati`, 'ok');
+    setTimeout(async () => { meClose(); await loadAll(); showView('matches-view'); }, 1800);
+  } catch (e) {
+    say('❌ ' + e.message, 'var(--c-red)'); btn.disabled = false;
+  }
 }
 
 function doAuditDownload(){

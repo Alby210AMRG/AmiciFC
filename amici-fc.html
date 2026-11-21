@@ -6203,6 +6203,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>💾 <strong>Solo locale</strong>: nessun account da creare, funziona sempre offline. Per portare i dati su un altro telefono, o per un backup di sicurezza, usi <strong>Impostazioni → Import/Export</strong> — esporti un file JSON e lo reimporti dove serve, manualmente</div>
             <div>☁️ <strong>Con Firebase</strong>: i dati si sincronizzano automaticamente tra tutti i telefoni del gruppo, in tempo reale, senza dover scambiarsi file. Serve un progetto Firebase gratuito (guida passo-passo inclusa) e un login (email/password) per chi deve poter scrivere dati</div>
             <div>🔄 <strong>Aggiornamento dati</strong>: l'app controlla da sola ogni 2 minuti se qualcuno ha cambiato qualcosa e scarica solo se serve (mai mentre stai scrivendo). Trascinando la home verso il basso e tenendo premuto fai un controllo immediato. Se vedi dati sbagliati o incompleti: Impostazioni → Zona Pericolo → «Ripristino totale da Firebase».</div>
+            <div>🤖 <strong>AI gratuita</strong>: Gemini, Groq (GPT-OSS 120B) o OpenRouter (Gemma 4). I modelli cambiano nel tempo: se «Testa connessione» dà errore, controlla la chiave in Impostazioni → AI.</div>
             <div>⚙️ Si configura toccando l'icona <strong>☁️</strong> in alto accanto al nome del gruppo — ogni gruppo ha il proprio Firebase indipendente, si può aggiungere o togliere in qualsiasi momento senza perdere dati</div>
             <div>📋 Dentro quella schermata trovi il bottone <strong>"❓ Come configurare Firebase?"</strong> — la guida passo-passo completa (progetto, database, autenticazione, regole di sicurezza da incollare) è lì, non serve cercarla altrove</div>
             <div>⚠️ <strong>Alcune funzioni richiedono Firebase attivo</strong> e non funzionano in modalità solo locale: Vota con gli amici (Pagelle Multi-Utente) e la sincronizzazione multi-dispositivo. Tutto il resto (statistiche, card AI, Riepilogo Stagione, PDF) funziona identico in entrambe le modalità</div>
@@ -6561,7 +6562,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <label class="input-label">Servizio AI</label>
           <select class="select-field" v-model="settings.aiProvider" @change="saveSettings">
             <option value="gemini">✨ Gemini Flash (Google) — Gratuito 🟢</option>
-            <option value="groq">⚡ Groq (Llama 3) — Gratuito 🟢</option>
+            <option value="groq">⚡ Groq (GPT-OSS) — Gratuito 🟢</option>
             <option value="openrouter">🌐 OpenRouter — Multi-modello 🟢</option>
             <option value="chatgpt">🟢 ChatGPT (OpenAI) — A pagamento</option>
           </select>
@@ -6599,7 +6600,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <div class="install-step"><div class="install-num">3</div><div class="install-text">Vai su <strong>"API Keys"</strong> → <strong>"Create API Key"</strong></div></div>
               <div class="install-step"><div class="install-num">4</div><div class="install-text">Copia la chiave (inizia con <code>gsk_...</code>) e incollala sotto</div></div>
               <div style="margin-top:8px;padding:8px 10px;background:var(--bg3);border-radius:8px;font-size:0.72rem;color:var(--lime)">
-                ⚡ Gratuito! Usa Llama 3.3 70B — ottima qualità italiana, risposta in ~1 secondo.
+                ⚡ Gratuito! Usa GPT-OSS 120B (con riserva Qwen 3.8) — risposta in pochi secondi. Il vecchio Llama 3.3 70B non è più nel piano gratuito Groq.
               </div>
             </div>
           </template>
@@ -6624,10 +6625,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <label class="input-label">Modello</label>
               <select class="select-field" v-model="settings.openrouterModel" @change="saveSettings">
                 <optgroup label="🟢 Gratuiti">
-                  <option value="mistralai/mistral-7b-instruct:free">Mistral 7B Instruct — veloce</option>
-                  <option value="meta-llama/llama-3.2-3b-instruct:free">Llama 3.2 3B — leggero</option>
-                  <option value="google/gemma-2-9b-it:free">Gemma 2 9B — buon italiano</option>
-                  <option value="qwen/qwen-2-7b-instruct:free">Qwen 2 7B — multilingua</option>
+                  <option value="google/gemma-4-31b-it:free">Gemma 4 31B — consigliato (multilingua)</option>
+                  <option value="google/gemma-4-26b-a4b-it:free">Gemma 4 26B A4B — veloce</option>
+                  <option value="nvidia/nemotron-3-ultra-550b-a55b:free">Nemotron 3 Ultra — grande</option>
+                  <option value="inclusionai/ling-3.2-flash:free">Ling 3.2 Flash — veloce</option>
                 </optgroup>
                 <optgroup label="💰 A pagamento">
                   <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
@@ -9632,7 +9633,12 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.912',date:'2026-11-21',items:[
+    const changelogEntries = [{version:'v1.913',date:'2026-11-21',items:[
+      'Modelli AI aggiornati (verificati online): Gemini ora prova gemini-3.6-flash, poi gemini-3.8-flash, poi gemini-2.5-flash-lite (gemini-2.5-flash esce di produzione il 1 dicembre 2026). Per Gemini 3.8 il thinking usa il livello low (minimal non e supportato).',
+      'Groq: Llama 3.3 70B non e piu nel piano gratuito; ora usa GPT-OSS 120B con riserva Qwen 3.8 e ragionamento low.',
+      'OpenRouter: nuovo elenco gratuiti (Gemma 4 31B predefinito, Gemma 4 26B, Nemotron 3 Ultra, Ling 3.2 Flash); chi aveva un vecchio modello viene spostato sul nuovo predefinito.',
+      'Test connessione Gemini: un errore 400 non viene piu scambiato per chiave non valida.'
+    ]},{version:'v1.912',date:'2026-11-21',items:[
       'Sicurezza sync — le modifiche dei giocatori (nuovo, modifica, eliminazione, import da archivio, ottimizzazione foto) ora usano lo stesso sistema delle partite: flag di upload pendente, 3 tentativi, e un messaggio chiaro (salvato online / salvato sul dispositivo ma non ancora online). Prima l\'eliminazione di un giocatore non veniva mai inviata a Firebase.',
       'Sicurezza sync — in upload i giocatori vengono ora FUSI col cloud come le partite: un dispositivo con dati vecchi non cancella piu i giocatori aggiunti nel frattempo da un altro admin; vince la modifica piu recente; i giocatori eliminati restano eliminati (lapidi).',
       'Aggiornamento automatico ogni 2 minuti (era 10): controllo leggero di pochi byte, scarica solo se Firebase e cambiato, mai mentre scrivi o crei una partita. Corretta la finestra cieca di 30 secondi del controllo.',
@@ -10611,7 +10617,7 @@ createApp({
       'Fix: "Rigenera Soprannomi" non azzera più i soprannomi esistenti — genera solo quelli mancanti o scaduti',
     ]}
     ]
-    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'mistralai/mistral-7b-instruct:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
+    const settings = ref({ darkTheme: false, fontLarge: false, aiProvider: 'gemini', apiKey: '', apiKeyGemini: '', apiKeyChatgpt: '', apiKeyGroq: '', apiKeyOpenrouter: '', openrouterModel: 'google/gemma-4-31b-it:free', firebaseUrl: '', firebaseApiKey: '', syncEnabled: false, });
     const toasts        = ref([]);
     const logoDataUrl   = ref('');
 
@@ -10716,9 +10722,24 @@ createApp({
     // restituiva una risposta troncata/confusa — il "thinking" non disabilitato correttamente
     // consumava silenziosamente il budget di output ridotto del test (stesso bug di classe già
     // noto per gemini-2.5-flash, vedi CHANGELOG v1.6xx "Fix Pronostico MAX_TOKENS").
-    const _geminiThinkingConfig = (model) => model.startsWith('gemini-3')
-      ? { thinkingLevel: 'minimal' }
-      : { thinkingBudget: 0 };
+    // v1.913: gemini-3.8-flash NON supporta 'minimal' (restituisce errore): livelli ammessi low/medium/high.
+    const _geminiThinkingConfig = (model) => model.startsWith('gemini-3.8')
+      ? { thinkingLevel: 'low' }
+      : model.startsWith('gemini-3')
+        ? { thinkingLevel: 'minimal' }
+        : { thinkingBudget: 0 };
+
+    // ── Groq (v1.913) ──
+    // Modelli gratuiti attuali (verificati 21/11/2026 su console.groq.com/docs/deprecations): openai/gpt-oss-120b,
+    // qwen/qwen3.8-27b. Llama 3.3 70B non è più nel piano gratuito (resta in coda alla catena per chi ha un contratto enterprise).
+    // I modelli "reasoning" consumano token per ragionare: reasoning_effort:'low' + più token di uscita per non tagliare il testo.
+    const _GROQ_MODELS = ['openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'llama-3.3-70b-versatile'];
+    const _groqBody = (model, prompt, maxTokens, system) => {
+      const messages = system ? [{role:'system',content:system},{role:'user',content:prompt}] : [{role:'user',content:prompt}];
+      if (model.startsWith('openai/gpt-oss')) return { model, max_completion_tokens: maxTokens + 700, reasoning_effort: 'low', messages };
+      if (model.startsWith('qwen/')) return { model, max_completion_tokens: maxTokens + 700, reasoning_effort: 'none', messages };
+      return { model, max_tokens: maxTokens, messages };
+    };
 
     // ── Test AI connection ──
     const testAI = async () => {
@@ -10728,7 +10749,7 @@ createApp({
       try {
         let result = '';
         if (settings.value.aiProvider === 'gemini') {
-          const models = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+          const models = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
           let lastError = null;
           let success = false;
           let quota429=0;
@@ -10752,7 +10773,7 @@ createApp({
                 if (code === 429 || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota')) {
                   lastError = `${model}: quota esaurita (429)`; continue;
                 }
-                if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid') || code === 400)
+                if (msg.includes('API_KEY_INVALID') || msg.includes('API key not valid'))
                   throw new Error(`❌ Chiave API non valida. Vai su ai.google.dev e controlla la chiave.`);
                 if (code === 403 || msg.includes('PERMISSION_DENIED'))
                   throw new Error(`❌ Permesso negato (403).\n\nVerifica che "Generative Language API" sia abilitata su console.cloud.google.com → API & Services → Library.`);
@@ -10769,20 +10790,26 @@ createApp({
           }
           if (!success) throw new Error(lastError || '❌ Nessun modello Gemini disponibile con questa chiave.');
         } else if (settings.value.aiProvider === 'groq') {
-          const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-            method:'POST',
-            headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey},
-            body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:50,messages:[{role:'user',content:prompt}]})
-          });
-          const d = await r.json();
-          if (d.error) {
-            if (d.error.code === 'invalid_api_key' || d.error.code === 'invalid_token') throw new Error('Chiave API Groq non valida');
-            throw new Error(d.error.message?.slice(0,120)||'Errore Groq');
+          // v1.913: Groq ha tolto llama-3.3-70b-versatile dal piano gratuito (16/8/2026). Catena: gpt-oss-120b → qwen3.8-27b → llama (solo se ancora servito)
+          let d = null, usedModel = '', gErr = '';
+          for (const gm of _GROQ_MODELS) {
+            const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+              method:'POST',
+              headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey},
+              body: JSON.stringify(_groqBody(gm, prompt, 50))
+            });
+            const dd = await r.json();
+            if (dd.error) {
+              if (dd.error.code === 'invalid_api_key' || dd.error.code === 'invalid_token') throw new Error('Chiave API Groq non valida');
+              gErr = (dd.error.message || 'Errore Groq').slice(0,120); continue;
+            }
+            d = dd; usedModel = gm; break;
           }
+          if (!d) throw new Error(gErr || 'Nessun modello Groq disponibile');
           result = d.choices?.[0]?.message?.content?.trim() || 'Risposta vuota';
-          toast(`✅ Groq OK (llama-3.3-70b): ${result.slice(0,80)}`, 'success', 5000);
+          toast(`✅ Groq OK (${usedModel.split('/').pop()}): ${result.slice(0,80)}`, 'success', 5000);
         } else if (settings.value.aiProvider === 'openrouter') {
-          const model = settings.value.openrouterModel || 'mistralai/mistral-7b-instruct:free';
+          const model = settings.value.openrouterModel || 'google/gemma-4-31b-it:free';
           const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method:'POST',
             headers:{'Content-Type':'application/json','Authorization':'Bearer '+settings.value.apiKey,
@@ -11055,7 +11082,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.912');
+    const appVersion = ref('1.913');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12861,7 +12888,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           // partita): catena di modelli con retry, e _geminiThinkingConfig(model) per il
           // parametro corretto in base alla famiglia (thinkingLevel per Gemini 3.x, thinkingBudget
           // per Gemini 2.5 — vedi v1.733).
-          const models = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+          const models = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
           let d = null, lastErr = null, usedModel = null;
           for (const model of models) {
             try {
@@ -15587,10 +15614,10 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             data = await resp.json();
             text = data.choices?.[0]?.message?.content || '';
           } else if (prov === 'gemini') {
-            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+            resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${key}`, {
               method:'POST',
               headers:{ 'Content-Type':'application/json' },
-              body: JSON.stringify({ contents:[{parts:[{text:prompt}]}] })
+              body: JSON.stringify({ contents:[{parts:[{text:prompt}]}], generationConfig:{thinkingConfig:_geminiThinkingConfig('gemini-3.6-flash')} })
             });
             data = await resp.json();
             text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -15684,7 +15711,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
         _aiLog('_callAI',`📡 Chiamata AI (${prov}) — ${maxTokens} token max`);
         try {
           if (prov === 'gemini') {
-            const models = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+            const models = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
             let quota429 = 0;
             for (const model of models) {
               // Prima tentativo con i token richiesti, poi retry con il doppio se MAX_TOKENS
@@ -15727,19 +15754,21 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
             }
             return null;
           } else if (prov === 'groq') {
-            const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-              method:'POST',
-              headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
-              body: JSON.stringify({model:'llama-3.3-70b-versatile',max_tokens:maxTokens,
-                messages:[{role:'system',content:'Sei il commentatore ufficiale di Amici FC. Scrivi in italiano, stile vivace e ironico.'},{role:'user',content:prompt}]})
-            });
-            const d = await r.json();
-            if (d.error) { _aiLog('_callAI','⚠️ Groq: '+(d.error?.message||'').slice(0,80),false); return null; }
-            const text = d.choices?.[0]?.message?.content?.trim() || null;
-            if (text) _aiLog('_callAI','✅ Groq OK — '+text.length+' chars');
-            return text;
+            for (const gm of _GROQ_MODELS) {
+              const r = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method:'POST',
+                headers:{'Content-Type':'application/json','Authorization':'Bearer '+key},
+                body: JSON.stringify(_groqBody(gm, prompt, maxTokens, 'Sei il commentatore ufficiale di Amici FC. Scrivi in italiano, stile vivace e ironico.'))
+              });
+              const d = await r.json();
+              if (d.error) { _aiLog('_callAI','⚠️ Groq '+gm+': '+(d.error?.message||'').slice(0,80),false); if (d.error.code==='invalid_api_key') return null; continue; }
+              const text = d.choices?.[0]?.message?.content?.trim() || null;
+              if (text) { _aiLog('_callAI','✅ Groq OK ('+gm.split('/').pop()+') — '+text.length+' chars'); return text; }
+              _aiLog('_callAI','⚠️ Groq '+gm+': risposta vuota',false);
+            }
+            return null;
           } else if (prov === 'openrouter') {
-            const model = settings.value.openrouterModel || 'mistralai/mistral-7b-instruct:free';
+            const model = settings.value.openrouterModel || 'google/gemma-4-31b-it:free';
             const r = await fetch('https://openrouter.ai/api/v1/chat/completions', {
               method:'POST',
               headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,
@@ -17683,7 +17712,7 @@ Niente altro, nessuna spiegazione.`;
         }
 
         } else if (prov === 'gemini') {
-          const geminiModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+          const geminiModels = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
           let data = null;
           let _usedModel = null;
           for (const model of geminiModels) {
@@ -25283,6 +25312,9 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         if (_tutSaved !== null) tutorialEnabled.value = _tutSaved === '1';
         if (s.darkTheme === undefined) s.darkTheme = false; // Default: light
         Object.assign(settings.value, s);
+        // v1.913: i vecchi modelli OpenRouter gratuiti non esistono più → passa al nuovo predefinito
+        if (['mistralai/mistral-7b-instruct:free','meta-llama/llama-3.2-3b-instruct:free','google/gemma-2-9b-it:free','qwen/qwen-2-7b-instruct:free'].includes(settings.value.openrouterModel))
+          settings.value.openrouterModel = 'google/gemma-4-31b-it:free';
         if (s.apiKey && !s.apiKeyGemini && !s.apiKeyChatgpt && !s.apiKeyGroq) {
           const _p = s.aiProvider || 'gemini';
           if (_p==='gemini') settings.value.apiKeyGemini = s.apiKey;
@@ -25737,7 +25769,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           ' Sii ironico e usa i soprannomi.';
         let comment = '';
         if (provider === 'gemini') {
-          const geminiModels = ['gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'];
+          const geminiModels = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
           for (const model of geminiModels) {
             const rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey,
               {method:'POST', headers:{'Content-Type':'application/json'},
