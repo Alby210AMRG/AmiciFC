@@ -5189,8 +5189,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                 <strong style="color:var(--lime)">Punteggio da 50 a 99</strong> · dipende dal ruolo · serve un minimo di partite giocate<br>
                 <span style="color:rgba(255,255,255,.7)">📊 In tutti i ruoli contano:</span> voto medio, Uomo Partita e partite giocate (più sei presente, più sale un poco)<br>
                 <span style="color:#60a5fa">🧤 Portiere:</span> punti di squadra, clean sheet (partite senza gol subiti) · <span style="color:var(--lime)">🥅 rigori parati (fino a +15)</span><br>
-                <span style="color:#a78bfa">🛡️ Difensore:</span> voto medio e vittorie della squadra pesano di più · <span style="color:var(--lime)">⚽ se segna a ritmo da attaccante prende un bonus gol (fino a +12)</span><br>
-                <span style="color:var(--yellow)">⚽ Attaccante / Centrocampista:</span> gol e assist (se il gruppo li conta) · il centrocampista che segna poco ma fa vincere la squadra ha un piccolo bonus<br>
+                <span style="color:var(--yellow)">⚽ Attaccante:</span> gol e assist sono la parte principale del punteggio (se il gruppo li conta). Segnare con costanza è il suo mestiere, quindi non c'è un premio extra: se segna poco, il punteggio scende<br>
+                <span style="color:#34d399">🎯 Centrocampista:</span> gol e assist contano come per l'attaccante, <strong>più un premio</strong> se segna con costanza (per lui è più difficile). Se invece segna poco ma fa vincere la squadra, ha un piccolo bonus compensativo<br>
+                <span style="color:#a78bfa">🛡️ Difensore:</span> pesano soprattutto voto medio e vittorie della squadra, e se non segna non perde nulla. Se segna con costanza prende un <span style="color:var(--lime)"><strong>bonus gol grande</strong> (fino a +22, un gol vale più di quello di un attaccante perché per lui è raro)</span><br>
                 <span style="color:#FF6B35">❌ Tolgono punti:</span> autogol e rigori sbagliati<br>
                 👆 Tocca la freccia ▾ di un giocatore per vedere punto per punto come arriva al suo numero. Con <strong>📈 Andamento</strong> vedi come è cambiato nel tempo.
               </div>
@@ -6341,7 +6342,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>🧤 Serve per calcolare correttamente la <strong>Classifica Clean Sheet</strong> — senza un portiere dichiarato, nessuno la riceve per quella partita (giusto: non sappiamo davvero chi era in porta)</div>
             <div>⚖️ Se un giocatore fa il portiere in alcune partite e gioca fuori ruolo in altre, il suo <strong>Overall</strong> diventa una media pesata tra le due specialità invece di usare una sola formula fissa — lo vedi scritto nella scomposizione OVR della sua scheda</div>
             <div>🎯 Bonus portiere sull'Overall: +Clean Sheet e +Rigori Parati (fino a +15 OVR)</div>
-            <div>🛡️ Bonus gol del difensore: se un difensore segna a ritmo da attaccante prende fino a +12 sull'Overall. Chi non segna non perde nulla</div>
+            <div>🛡️ Gol e Overall per ruolo: l'<strong>attaccante</strong> vive di gol e assist (nessun premio extra, se segna poco il punteggio scende); il <strong>centrocampista</strong> conta come l'attaccante più un premio se segna con costanza; il <strong>difensore</strong> non perde nulla se non segna, ma se segna con costanza prende un bonus gol grande (fino a +22), perché per lui è raro</div>
             <div>📈 <strong>Andamento Overall</strong>: in Stats → Overall tocca "📈 Andamento" per vedere il grafico dei primi 10 (o dei giocatori che scegli). Tocca un nome per evidenziarlo e vedere come arriva al suo numero</div>
           </div>
         </div>
@@ -9609,7 +9610,10 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.910',date:'2026-11-21',items:[
+    const changelogEntries = [{version:'v1.911',date:'2026-11-21',items:[
+      'Overall — gol di difensori e centrocampisti valorizzati di piu (richiesta di Alby: per chi non fa lattaccante segnare e piu difficile). Difensore che segna con costanza: bonus gol grande, fino a +22 (un gol vale 1,2 volte quello di un attaccante). Centrocampista che segna o fa assist con costanza: piccolo premio in piu, fino a +6, sopra la formula da attaccante. Lattaccante resta invariato: i gol sono gia la sua base. Con poche partite il bonus vale quasi zero (conta il ritmo di gol per partita, non il totale). Applicato anche in Inspector.',
+      'Overall — spiegazione "Come si calcola" riscritta per ruolo: ora dice chiaramente che per lattaccante i gol sono la base (e se non segna il punteggio scende), per il centrocampista contano come per lattaccante piu un premio, per il difensore non si perde nulla se non segna ma segnare con costanza vale molto. Aggiornato anche il Manuale.',
+    ]},{version:'v1.910',date:'2026-11-21',items:[
       'Overall — nuovo grafico "📈 Andamento" in Statistiche, scheda Overall (accanto a Condividi): mostra come cambia lOverall partita dopo partita. Di partenza i primi 10, con filtri per ruolo e "Scegli" per sceglierne fino a 10 a mano. Toccando un nome si evidenzia quel giocatore e compaiono il suo Overall di oggi, di quanto e salito o sceso e come ci arriva punto per punto. Ogni giocatore compare dalla sua 3 partita. Usa la stessa identica formula della classifica (nessun calcolo duplicato).',
       'Overall — i difensori che segnano ora sono valorizzati (segnalato da Alby: un difensore con 10 gol in 13 partite, il piu votato come Uomo Partita, era solo 6). Nuovo bonus gol per il difensore, fino a +12, che non toglie mai punti a chi non segna. Chi non segna resta esattamente com era. Applicato anche nella schermata Giocatori dellInspector.',
       'Overall — il testo "Come si calcola lOVR?" era impreciso (parlava di una "Forma ultime 5 gare" che nella formula non esiste e di gol del difensore che pesavano quasi zero): riscritto in modo corretto e semplice, ruolo per ruolo.',
@@ -11023,7 +11027,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.910');
+    const appVersion = ref('1.911');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11559,7 +11563,10 @@ createApp({
         // resta esattamente com'era. pContribD = stessa formula di gol(+assist) di Attaccante/Centrocampista.
         {
           const pContribD = 50 + ((gol + assist) / n * 40.83) * smorzamento;
-          extraBonus = Math.min(12, Math.max(0, (pContribD - 60) * 0.35));
+          // v1.911 (21/11/2026): forza portata da 0,35 (cap 12) a 0,75 (cap 22) su richiesta di Alby —
+          // per un difensore segnare è più raro che per un attaccante, quindi un gol "da difensore"
+          // vale 1,2 volte quello di un attaccante (che non ha alcun bonus: i gol sono già la sua base).
+          extraBonus = Math.min(22, Math.max(0, (pContribD - 60) * 0.75));
           if (extraBonus > 0.5) {
             extra.push({label:'Bonus gol'+(trackAssist?' e assist':'')+' (difensore che segna)', val: extraBonus});
           }
@@ -11593,6 +11600,16 @@ createApp({
           if (extraBonus > 0.5) {
             extra.push({label:'Bonus squadra (contributo '+contribLabel+' basso, compensazione)', val: extraBonus});
           }
+          // v1.911 (21/11/2026, richiesta di Alby): un centrocampista che segna/assiste CON COSTANZA
+          // prende un piccolo premio in più rispetto all'attaccante (per lui è più difficile). Si
+          // calcola sul ritmo gol(+assist) a partita già smorzato dal n. di partite, quindi con poche
+          // presenze vale ~0. Additivo, mai negativo; coesiste col bonus squadra (che si azzera da solo
+          // per chi segna: i due non si sommano mai in modo significativo).
+          const premioC = Math.min(6, Math.max(0, (pContribS - 60) * 0.15));
+          if (premioC > 0.5) {
+            extra.push({label:'Premio '+contribLabel+' (centrocampista che segna con costanza)', val: premioC});
+          }
+          extraBonus += premioC;
         }
       }
 
