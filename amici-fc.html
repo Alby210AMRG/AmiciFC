@@ -6202,6 +6202,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>L'app funziona benissimo anche <strong>senza configurare nulla</strong> — tutti i dati restano solo su questo dispositivo (IndexedDB del browser)</div>
             <div>💾 <strong>Solo locale</strong>: nessun account da creare, funziona sempre offline. Per portare i dati su un altro telefono, o per un backup di sicurezza, usi <strong>Impostazioni → Import/Export</strong> — esporti un file JSON e lo reimporti dove serve, manualmente</div>
             <div>☁️ <strong>Con Firebase</strong>: i dati si sincronizzano automaticamente tra tutti i telefoni del gruppo, in tempo reale, senza dover scambiarsi file. Serve un progetto Firebase gratuito (guida passo-passo inclusa) e un login (email/password) per chi deve poter scrivere dati</div>
+            <div>🔄 <strong>Aggiornamento dati</strong>: l'app controlla da sola ogni 2 minuti se qualcuno ha cambiato qualcosa e scarica solo se serve (mai mentre stai scrivendo). Trascinando la home verso il basso e tenendo premuto fai un controllo immediato. Se vedi dati sbagliati o incompleti: Impostazioni → Zona Pericolo → «Ripristino totale da Firebase».</div>
             <div>⚙️ Si configura toccando l'icona <strong>☁️</strong> in alto accanto al nome del gruppo — ogni gruppo ha il proprio Firebase indipendente, si può aggiungere o togliere in qualsiasi momento senza perdere dati</div>
             <div>📋 Dentro quella schermata trovi il bottone <strong>"❓ Come configurare Firebase?"</strong> — la guida passo-passo completa (progetto, database, autenticazione, regole di sicurezza da incollare) è lì, non serve cercarla altrove</div>
             <div>⚠️ <strong>Alcune funzioni richiedono Firebase attivo</strong> e non funzionano in modalità solo locale: Vota con gli amici (Pagelle Multi-Utente) e la sincronizzazione multi-dispositivo. Tutto il resto (statistiche, card AI, Riepilogo Stagione, PDF) funziona identico in entrambe le modalità</div>
@@ -6864,6 +6865,27 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           </div>
 
           <div style="padding:16px;display:flex;flex-direction:column;gap:4px">
+
+            <!-- Ripristino totale da Firebase (collassabile) — v1.912 -->
+            <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,77,77,.25)">
+              <div @click="zpSection='restore'===zpSection?null:'restore'" style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;cursor:pointer;background:rgba(255,77,77,.05)">
+                <span style="font-size:0.82rem;font-weight:700;color:var(--red)">☁️ Ripristino totale da Firebase</span>
+                <span style="color:var(--text2);font-size:0.8rem;transition:transform .2s" :style="zpSection==='restore'?'transform:rotate(180deg)':''">▼</span>
+              </div>
+              <div v-show="zpSection==='restore'" style="padding:12px;background:rgba(255,255,255,.015);border-top:1px solid rgba(255,255,255,.06)">
+                <div style="font-size:0.72rem;color:var(--text2);margin-bottom:8px;line-height:1.45">
+                  Cancella i dati di questo dispositivo e riscarica TUTTO da Firebase (Firebase è la fonte di verità). Da usare solo se l'app mostra dati sbagliati o incompleti. Eventuali modifiche non ancora caricate su Firebase andranno perse.
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="restoreFromCloudTotal(false)" :disabled="syncLoading">
+                    {{ syncLoading ? '⏳' : '⬇️' }} Ripristina tutto
+                  </button>
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="restoreFromCloudTotal(true)" :disabled="syncLoading" title="Giocatori, partite e card AI senza riscaricare le foto (più rapido)">
+                    {{ syncLoading ? '⏳' : '⬇️' }} Ripristina (senza foto)
+                  </button>
+                </div>
+              </div>
+            </div>
 
             <!-- Ottimizza Foto (collassabile) -->
             <div style="border-radius:8px;overflow:hidden;margin-bottom:6px;border:1px solid rgba(255,255,255,.08)">
@@ -8324,12 +8346,12 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <button class="btn btn-blue btn-sm" @click="syncToCloud" :disabled="syncLoading||!firebaseUser">
             {{ syncLoading ? '⏳' : '⬆️' }} Carica
           </button>
-          <button class="btn btn-ghost btn-sm" @click="syncFromCloud(true)" :disabled="syncLoading">
-            {{ syncLoading ? '⏳' : '⬇️' }} Scarica
+          <button class="btn btn-ghost btn-sm" @click="manualRefresh" :disabled="syncLoading">
+            {{ syncLoading ? '⏳' : '🔄' }} Aggiorna
           </button>
-          <button class="btn btn-ghost btn-sm" @click="syncFromCloud(true,true)" :disabled="syncLoading" title="Scarica giocatori, partite e card AI senza riscaricare le foto (più rapido)">
-            {{ syncLoading ? '⏳' : '⬇️' }} Scarica (senza foto)
-          </button>
+        </div>
+        <div style="font-size:0.68rem;color:var(--text2);margin-top:6px;line-height:1.4">
+          «Aggiorna» scarica solo se su Firebase c'è qualcosa di nuovo. Il ripristino totale da Firebase è in Zona Pericolo → «Ripristino totale da Firebase».
         </div>
       </div>
     </div>
@@ -9610,7 +9632,13 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.911',date:'2026-11-21',items:[
+    const changelogEntries = [{version:'v1.912',date:'2026-11-21',items:[
+      'Sicurezza sync — le modifiche dei giocatori (nuovo, modifica, eliminazione, import da archivio, ottimizzazione foto) ora usano lo stesso sistema delle partite: flag di upload pendente, 3 tentativi, e un messaggio chiaro (salvato online / salvato sul dispositivo ma non ancora online). Prima l\'eliminazione di un giocatore non veniva mai inviata a Firebase.',
+      'Sicurezza sync — in upload i giocatori vengono ora FUSI col cloud come le partite: un dispositivo con dati vecchi non cancella piu i giocatori aggiunti nel frattempo da un altro admin; vince la modifica piu recente; i giocatori eliminati restano eliminati (lapidi).',
+      'Aggiornamento automatico ogni 2 minuti (era 10): controllo leggero di pochi byte, scarica solo se Firebase e cambiato, mai mentre scrivi o crei una partita. Corretta la finestra cieca di 30 secondi del controllo.',
+      'Swipe verso il basso in home: non scarica piu tutto il database. Prima carica eventuali modifiche in sospeso, poi controlla e scarica solo se serve; dice se sei gia aggiornato, offline o se non e riuscito.',
+      'Impostazioni: nuovo pulsante Aggiorna in Azioni Cloud; il download totale (Scarica / Scarica senza foto) e ora in Zona Pericolo come Ripristino totale da Firebase, con conferma.'
+    ]},{version:'v1.911',date:'2026-11-21',items:[
       'Overall — gol di difensori e centrocampisti valorizzati di piu (richiesta di Alby: per chi non fa lattaccante segnare e piu difficile). Difensore che segna con costanza: bonus gol grande, fino a +22 (un gol vale 1,2 volte quello di un attaccante). Centrocampista che segna o fa assist con costanza: piccolo premio in piu, fino a +6, sopra la formula da attaccante. Lattaccante resta invariato: i gol sono gia la sua base. Con poche partite il bonus vale quasi zero (conta il ritmo di gol per partita, non il totale). Applicato anche in Inspector.',
       'Overall — spiegazione "Come si calcola" riscritta per ruolo: ora dice chiaramente che per lattaccante i gol sono la base (e se non segna il punteggio scende), per il centrocampista contano come per lattaccante piu un premio, per il difensore non si perde nulla se non segna ma segnare con costanza vale molto. Aggiornato anche il Manuale.',
     ]},{version:'v1.910',date:'2026-11-21',items:[
@@ -11027,7 +11055,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.911');
+    const appVersion = ref('1.912');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12297,7 +12325,7 @@ createApp({
           await db.playerPhotos.put({ uid: editingPlayer.value.uid, foto: f.foto, updatedAt: Date.now() });
         }
         toast('✅ Giocatore aggiornato!');
-        await autoSyncToCloud();
+        await syncAdminWrite('Giocatore');
       } else {
         const newUid = uuid();
         await db.players.add({
@@ -12315,7 +12343,7 @@ createApp({
           await db.playerPhotos.put({ uid: newUid, foto: f.foto, updatedAt: Date.now() });
         }
         toast('✅ Giocatore aggiunto!');
-        autoSyncToCloud();
+        syncAdminWrite('Giocatore'); // non bloccante: il form si chiude subito, ma pending flag + retry + avviso garantiscono la scrittura
       }
       showPlayerForm.value = false;
       await loadGroupData();
@@ -12354,8 +12382,12 @@ createApp({
           } catch(e) {}
         }
       }
+      // v1.912: lapide (tombstone) + sync. Senza lapide, il merge in upload considererebbe il
+      // giocatore "presente solo su Firebase" (aggiunto da un altro admin) e lo resusciterebbe.
+      if (p.uid && currentGroup.value?.id) _addDeletedPlayer(currentGroup.value.id, p.uid);
       await loadGroupData();
       toast('🗑️ Giocatore eliminato', 'error');
+      await syncAdminWrite('Eliminazione giocatore');
     };
 
     const openHistoryMatch = (m) => {
@@ -12423,8 +12455,10 @@ createApp({
         }
         toast(`✅ ${p.soprannome||p.nome} importato nella stagione attuale!`, 'success', 4000);
         showImportPlayerModal.value = false;
+        // v1.912: lo stesso uid torna attivo — togli l'eventuale lapide, altrimenti il merge lo eliminerebbe
+        if (pClean.uid) _removeDeletedPlayer(currentGroup.value.id, pClean.uid);
         await loadGroupData();
-        await autoSyncToCloud();
+        await syncAdminWrite('Giocatore importato');
       } catch(e) {
         if (e.name === 'ConstraintError') {
           toast(`⚠️ ${p.soprannome||p.nome} è già presente nella stagione attuale.`, 'error', 4000);
@@ -18373,13 +18407,18 @@ Niente altro, nessuna spiegazione.`;
       return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
     };
 
-    const checkSyncNeeded = async () => {
+    // v1.912: _lastCheckFailed distingue "nessuna novità" da "controllo non riuscito" (offline/timeout),
+    // necessario allo swipe per dire la verità all'utente.
+    let _lastCheckFailed = false;
+    const checkSyncNeeded = async (skipDebounce = false) => {
       const base = getFirebaseBase();
+      _lastCheckFailed = false;
       if (!base) return false;
       // Debounce persistente: non ricontrollare se l'ultimo check è avvenuto meno di 60s fa
+      // (saltato per lo swipe manuale: l'utente ha chiesto esplicitamente di controllare ora)
       const now = Date.now();
       const lastCheck = parseInt(localStorage.getItem('amicifc_last_check_ts') || '0');
-      if (now - lastCheck < 60000) return false;
+      if (!skipDebounce && now - lastCheck < 60000) return false;
       localStorage.setItem('amicifc_last_check_ts', String(now));
       try {
         // Leggi solo lastModified e syncVersion — non usare shallow=true (ritorna solo true/false per chiave)
@@ -18390,7 +18429,14 @@ Niente altro, nessuna spiegazione.`;
         // Usa getValidToken() (non fbIdToken.value diretto) per rinnovare automaticamente se scaduto.
         // Non bloccante e silenziosa in caso di successo: il tracking non deve mai interrompere
         // il check principale né generare rumore nel log durante l'uso normale.
-        if (fbIdToken.value || localStorage.getItem('amicifc_fb_token')) {
+        // v1.912: con il controllo ogni 2 min, scrivere ad ogni check sarebbe eccessivo: al massimo
+        // una volta all'ora, o subito se la versione dell'app è cambiata.
+        const _devTs = parseInt(localStorage.getItem('amicifc_devver_ts') || '0');
+        const _devVer = localStorage.getItem('amicifc_devver_ver') || '';
+        const _devDue = (now - _devTs > 3600000) || _devVer !== appVersion.value;
+        if (_devDue && (fbIdToken.value || localStorage.getItem('amicifc_fb_token'))) {
+          localStorage.setItem('amicifc_devver_ts', String(now));
+          localStorage.setItem('amicifc_devver_ver', appVersion.value);
           (async () => {
             try {
               const _validTok = await getValidToken();
@@ -18415,7 +18461,7 @@ Niente altro, nessuna spiegazione.`;
           _fetchWithTimeout(`${base}/syncVersion.json${authSuffix}`, { cache: 'no-store' }),
           _fetchWithTimeout(`${base}/lastModified.json${authSuffix}`, { cache: 'no-store' }),
         ]);
-        if (!respV.ok || !respM.ok) return false;
+        if (!respV.ok || !respM.ok) { _lastCheckFailed = true; return false; }
         const fbSyncVersion = parseInt(await respV.json() || '1');
         const fbLastModified = parseInt(await respM.json() || '0');
 
@@ -18437,8 +18483,11 @@ Niente altro, nessuna spiegazione.`;
           localStorage.removeItem('amicifc_last_check_ts');
           return 'update';
         }
-        if (fbLastModified > myLastModified + 30000) {
-          logEvent('info', 'sync', `🔄 Firebase più recente (${new Date(fbLastModified).toLocaleTimeString()}) — sync necessario`);
+        // v1.912: confronto per uguaglianza (non più "+30s"): localSyncTs è esattamente l'ultimo
+        // lastModified visto/scritto da noi, quindi qualsiasi valore diverso = qualcun altro ha scritto.
+        // Elimina la finestra cieca di 30s e la dipendenza dall'orologio dei dispositivi.
+        if (fbLastModified !== myLastModified) {
+          logEvent('info', 'sync', `🔄 Firebase diverso dal locale (FB:${new Date(fbLastModified).toLocaleTimeString()} locale:${new Date(myLastModified).toLocaleTimeString()}) — sync necessario`);
           return 'update';
         }
         logEvent('info', 'sync', `✅ Dati aggiornati (FB:${new Date(fbLastModified).toLocaleTimeString()} locale:${new Date(myLastModified).toLocaleTimeString()})`);
@@ -18446,6 +18495,7 @@ Niente altro, nessuna spiegazione.`;
         return false;
       } catch(e) {
         // Offline pulito, timeout (segnale debole/instabile), o rete non disponibile — silenzioso
+        _lastCheckFailed = true;
         const isTimeout = e.name === 'AbortError';
         const isOffline = e.message?.includes('fetch') || e.message?.includes('network') || !navigator.onLine;
         if (isTimeout) logEvent('info', 'sync', '⏱️ Check Firebase saltato (timeout 8s — segnale debole/instabile)');
@@ -21331,6 +21381,28 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       return ok ? fbIdToken.value : '';
     };
 
+    // ── v1.912: lapidi giocatori eliminati ──
+    // Lista {uid, ts} per gruppo in localStorage, pubblicata su Firebase dentro la voce del gruppo
+    // (groups[i].deletedPlayers) e riletta dagli altri dispositivi. Serve al merge giocatori in
+    // syncToCloud: un giocatore presente solo sul cloud viene tenuto (aggiunto da un altro admin),
+    // a meno che il suo uid sia in questa lista (eliminato di proposito).
+    const _delPlayersKey = gid => 'amicifc_deleted_players_' + gid;
+    const _getDeletedPlayers = (gid) => {
+      try { const a = JSON.parse(localStorage.getItem(_delPlayersKey(gid)) || '[]'); return Array.isArray(a) ? a.filter(x => x && x.uid) : []; }
+      catch(e) { return []; }
+    };
+    const _setDeletedPlayers = (gid, list) => {
+      try { localStorage.setItem(_delPlayersKey(gid), JSON.stringify((list || []).slice(-300))); } catch(e) {}
+    };
+    const _addDeletedPlayer = (gid, uid) => {
+      const l = _getDeletedPlayers(gid).filter(x => x.uid !== uid);
+      l.push({ uid, ts: Date.now() });
+      _setDeletedPlayers(gid, l);
+    };
+    const _removeDeletedPlayer = (gid, uid) => {
+      _setDeletedPlayers(gid, _getDeletedPlayers(gid).filter(x => x.uid !== uid));
+    };
+
         const autoSyncToCloud = async () => {
       const _url = currentGroup.value?.firebaseUrl;
       if (!_url) return;
@@ -21391,7 +21463,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
             const { pngFormazione, pngRisultato, pngPagelle, ...rest } = m;
             return rest; // PNG esclusi dal payload cloud
           });
-          allGroups.push({ group: g, players, matches });
+          allGroups.push({ group: g, players, matches, deletedPlayers: _getDeletedPlayers(g.id) });
           // Carica foto cambiate su Firebase (path separato)
         }
 
@@ -21524,6 +21596,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         // le resusciterebbe per errore. Il flag salta SOLO questo loop, non la lettura foto sotto,
         // che serve comunque indipendentemente dall'archiviazione.
         let _photosMigrated = false;
+        let _playersMergeChanged = false;
         let _cloudPlayerPhotos = {};
         try {
           const fbRootResp = await fetch(`${base}.json?shallow=false${token ? '&auth='+token : ''}`, { cache: 'no-store' });
@@ -21583,6 +21656,75 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
                     }
                   }
                 }
+
+                // 3) v1.912 — GIOCATORI: merge come per le partite (prima il locale sovrascriveva
+                //    sempre l'intera lista: un dispositivo con dati vecchi cancellava dal cloud i
+                //    giocatori aggiunti nel frattempo da un altro admin).
+                //    - solo su Firebase  → tenuto e aggiunto in locale (salvo lapide = eliminato di proposito)
+                //    - su entrambi       → vince updatedAt più recente
+                //    - lapidi            → unione locale+cloud; un giocatore eliminato altrove sparisce anche qui,
+                //                          ma solo se non è usato in nessuna partita (mai orfanare statistiche)
+                try {
+                  const fbPlayers = toArr(fbGrp.players).filter(p => p && p.uid);
+                  const cloudDel = toArr(fbGrp.deletedPlayers).filter(x => x && x.uid);
+                  const delMap = new Map();
+                  for (const x of [..._getDeletedPlayers(gid), ...cloudDel]) {
+                    const prev = delMap.get(x.uid);
+                    if (!prev || (x.ts || 0) > (prev.ts || 0)) delMap.set(x.uid, { uid: x.uid, ts: x.ts || 0 });
+                  }
+                  // Lapide valida solo se più recente dell'ultima modifica del giocatore: un giocatore
+                  // reimportato dall'archivio (stesso uid, updatedAt nuovo) non deve essere eliminato di nuovo.
+                  const _isDel = (uid, upd) => delMap.has(uid) && (delMap.get(uid).ts || 0) >= (upd || 0);
+                  for (const lp of localGrp.players) { if (lp.uid && delMap.has(lp.uid) && !_isDel(lp.uid, lp.updatedAt)) delMap.delete(lp.uid); }
+                  for (const fp of fbPlayers) { if (delMap.has(fp.uid) && !_isDel(fp.uid, fp.updatedAt)) delMap.delete(fp.uid); }
+                  const delList = [...delMap.values()].sort((a,b) => a.ts - b.ts).slice(-300);
+                  if (gid) _setDeletedPlayers(gid, delList);
+                  localGrp.deletedPlayers = delList;
+
+                  const usedIds = new Set();
+                  for (const m of localGrp.matches) {
+                    toArr(m.squadraA).forEach(id => usedIds.add(String(id)));
+                    toArr(m.squadraB).forEach(id => usedIds.add(String(id)));
+                    toArr(m.statisticheGiocatori).forEach(s => usedIds.add(String(s.playerId)));
+                  }
+                  const fbByUid = new Map(fbPlayers.map(p => [p.uid, p]));
+                  let _pAdd = 0, _pUpd = 0, _pDel = 0;
+                  const merged = [];
+                  for (const lp of localGrp.players) {
+                    if (lp.uid && delMap.has(lp.uid)) {
+                      if (!usedIds.has(String(lp.uid)) && !usedIds.has(String(lp.id))) {
+                        _pDel++;
+                        if (gid) await db.players.delete(lp.id).catch(()=>{});
+                        continue; // eliminato da un altro dispositivo
+                      }
+                      logEvent('warn','sync',`⚠️ ${lp.nome||lp.uid}: eliminato altrove ma presente in partite locali — mantenuto`);
+                    }
+                    const fp = lp.uid ? fbByUid.get(lp.uid) : null;
+                    if (fp && (fp.updatedAt || 0) > (lp.updatedAt || 0)) {
+                      const upd = { ...lp, ...fp, id: lp.id, groupId: gid,
+                        storicoPartite: toArr(fp.storicoPartite), rivali: toArr(fp.rivali), affinita: toArr(fp.affinita),
+                        infortuni: toArr(fp.infortuni), foto: lp.foto || fp.foto || '' };
+                      _pUpd++;
+                      if (gid) { const { id: _i, ...rest } = upd; await db.players.update(lp.id, rest).catch(()=>{}); }
+                      merged.push(upd);
+                    } else merged.push(lp);
+                  }
+                  const localUids = new Set(localGrp.players.map(p => p.uid).filter(Boolean));
+                  for (const fp of fbPlayers) {
+                    if (localUids.has(fp.uid) || _isDel(fp.uid, fp.updatedAt)) continue;
+                    const { id: _fid, ...rest } = fp;
+                    const np = { ...rest, groupId: gid, storicoPartite: toArr(fp.storicoPartite), rivali: toArr(fp.rivali),
+                      affinita: toArr(fp.affinita), infortuni: toArr(fp.infortuni), foto: fp.foto || '' };
+                    if (gid) {
+                      try { np.id = await db.players.add(np); } catch(e) { continue; }
+                    }
+                    merged.push(np);
+                    _pAdd++;
+                  }
+                  localGrp.players = merged;
+                  if (_pAdd || _pUpd || _pDel) _playersMergeChanged = true;
+                  if (_pAdd || _pUpd || _pDel) logEvent('info','sync',`🔀 Merge giocatori: +${_pAdd} da altri, ${_pUpd} aggiornati dal cloud, ${_pDel} eliminati altrove`);
+                } catch(e) { logEvent('warn','sync','Merge giocatori saltato: ' + e.message); }
             }
           }
         }
@@ -21675,10 +21817,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
 
         lastSyncDate.value = new Date().toLocaleString('it-IT');
         localStorage.setItem('amicifc_last_sync', lastSyncDate.value);
-        // Aggiorna timestamp sync locale
-        const _nowTs = Date.now();
+        // Aggiorna timestamp sync locale.
+        // v1.912: usa ESATTAMENTE il lastModified scritto nel payload (non un nuovo Date.now()):
+        // così checkSyncNeeded confronta valori identici e non serve più la tolleranza di 30s
+        // (che nascondeva gli aggiornamenti di altri dispositivi fatti entro 30s da un nostro upload).
+        const _nowTs = payload.lastModified;
         localSyncTs.value = _nowTs;
         localStorage.setItem('amicifc_sync_ts', String(_nowTs));
+        if (_playersMergeChanged) { try { await loadGroupData(); } catch(e) {} }
         logEvent('info', 'sync', `Upload OK: ${allGroups.reduce((s,g)=>s+g.matches.length,0)} partite`);
         setSyncStatus('ok');
         logEvent('info', 'sync', 'Upload OK su Firebase');
@@ -21749,6 +21895,22 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         toast('⚠️ Sync non riuscito — riproverò automaticamente', 'error', 4000);
       }
       return false;
+    };
+
+    // ── v1.912: scrittura admin garantita ──
+    // Ogni modifica fatta da un admin (giocatori, foto...) passa di qui: flag pendente PRIMA dell'upload,
+    // 3 tentativi, e un messaggio chiaro all'utente in tutti i casi (salvato online / non ancora online).
+    // Il flag pendente fa sì che né lo swipe né il controllo periodico possano scaricare dati e
+    // cancellare la modifica prima che sia stata caricata (guardia anti-wipe in syncFromCloud).
+    const syncAdminWrite = async (label = 'Modifica') => {
+      if (!currentGroup.value?.firebaseUrl) return null; // gruppo solo locale
+      const ok = await syncToCloudWithRetry(label);
+      if (ok === true) toast('☁️ ' + label + ' salvato online', 'success', 2200);
+      else if (ok === false) {
+        if (!navigator.onLine) toast('📵 ' + label + ' salvato sul dispositivo — verrà caricato appena torni online', 'warning', 5000);
+        else toast('⚠️ ' + label + ' salvato sul dispositivo ma NON ancora online — riprovo da solo', 'warning', 6000);
+      }
+      return ok;
     };
 
     // ── Resize base64 photo if needed (max 400px) ──
@@ -21876,6 +22038,19 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
               // ── CANCELLA TUTTO IL LOCALE: Firebase comanda ──
               await db.players.where('groupId').equals(gid).delete();
               await db.matches.where('groupId').equals(gid).delete();
+
+              // v1.912: porta con sé le lapidi dei giocatori eliminati (unione con le locali)
+              try {
+                const _cd = toArr(eg.deletedPlayers).filter(x => x && x.uid);
+                if (_cd.length) {
+                  const _m = new Map();
+                  for (const x of [..._getDeletedPlayers(gid), ..._cd]) {
+                    const pv = _m.get(x.uid);
+                    if (!pv || (x.ts||0) > (pv.ts||0)) _m.set(x.uid, { uid: x.uid, ts: x.ts||0 });
+                  }
+                  _setDeletedPlayers(gid, [..._m.values()]);
+                }
+              } catch(e) {}
 
               // ── REIMPORTA GIOCATORI da Firebase ──
               // Conserva l'id originale di Firebase — niente rimappatura
@@ -22700,6 +22875,58 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         ptrVisible.value = false;
       }
     };
+    // ── v1.912: aggiornamento "intelligente" (swipe e pulsante Aggiorna) ──
+    // Prima lo swipe faceva syncFromCloud(true): scaricava tutto (~12 MB) e bypassava la guardia
+    // anti-wipe. Ora: 1) se c'è un salvataggio non ancora caricato lo carica per primo (se non ci
+    // riesce NON scarica nulla); 2) controllo leggero (~200 byte); 3) scarica solo se Firebase è
+    // davvero cambiato. Ritorna: 'updated' | 'uptodate' | 'offline' | 'failed' | 'pending-failed' | 'nocloud'.
+    const smartRefresh = async () => {
+      if (!currentGroup.value?.firebaseUrl) return 'nocloud';
+      if (!navigator.onLine) return 'offline';
+      if (_isPendingSyncValid(currentGroup.value.id)) {
+        const pushed = await syncToCloud();
+        if (pushed !== true) return 'pending-failed';
+      }
+      const needed = await checkSyncNeeded(true);
+      if (_lastCheckFailed) return 'failed';
+      lastCheckTime.value = new Date().toLocaleString('it-IT');
+      localStorage.setItem('amicifc_last_check', lastCheckTime.value);
+      if (!needed) return 'uptodate';
+      const before = localSyncTs.value;
+      await syncFromCloud(needed === 'force'); // 'force' = syncVersion alzata da un admin; il pending è già stato caricato sopra
+      return localSyncTs.value !== before ? 'updated' : 'failed';
+    };
+
+    // v1.912: l'utente sta scrivendo/compilando? Il controllo periodico (ogni 2 min) in quel caso
+    // NON scarica (il download sostituisce i dati locali e ricarica le liste).
+    const _BUSY_VIEWS = new Set(['newmatch','livematch','formations','formationstep1','playerselect','formationstep3']);
+    const _isUserBusy = () => {
+      const ae = document.activeElement;
+      const typing = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA' || ae.tagName === 'SELECT' || ae.isContentEditable);
+      return !!(typing || showPlayerForm.value || _BUSY_VIEWS.has(currentView.value));
+    };
+
+    // Pulsante "Aggiorna" in Impostazioni → Azioni Cloud (stessa logica dello swipe)
+    const manualRefresh = async () => {
+      const r = await smartRefresh();
+      if (r === 'updated') toast('✅ Dati aggiornati!', 'success', 2000);
+      else if (r === 'uptodate') toast('✅ Sei già aggiornato', 'success', 2000);
+      else if (r === 'offline') toast('📵 Sei offline', 'warning', 2500);
+      else if (r === 'pending-failed') toast('⏳ Hai modifiche non ancora caricate — riprovo tra poco, nulla è stato scaricato', 'warning', 4000);
+      else if (r === 'nocloud') toast('Firebase non configurato per questo gruppo', 'warning', 2500);
+      else toast('⚠️ Impossibile controllare ora — riprova tra poco', 'warning', 2500);
+    };
+
+    // Ripristino totale (ex "Scarica"/"Scarica senza foto"): ora in Zona Pericolo con conferma esplicita
+    const restoreFromCloudTotal = async (skipPhotos = false) => {
+      const pend = currentGroup.value?.id && _isPendingSyncValid(currentGroup.value.id);
+      const msg = 'RIPRISTINO TOTALE DA FIREBASE\n\nTutti i dati di questo dispositivo verranno cancellati e riscaricati da Firebase' + (skipPhotos ? ' (foto escluse)' : '') + '.' +
+        (pend ? '\n\n⚠️ ATTENZIONE: hai modifiche NON ancora caricate su Firebase: andranno PERSE.' : '') + '\n\nContinuare?';
+      if (!window.confirm(msg)) return;
+      await syncFromCloud(true, skipPhotos);
+      toast('✅ Ripristino da Firebase completato', 'success', 2500);
+    };
+
     const _onPtrEnd = async () => {
       if (!_ptrActive) return;
       const wasReady = _ptrReady;
@@ -22708,8 +22935,12 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         ptrVisible.value = true;
         ptrLoading.value = true;
         try {
-          await syncFromCloud(true);
-          toast('✅ Dati aggiornati!', 'success', 2000);
+          const r = await smartRefresh();
+          if (r === 'updated') toast('✅ Dati aggiornati!', 'success', 2000);
+          else if (r === 'uptodate') toast('✅ Sei già aggiornato', 'success', 2000);
+          else if (r === 'offline') toast('📵 Sei offline', 'warning', 2500);
+          else if (r === 'pending-failed') toast('⏳ Hai modifiche non ancora caricate — riprovo tra poco, nulla è stato scaricato', 'warning', 4000);
+          else if (r === 'failed') toast('⚠️ Impossibile controllare ora — riprova tra poco', 'warning', 2500);
         } catch(e) {
           toast('⚠️ Sync fallita', 'warning', 2000);
         } finally {
@@ -25355,20 +25586,28 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         }
       });
 
-      // Check aggiornamenti ogni 10 minuti — solo 200 byte (shallow check)
-      // syncFromCloud completo solo se ci sono dati nuovi su Firebase
+      // v1.912: check aggiornamenti ogni 2 minuti (era 10) — solo ~200 byte (2 letture minuscole)
+      // syncFromCloud completo solo se ci sono dati nuovi su Firebase, mai mentre l'utente sta
+      // scrivendo/creando una partita, e con pausa di 10 min dopo un download fallito (evita di
+      // riscaricare 12 MB in loop con rete instabile).
+      let _periodicBackoffUntil = 0;
       setInterval(async () => {
         if (!document.hidden && currentGroup.value?.firebaseUrl && isOnline.value) {
           try {
             const needed = await checkSyncNeeded();
-            if (needed) await syncFromCloud(false);
+            if (needed) {
+              if (_isUserBusy() || Date.now() < _periodicBackoffUntil) return; // riproverà al prossimo giro
+              const _before = localSyncTs.value;
+              await syncFromCloud(false);
+              if (localSyncTs.value === _before) _periodicBackoffUntil = Date.now() + 10 * 60 * 1000;
+            }
             else {
               lastCheckTime.value = new Date().toLocaleString('it-IT');
               localStorage.setItem('amicifc_last_check', lastCheckTime.value);
             }
           } catch(e) { /* silenzioso */ }
         }
-      }, 10 * 60 * 1000);
+      }, 2 * 60 * 1000);
 
       let _visTimer = null;
       document.addEventListener('visibilitychange', () => {
@@ -25457,7 +25696,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
           optimized++;
         }
         await loadGroupData();
-        autoSyncToCloud();
+        syncAdminWrite('Foto ottimizzate');
         optimizeResult.value = `✅ ${optimized} foto ottimizzate${savedKB > 0 ? ', risparmiati ~' + savedKB + 'KB' : ''}. ${skipped} già ok o su Drive.`;
       } catch(e) {
         optimizeResult.value = '❌ Errore: ' + e.message;
@@ -26815,7 +27054,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       saveMatch, deleteMatch, viewMatch, getStatForMatch,
       matchNotes, matchPhoto, handleMatchPhoto, articleTitle, generateAndShareMatchPNG, shareHistoryMatchPNG,
       saveSettings, toggleTheme, setTheme, toggleFont,
-      syncLoading, syncStatus, lastSyncDate, lastSyncTime, lastCheckTime, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, recomputeStats, repairPlayerUids, showForceSyncOverlay, forceSyncDone, forceRecomputeAchievements,
+      syncLoading, syncStatus, lastSyncDate, lastSyncTime, lastCheckTime, localSyncVersion, localSyncTs, checkSyncNeeded, syncToCloud, syncFromCloud, smartRefresh, manualRefresh, restoreFromCloudTotal, syncAdminWrite, recomputeStats, repairPlayerUids, showForceSyncOverlay, forceSyncDone, forceRecomputeAchievements,
       restoreStatus, restoreFromBackup, forceRecomputeStats, expandedGroupId, archiveWizard, archiveStepData, openArchiveWizard, archiveSelectAll, archiveTogglePlayer, archiveStep1Next, archiveStep2Next, archiveStep3Next, archiveDownloadSafetyBackup, archiveDownloadZipGiornale, doArchiveStagione, groupFirstMatch, deleteGroupConfirmText, deleteGroupTarget, confirmDeleteGroup, doDeleteGroup,
       newsIndex, newsItems, currentNews, nextNews, prevNews,
       firebaseLogin, firebaseLogout, refreshFirebaseToken,
