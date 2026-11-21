@@ -214,7 +214,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.24';
+const INSPECTOR_VERSION = '1.25';
 
 async function checkInspectorUpdate(){
   try {
@@ -1999,6 +1999,14 @@ function overallScoreBreakdown(p, pMax, matches, players, trackAssist){
     bonusRuolo = (pVit * 0.55) + (pVoto * 0.40) + (Math.min(50+(gol/n*40.83),99)-50)*0.05;
     baseLabel  = 'Base (voto + % vittorie + Uomo Partita)';
     bonusLabel = 'Bonus ruolo Difensore (vittorie + voto + gol)';
+    // Bonus gol Difensore (21/11/2026) — identico a amici-fc.html: additivo, mai negativo.
+    {
+      const pContribD = 50 + ((gol + assist) / n * 40.83) * smorzamento;
+      extraBonus = Math.min(12, Math.max(0, (pContribD - 60) * 0.35));
+      if (extraBonus > 0.5) {
+        extra.push({label:'Bonus gol'+(_trackAssist?' e assist':'')+' (difensore che segna)', val: extraBonus});
+      }
+    }
 
   } else {
     // Attaccante E Centrocampista: stessa base gol(+assist), mai ridotta (13/7/2026, vedi amici-fc.html)
