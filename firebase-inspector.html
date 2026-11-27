@@ -537,7 +537,7 @@ async function loadVotePinsStatus(){
   if(!AUTH_TOKEN) return; // non loggato: i PIN restano non visibili, per come sono protette le regole
   try{
     const base=$('fbUrl').value.trim().replace(/\/$/,'');
-    const r=await fetch(`${base}/amicifc/votePins.json?auth=${AUTH_TOKEN}`,{cache:'no-store'});
+    const r=await fetch(`${base}/amicifc_private/votePins.json?auth=${AUTH_TOKEN}`,{cache:'no-store'});
     if(!r.ok) return;
     const data=await r.json();
     if(!data) return;
@@ -555,7 +555,7 @@ async function loadVotazioniData(){
   if(!AUTH_TOKEN) return; // le voci dei singoli voti sono leggibili solo da admin autenticati
   try{
     const base=$('fbUrl').value.trim().replace(/\/$/,'');
-    const r=await fetch(`${base}/amicifc/votes.json?auth=${AUTH_TOKEN}`,{cache:'no-store'});
+    const r=await fetch(`${base}/amicifc_private/votes.json?auth=${AUTH_TOKEN}`,{cache:'no-store'});
     if(!r.ok) return;
     const data=await r.json();
     VOTAZIONI_DATA = data||{};
@@ -657,6 +657,7 @@ function buildSidebar(){
     ${ni('maint-votazioni','🗳️','Votazioni','','maint-votazioni')}
     ${ni('maint-pins','🔑','PIN Giocatori','','maint-pins')}
     ${ni('maint-zp','🔐','Parola Zona Pericolo','','maint-zp')}
+    ${ni('maint-migrate','🛡️','Migrazione Sicurezza','','maint-migrate')}
     ${ni('maint-legacy-ids','🆔','Correggi ID Legacy','','maint-legacy-ids')}
     ${ni('maint-clean','🧹','Pulizia Firebase','','maint-clean')}
     ${ni('sync-tools','🔄','Sync','','sync-tools')}
@@ -695,6 +696,7 @@ function showView(v){
     'ai-prono':renderPronostico,
     'ai-mosca':renderMosca,
     'maint-zp':renderZonaPericolo,
+    'maint-migrate':renderMigraSicurezza,
     'sync-tools':renderSyncTools,
     'raw-view':renderRaw,
     'audit-view':renderAudit,
@@ -2284,7 +2286,7 @@ async function deleteOrphanVoteSession(groupKey, matchId){
   if(!confirm(`Eliminare definitivamente i dati di questa votazione orfana?\n\nPartita: ${matchId}\n\nQuesta operazione non è reversibile.`)) return;
   const active = getActiveDb();
   try{
-    await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/votes/${groupKey}/${matchId}`, null);
+    await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc_private/votes/${groupKey}/${matchId}`, null);
     alert('✅ Votazione orfana eliminata.');
     await loadAll();
     renderVotazioni();
@@ -2303,7 +2305,7 @@ async function deleteAllOrphanVoteSessions(){
   let ok=0, fail=0;
   for(const s of orphans){
     try{
-      await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/votes/${s.groupKey}/${s.matchId}`, null);
+      await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc_private/votes/${s.groupKey}/${s.matchId}`, null);
       ok++;
     }catch(e){ fail++; }
   }
@@ -2315,7 +2317,7 @@ async function deleteAllOrphanVoteSessions(){
 // Generazione/rigenerazione PIN di voto per un singolo giocatore, da Inspector (richiesta urgente
 // di Alby, 18/8/2026: prima l'unico modo era aprire l'app e farlo uno alla volta dalla scheda
 // giocatore). Stesso identico algoritmo dell'app (generateVotePin): PIN a 6 cifre casuali,
-// hash SHA-256 (mai il PIN in chiaro su Firebase), stesso percorso amicifc/votePins/{gKey}/{uid}.
+// hash SHA-256 (mai il PIN in chiaro su Firebase), stesso percorso amicifc_private/votePins/{gKey}/{uid} (spostato fuori da amicifc, v1.29).
 async function generateSinglePin(uid, nome, groupName) {
   if (!AUTH_TOKEN) { alert('⚠️ Devi essere loggato per generare un PIN.'); return; }
   const eraImpostato = !!VOTE_PINS[uid];
@@ -2329,7 +2331,7 @@ async function generateSinglePin(uid, nome, groupName) {
     const hash = await _sha256Hex(pin);
     const gKey = _slugGroupName(groupName);
     const payload = { hash, updatedAt: Date.now(), updatedBy: AUTH_EMAIL || 'inspector' };
-    await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/votePins/${gKey}/${uid}`, payload);
+    await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc_private/votePins/${gKey}/${uid}`, payload);
     VOTE_PINS[uid] = true;
     log(`🔑 PIN ${eraImpostato?'rigenerato':'generato'} per ${nome}`, 'ok');
     alert(`🔑 PIN per ${nome}:\n\n${pin}\n\nSegnalo subito (WhatsApp, ecc.) — non sarà più visibile dopo aver chiuso questo messaggio, solo rigenerabile.`);
@@ -2384,7 +2386,7 @@ async function generateBulkPins() {
       const hash = await _sha256Hex(pin);
       const gKey = _slugGroupName(p._groupName);
       const payload = { hash, updatedAt: Date.now(), updatedBy: AUTH_EMAIL || 'inspector' };
-      await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc/votePins/${gKey}/${p.uid}`, payload);
+      await fbWrite(active.dbUrl, active.apiKey, AUTH_TOKEN, `amicifc_private/votePins/${gKey}/${p.uid}`, payload);
       VOTE_PINS[p.uid] = true;
       results.push({ nome: p.soprannome || p.nome || p.uid, pin });
     } catch(e) {
@@ -3181,6 +3183,74 @@ function renderNicks(){
   $('main').innerHTML=html;
 }
 
+// ── 🛡️ MIGRAZIONE SICUREZZA (v1.29) ──
+// votePins, votes e security passano da amicifc/ a amicifc_private/ (nodo con regole admin-only):
+// con ".read": true alla radice, qualsiasi figlio di amicifc è leggibile da chiunque.
+// Ordine sicuro: 1) Copia  2) pubblica le nuove regole  3) pubblica l'app v1.916  4) Elimina i vecchi nodi.
+function _secCount(o){ return Object.values(o||{}).reduce((s,g)=>s+Object.keys(g||{}).length,0); }
+async function renderMigraSicurezza(){
+  if(!DB){alert('Clicca prima Connetti.');return;}
+  if(!AUTH_TOKEN){$('main').innerHTML='<div class="card"><div class="card-title">🛡️ Migrazione Sicurezza</div><div style="font-size:.85rem">Fai il login (admin) per usare questo strumento.</div></div>';return;}
+  const a=getActiveDb(); let oldP={},oldV={},newP={},newV={},err='';
+  try{
+    oldP=(await fbRead(a.dbUrl,'amicifc/votePins',AUTH_TOKEN))||{};
+    oldV=(await fbRead(a.dbUrl,'amicifc/votes',AUTH_TOKEN))||{};
+    newP=(await fbRead(a.dbUrl,'amicifc_private/votePins',AUTH_TOKEN))||{};
+    newV=(await fbRead(a.dbUrl,'amicifc_private/votes',AUTH_TOKEN))||{};
+  }catch(e){err=e.message;}
+  $('main').innerHTML=`<div class="card"><div class="card-title">🛡️ Migrazione Sicurezza (PIN e votazioni → amicifc_private)</div>
+  <div style="font-size:.82rem;color:var(--text2);margin:6px 0 12px">Sposta PIN di voto e votazioni in un nodo protetto, leggibile solo dagli admin. Procedi in quest'ordine, senza votazioni in corso:<br>
+  <b>1)</b> Copia &nbsp; <b>2)</b> pubblica le nuove regole Firebase &nbsp; <b>3)</b> pubblica l'app v1.916 &nbsp; <b>4)</b> elimina i vecchi nodi &nbsp; <b>5)</b> rigenera i PIN.</div>
+  ${err?`<div class="badge badge-red">Errore lettura: ${escHtml(err)}</div>`:''}
+  <table class="tbl" style="margin-bottom:12px">
+    <tr><td class="val-gray" style="width:200px"></td><td><b>Vecchio</b> (amicifc/)</td><td><b>Nuovo</b> (amicifc_private/)</td></tr>
+    <tr><td class="val-gray">PIN giocatori</td><td>${_secCount(oldP)}</td><td>${_secCount(newP)}</td></tr>
+    <tr><td class="val-gray">Votazioni (partite)</td><td>${_secCount(oldV)}</td><td>${_secCount(newV)}</td></tr>
+  </table>
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:360px">
+    <button class="btn btn-green" onclick="migraSegreti()">1️⃣ Copia in amicifc_private (verifica inclusa)</button>
+    <button class="btn btn-red" onclick="eliminaVecchiSegreti()">4️⃣ Elimina i vecchi nodi da amicifc/</button>
+  </div></div>`;
+}
+async function migraSegreti(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!confirm('Copiare PIN e votazioni in amicifc_private? I vecchi dati NON vengono toccati.')) return;
+  try{
+    const a=getActiveDb();
+    for(const k of ['votePins','votes']){
+      const src=await fbRead(a.dbUrl,'amicifc/'+k,AUTH_TOKEN);
+      if(!src){log('ℹ️ '+k+': niente da copiare','info');continue;}
+      await fbWrite(a.dbUrl,a.apiKey,AUTH_TOKEN,'amicifc_private/'+k,src);
+      const back=await fbRead(a.dbUrl,'amicifc_private/'+k,AUTH_TOKEN);
+      if(JSON.stringify(back)!==JSON.stringify(src)) throw new Error('Verifica fallita per '+k+': la copia non coincide');
+      log('✅ '+k+' copiato e verificato','ok');
+    }
+    alert('✅ Copia completata e verificata.\nOra pubblica le nuove regole e l\'app v1.916.');
+    renderMigraSicurezza();
+  }catch(e){alert('❌ Errore: '+e.message);}
+}
+async function eliminaVecchiSegreti(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  try{
+    const a=getActiveDb();
+    for(const k of ['votePins','votes']){
+      const o=await fbRead(a.dbUrl,'amicifc/'+k,AUTH_TOKEN);
+      if(!o) continue;
+      const n=await fbRead(a.dbUrl,'amicifc_private/'+k,AUTH_TOKEN);
+      if(JSON.stringify(o)!==JSON.stringify(n)){alert('⛔ '+k+': la copia in amicifc_private non coincide con l\'originale. Rifai prima il passo 1.');return;}
+    }
+  }catch(e){alert('❌ Errore verifica: '+e.message);return;}
+  if(!confirm('Eliminare DEFINITIVAMENTE amicifc/votePins e amicifc/votes?\n\nFallo solo dopo aver pubblicato nuove regole e app v1.916, altrimenti la votazione si ferma.')) return;
+  try{
+    const a=getActiveDb();
+    await fbDelete(a.dbUrl,AUTH_TOKEN,'amicifc/votePins');
+    await fbDelete(a.dbUrl,AUTH_TOKEN,'amicifc/votes');
+    log('🗑️ Vecchi nodi votePins/votes eliminati','ok');
+    alert('✅ Fatto. Ora rigenera i PIN dei giocatori (gli hash vecchi erano pubblici).');
+    renderMigraSicurezza();
+  }catch(e){alert('❌ Errore: '+e.message);}
+}
+
 // ── 📣 CRONACA MOSCA (v1.29) ──
 function renderMosca(){
   if(!DB){alert('Clicca prima Connetti.');return;}
@@ -3238,7 +3308,7 @@ async function renderZonaPericolo(){
   if(AUTH_TOKEN){
     try{
       const active=getActiveDb();
-      const d=await fbRead(active.dbUrl,'amicifc/security/zonaPericolo',AUTH_TOKEN);
+      const d=await fbRead(active.dbUrl,'amicifc_private/security/zonaPericolo',AUTH_TOKEN);
       info=d&&d.hash?`<span class="badge badge-green">✅ Parola impostata</span> <span style="font-size:.78rem;color:var(--text2)">aggiornata il ${fmt_ts(d.updatedAt)} da ${escHtml(String(d.updatedBy||'?'))}</span>`:'<span class="badge badge-yellow">⚠️ Nessuna parola: l\'app chiederà di impostarla al primo admin che apre la Zona Pericolo</span>';
     }catch(e){info='<span class="badge badge-red">Lettura non riuscita: '+escHtml(e.message)+'</span>';}
   }
@@ -3266,7 +3336,7 @@ async function inspectorSetZpWord(){
     const active=getActiveDb();
     const salt=[...crypto.getRandomValues(new Uint8Array(12))].map(x=>x.toString(16).padStart(2,'0')).join('');
     const hash=await _zpHash(salt,a);
-    await fbWrite(active.dbUrl,active.apiKey,AUTH_TOKEN,'amicifc/security/zonaPericolo',{salt,hash,updatedAt:Date.now(),updatedBy:AUTH_EMAIL||'inspector'});
+    await fbWrite(active.dbUrl,active.apiKey,AUTH_TOKEN,'amicifc_private/security/zonaPericolo',{salt,hash,updatedAt:Date.now(),updatedBy:AUTH_EMAIL||'inspector'});
     log('🔐 Parola Zona Pericolo aggiornata','ok');
     alert('✅ Parola aggiornata.');
     renderZonaPericolo();
@@ -3277,7 +3347,7 @@ async function inspectorResetZpWord(){
   if(!confirm('Azzerare la parola? Finché nessuno ne imposta una nuova dall\'app, la Zona Pericolo chiederà solo di crearne una.')) return;
   try{
     const active=getActiveDb();
-    await fbDelete(active.dbUrl,AUTH_TOKEN,'amicifc/security/zonaPericolo');
+    await fbDelete(active.dbUrl,AUTH_TOKEN,'amicifc_private/security/zonaPericolo');
     log('♻️ Parola Zona Pericolo azzerata','warn');
     renderZonaPericolo();
   }catch(e){alert('❌ Errore: '+e.message);}
@@ -3933,7 +4003,7 @@ async function doFullBackup(includeFoto=true) {
   if (AUTH_TOKEN) {
     try {
       const base=$('fbUrl').value.trim().replace(/\/$/,'');
-      const r = await fetch(`${base}/amicifc/votePins.json?auth=${AUTH_TOKEN}`, {cache:'no-store'});
+      const r = await fetch(`${base}/amicifc_private/votePins.json?auth=${AUTH_TOKEN}`, {cache:'no-store'});
       if (r.ok) votePinsFull = (await r.json()) || {};
     } catch(e) { console.warn('[Backup] votePins fetch:', e.message); }
   } else {
@@ -4153,11 +4223,15 @@ async function doRestoreFromBackup(event) {
           currentPhotosMigrated=!!d?.playerPhotosMigrated;
           currentPhotoNodes=d?.playerPhotos||{};
           currentArchivedSeasons=d?.archivedSeasons||{};
-          currentVotePins=d?.votePins||{};
-          currentVotes=d?.votes||{};
+          // votePins/votes vivono in amicifc_private (v1.29): letti a parte, con token admin
           currentSeasonSummary=d?.seasonSummary||{};
         }
       }catch(e){ log('⚠️ Lettura stato Sync v2 saltata: '+e.message,'info'); }
+      const privBase = base.replace(/\/amicifc$/,'/amicifc_private');
+      try{
+        const rp=await fetch(privBase+'/votePins.json?auth='+AUTH_TOKEN,{cache:'no-store'}); if(rp.ok) currentVotePins=(await rp.json())||{};
+        const rv=await fetch(privBase+'/votes.json?auth='+AUTH_TOKEN,{cache:'no-store'}); if(rv.ok) currentVotes=(await rv.json())||{};
+      }catch(e){ log('⚠️ Lettura PIN/voti da amicifc_private saltata: '+e.message,'info'); }
 
       // Costruisci payload per Firebase
       const payload = {
@@ -4263,6 +4337,9 @@ async function doRestoreFromBackup(event) {
         if(moved>0) log(`📷 ${moved} foto del backup spostate in playerPhotos/{uid}`,'info');
       }
 
+      // votePins/votes non fanno più parte di amicifc: scritti a parte in amicifc_private (v1.29)
+      const privPayload = { votePins: payload.votePins, votes: payload.votes };
+      delete payload.votePins; delete payload.votes;
       const putResp = await fetch(base + '.json?auth=' + AUTH_TOKEN, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -4270,6 +4347,12 @@ async function doRestoreFromBackup(event) {
       });
 
       if (!putResp.ok) throw new Error('HTTP ' + putResp.status);
+      for (const k of ['votePins','votes']) {
+        if (privPayload[k] && Object.keys(privPayload[k]).length) {
+          const pr = await fetch(privBase + '/' + k + '.json?auth=' + AUTH_TOKEN, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(privPayload[k]) });
+          if (!pr.ok) log('⚠️ Ripristino '+k+' in amicifc_private fallito (HTTP '+pr.status+')','warn');
+        }
+      }
 
       log(`✅ Ripristino completato! ${stats.players||'?'} giocatori, ${stats.matches||'?'} partite, ${archivedCount>0?archivedCount+' stagioni archiviate':(payload.archivedSeasons?'stagioni archiviate preservate':'nessuna stagione archiviata')}. syncVersion=2 → tutti i device risincronizzeranno.`, 'ok');
       alert('✅ Ripristino completato!\n\nTutti i dispositivi scaricheranno i dati aggiornati al prossimo avvio.');

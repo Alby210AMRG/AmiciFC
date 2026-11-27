@@ -8329,26 +8329,22 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         <div style="margin-top:6px"><strong style="color:var(--text)">6. Regole Database</strong><br>Realtime Database → Regole → incolla questo (include già il supporto a "Vota con gli amici" — se non ti interessa quella funzione va bene comunque, i rami in più restano semplicemente inutilizzati):</div>
         <pre v-pre style="background:var(--bg2);border-radius:6px;padding:8px;font-size:0.68rem;color:var(--lime);overflow-x:auto;margin:4px 0">{
   "rules": {
-    ".read": true,
     ".write": "auth != null",
-
     "amicifc": {
-      "votePins": {
-        "$groupKey": {
-          "$playerUid": {
-            ".read": "auth != null",
-            ".write": "auth != null"
-          }
-        }
-      },
+      ".read": true
+    },
+    "amicifc_private": {
+      ".read": "auth != null",
       "votes": {
         "$groupKey": {
           "$matchId": {
-            "_meta": { ".write": "auth != null" },
+            "_meta": {
+              ".read": true,
+              ".write": "auth != null"
+            },
             "entries": {
-              ".read": "auth != null",
               "$voterUid": {
-                ".write": "root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/eligibleVoters/'+$voterUid).val() === true && root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/closed').val() !== true && (!root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/deadline').exists() || now < root.child('amicifc/votes/'+$groupKey+'/'+$matchId+'/_meta/deadline').val()) && newData.child('pinHashProof').val() === root.child('amicifc/votePins/'+$groupKey+'/'+$voterUid+'/hash').val() && newData.child('pinHashProof').val() !== null"
+                ".write": "root.child('amicifc_private/votes/'+$groupKey+'/'+$matchId+'/_meta/eligibleVoters/'+$voterUid).val() === true && root.child('amicifc_private/votes/'+$groupKey+'/'+$matchId+'/_meta/closed').val() !== true && (!root.child('amicifc_private/votes/'+$groupKey+'/'+$matchId+'/_meta/deadline').exists() || now < root.child('amicifc_private/votes/'+$groupKey+'/'+$matchId+'/_meta/deadline').val()) && newData.child('pinHashProof').val() === root.child('amicifc_private/votePins/'+$groupKey+'/'+$voterUid+'/hash').val() && newData.child('pinHashProof').val() !== null"
               }
             }
           }
@@ -8358,9 +8354,9 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
   }
 }</pre>
               <div style="font-size:0.72rem;color:var(--text2);margin-top:4px">
-                💡 <strong style="color:var(--lime)">.read: true</strong> = tutti possono vedere i dati (consigliato per il gruppo).<br>
+                💡 <strong style="color:var(--lime)">amicifc: .read true</strong> = tutti possono vedere i dati del gruppo (consigliato).<br>
                 <strong style="color:var(--yellow)">.write: auth != null</strong> = solo chi ha le credenziali (punto 4) può modificare.<br>
-                🗳️ I rami <strong style="color:var(--text)">votePins</strong>/<strong style="color:var(--text)">votes</strong> sono quelli che rendono possibile "Vota con gli amici" — il ramo <code style="background:var(--bg2);padding:0 3px;border-radius:3px">$voterUid</code> è scritto apposta per funzionare SENZA login (chi vota non ha credenziali), verificando solo che il PIN corrisponda.
+                🔒 <strong style="color:var(--text)">amicifc_private</strong> contiene PIN e voti ("Vota con gli amici") ed è leggibile solo da chi ha il login: non metterli mai dentro <code style="background:var(--bg2);padding:0 3px;border-radius:3px">amicifc</code>, altrimenti chiunque potrebbe leggerli. Il ramo <code style="background:var(--bg2);padding:0 3px;border-radius:3px">$voterUid</code> funziona SENZA login (chi vota non ha credenziali) verificando solo che il PIN corrisponda; <code style="background:var(--bg2);padding:0 3px;border-radius:3px">_meta</code> è leggibile da tutti per aprire il link di voto.
               </div>
         <div style="margin-top:6px"><strong style="color:var(--text)">7. Aggiungere altri utenti scrittori</strong><br>Authentication → Users → Aggiungi utente → inserisci email e password dell'amico che può modificare (con queste regole, chiunque abbia fatto login può scrivere ovunque — se vuoi restringere la scrittura solo ad alcune email specifiche, sostituisci ogni <code style="background:var(--bg2);padding:0 3px;border-radius:3px">auth != null</code> con <code style="background:var(--bg2);padding:0 3px;border-radius:3px">auth != null && auth.token.email === 'tua@email.com'</code>, aggiungendo un <code style="background:var(--bg2);padding:0 3px;border-radius:3px">||</code> per ogni email in più)</div>
       </div>
@@ -9715,6 +9711,7 @@ createApp({
     const changelogEntries = [{version:'v1.916',date:'2026-11-27',items:[
       'Zona Pericolo protetta: la sezione compare solo a chi ha fatto il login Firebase (o nei gruppi solo locali). Per aprirla serve la parola segreta del gruppo, impostata la prima volta da un admin loggato e salvata su Firebase solo come impronta (mai in chiaro). 3 errori = blocco di 5 minuti; la zona si richiude da sola dopo 5 minuti; cambio parola possibile conoscendo quella attuale.',
       'Le azioni distruttive (Reset dati gruppo, Reset totale, Ripristino totale da Firebase, cancellazione storico Riepiloghi) chiedono anche di scrivere a mano una parola di conferma. Aperture, tentativi falliti e conferme finiscono nel Log di sistema.'
+      ,'Sicurezza Firebase: PIN di voto, votazioni e parola della Zona Pericolo si spostano in un nodo separato amicifc_private, leggibile solo dagli admin (prima erano leggibili da chiunque). Servono le nuove Regole (guida aggiornata) e la migrazione dall Inspector.'
       ,'Nuova card AI "Cronaca della settimana" in stile Maurizio Mosca (nome storpiato): esce il lunedi, parla dei giocatori con almeno 2 presenze nelle ultime 5 partite, con scoop e pronostico (voci di mercato dichiarate per scherzo). Appare nel carosello della home, si condivide, si rigenera da Zona Pericolo e si gestisce dall Inspector.'
     ]},{version:'v1.915',date:'2026-11-27',items:[
       'Articoli e commenti partita rifatti: un solo generatore usato da Genera Articolo, Rigenera e commento dopo la votazione. Ora funziona con tutti i provider AI configurati (prima Groq e OpenRouter non producevano nulla) e con fallback tra provider.',
@@ -16001,7 +15998,8 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
 
     // ── Helper: scrivi nodo Firebase senza condizioni (per aggiornamenti normali) ──
     const _fbWrite = async (path, data, token) => {
-      const base = getFirebaseBase();
+      const priv = path.startsWith('@p/'); if (priv) path = path.slice(3);
+      const base = priv ? getPrivateBase() : getFirebaseBase();
       if (!base) return false;
       try {
         const url = token ? `${base}/${path}.json?auth=${token}` : `${base}/${path}.json`;
@@ -16108,7 +16106,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
         if (currentGroup.value?.firebaseUrl && firebaseUser.value) {
           const token = await getValidToken();
           if (token) {
-            const r = await fetch(`${getFirebaseBase()}/security/zonaPericolo.json?auth=${token}`, { cache: 'no-store' });
+            const r = await fetch(`${getPrivateBase()}/security/zonaPericolo.json?auth=${token}`, { cache: 'no-store' });
             if (r.ok) {
               const d = await r.json();
               if (d && d.hash && d.salt) { zpWord.value = { salt: d.salt, hash: d.hash }; localStorage.setItem(_zpKey(), JSON.stringify(zpWord.value)); }
@@ -16126,7 +16124,7 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
       if (currentGroup.value?.firebaseUrl) {
         const token = await getValidToken();
         if (!token) throw new Error('Login Firebase scaduto: riesegui il login');
-        const r = await fetch(`${getFirebaseBase()}/security/zonaPericolo.json?auth=${token}`, {
+        const r = await fetch(`${getPrivateBase()}/security/zonaPericolo.json?auth=${token}`, {
           method: 'PUT', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ salt, hash, updatedAt: Date.now(), updatedBy: _zpUser() })
         });
@@ -18694,7 +18692,7 @@ Restituisci solo il testo, nessuna spiegazione.`;
       if (_m?.matchUUID) {
         try {
           const _tok = await getValidToken();
-          if (_tok) await _fbWrite(`votes/${_aiCardGroupKey()}/${_m.matchUUID}`, null, _tok);
+          if (_tok) await _fbWrite(`@p/votes/${_aiCardGroupKey()}/${_m.matchUUID}`, null, _tok);
         } catch(e) { console.warn('[deleteMatch] pulizia votazione associata fallita:', e.message); }
       }
       toast('🗑️ Partita eliminata', 'error');
@@ -18961,6 +18959,11 @@ Restituisci solo il testo, nessuna spiegazione.`;
       }
     };
 
+    // Nodo separato per i dati segreti (votePins, votes, security): le regole Firebase lo rendono leggibile solo agli admin (v1.916)
+    const getPrivateBase = () => {
+      const url = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
+      return url ? `${url}/amicifc_private` : null;
+    };
     const getFirebaseBase = () => {
       const url = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
       return url ? `${url}/amicifc` : null;
@@ -23619,7 +23622,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       if (!firebaseUser.value || !fbIdToken.value || !currentGroup.value?.firebaseUrl || !match?.matchUUID) return;
       try {
         const gKey = _aiCardGroupKey();
-        const base = getFirebaseBase();
+        const base = getPrivateBase();
         const res = await fetch(`${base}/votes/${gKey}/${match.matchUUID}.json?auth=${fbIdToken.value}`, {cache:'no-store'});
         if (!res.ok) return;
         const data = await res.json();
@@ -23630,7 +23633,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     }
 
     async function _fbPatchVoteMeta(gKey, matchUUID, metaPartial) {
-      const base = getFirebaseBase();
+      const base = getPrivateBase();
       const res = await fetch(`${base}/votes/${gKey}/${matchUUID}/_meta.json?auth=${fbIdToken.value}`, {
         method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify(metaPartial)
       });
@@ -23693,7 +23696,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (!eligible.length) { toast('⚠️ Nessun giocatore eleggibile per questa partita','error',3500); return; }
         const eligibleMap = {}; eligible.forEach(uid => eligibleMap[uid] = true);
         const meta = { eligibleVoters: eligibleMap, closed:false, openedAt: Date.now(), openedBy: firebaseUser.value.email };
-        const ok = await _fbWrite(`votes/${gKey}/${match.matchUUID}/_meta`, meta, fbIdToken.value);
+        const ok = await _fbWrite(`@p/votes/${gKey}/${match.matchUUID}/_meta`, meta, fbIdToken.value);
         if (!ok) throw new Error('scrittura fallita');
         voteShareLink.value = _buildVoteShareLink(match);
         voteShareMatch.value = match;
@@ -23837,7 +23840,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       voteAdminLoading.value = true;
       try {
         const gKey = _aiCardGroupKey();
-        const base = getFirebaseBase();
+        const base = getPrivateBase();
         const res = await fetch(`${base}/votes/${gKey}/${match.matchUUID}/entries.json?auth=${fbIdToken.value}`, {cache:'no-store'});
         if (!res.ok) throw new Error('lettura voti fallita');
         const entries = await res.json();
@@ -23929,6 +23932,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         if (!voteMatchUUID.value || !voteDbUrl.value) { voteStep.value='error'; voteErrorMsg.value='Link non valido o incompleto.'; return; }
 
         const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
+        const pbase = voteDbUrl.value.replace(/\/$/,'') + '/amicifc_private'; // segreti (votes/votePins) fuori da amicifc, v1.916
         const groupsRes = await fetch(`${base}/groups.json`, {cache:'no-store'});
         if (!groupsRes.ok) throw new Error('Impossibile leggere i dati (HTTP '+groupsRes.status+')');
         const groupsData = await groupsRes.json();
@@ -23959,7 +23963,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const gName = (foundGroup.group && foundGroup.group.nome) || foundGroup.nome || '';
         voteGroupKey.value = gName.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'gruppo';
 
-        const metaRes = await fetch(`${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/_meta.json`, {cache:'no-store'});
+        const metaRes = await fetch(`${pbase}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/_meta.json`, {cache:'no-store'});
         const meta = metaRes.ok ? await metaRes.json() : null;
         if (!meta || !meta.eligibleVoters) { voteStep.value='error'; voteErrorMsg.value='La votazione per questa partita non è ancora stata aperta.'; return; }
         if (meta.closed) { voteStep.value='error'; voteErrorMsg.value='La votazione per questa partita è chiusa.'; return; }
@@ -24040,13 +24044,14 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       try {
         const hash = await _sha256Hex(votePinDigits.value);
         const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
+        const pbase = voteDbUrl.value.replace(/\/$/,'') + '/amicifc_private'; // segreti (votes/votePins) fuori da amicifc, v1.916
         // Il PIN identifica DA SOLO chi sta votando (richiesta di Alby: niente più schermata "chi
         // sei", ridondante e poco sicura — chiunque poteva scegliere il nome di un altro). Si prova
         // la scrittura di verifica su ciascun eleggibile finché una non viene accettata: solo chi
         // conosce il PIN giusto per QUEL uid riesce a scrivere lì, per via delle regole di sicurezza.
         let matched = null;
         for (const candidate of voteEligiblePlayers.value) {
-          const probeUrl = `${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${candidate.uid}.json`;
+          const probeUrl = `${pbase}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${candidate.uid}.json`;
           try {
             const res = await fetch(probeUrl, {
               method:'PUT', headers:{'Content-Type':'application/json'},
@@ -24094,8 +24099,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       voteSubmitting.value = true;
       try {
         const base = voteDbUrl.value.replace(/\/$/,'') + '/amicifc';
+        const pbase = voteDbUrl.value.replace(/\/$/,'') + '/amicifc_private'; // segreti (votes/votePins) fuori da amicifc, v1.916
         const payload = { pinHashProof: voteHashProof.value, votes: voteScores.value, mvpPick: voteMvpPick.value || null, submittedAt: Date.now() };
-        const res = await fetch(`${base}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${voteSelectedVoter.value.uid}.json`, {
+        const res = await fetch(`${pbase}/votes/${voteGroupKey.value}/${voteMatchUUID.value}/entries/${voteSelectedVoter.value.uid}.json`, {
           method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('invio fallito (HTTP '+res.status+')');
@@ -24117,7 +24123,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
       try {
         const gKey = _aiCardGroupKey();
         const base = currentGroup.value.firebaseUrl.replace(/\/$/,'');
-        const res = await fetch(`${base}/amicifc/votePins/${gKey}.json?auth=${fbIdToken.value}`, { cache:'no-store' });
+        const res = await fetch(`${base}/amicifc_private/votePins/${gKey}.json?auth=${fbIdToken.value}`, { cache:'no-store' });
         if (!res.ok) return;
         const data = await res.json();
         const status = {};
@@ -24144,7 +24150,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const gKey = _aiCardGroupKey();
         const base = currentGroup.value.firebaseUrl.replace(/\/$/,'');
         const payload = { hash, updatedAt: Date.now(), updatedBy: firebaseUser.value.email };
-        const res = await fetch(`${base}/amicifc/votePins/${gKey}/${player.uid}.json?auth=${fbIdToken.value}`, {
+        const res = await fetch(`${base}/amicifc_private/votePins/${gKey}/${player.uid}.json?auth=${fbIdToken.value}`, {
           method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error('HTTP '+res.status);
