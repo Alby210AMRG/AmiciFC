@@ -241,7 +241,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.28';
+const INSPECTOR_VERSION = '1.29';
 function toggleTheme(){ const d=document.documentElement; const n=d.getAttribute('data-theme')==='dark'?'light':'dark'; d.setAttribute('data-theme',n); try{localStorage.setItem('insp_theme',n)}catch(e){} }
 
 async function checkInspectorUpdate(){
@@ -650,11 +650,13 @@ function buildSidebar(){
     ${ni('ai-hof','👑','Hall of Fame',hofCount,'ai-hof')}
     ${ni('ai-nicks','🧬','Soprannomi',nickCount,'ai-nicks')}
     ${ni('ai-prono','🔮','Pronostico',AI&&AI.pronostico?'✓':'','ai-prono')}
+    ${ni('ai-mosca','📣','Cronaca Mosca',AI&&AI.mosca?'✓':'','ai-mosca')}
     ${AUTH_TOKEN ? `
     <div class="nav-sep"></div><div class="nav-group" style="color:var(--orange)">🛠️ Manutenzione</div>
     ${ni('maint-check','🩺','Analisi DB','','maint-check')}
     ${ni('maint-votazioni','🗳️','Votazioni','','maint-votazioni')}
     ${ni('maint-pins','🔑','PIN Giocatori','','maint-pins')}
+    ${ni('maint-zp','🔐','Parola Zona Pericolo','','maint-zp')}
     ${ni('maint-legacy-ids','🆔','Correggi ID Legacy','','maint-legacy-ids')}
     ${ni('maint-clean','🧹','Pulizia Firebase','','maint-clean')}
     ${ni('sync-tools','🔄','Sync','','sync-tools')}
@@ -691,6 +693,8 @@ function showView(v){
     'ai-hof':renderHoF,
     'ai-nicks':renderNicks,
     'ai-prono':renderPronostico,
+    'ai-mosca':renderMosca,
+    'maint-zp':renderZonaPericolo,
     'sync-tools':renderSyncTools,
     'raw-view':renderRaw,
     'audit-view':renderAudit,
@@ -2872,6 +2876,13 @@ function renderAiStatus(){
   const pronoExpired=pronoGenAt?(now-pronoGenAt>TTL.prono):null;
   const pronoStatus=pronoData?(pronoExpired===false?'ok':'warn'):'err';
 
+  // MOSCA (cronaca settimanale, v1.916 app)
+  const moscaRoot=AI.mosca||{};
+  const moscaData=(gKey&&moscaRoot[gKey])?moscaRoot[gKey]:Object.values(moscaRoot).find(m=>m&&m.servizi)||null;
+  const moscaGenAt=moscaData?.generatedAt||null;
+  const moscaBy=moscaData?.createdBy||null;
+  const moscaStatus=moscaData?((now-moscaGenAt)<10*864e5?'ok':'warn'):'err';
+
   // ── Render ──────────────────────────────────────────────────────────────────
   const sBadge=s=>s==='ok'?'<span class="badge badge-green">✅ OK</span>':s==='warn'?'<span class="badge badge-yellow">⚠️ Scaduto</span>':'<span class="badge badge-red">❌ Assente</span>';
   const fmtTs=ms=>ms?new Date(ms).toLocaleString('it-IT'):'—';
@@ -2923,6 +2934,14 @@ function renderAiStatus(){
     ['Da aggiornare', nickStaleCount>0?`⚠️ ${nickStaleCount}/${nickEligiblePlayers.length} (4+ partite nuove dal loro ultimo soprannome)`:`✅ nessuno`],
     ['Modalità rinnovo', '🔄 Per singolo giocatore, dopo 4+ partite nuove — non a calendario fisso'],
     ['Creato da (ultimo)', obfuscateEmail(nickBy)],
+  ]);
+
+  html += card('📣','Cronaca Mosca',moscaStatus,[
+    ['Stato Firebase', moscaData?`"${moscaData.titolo||'?'}" (${(moscaData.servizi||[]).length} servizi)`:'Nessun dato'],
+    ['Generato il', fmtTs(moscaGenAt)],
+    ['Settimana', moscaData?.weekKey||'—'],
+    ['Modalità rinnovo', '🗓️ Ogni lunedì (automatica) o a mano da Zona Pericolo'],
+    ['Creato da', obfuscateEmail(moscaBy)],
   ]);
 
   html += card('🔮','Pronostico',pronoStatus,[
@@ -3160,6 +3179,108 @@ function renderNicks(){
   });
   if(!Object.keys(ai).length) html+='<div class="empty"><div class="empty-icon">🧬</div>Nessun soprannome</div>';
   $('main').innerHTML=html;
+}
+
+// ── 📣 CRONACA MOSCA (v1.29) ──
+function renderMosca(){
+  if(!DB){alert('Clicca prima Connetti.');return;}
+  const root=AI&&AI.mosca?AI.mosca:{};
+  const keys=Object.keys(root).filter(k=>root[k]&&typeof root[k]==='object');
+  if(!keys.length){$('main').innerHTML='<div class="empty"><div class="empty-icon">📣</div><div>Nessuna cronaca Mosca generata</div><div style="font-size:.78rem;color:var(--text2);margin-top:6px">Si crea da sola il lunedì all\'apertura dell\'app, oppure da Impostazioni → Zona Pericolo → Cronaca della settimana.</div></div>';return;}
+  const e=s=>escHtml(String(s==null?'':s));
+  let html='<div style="margin-bottom:12px"><span class="card-title" style="font-size:1rem">📣 Cronaca della settimana (stile Mosca)</span></div>';
+  keys.forEach(k=>{
+    const m=root[k];
+    const gen=m.generatedAt||0;
+    const ttl=gen?(gen+10*864e5)-Date.now():null;
+    html+='<div class="card" style="margin-bottom:14px"><div class="card-title">📁 '+e(k)+'</div>'
+      +'<table class="tbl" style="margin-bottom:12px">'
+      +'<tr><td class="val-gray" style="width:150px">Generato il</td><td>'+(gen?fmt_ts(gen):'—')+'</td></tr>'
+      +'<tr><td class="val-gray">Settimana</td><td>'+e(m.weekKey||'—')+'</td></tr>'
+      +'<tr><td class="val-gray">Validità</td><td>'+(ttl===null?'—':ttl<0?'⚠️ Scaduta (si rigenera al prossimo lunedì)':'✅ ancora '+Math.ceil(ttl/3600000)+'h')+'</td></tr>'
+      +'<tr><td class="val-gray">Creato da</td><td>'+e(obfuscateEmail(m.createdBy))+'</td></tr>'
+      +'</table>'
+      +'<div style="font-size:1.05rem;font-weight:700;margin-bottom:12px;color:var(--c-violet)">'+e(m.titolo||'—')+'</div>';
+    (m.servizi||[]).forEach(sv=>{
+      html+='<div style="background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.2);border-radius:8px;padding:10px;margin-bottom:8px">'
+        +'<div style="font-weight:700">'+e(sv.nome||'?')+(sv.scoop?' — '+e(sv.scoop):'')+'</div>'
+        +'<div style="font-size:.82rem;color:var(--text2)">'+e(sv.testo||'')+'</div></div>';
+    });
+    if(m.pronostico)html+='<div style="font-size:.85rem;margin:8px 0"><b>🔮 Pronostico:</b> '+e(m.pronostico)+'</div>';
+    if(m.firma)html+='<div style="font-size:.75rem;color:rgba(167,139,250,.6);text-align:right">— '+e(m.firma)+'</div>';
+    html+=AUTH_TOKEN?'<div style="margin-top:12px"><button class="btn btn-red" onclick="deleteMosca(\''+e(k).replace(/'/g,"")+'\')">🗑️ Elimina questa cronaca</button></div>':'<div style="font-size:.75rem;color:var(--text2);margin-top:10px">Fai il login per poterla eliminare.</div>';
+    html+='</div>';
+  });
+  $('main').innerHTML=html;
+}
+async function deleteMosca(gKey){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!confirm('Eliminare la cronaca Mosca di "'+gKey+'"?\n\nL\'app la rigenererà al prossimo lunedì (o a mano dalla Zona Pericolo).')) return;
+  try{
+    const active=getActiveDb();
+    await fbDelete(active.dbUrl,AUTH_TOKEN,`amicifc/aiCards/mosca/${gKey}`);
+    if(AI&&AI.mosca){delete AI.mosca[gKey]; if(!Object.keys(AI.mosca).length)delete AI.mosca;}
+    log('🗑️ Cronaca Mosca eliminata ('+gKey+')','ok');
+    buildSidebar(); renderMosca();
+  }catch(e){alert('❌ Errore: '+e.message);}
+}
+
+// ── 🔐 PAROLA ZONA PERICOLO (v1.29) ──
+// Stesso algoritmo dell'app: SHA-256 di "salt|parola(trim, minuscola)", salvato in
+// amicifc/security/zonaPericolo = {salt, hash, updatedAt, updatedBy}. Scrivibile solo dagli admin (regole).
+async function _zpHash(salt,word){
+  const buf=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(salt+'|'+String(word).trim().toLowerCase()));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+async function renderZonaPericolo(){
+  if(!DB){alert('Clicca prima Connetti.');return;}
+  let info='<span class="badge badge-gray">sconosciuto</span>';
+  if(AUTH_TOKEN){
+    try{
+      const active=getActiveDb();
+      const d=await fbRead(active.dbUrl,'amicifc/security/zonaPericolo',AUTH_TOKEN);
+      info=d&&d.hash?`<span class="badge badge-green">✅ Parola impostata</span> <span style="font-size:.78rem;color:var(--text2)">aggiornata il ${fmt_ts(d.updatedAt)} da ${escHtml(String(d.updatedBy||'?'))}</span>`:'<span class="badge badge-yellow">⚠️ Nessuna parola: l\'app chiederà di impostarla al primo admin che apre la Zona Pericolo</span>';
+    }catch(e){info='<span class="badge badge-red">Lettura non riuscita: '+escHtml(e.message)+'</span>';}
+  }
+  $('main').innerHTML=`<div class="card"><div class="card-title">🔐 Parola della Zona Pericolo</div>
+  <div style="font-size:.82rem;color:var(--text2);margin:6px 0 12px">Una sola parola per tutto il gruppo. Sull'app serve (dopo il login Firebase) per sbloccare le azioni distruttive. Su Firebase viene salvato solo l'hash, mai la parola in chiaro.</div>
+  <div style="margin-bottom:14px">${info}</div>
+  ${AUTH_TOKEN?`
+  <div style="display:flex;flex-direction:column;gap:8px;max-width:340px">
+    <input type="password" id="zpNew1" placeholder="Nuova parola (min 6 caratteri)" autocomplete="new-password">
+    <input type="password" id="zpNew2" placeholder="Ripeti la nuova parola" autocomplete="new-password">
+    <button class="btn btn-green" onclick="inspectorSetZpWord()">💾 Imposta / cambia parola</button>
+    <button class="btn btn-red" onclick="inspectorResetZpWord()">♻️ Azzera (l'app ne chiederà una nuova)</button>
+  </div>
+  <div style="font-size:.75rem;color:var(--text2);margin-top:12px">Dopo il cambio, i dispositivi già sbloccati restano tali fino al riblocco automatico; al prossimo accesso serve la nuova parola. Comunicala solo agli admin, non per iscritto in chat di gruppo.</div>`
+  :'<div style="font-size:.85rem">Fai il login (admin) per gestire la parola.</div>'}
+  </div>`;
+}
+async function inspectorSetZpWord(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  const a=$('zpNew1').value.trim(), b=$('zpNew2').value.trim();
+  if(a.length<6){alert('La parola deve avere almeno 6 caratteri.');return;}
+  if(a!==b){alert('Le due parole non coincidono.');return;}
+  if(!confirm('Impostare la nuova parola per la Zona Pericolo? La vecchia smette di funzionare.')) return;
+  try{
+    const active=getActiveDb();
+    const salt=[...crypto.getRandomValues(new Uint8Array(12))].map(x=>x.toString(16).padStart(2,'0')).join('');
+    const hash=await _zpHash(salt,a);
+    await fbWrite(active.dbUrl,active.apiKey,AUTH_TOKEN,'amicifc/security/zonaPericolo',{salt,hash,updatedAt:Date.now(),updatedBy:AUTH_EMAIL||'inspector'});
+    log('🔐 Parola Zona Pericolo aggiornata','ok');
+    alert('✅ Parola aggiornata.');
+    renderZonaPericolo();
+  }catch(e){alert('❌ Errore: '+e.message);}
+}
+async function inspectorResetZpWord(){
+  if(!AUTH_TOKEN){alert('Fai il login prima!');return;}
+  if(!confirm('Azzerare la parola? Finché nessuno ne imposta una nuova dall\'app, la Zona Pericolo chiederà solo di crearne una.')) return;
+  try{
+    const active=getActiveDb();
+    await fbDelete(active.dbUrl,AUTH_TOKEN,'amicifc/security/zonaPericolo');
+    log('♻️ Parola Zona Pericolo azzerata','warn');
+    renderZonaPericolo();
+  }catch(e){alert('❌ Errore: '+e.message);}
 }
 
 // ── AUDIT COMPLETO ──

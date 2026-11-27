@@ -2585,7 +2585,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
           <div v-for="(s,i) in (heroUnifiedData||[])" :key="'s'+i"
             :data-hero-slide-idx="i"
             style="min-width:100%;height:100%;position:relative;display:flex;flex-direction:column;overflow:hidden"
-            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='manualCard'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'||s.type==='assenza'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
+            :style="'padding:18px 16px 14px;justify-content:'+(s.type==='duel'||s.type==='story'||s.type==='trend'||s.type==='nickCard'||s.type==='hallFame'||s.type==='hallShame'||s.type==='trashTalk'||s.type==='welcome'||s.type==='tutorial'||s.type==='manualCard'||s.type==='newSeason'||s.type==='forma'||s.type==='h2hCard'||s.type==='pronoMini'||s.type==='moscaMini'||s.type==='newsGoals'||s.type==='bestVote'||s.type==='infortunio'||s.type==='fantasma'||s.type==='assenza'?'flex-start':'flex-end')+(s.type==='newSeason'?';border:3px solid #A6FF4D;box-shadow:0 0 20px rgba(166,255,77,.55),inset 0 0 24px rgba(166,255,77,.12);border-radius:20px;box-sizing:border-box':'')">
             <div style="position:absolute;inset:0" :style="'background:'+(settings.darkTheme?s.bg:heroLightBg(s.bg))"></div>
             <!-- stat watermark numero -->
             <div v-if="s.type==='stat'" style="position:absolute;right:10px;bottom:-10px;font-size:115px;font-weight:900;opacity:.07;line-height:1;letter-spacing:-6px;color:#fff;pointer-events:none">{{s.val}}</div>
@@ -2596,7 +2596,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                  hanno già la propria (o restano volutamente pulite) — questa copre gli altri tipi,
                  usando l'emoji già presente nel testo/icona della card se c'è, altrimenti il
                  fallback in heroWatermarkEmoji(). -->
-            <div v-if="!['stat','trashTalk','hallFame','hallShame','pronoMini','nickCard','infortunio','fantasma','welcome','assenza'].includes(s.type)"
+            <div v-if="!['stat','trashTalk','hallFame','hallShame','pronoMini','moscaMini','nickCard','infortunio','fantasma','welcome','assenza'].includes(s.type)"
               style="position:absolute;right:-6px;bottom:-16px;font-size:120px;line-height:1;opacity:.10;pointer-events:none;transform:rotate(-6deg)">{{heroWatermarkEmoji(s)}}</div>
             <!-- ── Welcome card (prima del caricamento dati) ── -->
             <template v-if="s.type==='welcome'">
@@ -3011,6 +3011,31 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 
             <!-- SOPRANNOME / IDENTIKIT AI -->
             <!-- ── PRONOSTICO PROSSIMA PARTITA ── -->
+            <template v-else-if="s.type==='moscaMini'">
+              <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
+              <div class="hc-ai-bg">AI</div>
+              <div class="hc-label" style="color:#fdba74;margin-bottom:6px">{{s.label}}</div>
+              <div style="position:relative;z-index:1;font-size:10px;color:rgba(255,255,255,.5);margin-bottom:8px;letter-spacing:.3px">{{s.titolo}}</div>
+              <div v-if="s.nome" style="position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:2px 0 10px">
+                <div v-if="s.foto" style="width:64px;height:64px;min-width:64px;border-radius:50%;overflow:hidden;border:3px solid #fb923c" :style="'box-shadow:0 0 16px rgba(251,146,60,.45);background-image:url(\''+_avatarPhotoUrl(s)+'\');background-size:cover;background-position:center'"></div>
+                <div v-else style="width:64px;height:64px;min-width:64px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:30px;border:3px solid #fb923c;background:rgba(251,146,60,.12)">{{s.icon}}</div>
+                <div style="flex:1;min-width:0">
+                  <div class="hc-name" style="color:#fdba74">{{s.nome}}</div>
+                  <div style="font-size:12px;font-weight:800;color:#fff;line-height:1.25;margin-top:2px">{{s.scoop}}</div>
+                </div>
+              </div>
+              <div v-else style="position:relative;z-index:1;display:flex;align-items:center;gap:12px;margin:2px 0 10px">
+                <div style="font-size:40px">{{s.icon}}</div>
+                <div style="flex:1;font-size:13px;font-weight:800;color:#fff;line-height:1.25">{{s.scoop}}</div>
+              </div>
+              <div class="hc-scroll-box" style="background:rgba(251,146,60,.1);border:1px solid rgba(251,146,60,.3)" :data-hero-idx="i">
+                <div class="hc-scroll-inner" style="display:flex;flex-direction:column;gap:8px">
+                  <div class="hc-body" style="color:rgba(255,255,255,.92)">{{s.testo}}</div>
+                  <div v-if="s.firma" class="hc-meta" style="color:rgba(255,255,255,.5);border:none;padding:0;text-align:right">— {{s.firma}}</div>
+                </div>
+              </div>
+            </template>
+
             <template v-else-if="s.type==='pronoMini'">
               <button class="hc-share-btn" @click.stop="shareHeroCardPNG(i)" title="Condividi">📤</button>
               <div class="hc-ai-bg">AI</div>
@@ -6204,6 +6229,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>☁️ <strong>Con Firebase</strong>: i dati si sincronizzano automaticamente tra tutti i telefoni del gruppo, in tempo reale, senza dover scambiarsi file. Serve un progetto Firebase gratuito (guida passo-passo inclusa) e un login (email/password) per chi deve poter scrivere dati</div>
             <div>🔄 <strong>Aggiornamento dati</strong>: l'app controlla da sola ogni 2 minuti se qualcuno ha cambiato qualcosa e scarica solo se serve (mai mentre stai scrivendo). Trascinando la home verso il basso e tenendo premuto fai un controllo immediato. Se vedi dati sbagliati o incompleti: Impostazioni → Zona Pericolo → «Ripristino totale da Firebase».</div>
             <div>🤖 <strong>AI gratuita</strong>: Gemini, Groq (GPT-OSS 120B) o OpenRouter (Gemma 4). I modelli cambiano nel tempo: se «Testa connessione» dà errore, controlla la chiave in Impostazioni → AI.</div>
+            <div>🔐 <strong>Zona Pericolo</strong>: visibile solo agli admin con login Firebase e protetta da una parola segreta di gruppo (la imposta il primo admin che la apre, poi si cambia da lì). Dopo 3 errori si blocca 5 minuti; si richiude da sola dopo 5 minuti. Reset e ripristini chiedono anche una parola di conferma scritta a mano. Se la dimentichi: cancella il nodo amicifc/security/zonaPericolo da Firebase e reimpostala.</div>
+            <div>📣 <strong>Cronaca della settimana (stile Mosca)</strong>: ogni lunedì l'AI scrive una cronaca scherzosa con scoop e voci di mercato inventate su alcuni giocatori attivi (almeno 2 presenze nelle ultime 5 partite). Compare nella home, si condivide come immagine e si rigenera da Impostazioni → Zona Pericolo → Cronaca della settimana.</div>
             <div>📰 <strong>Articolo della partita</strong>: ogni articolo è scritto nello stile di una grande firma del giornalismo sportivo (scelta a rotazione) usando risultato, marcatori, voti, note dal campo e le curiosità della stagione; l'AI vede anche gli ultimi articoli per non ripeterli. Funziona con qualsiasi provider AI configurato e finisce sempre con una firma simpatica. Se non ti piace, «Rigenera» ne scrive uno diverso.</div>
             <div>🔮 <strong>Risultato più probabile</strong>: calcolato dai gol medi reali del gruppo e dalla forza delle due squadre, coerente con le percentuali; uguale nel testo, nel PNG e nel commento.</div>
             <div>⚙️ Si configura toccando l'icona <strong>☁️</strong> in alto accanto al nome del gruppo — ogni gruppo ha il proprio Firebase indipendente, si può aggiungere o togliere in qualsiasi momento senza perdere dati</div>
@@ -6834,25 +6861,41 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
         </div>
       </div>
 
-      <!-- ── ZONA PERICOLO ── -->
-      <div class="card" style="border-color:rgba(255,77,77,0.5);padding:0;overflow:hidden">
+      <!-- ── ZONA PERICOLO ── (v1.916: solo per chi ha il login Firebase + parola segreta del gruppo) -->
+      <div v-if="zpAvailable" class="card" style="border-color:rgba(255,77,77,0.5);padding:0;overflow:hidden">
 
-        <!-- Step 1: Avviso + pulsante sblocco -->
+        <!-- Step 1: Avviso + parola segreta -->
         <div v-if="!zonaPericoloUnlocked" style="padding:16px">
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px">
             <span style="font-size:1.3rem">⚠️</span>
             <span style="font-weight:800;color:var(--red);font-size:1rem">Zona Pericolo</span>
+            <span style="font-size:0.65rem;color:var(--red);background:rgba(255,77,77,0.15);padding:2px 7px;border-radius:8px">🔐 PROTETTA</span>
           </div>
           <div style="font-size:0.78rem;color:var(--text2);line-height:1.6;margin-bottom:14px;background:rgba(255,77,77,0.06);border-radius:8px;padding:10px;border:1px solid rgba(255,77,77,0.2)">
             ⛔ <strong style="color:var(--red)">Attenzione!</strong> Le azioni in questa sezione sono <strong>potenzialmente irreversibili</strong>.<br>
-            Alcune operazioni modificano o eliminano dati in modo permanente.<br>
             Procedi solo se sai cosa stai facendo.
           </div>
-          <button class="btn btn-full" :disabled="zonaPericoloCountdown>0"
-            style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red);font-weight:700"
-            @click="zonaPericoloCountdown===0 && (zonaPericoloUnlocked=true)">
-            {{ zonaPericoloCountdown > 0 ? '⏳ Attendi '+zonaPericoloCountdown+'s...' : '🔓 OK, Ho Capito — Accedi alla Zona Pericolo' }}
-          </button>
+          <div v-if="!zpWordReady" style="font-size:0.78rem;color:var(--text2)">⏳ Controllo in corso...</div>
+          <!-- Prima volta: imposta la parola -->
+          <div v-else-if="!zpWord" style="display:flex;flex-direction:column;gap:8px">
+            <div style="font-size:0.78rem;color:var(--text1);line-height:1.5">🔐 <strong>Imposta la parola segreta del gruppo</strong> (almeno 6 caratteri). Servirà a tutti gli admin per aprire la Zona Pericolo. Non viene salvata in chiaro.</div>
+            <input class="input-field" type="password" v-model="zpInput" placeholder="Parola segreta" autocomplete="new-password">
+            <input class="input-field" type="password" v-model="zpInput2" placeholder="Ripeti la parola" autocomplete="new-password" @keyup.enter="zpSetWord">
+            <button class="btn btn-full" :disabled="zpBusy" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red);font-weight:700" @click="zpSetWord">🔐 Salva e apri</button>
+          </div>
+          <!-- Parola impostata: inseriscila -->
+          <div v-else style="display:flex;flex-direction:column;gap:8px">
+            <input class="input-field" type="password" v-model="zpInput" placeholder="Parola segreta" autocomplete="current-password" @keyup.enter="zpUnlock">
+            <button class="btn btn-full" :disabled="zpBusy||!zpInput" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red);font-weight:700" @click="zpUnlock">🔓 Sblocca Zona Pericolo</button>
+            <div style="font-size:0.7rem;color:var(--text2);cursor:pointer;text-align:center" @click="zpChanging=!zpChanging;zpMsg=''">{{ zpChanging ? '✕ Annulla' : '🔁 Cambia parola segreta' }}</div>
+            <div v-if="zpChanging" style="display:flex;flex-direction:column;gap:8px;background:rgba(255,255,255,.03);border-radius:8px;padding:10px">
+              <input class="input-field" type="password" v-model="zpOldInput" placeholder="Parola attuale" autocomplete="current-password">
+              <input class="input-field" type="password" v-model="zpInput" placeholder="Nuova parola (min. 6 caratteri)" autocomplete="new-password">
+              <input class="input-field" type="password" v-model="zpInput2" placeholder="Ripeti la nuova parola" autocomplete="new-password">
+              <button class="btn btn-ghost btn-full" :disabled="zpBusy" @click="zpSetWord">💾 Salva nuova parola</button>
+            </div>
+          </div>
+          <div v-if="zpMsg" style="margin-top:8px;font-size:0.76rem;color:var(--red);font-weight:700">{{ zpMsg }}</div>
         </div>
 
         <!-- Step 2: Contenuto sbloccato -->
@@ -6864,7 +6907,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
               <span style="font-weight:800;color:var(--red);font-size:0.95rem">Zona Pericolo</span>
               <span style="font-size:0.65rem;color:var(--red);background:rgba(255,77,77,0.15);padding:2px 7px;border-radius:8px">SBLOCCATA</span>
             </div>
-            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;color:var(--text2)" @click="zonaPericoloUnlocked=false">🔒 Richiudi</button>
+            <button class="btn btn-ghost btn-sm" style="font-size:0.7rem;color:var(--text2)" @click="zpLock">🔒 Richiudi</button>
           </div>
 
           <div style="padding:16px;display:flex;flex-direction:column;gap:4px">
@@ -6880,10 +6923,10 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   Cancella i dati di questo dispositivo e riscarica TUTTO da Firebase (Firebase è la fonte di verità). Da usare solo se l'app mostra dati sbagliati o incompleti. Eventuali modifiche non ancora caricate su Firebase andranno perse.
                 </div>
                 <div style="display:flex;gap:8px;flex-wrap:wrap">
-                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="restoreFromCloudTotal(false)" :disabled="syncLoading">
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="zpAsk('Ripristino totale da Firebase','Cancella i dati di questo dispositivo e li riscarica da Firebase (foto incluse). Le modifiche non ancora caricate andranno perse.','RIPRISTINA',()=>restoreFromCloudTotal(false))" :disabled="syncLoading">
                     {{ syncLoading ? '⏳' : '⬇️' }} Ripristina tutto
                   </button>
-                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="restoreFromCloudTotal(true)" :disabled="syncLoading" title="Giocatori, partite e card AI senza riscaricare le foto (più rapido)">
+                  <button class="btn btn-ghost btn-sm" style="color:var(--red)" @click="zpAsk('Ripristino totale da Firebase (senza foto)','Cancella i dati di questo dispositivo e li riscarica da Firebase. Le modifiche non ancora caricate andranno perse.','RIPRISTINA',()=>restoreFromCloudTotal(true))" :disabled="syncLoading" title="Giocatori, partite e card AI senza riscaricare le foto (più rapido)">
                     {{ syncLoading ? '⏳' : '⬇️' }} Ripristina (senza foto)
                   </button>
                 </div>
@@ -6982,6 +7025,26 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                     <button class="btn btn-sm" style="flex:1;background:rgba(167,139,250,.06);border:1.5px solid rgba(167,139,250,.2);color:#a78bfa" @click="azzeraRigeneraPronostico">🗑️ Azzera e Rigenera</button>
                   </div>
                 </div>
+
+                <!-- Cronaca della settimana (Mosca) -->
+                <div style="background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);border-radius:10px;padding:10px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                    <span style="font-weight:700;font-size:0.8rem;color:#fb923c">📣 Cronaca della settimana</span>
+                    <span style="font-size:0.7rem;padding:3px 8px;border-radius:12px"
+                      :style="aiMosca?.servizi?.length ? 'background:rgba(74,222,128,.15);color:#4ade80' : 'background:rgba(255,255,255,.06);color:rgba(255,255,255,.35)'">
+                      {{aiMosca?.servizi?.length ? 'generata' : 'non generata'}}
+                    </span>
+                  </div>
+                  <div v-if="aiMosca?.servizi?.length" style="font-size:0.72rem;color:rgba(251,146,60,.85);margin-bottom:8px;padding:6px 8px;background:rgba(234,88,12,.1);border-radius:6px;line-height:1.4">
+                    "{{aiMosca.titolo?.slice(0,60)}}{{aiMosca.titolo?.length>60?'...':''}}"
+                    <div style="opacity:.65;margin-top:2px">settimana del {{aiMosca.weekKey}} · generata il {{aiMosca.generatedAt ? new Date(aiMosca.generatedAt).toLocaleDateString('it-IT') : '?'}}</div>
+                  </div>
+                  <div style="font-size:0.68rem;color:var(--text2);margin-bottom:8px">Esce in automatico il lunedì (generata al primo avvio tra lunedì e mercoledì). «Azzera e Rigenera» la crea subito, in qualsiasi giorno.</div>
+                  <div style="display:flex;gap:6px">
+                    <button class="btn btn-sm" style="flex:1;background:rgba(251,146,60,.1);border:1.5px solid rgba(251,146,60,.3);color:#fb923c" @click="rigeneraMosca">🔄 Rigenera</button>
+                    <button class="btn btn-sm" style="flex:1;background:rgba(251,146,60,.06);border:1.5px solid rgba(251,146,60,.2);color:#fb923c" @click="azzeraRigeneraMosca">🗑️ Azzera e Rigenera</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -7073,7 +7136,7 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   questo (solo su questo gruppo, solo su questo dispositivo):
                 </div>
                 <button class="btn btn-full btn-sm" style="margin-top:6px;background:rgba(255,77,77,0.1);border:1.5px solid var(--red);color:var(--red)"
-                  @click="wipeLocalSeasonSummaryHistory" :disabled="seasonSummaryWipeLoading">
+                  @click="zpAsk('Cancella storico Riepiloghi Stagione','Elimina dal dispositivo lo storico dei riepiloghi stagionali.','CANCELLA',wipeLocalSeasonSummaryHistory)" :disabled="seasonSummaryWipeLoading">
                   {{ seasonSummaryWipeLoading ? '⏳...' : '🧹 Cancella storico Riepiloghi (solo locale, solo questo gruppo)' }}
                 </button>
 
@@ -7175,8 +7238,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
                   ⚠️ Queste azioni eliminano dati locali in modo <strong>irreversibile</strong>.<br>
                   I dati su Firebase <strong>non</strong> vengono toccati.
                 </div>
-                <button class="btn btn-red btn-full" @click="resetData">🗑️ Reset Dati Gruppo Corrente</button>
-                <button class="btn btn-full" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red)" @click="totalReset">
+                <button class="btn btn-red btn-full" @click="zpAsk('Reset dati gruppo corrente','Elimina giocatori, partite e il gruppo da questo dispositivo. Hai un backup recente? (Impostazioni → Esporta backup)','AZZERA',resetData)">🗑️ Reset Dati Gruppo Corrente</button>
+                <button class="btn btn-full" style="background:rgba(255,77,77,0.12);border:1.5px solid var(--red);color:var(--red)" @click="zpAsk('Reset totale','Cancella TUTTO sul dispositivo: gruppi, partite, impostazioni e chiavi. Hai un backup recente?','RESET TOTALE',totalReset)">
                   ☢️ Reset Totale (come nuova installazione)
                 </button>
               </div>
@@ -7189,6 +7252,20 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
 </template>
 
   </main>
+
+  <!-- ── Conferma scritta a mano per le azioni distruttive della Zona Pericolo (v1.916) ── -->
+  <div v-if="zpConfirm" style="position:fixed;inset:0;z-index:400;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;padding:16px" @click.self="zpConfirm=null">
+    <div style="background:var(--bg2);border:1.5px solid var(--red);border-radius:14px;padding:18px;max-width:380px;width:100%">
+      <div style="font-weight:800;color:var(--red);font-size:1rem;margin-bottom:8px">⚠️ {{ zpConfirm.titolo }}</div>
+      <div style="font-size:0.8rem;color:var(--text2);line-height:1.5;margin-bottom:12px">{{ zpConfirm.testo }}</div>
+      <div style="font-size:0.78rem;color:var(--text1);margin-bottom:6px">Per confermare scrivi <strong style="color:var(--red)">{{ zpConfirm.parola }}</strong></div>
+      <input class="input-field" v-model="zpConfirm.input" autocomplete="off" autocapitalize="characters" @keyup.enter="zpConfirmOk">
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button class="btn btn-ghost" style="flex:1" @click="zpConfirm=null">Annulla</button>
+        <button class="btn btn-red" style="flex:1" :disabled="zpConfirm.input.trim().toUpperCase()!==zpConfirm.parola" @click="zpConfirmOk">Conferma</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ── INDICATORE "TORNA ALLA PARTITA LIVE" (20/8/2026) — visibile su qualsiasi schermata
        mentre una partita Live è in corso e non si è già su quella vista. Richiesto da Alby: si
@@ -9635,7 +9712,11 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.915',date:'2026-11-27',items:[
+    const changelogEntries = [{version:'v1.916',date:'2026-11-27',items:[
+      'Zona Pericolo protetta: la sezione compare solo a chi ha fatto il login Firebase (o nei gruppi solo locali). Per aprirla serve la parola segreta del gruppo, impostata la prima volta da un admin loggato e salvata su Firebase solo come impronta (mai in chiaro). 3 errori = blocco di 5 minuti; la zona si richiude da sola dopo 5 minuti; cambio parola possibile conoscendo quella attuale.',
+      'Le azioni distruttive (Reset dati gruppo, Reset totale, Ripristino totale da Firebase, cancellazione storico Riepiloghi) chiedono anche di scrivere a mano una parola di conferma. Aperture, tentativi falliti e conferme finiscono nel Log di sistema.'
+      ,'Nuova card AI "Cronaca della settimana" in stile Maurizio Mosca (nome storpiato): esce il lunedi, parla dei giocatori con almeno 2 presenze nelle ultime 5 partite, con scoop e pronostico (voci di mercato dichiarate per scherzo). Appare nel carosello della home, si condivide, si rigenera da Zona Pericolo e si gestisce dall Inspector.'
+    ]},{version:'v1.915',date:'2026-11-27',items:[
       'Articoli e commenti partita rifatti: un solo generatore usato da Genera Articolo, Rigenera e commento dopo la votazione. Ora funziona con tutti i provider AI configurati (prima Groq e OpenRouter non producevano nulla) e con fallback tra provider.',
       'Ogni articolo e scritto nello stile di una grande firma a rotazione (Brera, Viola, Ciotti, Montes, Mura, Pizzul, Caressa, Processo del Lunedi), sempre ironico; lunghezza 120-170 parole. L AI riceve fatti ricavati dai dati (doppiette, primo gol stagionale, classifica marcatori, record di gol, voti, autogol, rigori, note dal campo) e i titoli/aperture degli ultimi articoli da non ripetere. Niente piu asterischi e markdown. Firma sempre presente, diversa dalle ultime.',
       'Il dato "storico" ora e esplicitamente della stagione corrente, prima di questa partita.',
@@ -11092,7 +11173,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.915');
+    const appVersion = ref('1.916');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -11938,6 +12019,8 @@ createApp({
       aiPronostico.value = null;
       aiFlagClear('pronostico', gid);
       localStorage.removeItem('amicifc_prono_' + gid);
+      aiMosca.value = null;
+      localStorage.removeItem('amicifc_mosca_' + gid);
       const _mkCorr = _localMonthKey(new Date());
       if (aiCardsHallOfFame.value?.mese === _mkCorr) aiCardsHallOfFame.value = null;
       localStorage.removeItem('amicifc_hof_' + _mkCorr);
@@ -15986,21 +16069,132 @@ Rispondi SOLO con JSON in questo formato (niente altro testo):
     const zonaPericoloCountdown = ref(3);       // countdown sblocco
     const zpSection             = ref(null);    // sezione aperta ('foto'|'ai'|'backup'|'stats'|'reset')
 
-    // Avvia countdown quando la card viene montata la prima volta
-    // (si resetta se si richiude e riapre la pagina impostazioni)
-    const _startZPCountdown = () => {
-      zonaPericoloCountdown.value = 3;
-      zonaPericoloUnlocked.value = false;
-      zpSection.value = null;
-      const t = setInterval(() => {
-        if (zonaPericoloCountdown.value > 0) zonaPericoloCountdown.value--;
-        else clearInterval(t);
-      }, 1000);
+    // ══════════════════════════════════════════════════════════════════════════
+    // ZONA PERICOLO PROTETTA (v1.916, richiesta di Alby 27/11/2026)
+    // - La sezione e' visibile solo a chi ha fatto il login Firebase (o nei gruppi solo locali, senza Firebase).
+    // - Per aprirla serve la PAROLA SEGRETA del gruppo: su Firebase (amicifc/security/zonaPericolo) si salva solo
+    //   l'impronta SHA-256 con "sale", mai la parola in chiaro (il codice dell'app e' pubblico).
+    //   Prima volta: chi e' loggato la imposta; per cambiarla serve conoscere quella attuale.
+    // - 3 errori = blocco di 5 minuti. Lo sblocco dura 5 minuti poi la zona si richiude da sola.
+    // - Le azioni distruttive chiedono anche di scrivere a mano una parola di conferma.
+    // Nota onesta: e' una protezione "da errori e curiosi", non da chi manomette il browser: la protezione
+    // vera dei dati e' nelle Regole di sicurezza di Firebase.
+    // ══════════════════════════════════════════════════════════════════════════
+    const ZP_UNLOCK_MS = 5 * 60 * 1000, ZP_LOCK_MS = 5 * 60 * 1000, ZP_MAX_FAILS = 3;
+    const zpWord        = ref(null);   // { salt, hash } oppure null = non ancora impostata
+    const zpWordReady   = ref(false);  // lettura da Firebase/cache completata
+    const zpInput       = ref('');
+    const zpInput2      = ref('');
+    const zpOldInput    = ref('');
+    const zpChanging    = ref(false);  // pannello "cambia parola"
+    const zpBusy        = ref(false);
+    const zpUnlockUntil = ref(0);
+    const zpLockedUntil = ref(0);
+    const zpMsg         = ref('');
+    const zpAvailable   = computed(() => !!firebaseUser.value || !currentGroup.value?.firebaseUrl);
+    const _zpKey = () => 'amicifc_zp_' + (currentGroup.value?.id ?? '');
+    const _zpFailKey = () => 'amicifc_zpfail_' + (currentGroup.value?.id ?? '');
+    const _zpSha = async (salt, word) => {
+      if (!(window.crypto && crypto.subtle)) throw new Error('Questo browser non supporta la verifica sicura (serve HTTPS)');
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + '|' + String(word).trim().toLowerCase()));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
     };
-    _startZPCountdown();
+    const _zpUser = () => (firebaseUser.value?.email || 'utente locale');
+    const zpLoadWord = async () => {
+      zpWordReady.value = false;
+      try {
+        let cached = null; try { cached = JSON.parse(localStorage.getItem(_zpKey()) || 'null'); } catch(e) {}
+        if (cached?.hash) zpWord.value = cached;
+        if (currentGroup.value?.firebaseUrl && firebaseUser.value) {
+          const token = await getValidToken();
+          if (token) {
+            const r = await fetch(`${getFirebaseBase()}/security/zonaPericolo.json?auth=${token}`, { cache: 'no-store' });
+            if (r.ok) {
+              const d = await r.json();
+              if (d && d.hash && d.salt) { zpWord.value = { salt: d.salt, hash: d.hash }; localStorage.setItem(_zpKey(), JSON.stringify(zpWord.value)); }
+              else { zpWord.value = null; localStorage.removeItem(_zpKey()); } // nodo cancellato (reset dall'Inspector/Console)
+            }
+          }
+        }
+      } catch(e) { /* resta la cache locale */ }
+      try { zpLockedUntil.value = parseInt(localStorage.getItem(_zpFailKey() + '_until') || '0', 10) || 0; } catch(e) {}
+      zpWordReady.value = true;
+    };
+    const _zpSave = async (word) => {
+      const salt = (crypto.getRandomValues ? [...crypto.getRandomValues(new Uint8Array(12))].map(b => b.toString(16).padStart(2, '0')).join('') : String(Date.now()) + Math.random());
+      const hash = await _zpSha(salt, word);
+      if (currentGroup.value?.firebaseUrl) {
+        const token = await getValidToken();
+        if (!token) throw new Error('Login Firebase scaduto: riesegui il login');
+        const r = await fetch(`${getFirebaseBase()}/security/zonaPericolo.json?auth=${token}`, {
+          method: 'PUT', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ salt, hash, updatedAt: Date.now(), updatedBy: _zpUser() })
+        });
+        if (!r.ok) throw new Error('Salvataggio su Firebase non riuscito (stato ' + r.status + ')');
+      }
+      zpWord.value = { salt, hash };
+      localStorage.setItem(_zpKey(), JSON.stringify(zpWord.value));
+    };
+    const zpSetWord = async () => {
+      zpMsg.value = '';
+      const w = zpInput.value.trim();
+      if (w.length < 6) { zpMsg.value = 'La parola deve avere almeno 6 caratteri'; return; }
+      if (w !== zpInput2.value.trim()) { zpMsg.value = 'Le due parole non coincidono'; return; }
+      zpBusy.value = true;
+      try {
+        if (zpWord.value) {
+          const okOld = (await _zpSha(zpWord.value.salt, zpOldInput.value)) === zpWord.value.hash;
+          if (!okOld) { zpMsg.value = 'La parola attuale non è corretta'; zpBusy.value = false; return; }
+        }
+        await _zpSave(w);
+        logEvent('warn', 'app', `🔐 Parola segreta Zona Pericolo ${zpChanging.value ? 'cambiata' : 'impostata'} da ${_zpUser()}`);
+        zpInput.value = zpInput2.value = zpOldInput.value = ''; zpChanging.value = false;
+        zpUnlockUntil.value = Date.now() + ZP_UNLOCK_MS; zonaPericoloUnlocked.value = true;
+        toast('🔐 Parola segreta salvata. Zona Pericolo sbloccata per 5 minuti', 'success', 3500);
+      } catch(e) { zpMsg.value = e.message; }
+      zpBusy.value = false;
+    };
+    const zpUnlock = async () => {
+      zpMsg.value = '';
+      if (Date.now() < zpLockedUntil.value) { zpMsg.value = `Troppi tentativi: riprova tra ${Math.ceil((zpLockedUntil.value - Date.now()) / 60000)} min`; return; }
+      if (!zpWord.value) return;
+      zpBusy.value = true;
+      try {
+        const ok = (await _zpSha(zpWord.value.salt, zpInput.value)) === zpWord.value.hash;
+        if (ok) {
+          localStorage.removeItem(_zpFailKey()); localStorage.removeItem(_zpFailKey() + '_until');
+          zpInput.value = ''; zpUnlockUntil.value = Date.now() + ZP_UNLOCK_MS; zonaPericoloUnlocked.value = true;
+          logEvent('warn', 'app', `🔓 Zona Pericolo sbloccata da ${_zpUser()}`);
+        } else {
+          const n = (parseInt(localStorage.getItem(_zpFailKey()) || '0', 10) || 0) + 1;
+          localStorage.setItem(_zpFailKey(), String(n));
+          logEvent('warn', 'app', `🚫 Parola Zona Pericolo errata (${n}/${ZP_MAX_FAILS}) — ${_zpUser()}`);
+          if (n >= ZP_MAX_FAILS) {
+            zpLockedUntil.value = Date.now() + ZP_LOCK_MS;
+            localStorage.setItem(_zpFailKey() + '_until', String(zpLockedUntil.value)); localStorage.setItem(_zpFailKey(), '0');
+            zpMsg.value = 'Parola errata 3 volte: Zona Pericolo bloccata per 5 minuti';
+          } else zpMsg.value = `Parola errata (${n}/${ZP_MAX_FAILS})`;
+        }
+      } catch(e) { zpMsg.value = e.message; }
+      zpBusy.value = false;
+    };
+    const zpLock = () => { zonaPericoloUnlocked.value = false; zpUnlockUntil.value = 0; zpSection.value = null; zpInput.value = ''; zpMsg.value = ''; };
+    // Richiusura automatica dopo 5 minuti
+    setInterval(() => { if (zonaPericoloUnlocked.value && Date.now() > zpUnlockUntil.value) { zpLock(); toast('🔒 Zona Pericolo richiusa (5 minuti)', 'info', 2500); } }, 10000);
 
-    // Resetta Zona Pericolo ogni volta che si apre la pagina impostazioni
-    Vue.watch(currentView, (v) => { if (v === 'settings') _startZPCountdown(); });
+    // Conferma scritta a mano per le azioni distruttive: { titolo, testo, parola, input, fn }
+    const zpConfirm = ref(null);
+    const zpAsk = (titolo, testo, parola, fn) => { zpConfirm.value = { titolo, testo, parola, input: '', fn }; };
+    const zpConfirmOk = async () => {
+      const c = zpConfirm.value; if (!c || c.input.trim().toUpperCase() !== c.parola) return;
+      zpConfirm.value = null;
+      logEvent('warn', 'app', `⚠️ Zona Pericolo: «${c.titolo}» confermata da ${_zpUser()}`);
+      try { await c.fn(); } catch(e) { toast('❌ ' + e.message, 'error'); }
+    };
+
+    // Ogni volta che si apre Impostazioni: richiude e rilegge la parola (cosi' un cambio fatto da un altro admin vale subito)
+    Vue.watch(currentView, (v) => { if (v === 'settings') { zpLock(); zpLoadWord(); } });
+    Vue.watch(currentGroup, () => { zpLock(); zpWord.value = null; zpLoadWord(); });
 
     const _aiLog = (tipo, msg, ok=true) => {
       const entry = { ts: new Date().toLocaleTimeString('it-IT'), tipo, msg, ok };
@@ -17165,6 +17359,157 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       }
     };
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // CRONACA DELLA SETTIMANA "alla Maurizio Mosca" (v1.916, richiesta di Alby 27/11/2026)
+    // Card AI settimanale: esce il LUNEDI' (generata al primo avvio tra lunedi' e mercoledi',
+    // cosi' non e' mai scritta prima della partita del giovedi'), racconta 4-5 giocatori con
+    // almeno 2 presenze nelle ultime 5 partite del gruppo, con spunti ricavati dai dati (forma,
+    // gol, voti, secchi, autogol) e una chiusa con pronostico. Salvata su Firebase in
+    // aiCards/mosca/{gruppo} come le altre card AI, visibile e gestibile anche dall'Inspector.
+    // ═══════════════════════════════════════════════════════════════════════════
+    const aiMosca = ref(null); // { weekKey, titolo, servizi:[{nome,uid,scoop,testo}], pronostico, firma, generatedAt }
+    const _MOSCA_FIRME = ['Maurizio Moscone','Maurizio Moscardino','Maurizio Mosconi','Maurizio Moscerino','Maurizio Moscato','Maurizio Mostarda'];
+    const _moscaWeekKey = (d = new Date()) => { // lunedi' della settimana corrente (ora locale), AAAA-MM-GG
+      const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+      return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+    };
+    const _moscaFresh = (m) => !!(m?.servizi?.length && m.generatedAt && (Date.now() - m.generatedAt) < 10 * 24 * 3600 * 1000);
+
+    // Spunti per giocatore sulle ultime 5 partite del gruppo. Ritorna { ultime, candidati } oppure null se i dati non bastano.
+    const _moscaCandidates = () => {
+      const ultime = [...(groupMatches.value || [])].filter(m => m?.data && m.risultato)
+        .sort((a, b) => String(b.data).localeCompare(String(a.data))).slice(0, 5);
+      if (ultime.length < 3) return null;
+      const cand = [];
+      for (const p of (groupPlayers.value || [])) {
+        const uid = String(p.uid || p.id);
+        let pres = 0, gol = 0, ast = 0, og = 0, uom = 0, V = 0, N = 0, Pp = 0; const voti = [];
+        for (const m of ultime) {
+          const st = (m.statisticheGiocatori || []).find(s => String(s.playerId) === uid);
+          if (!st) continue;
+          pres++; gol += st.goal || 0; ast += st.assist || 0; og += st.autogol || 0; if (st.uomoPartita) uom++;
+          if (st.voto > 0) voti.push(st.voto);
+          const inA = (m.squadraA || []).map(String).includes(uid), gA = m.risultato.goalA || 0, gB = m.risultato.goalB || 0;
+          const mine = inA ? gA : gB, th = inA ? gB : gA;
+          if (mine > th) V++; else if (mine === th) N++; else Pp++;
+        }
+        if (pres < 2) continue; // criterio di Alby: almeno 2 presenze nelle ultime 5
+        const votoU = voti.length ? voti.reduce((a, b) => a + b, 0) / voti.length : 0;
+        cand.push({ p, uid, pres, gol, ast, og, uom, V, N, P: Pp, votoU, votoS: p.mediaVoto || 0, golS: p.goalTotali || 0, partS: p.partiteTotali || 0 });
+      }
+      if (cand.length < 3) return null;
+      return { ultime, candidati: cand };
+    };
+
+    // Sceglie fino a 5 protagonisti con una storia nei dati e assegna a ciascuno uno "spunto"
+    const _moscaPick = (cand) => {
+      const scelti = []; const usa = (c, spunto) => { if (c && !scelti.find(s => s.c.uid === c.uid)) scelti.push({ c, spunto }); };
+      const by = (f) => [...cand].sort((a, b) => f(b) - f(a));
+      const topG = by(c => c.gol * 10 + c.ast)[0]; if (topG && topG.gol > 0) usa(topG, `capocannoniere delle ultime 5 (${topG.gol} gol)`);
+      const conVoto = cand.filter(c => c.votoU > 0);
+      const bestV = by(c => c.votoU)[0]; if (bestV && bestV.votoU > 0) usa(bestV, `miglior voto medio delle ultime 5 (${bestV.votoU.toFixed(1)})`);
+      const worstV = [...conVoto].sort((a, b) => a.votoU - b.votoU)[0]; if (worstV) usa(worstV, `voto medio più basso delle ultime 5 (${worstV.votoU.toFixed(1)})`);
+      const trend = [...conVoto].filter(c => c.votoS > 0).sort((a, b) => (b.votoU - b.votoS) - (a.votoU - a.votoS));
+      if (trend[0] && trend[0].votoU - trend[0].votoS >= 0.3) usa(trend[0], `in crescita: voto ${trend[0].votoU.toFixed(1)} nelle ultime 5 contro ${trend[0].votoS.toFixed(1)} di media stagionale`);
+      const secco = [...cand].filter(c => c.gol === 0 && c.golS >= 3).sort((a, b) => b.golS - a.golS)[0]; if (secco) usa(secco, `a secco nelle ultime ${secco.pres} presenze (${secco.golS} gol in stagione)`);
+      const ogC = cand.find(c => c.og > 0); if (ogC) usa(ogC, `autogol nelle ultime 5`);
+      const uomC = by(c => c.uom)[0]; if (uomC && uomC.uom >= 2) usa(uomC, `${uomC.uom} volte Uomo Partita nelle ultime 5`);
+      const striscia = [...cand].filter(c => c.V >= 4 && c.pres >= 4)[0]; if (striscia) usa(striscia, `${striscia.V} vittorie su ${striscia.pres} presenze`);
+      for (const c of by(c => c.pres * 2 + c.gol)) { if (scelti.length >= 5) break; usa(c, `${c.pres} presenze su 5, record ${c.V}V-${c.N}N-${c.P}P`); }
+      return scelti.slice(0, 5);
+    };
+
+    // Genera la cronaca. force=true ignora finestra lunedi'-mercoledi' e la card gia' presente (usato da Zona Pericolo).
+    const _generateMosca = async (force = false) => {
+      if (!settings.value.apiKey && !settings.value.apiKeyGemini && !settings.value.apiKeyGroq && !settings.value.apiKeyOpenrouter && !settings.value.apiKeyChatgpt) { _aiLog('Mosca', '⏭️ Skip: nessuna AI configurata'); return; }
+      if (!currentGroup.value) return;
+      const wk = _moscaWeekKey();
+      if (!force) {
+        const dow = new Date().getDay(); // 1=lun ... 3=mer
+        if (dow < 1 || dow > 3) { _aiLog('Mosca', '⏭️ Skip: la cronaca esce tra lunedì e mercoledì'); return; }
+        if (aiMosca.value?.weekKey === wk && aiMosca.value?.servizi?.length) { _aiLog('Mosca', '⏭️ Cronaca di questa settimana già presente'); return; }
+      }
+      const cc = _moscaCandidates();
+      if (!cc) { _aiLog('Mosca', '⏭️ Skip: servono almeno 3 partite e 3 giocatori con 2+ presenze nelle ultime 5', false); if (force) toast('Dati insufficienti per la cronaca (servono 3 partite e 3 giocatori con 2+ presenze nelle ultime 5)', 'info', 4500); return; }
+      const ultimaData = cc.ultime[0].data;
+      if (!force && (Date.now() - new Date(ultimaData + 'T12:00:00').getTime()) > 10 * 24 * 3600 * 1000) { _aiLog('Mosca', '⏭️ Skip: nessuna partita negli ultimi 10 giorni'); return; }
+      const scelti = _moscaPick(cc.candidati);
+      _aiLog('Mosca', '▶️ Generazione cronaca: ' + scelti.map(s => s.c.p.soprannome || s.c.p.nome).join(', '));
+      const profili = scelti.map((s, i) => ({
+        numero_riferimento: i + 1, nome: s.c.p.soprannome || s.c.p.nome, ruolo: s.c.p.ruolo || 'Jolly',
+        presenze_ultime_5: s.c.pres, gol_ultime_5: s.c.gol,
+        ...(currentGroup.value?.trackAssist !== false ? { assist_ultime_5: s.c.ast } : {}),
+        record_ultime_5: `${s.c.V} vittorie, ${s.c.N} pareggi, ${s.c.P} sconfitte`,
+        ...(s.c.votoU ? { voto_medio_ultime_5: +s.c.votoU.toFixed(1) } : {}),
+        gol_stagione: s.c.golS, partite_stagione: s.c.partS,
+        ...(s.c.p.squadraCuore ? { squadra_cuore: s.c.p.squadraCuore } : {}),
+        spunto: s.spunto
+      }));
+      const risultati = cc.ultime.map(m => `${m.data}: ${(m.nomeSquadraA || 'A').trim()} ${m.risultato.goalA}-${m.risultato.goalB} ${(m.nomeSquadraB || 'B').trim()}`).join('\n');
+      const firma = _MOSCA_FIRME[Math.floor(new Date(wk + 'T12:00:00').getTime() / (7 * 86400000)) % _MOSCA_FIRME.length];
+      const prompt = `Sei un telecronista-giornalista sportivo italiano che conduce la rubrica "Cronaca della settimana" di una squadra di calcetto tra amici, nello stile esagerato e inconfondibile di Maurizio Mosca (il re degli scoop di "Pressing"): scoop sensazionali, "bombe" di mercato, tono da grande rivelazione, enfasi, iperboli, incisi del tipo "e vi dico di più", pronostici spavaldi. Ispirati allo stile senza copiare frasi celebri e senza mettergli in bocca citazioni. Tono sempre ironico, simpatico e affettuoso: si scherza, non si offende nessuno.
+ULTIME 5 PARTITE DEL GRUPPO:
+${risultati}
+PROTAGONISTI (dati reali, usa SOLO questi numeri):
+${JSON.stringify(profili)}
+COMPITO: per OGNI protagonista scrivi uno "scoop" (titolo urlato di massimo 8 parole, TUTTO MAIUSCOLO) e un testo di 2-3 frasi (massimo 55 parole) che parte dallo "spunto" e dai dati. Puoi aggiungere una finta "voce di mercato" scherzosa (trattativa con una grande squadra, offerta folle), ma deve essere chiaramente una battuta e non deve contraddire i dati. Se squadra_cuore è presente puoi usarla per una battuta. Poi scrivi un "pronostico" per la partita di giovedì (2-3 frasi, spavaldo e senza numeri inventati) e un titolo generale della cronaca.
+REGOLE: non inventare gol, presenze o voti; usa i nomi esattamente come forniti; niente markdown né emoji; ogni scoop deve avere un'apertura diversa dagli altri; riporta in "n" il numero_riferimento.
+JSON ONLY: {"titolo":"...","servizi":[{"n":1,"scoop":"...","testo":"..."}],"pronostico":"..."}`;
+      const raw = await _callAI(prompt, 1800);
+      if (!raw || raw === '__QUOTA__') { _aiLog('Mosca', '❌ Nessuna risposta', false); if (force) toast('L\'AI non ha risposto: riprova tra poco', 'error', 3500); return; }
+      const parsed = _parseAIJson(raw);
+      if (!parsed?.titolo || !Array.isArray(parsed.servizi) || !parsed.servizi.length) { _aiLog('Mosca', '❌ JSON non valido', false); if (force) toast('Risposta AI non valida: riprova', 'error', 3500); return; }
+      const servizi = [];
+      for (const sv of parsed.servizi) {
+        const n = parseInt(sv.n); const s = scelti[n - 1];
+        if (!s || !sv.scoop || !sv.testo) continue;
+        servizi.push({ nome: s.c.p.soprannome || s.c.p.nome, uid: s.c.uid, scoop: _cleanAIText(sv.scoop).toUpperCase(), testo: _cleanAIText(sv.testo) });
+      }
+      if (!servizi.length) { _aiLog('Mosca', '❌ Nessun servizio valido', false); return; }
+      aiMosca.value = { weekKey: wk, titolo: _cleanAIText(parsed.titolo).toUpperCase(), servizi, pronostico: _cleanAIText(parsed.pronostico || ''), firma, generatedAt: Date.now(), cardId: (currentGroup.value.id || '') + '_mosca_' + Date.now() };
+      localStorage.setItem('amicifc_mosca_' + currentGroup.value.id, JSON.stringify(aiMosca.value));
+      _aiLog('Mosca', '✅ ' + aiMosca.value.titolo);
+      if (currentGroup.value?.firebaseUrl) {
+        const token = await getValidToken() || '';
+        if (token) {
+          const by = (JSON.parse(localStorage.getItem('amicifc_fb_user') || 'null'))?.email || 'Utente locale';
+          const okW = await _fbWrite('aiCards/mosca/' + _aiCardGroupKey(), { ...aiMosca.value, createdBy: by }, token);
+          if (okW) { aiMosca.value = { ...aiMosca.value, fbSynced: true }; localStorage.setItem('amicifc_mosca_' + currentGroup.value.id, JSON.stringify(aiMosca.value)); }
+        }
+      }
+      if (force) toast('📣 Cronaca generata!', 'success', 2500);
+    };
+
+    // Carica la cronaca (locale, poi Firebase) e, se serve, la genera. Chiamata a ogni init delle card AI.
+    const _checkMosca = async () => {
+      if (!currentGroup.value) return;
+      const gid = currentGroup.value.id;
+      try {
+        if (!aiMosca.value) { const ls = JSON.parse(localStorage.getItem('amicifc_mosca_' + gid) || 'null'); if (ls?.servizi?.length) aiMosca.value = ls; }
+        if (currentGroup.value.firebaseUrl) {
+          const r = await fetch(`${getFirebaseBase()}/aiCards/mosca/${_aiCardGroupKey()}.json`, { cache: 'no-store' });
+          if (r.ok) {
+            const d = await r.json();
+            if (d?.servizi && (d.generatedAt || 0) >= (aiMosca.value?.generatedAt || 0)) {
+              aiMosca.value = { ...d, servizi: toArr(d.servizi), fbSynced: true };
+              localStorage.setItem('amicifc_mosca_' + gid, JSON.stringify(aiMosca.value));
+            } else if (!d && aiMosca.value?.fbSynced) {
+              // cancellata da Inspector/Zona Pericolo su un altro dispositivo: non tengo la copia vecchia
+              aiMosca.value = null; localStorage.removeItem('amicifc_mosca_' + gid);
+            }
+          }
+        }
+      } catch(e) { _aiLog('Mosca', '⚠️ Lettura: ' + e.message, false); }
+      await _generateMosca(false);
+    };
+    const rigeneraMosca = () => { _generateMosca(false).then(() => { if (!aiMosca.value?.servizi?.length) toast('Nessuna cronaca generata (vedi log AI)', 'info', 3000); else toast('La cronaca di questa settimana è già presente', 'info', 2500); }).catch(e => _aiLog('UI', '❌ ' + e.message, false)); };
+    const azzeraRigeneraMosca = () => {
+      aiMosca.value = null; localStorage.removeItem('amicifc_mosca_' + (currentGroup.value?.id || ''));
+      _aiLog('UI', '📣 Azzero e rigenero la cronaca...');
+      _generateMosca(true).catch(e => _aiLog('UI', '❌ ' + e.message, false));
+    };
+
     const exportPlayerUids = () => {
       if (!currentGroup.value) return;
       const data = groupPlayers.value.map(p => ({
@@ -17493,6 +17838,9 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       } else if (aiFlagValid('pronostico', _gid)) {
         _aiLog('Init','⏭️ Pronostico: flag valido — skip');
       }
+
+      // Cronaca della settimana (Mosca, v1.916): carica e, se e' lunedi'-mercoledi' e manca, genera
+      _checkMosca().catch(e => _aiLog('Init','❌ Mosca: '+e.message,false));
 
       if (aiFlagValid('tt', _gid) && _hofMesePrecCoperto()) {
         // Carica da localStorage se non già in memoria
@@ -21689,6 +22037,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
           cloudAiCards.pronostico[_gKey] = aiPronostico.value;
         }
 
+        // (La cronaca Mosca NON passa da qui: vive solo in aiCards/mosca, che questo payload conserva così com'è.
+        //  Così una cronaca cancellata dall'Inspector non viene risuscitata da un sync.)
+
         // ── MERGE PARTITE CONCORRENTI + Sync v2: flag playerPhotosMigrated ──
         // Prima di sovrascrivere, integra partite scritte da altri utenti nel frattempo.
         // Due casi distinti gestiti qui:
@@ -22368,6 +22719,11 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
     // così le card compaiono senza dover aspettare il prossimo ciclo di sync.
     watch(aiCardsTrashTalk, (cards) => {
       if (!_heroLaunched || !cards.length || !groupMatches.value.length) return;
+      const all = _heroRawData.value;
+      if (all.length) _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(all)];
+    });
+    watch(aiMosca, (m) => {
+      if (!_heroLaunched || !m?.servizi?.length || !groupMatches.value.length) return;
       const all = _heroRawData.value;
       if (all.length) _heroCards.value = [_heroWelcomeCard, ..._fyShuffle(all)];
     });
@@ -23994,6 +24350,9 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON:
         const righe = (s.squad||[]).map(p => `• ${p.nome}`);
         return `🏆 ${s.label} — ${s.phase||''}\n${righe.join('\n')}\n${s.txt||''}\n\n⚽ Amici FC`;
       }
+      if (s.type === 'moscaMini') {
+        return `📣 ${s.label}\n${s.titolo||''}\n${s.nome ? s.nome + ' — ' : ''}${s.scoop||''}\n${s.testo||''}\n— ${s.firma||''}\n\n⚽ Amici FC`;
+      }
       if (s.type === 'pronoMini') {
         return `🔮 ${s.label} · ${s.sub||''}\n${s.nome||''}\n${s.motivo||s.testo||''}\n\n⚽ Amici FC`;
       }
@@ -24860,6 +25219,9 @@ const toggleFont = () => {
         // Stesso identico problema del TrashTalk — anche il Pronostico usa un flag a TTL calendario
         // (7 giorni), non legato alle partite. Senza questo, il pronostico della prossima partita
         // della vecchia stagione (spesso già giocata e passata) resterebbe "valido" e visibile.
+        aiMosca.value = null;
+        localStorage.removeItem('amicifc_mosca_' + gid);
+        if (g.firebaseUrl) { try { await _fbWrite(`aiCards/mosca/${_aiCardGroupKey()}`, null, await getValidToken()); } catch(e) {} }
         aiPronostico.value = null;
         aiFlagClear('pronostico', gid);
         localStorage.removeItem('amicifc_prono_' + gid);
@@ -26228,6 +26590,23 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         }
       }
 
+      // Cronaca della settimana "alla Mosca" (v1.916): 2 servizi alla volta, a rotazione ogni 30 min
+      if (_moscaFresh(aiMosca.value)) {
+        const _mo = aiMosca.value;
+        const _moItems = _mo.servizi.map(sv => {
+          const pp = players.find(p => String(p.uid||p.id) === String(sv.uid)) || players.find(p => (p.soprannome||p.nome||'').toLowerCase() === (sv.nome||'').toLowerCase());
+          return { nome: sv.nome, scoop: sv.scoop, testo: sv.testo, foto: pp?.foto, uid: pp?.uid || sv.uid, icon: '📣' };
+        });
+        if (_mo.pronostico) _moItems.push({ nome: '', scoop: 'IL PRONOSTICO PER GIOVEDÌ', testo: _mo.pronostico, icon: '🔮' });
+        const _moStart = _seed30 % _moItems.length;
+        for (let k = 0; k < Math.min(2, _moItems.length); k++) {
+          const it = _moItems[(_moStart + k) % _moItems.length];
+          slides.push({ type:'moscaMini', dur:7500, label:'📣 CRONACA DELLA SETTIMANA',
+            titolo:_mo.titolo, firma:_mo.firma, scoop:it.scoop, nome:it.nome, testo:it.testo, icon:it.icon, foto:it.foto, uid:it.uid,
+            bg:'linear-gradient(145deg,#1f1100,#7c2d12 60%,#ea580c)', dest:'stats' });
+        }
+      }
+
       if(aiCardsTrashTalk.value.length>0){
         const ttIdx=aiCardsTrashTalkIdx.value%aiCardsTrashTalk.value.length;
         const tt=aiCardsTrashTalk.value[ttIdx];
@@ -27188,7 +27567,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       showChangelog, changelogEntries,
       exportExcel, totalReset, autoSyncToCloud,
       showInstallGuide, forceUpdate, showOnboardingLogin, firebaseLoginThenSync,
-      computeFormationPrediction, getCachedPrediction,
+      computeFormationPrediction, getCachedPrediction, aiMosca, rigeneraMosca, azzeraRigeneraMosca, zpAvailable, zpWord, zpWordReady, zpInput, zpInput2, zpOldInput, zpChanging, zpBusy, zpMsg, zpSetWord, zpUnlock, zpLock, zpConfirm, zpAsk, zpConfirmOk,
       showGroupCloud, isOnline, groupCloudUrl, groupCloudApiKey, openGroupCloud, saveGroupCloud, showFbHelp, groupSyncOnStartup, refreshFirebaseToken, lastSyncTime, lastSyncError, lazySyncIfNeeded,
       regenerateFormations, getFormationBalance, miniFieldSize,
       otherPlayers, addRivalità, removeRivalità, setRivalità, addAffinita, removeAffinita, setAffinita,
@@ -27196,7 +27575,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
       statsHeroIdx, statsHeroData, homeHeroIdx, homeHeroData, newsExpanded, ptrVisible, ptrLoading, h2hPlayerA, h2hPlayerB, h2hComputed,
       aiCardsTrashTalk, aiCardsTrashTalkIdx, aiCardsTrashTalkFirma, aiCardsHallOfFame, aiNicknames, aiNicknameSlide,
       hofStorico, hofStoricoLoading, hofStoricoLoaded, hofStoricoFiltrato, hofExpandedMese, hofPlayerFor, hofCountsFor,
-      aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection, _startZPCountdown,
+      aiCardsDebugLog, _aiLog, copyAiLog, forceReuploadFotos, exportPlayerUids, aiPronostico, _generatePronostico, _fitNickText, _nickFontSize, _generateTrashTalk, _generateHallOfFame, _generateNicknames, zonaPericoloExpanded, zonaPericoloUnlocked, zonaPericoloCountdown, zpSection,
       seasonSummaryTestOutput, seasonSummaryTestGenerating, testGeneraRiepilogoStagione, buildSeasonSummaryTest, formazioneRows, catValue, catValueDisplay, catTiedCount, catSplit, seasonSummaryWipeLoading, wipeLocalSeasonSummaryHistory,
       seasonSummaryTestSectionD, seasonSummaryPreviewMatch, buildSeasonSummaryTestSectionD,
       seasonSummaryTestSectionE, buildSeasonSummaryTestSectionE, buildSeasonSummaryTestGabbione,
