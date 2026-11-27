@@ -241,7 +241,7 @@ const $=id=>document.getElementById(id);
 // significa semplicemente ricaricare la pagina dalla rete, bypassando qualunque cache del browser.
 // version.json dedicato (inspector-version.json) SEPARATO da quello dell'app, perché i due file
 // si aggiornano in momenti diversi e non devono confondersi a vicenda.
-const INSPECTOR_VERSION = '1.29';
+const INSPECTOR_VERSION = '1.30';
 function toggleTheme(){ const d=document.documentElement; const n=d.getAttribute('data-theme')==='dark'?'light':'dark'; d.setAttribute('data-theme',n); try{localStorage.setItem('insp_theme',n)}catch(e){} }
 
 async function checkInspectorUpdate(){
@@ -657,9 +657,7 @@ function buildSidebar(){
     ${ni('maint-votazioni','🗳️','Votazioni','','maint-votazioni')}
     ${ni('maint-pins','🔑','PIN Giocatori','','maint-pins')}
     ${ni('maint-zp','🔐','Parola Zona Pericolo','','maint-zp')}
-    ${ni('maint-migrate','🛡️','Migrazione Sicurezza','','maint-migrate')}
-    ${ni('maint-legacy-ids','🆔','Correggi ID Legacy','','maint-legacy-ids')}
-    ${ni('maint-clean','🧹','Pulizia Firebase','','maint-clean')}
+    ${ni('maint-force','⚡','Aggiornamento forzato','','maint-force')}
     ${ni('sync-tools','🔄','Sync','','sync-tools')}
     ${ni('devices-view','📱','Dispositivi','','devices-view')}
     ${ni('log-view','📋','Log Attività','','log-view')}
@@ -671,6 +669,9 @@ function buildSidebar(){
     ${AUTH_TOKEN ? `
     <div class="nav-sep"></div><div class="nav-group" style="color:var(--gray)">⏸️ Deprecato</div>
     ${ni('maint-obsoleti','🗄️','Obsoleti','','maint-obsoleti')}
+    ${ni('maint-migrate','🛡️','Migrazione Sicurezza','','maint-migrate')}
+    ${ni('maint-clean','🧹','Pulizia Firebase','','maint-clean')}
+    ${ni('maint-legacy-ids','🆔','Correggi ID Legacy','','maint-legacy-ids')}
     ${ni('maint-ai-meta','🤖','Migrazione AI Metadata','','maint-ai-meta')}
     ` : ''}`;
 }
@@ -697,6 +698,7 @@ function showView(v){
     'ai-mosca':renderMosca,
     'maint-zp':renderZonaPericolo,
     'maint-migrate':renderMigraSicurezza,
+    'maint-force':renderForceUpdate,
     'sync-tools':renderSyncTools,
     'raw-view':renderRaw,
     'audit-view':renderAudit,
@@ -905,6 +907,7 @@ function renderDashboard(){
 
 // ── ANALISI DB ──
 function renderCheck(){
+  setTimeout(runSecurityChecks,0);
   const noUID=PLAYERS.filter(p=>!p.uid);
   const noMUUID=MATCHES.filter(m=>!m.matchUUID);
   const dupCheck={};
@@ -967,6 +970,10 @@ function renderCheck(){
       </tbody></table>`:''}
       `:`<div style="color:var(--text2);font-size:0.82rem">Migrazione foto non ancora eseguita. <a href="javascript:showView('sync-tools')" style="color:var(--lime)">Vai a Sync</a></div>`}
     </div>
+  </div>
+  <div class="card" id="secCheckCard">
+    <div class="card-head"><span class="card-title">🛡️ Sicurezza</span></div>
+    <div class="card-body" id="secCheckBody"><span style="color:var(--text2);font-size:.82rem">Controllo in corso…</span></div>
   </div>
   <div class="card">
     <div class="card-head"><span class="card-title">🏗️ Struttura Firebase</span></div>
@@ -3181,6 +3188,65 @@ function renderNicks(){
   });
   if(!Object.keys(ai).length) html+='<div class="empty"><div class="empty-icon">🧬</div>Nessun soprannome</div>';
   $('main').innerHTML=html;
+}
+
+// ── 🛡️ CONTROLLI SICUREZZA (v1.30) ──
+async function runSecurityChecks(){
+  const box=$('secCheckBody'); if(!box) return;
+  const rows=[]; const add=(ok,txt,extra)=>rows.push(`<tr><td style="width:34px">${ok===true?'✅':ok===false?'❌':'ℹ️'}</td><td style="font-size:.82rem">${txt}${extra?`<div style="font-size:.74rem;color:var(--text2)">${extra}</div>`:''}</td></tr>`);
+  let base=''; try{ base=getActiveDb().dbUrl.replace(/\/$/,''); }catch(e){ box.innerHTML='Nessun database selezionato.'; return; }
+  const get=async(path,auth)=>{ try{ const r=await fetch(`${base}/${path}.json${auth&&AUTH_TOKEN?'?auth='+AUTH_TOKEN:''}`,{cache:'no-store'}); return {status:r.status,data:r.ok?await r.json():null}; }catch(e){ return {status:0,data:null}; } };
+  // 1) Test regole: un lettore NON autenticato non deve poter leggere i segreti
+  const pub=await get('amicifc_private/votePins',false);
+  add(pub.status===401||pub.status===403, 'Regole: lettura pubblica di amicifc_private/votePins', pub.status===401||pub.status===403?'bloccata (corretto)':`⚠️ risposta HTTP ${pub.status}: le regole NON proteggono i PIN — ripubblica REGOLE-FIREBASE`);
+  const pubEntries=await get('amicifc_private/votes',false);
+  add(pubEntries.status===401||pubEntries.status===403, 'Regole: lettura pubblica di amicifc_private/votes', pubEntries.status===401||pubEntries.status===403?'bloccata (corretto)':`⚠️ risposta HTTP ${pubEntries.status}`);
+  // 2) Vecchi nodi ancora pubblici
+  const oldP=await get('amicifc/votePins',false), oldV=await get('amicifc/votes',false);
+  add(!(oldP.data), 'Vecchio nodo amicifc/votePins', oldP.data?'⚠️ ESISTE ANCORA ed è leggibile da chiunque: elimina dopo la migrazione':'assente (corretto)');
+  add(!(oldV.data), 'Vecchio nodo amicifc/votes', oldV.data?'⚠️ ESISTE ANCORA ed è leggibile da chiunque':'assente (corretto)');
+  if(!AUTH_TOKEN){ add(null,'Fai il login admin per i controlli su PIN, parola e votazioni'); box.innerHTML='<table class="tbl">'+rows.join('')+'</table>'; return; }
+  // 3) Parola Zona Pericolo
+  const zp=await get('amicifc_private/security/zonaPericolo',true);
+  add(!!(zp.data&&zp.data.hash),'Parola Zona Pericolo', zp.data&&zp.data.hash?`impostata il ${fmt_ts(zp.data.updatedAt)} da ${escHtml(String(zp.data.updatedBy||'?'))}`:'non impostata');
+  // 4) PIN mancanti
+  const pins=(await get('amicifc_private/votePins',true)).data||{};
+  const withPin=new Set(); Object.values(pins).forEach(g=>Object.keys(g||{}).forEach(u=>withPin.add(u)));
+  const noPin=PLAYERS.filter(p=>p.uid&&!withPin.has(p.uid));
+  add(noPin.length===0?true:null,`PIN di voto: ${withPin.size} impostati`, noPin.length?`${noPin.length} giocatori senza PIN (normale se non votano)`:'');
+  // 5) Votazioni orfane
+  const votes=(await get('amicifc_private/votes',true)).data||{};
+  const mUUIDs=new Set(MATCHES.map(m=>m.matchUUID).filter(Boolean));
+  let orfane=0; Object.values(votes).forEach(g=>Object.keys(g||{}).forEach(m=>{ if(!mUUIDs.has(m)) orfane++; }));
+  add(orfane===0?true:null,'Votazioni orfane (partita non più esistente)', orfane?`${orfane} da eliminare da Votazioni`:'nessuna');
+  box.innerHTML='<table class="tbl">'+rows.join('')+'</table>';
+}
+
+// ── ⚡ AGGIORNAMENTO FORZATO (v1.30) ──
+// Scrive amicifc/appControl/forceUpdate = {version, at, by}. Le app dalla v1.918 in poi, quando trovano
+// su GitHub Pages (version.json) una versione >= a questa, la trattano come aggiornamento critico
+// (si aggiornano da sole in background). Non carica file: prima vanno pubblicati app + sw.js + version.json.
+async function renderForceUpdate(){
+  if(!DB){alert('Clicca prima Connetti.');return;}
+  let cur=null;
+  try{ const a=getActiveDb(); cur=await fbRead(a.dbUrl,'amicifc/appControl/forceUpdate',null); }catch(e){}
+  $('main').innerHTML=`<div class="card"><div class="card-title">⚡ Aggiornamento forzato dell'app</div>
+  <div style="font-size:.82rem;color:var(--text2);margin:6px 0 12px">Prima pubblica i file nuovi su GitHub Pages (<code>amici-fc.html</code>, <code>sw.js</code>, <code>version.json</code>), poi imposta qui la versione. Le app si aggiornano da sole quando vengono aperte o rimesse in primo piano. Funziona solo sulle app dalla v1.918 in poi: per le più vecchie serve <code>"critical": true</code> in <code>version.json</code>.</div>
+  <div style="margin-bottom:12px">${cur&&cur.version?`<span class="badge badge-orange">Attivo: v${escHtml(String(cur.version))}</span> <span style="font-size:.78rem;color:var(--text2)">impostato il ${fmt_ts(cur.at)} da ${escHtml(String(cur.by||'?'))}</span>`:'<span class="badge badge-gray">Nessun aggiornamento forzato attivo</span>'}</div>
+  ${AUTH_TOKEN?`<div style="display:flex;flex-direction:column;gap:8px;max-width:340px">
+    <input id="fuVer" placeholder="Versione da forzare (es. 1.918)" value="${cur&&cur.version?escHtml(String(cur.version)):''}">
+    <button class="btn btn-orange" onclick="setForceUpdate()">⚡ Forza questa versione</button>
+    <button class="btn btn-ghost" onclick="clearForceUpdate()">Rimuovi il blocco</button></div>`:'<div style="font-size:.85rem">Fai il login (admin) per usarlo.</div>'}
+  </div>`;
+}
+async function setForceUpdate(){
+  const v=($('fuVer').value||'').trim();
+  if(!/^\d+\.\d+$/.test(v)){alert('Scrivi la versione nel formato 1.918');return;}
+  if(!confirm('Forzare l\'aggiornamento alla v'+v+'?\n\nAssicurati di aver già pubblicato i file di quella versione su GitHub Pages.')) return;
+  try{ const a=getActiveDb(); await fbWrite(a.dbUrl,a.apiKey,AUTH_TOKEN,'amicifc/appControl/forceUpdate',{version:v,at:Date.now(),by:AUTH_EMAIL||'inspector'}); log('⚡ Aggiornamento forzato impostato: v'+v,'ok'); renderForceUpdate(); }catch(e){alert('❌ Errore: '+e.message);}
+}
+async function clearForceUpdate(){
+  try{ const a=getActiveDb(); await fbDelete(a.dbUrl,AUTH_TOKEN,'amicifc/appControl/forceUpdate'); log('Aggiornamento forzato rimosso','ok'); renderForceUpdate(); }catch(e){alert('❌ Errore: '+e.message);}
 }
 
 // ── 🛡️ MIGRAZIONE SICUREZZA (v1.29) ──

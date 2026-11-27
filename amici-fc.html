@@ -9708,7 +9708,9 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.917',date:'2026-11-27',items:[
+    const changelogEntries = [{version:'v1.918',date:'2026-11-27',items:[
+      'Aggiornamento forzato: l Inspector puo segnare una versione come obbligatoria; le app piu vecchie si aggiornano da sole appena la aprono o la rimettono in primo piano (mai in loop: solo se i file nuovi sono gia online).'
+    ]},{version:'v1.917',date:'2026-11-27',items:[
       'Zona Pericolo protetta: la sezione compare solo a chi ha fatto il login Firebase (o nei gruppi solo locali). Per aprirla serve la parola segreta del gruppo, impostata la prima volta da un admin loggato e salvata su Firebase solo come impronta (mai in chiaro). 3 errori = blocco di 5 minuti; la zona si richiude da sola dopo 5 minuti; cambio parola possibile conoscendo quella attuale.',
       'Le azioni distruttive (Reset dati gruppo, Reset totale, Ripristino totale da Firebase, cancellazione storico Riepiloghi) chiedono anche di scrivere a mano una parola di conferma. Aperture, tentativi falliti e conferme finiscono nel Log di sistema.'
       ,'Sicurezza Firebase: PIN di voto, votazioni e parola della Zona Pericolo si spostano in un nodo separato amicifc_private, leggibile solo dagli admin (prima erano leggibili da chiunque). Servono le nuove Regole (guida aggiornata) e la migrazione dall Inspector.'
@@ -11170,7 +11172,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.917');
+    const appVersion = ref('1.918');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -25635,6 +25637,17 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         if (remoteVer > currentVer) {
           newVersion.value      = data.version;
           updateCritical.value  = !!data.critical;
+          // Aggiornamento forzato dall'Inspector (v1.918): nodo amicifc/appControl/forceUpdate = {version}.
+          // Rende "critico" l'aggiornamento SOLO se la versione pubblicata (version.json) è già >= a quella
+          // richiesta: così non può mai innescare un loop di ricarica se i file nuovi non sono ancora online.
+          try {
+            const _fbu = (currentGroup.value?.firebaseUrl || '').replace(/\/$/, '');
+            if (_fbu && !updateCritical.value) {
+              const _fr = await fetch(`${_fbu}/amicifc/appControl/forceUpdate.json`, { cache: 'no-store' });
+              const _fd = _fr.ok ? await _fr.json() : null;
+              if (_fd && _fd.version && parseVer(data.version) >= parseVer(_fd.version)) updateCritical.value = true;
+            }
+          } catch(e) { /* extra: se non raggiungibile resta l'aggiornamento normale */ }
           updateHighlights.value = Array.isArray(data.highlights) ? data.highlights : [];
           // Aggiornamento critico + app non visibile → reload silenzioso, nessuna interazione utente
           if (updateCritical.value && document.hidden) {
