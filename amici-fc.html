@@ -6204,6 +6204,8 @@ input:checked + .toggle-slider::before { transform: translateX(22px); }
             <div>☁️ <strong>Con Firebase</strong>: i dati si sincronizzano automaticamente tra tutti i telefoni del gruppo, in tempo reale, senza dover scambiarsi file. Serve un progetto Firebase gratuito (guida passo-passo inclusa) e un login (email/password) per chi deve poter scrivere dati</div>
             <div>🔄 <strong>Aggiornamento dati</strong>: l'app controlla da sola ogni 2 minuti se qualcuno ha cambiato qualcosa e scarica solo se serve (mai mentre stai scrivendo). Trascinando la home verso il basso e tenendo premuto fai un controllo immediato. Se vedi dati sbagliati o incompleti: Impostazioni → Zona Pericolo → «Ripristino totale da Firebase».</div>
             <div>🤖 <strong>AI gratuita</strong>: Gemini, Groq (GPT-OSS 120B) o OpenRouter (Gemma 4). I modelli cambiano nel tempo: se «Testa connessione» dà errore, controlla la chiave in Impostazioni → AI.</div>
+            <div>📰 <strong>Articolo della partita</strong>: ogni articolo è scritto nello stile di una grande firma del giornalismo sportivo (scelta a rotazione) usando risultato, marcatori, voti, note dal campo e le curiosità della stagione; l'AI vede anche gli ultimi articoli per non ripeterli. Funziona con qualsiasi provider AI configurato e finisce sempre con una firma simpatica. Se non ti piace, «Rigenera» ne scrive uno diverso.</div>
+            <div>🔮 <strong>Risultato più probabile</strong>: calcolato dai gol medi reali del gruppo e dalla forza delle due squadre, coerente con le percentuali; uguale nel testo, nel PNG e nel commento.</div>
             <div>⚙️ Si configura toccando l'icona <strong>☁️</strong> in alto accanto al nome del gruppo — ogni gruppo ha il proprio Firebase indipendente, si può aggiungere o togliere in qualsiasi momento senza perdere dati</div>
             <div>📋 Dentro quella schermata trovi il bottone <strong>"❓ Come configurare Firebase?"</strong> — la guida passo-passo completa (progetto, database, autenticazione, regole di sicurezza da incollare) è lì, non serve cercarla altrove</div>
             <div>⚠️ <strong>Alcune funzioni richiedono Firebase attivo</strong> e non funzionano in modalità solo locale: Vota con gli amici (Pagelle Multi-Utente) e la sincronizzazione multi-dispositivo. Tutto il resto (statistiche, card AI, Riepilogo Stagione, PDF) funziona identico in entrambe le modalità</div>
@@ -9633,7 +9635,15 @@ createApp({
     };
 
     // Changelog entries — aggiornare ad ogni versione
-    const changelogEntries = [{version:'v1.913',date:'2026-11-21',items:[
+    const changelogEntries = [{version:'v1.915',date:'2026-11-27',items:[
+      'Articoli e commenti partita rifatti: un solo generatore usato da Genera Articolo, Rigenera e commento dopo la votazione. Ora funziona con tutti i provider AI configurati (prima Groq e OpenRouter non producevano nulla) e con fallback tra provider.',
+      'Ogni articolo e scritto nello stile di una grande firma a rotazione (Brera, Viola, Ciotti, Montes, Mura, Pizzul, Caressa, Processo del Lunedi), sempre ironico; lunghezza 120-170 parole. L AI riceve fatti ricavati dai dati (doppiette, primo gol stagionale, classifica marcatori, record di gol, voti, autogol, rigori, note dal campo) e i titoli/aperture degli ultimi articoli da non ripetere. Niente piu asterischi e markdown. Firma sempre presente, diversa dalle ultime.',
+      'Il dato "storico" ora e esplicitamente della stagione corrente, prima di questa partita.',
+      'Identikit AI: l AI vede i soprannomi e i confronti gia assegnati agli altri giocatori e non li ripete; motivazioni con strutture diverse.',
+      'Risultato piu probabile: calcolo unico e deterministico (modello di Poisson sui gol medi reali del gruppo per giocatore in campo, coerente con le percentuali). Testo, PNG e commento AI mostrano lo stesso risultato (prima il PNG usava un numero casuale). Tabellone piu grande nel PNG.'
+    ]},{version:'v1.914',date:'2026-11-27',items:[
+      'Fix Identikit AI (segnalato da Alby: un difensore con 9 gol in 29 partite, ma in stagione ne aveva 13 con 1 gol): un Identikit scritto quando le statistiche erano piu alte (nuova stagione o partita eliminata) non veniva mai rigenerato, perche il confronto dava un numero negativo. Ora viene considerato vecchio, nascosto e rigenerato. Il prompt specifica anche che i numeri sono della stagione corrente e vanno citati esattamente.'
+    ]},{version:'v1.913',date:'2026-11-21',items:[
       'Modelli AI aggiornati (verificati online): Gemini ora prova gemini-3.6-flash, poi gemini-3.8-flash, poi gemini-2.5-flash-lite (gemini-2.5-flash esce di produzione il 1 dicembre 2026). Per Gemini 3.8 il thinking usa il livello low (minimal non e supportato).',
       'Groq: Llama 3.3 70B non e piu nel piano gratuito; ora usa GPT-OSS 120B con riserva Qwen 3.8 e ragionamento low.',
       'OpenRouter: nuovo elenco gratuiti (Gemma 4 31B predefinito, Gemma 4 26B, Nemotron 3 Ultra, Ling 3.2 Flash); chi aveva un vecchio modello viene spostato sul nuovo predefinito.',
@@ -11082,7 +11092,7 @@ createApp({
     const updateCritical  = ref(false);
     const showUpdateHighlights = ref(false);
     const updateHighlights = ref([]);
-    const appVersion = ref('1.913');
+    const appVersion = ref('1.915');
     const appDate         = ref(new Date().toLocaleDateString('it-IT')); // updated from version.json
 
     const previewPNGUrl  = ref('');
@@ -12527,7 +12537,7 @@ createApp({
         (p.soprannome||'').toLowerCase().trim(),
       ].filter(Boolean);
       for (const k of keys) {
-        if (nicks[k]?.motivazione) return nicks[k];
+        if (nicks[k]?.motivazione && !_nickIsStale(nicks[k], p)) return nicks[k];
       }
       return null;
     };
@@ -13235,6 +13245,39 @@ Rispondi SOLO con questo JSON (niente altro testo):
     // delle 3 fasce di scarto (equilibrio/vantaggio leggero/vantaggio netto), 15 combinazioni totali,
     // scelte in modo deterministico dalla composizione della formazione — la stessa formazione dà
     // sempre lo stesso testo (utile per la cache), formazioni diverse hanno testi diversi.
+    // ── Risultato previsto (v1.915): modello di Poisson calibrato sui dati reali del gruppo ──
+    const _groupGoalsPerPlayer = () => {
+      // gol totali / giocatori scesi in campo, su tutte le partite della stagione in corso; con pochi dati
+      // si mescola con un valore di partenza (0.55 gol a testa, tipico del calcetto amatoriale).
+      let goals = 0, pl = 0;
+      for (const m of (groupMatches.value || [])) {
+        const gA = m?.risultato?.goalA, gB = m?.risultato?.goalB;
+        const n = (m?.squadraA?.length || 0) + (m?.squadraB?.length || 0);
+        if (gA == null || gB == null || !n) continue;
+        goals += (gA || 0) + (gB || 0); pl += n;
+      }
+      const PRIOR_PL = 24, PRIOR_RATE = 0.55;
+      return (goals + PRIOR_RATE * PRIOR_PL) / (pl + PRIOR_PL);
+    };
+    const _poissonPmf = (k, lam) => { let p = Math.exp(-lam); for (let i = 1; i <= k; i++) p *= lam / i; return p; };
+    const _predictScoreline = (titA, titB, pctA, pctX, pctB) => {
+      const totale = Math.min(16, Math.max(2, _groupGoalsPerPlayer() * (titA + titB)));
+      const shareA = Math.min(0.85, Math.max(0.15, (pctA + pctX / 2) / 100));
+      const lamA = Math.max(0.3, totale * shareA), lamB = Math.max(0.3, totale * (1 - shareA));
+      // esito piu' probabile: pareggio se le due squadre sono praticamente pari o se X e' il valore piu' alto
+      let esito = pctA > pctB ? 'A' : pctB > pctA ? 'B' : 'X';
+      if (Math.abs(pctA - pctB) < 4 || pctX >= Math.max(pctA, pctB)) esito = 'X';
+      let best = null, bestP = -1;
+      for (let a = 0; a <= 16; a++) for (let b = 0; b <= 16; b++) {
+        if (esito === 'A' && !(a > b)) continue;
+        if (esito === 'B' && !(b > a)) continue;
+        if (esito === 'X' && a !== b) continue;
+        const pr = _poissonPmf(a, lamA) * _poissonPmf(b, lamB);
+        if (pr > bestP) { bestP = pr; best = { a, b }; }
+      }
+      return best || { a: Math.round(lamA), b: Math.round(lamB) };
+    };
+
     const computeFormationPrediction = (f) => {
       const getAvg = (pids) => {
         if (!pids?.length) return 6;
@@ -13301,8 +13344,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
 
       const diff = Math.abs(scoreA - scoreB);
       const favA = scoreA > scoreB;
-      const nA = f.nomeSquadraA || 'Squadra A';
-      const nB = f.nomeSquadraB || 'Squadra B';
+      const nA = (f.nomeSquadraA || 'Squadra A').trim();
+      const nB = (f.nomeSquadraB || 'Squadra B').trim();
 
       // Miglior giocatore per squadra (per media voto), per rendere il testo più concreto — stesso
       // criterio già usato dal commento AI, così le due fonti si somigliano anche nello stile.
@@ -13410,14 +13453,19 @@ Rispondi SOLO con questo JSON (niente altro testo):
         verdict += ` 👥 ${nomeMag} in superiorità numerica: ${Math.max(titA, titB)} contro ${Math.min(titA, titB)}.`;
       }
 
-      // Punteggio previsto deterministico (non più Math.random()) — stessa formazione, stesso
-      // punteggio previsto ad ogni ricalcolo, non solo finché resta in cache.
-      const totalGoalsExpected = 5 + (hash % 3);
-      const goalsA = Math.round(totalGoalsExpected*(adjA/(adjA+adjB)));
-      const goalsB = totalGoalsExpected - goalsA;
+      // Risultato più probabile (v1.915, richiesta di Alby: "fatto male"). Prima: totale gol inventato
+      // (5 + hash%3) e, nel PNG, un secondo risultato diverso tirato a Math.random() con intervalli
+      // fissi (testo e immagine potevano non coincidere, e a squadre pari vinceva sempre la A).
+      // Ora UN SOLO calcolo, deterministico, usato da testo, PNG e commento AI:
+      //  1) gol attesi totali = media storica del gruppo di gol per giocatore in campo × titolari di questa formazione
+      //     (si adatta da sola al formato: 5v5, 6v6, 10v2...);
+      //  2) ripartiti tra le squadre in base alle STESSE probabilita' mostrate (pctA / pctX / pctB);
+      //  3) tra i punteggi possibili (Poisson) si sceglie il piu' probabile COERENTE con l'esito piu' probabile.
+      const _sc = _predictScoreline(titA, titB, pctA, pctX, pctB);
+      const goalsA = _sc.a, goalsB = _sc.b;
       verdict += ` Risultato probabile: ${goalsA}-${goalsB}.`;
 
-      return { pctA, pctX, pctB, verdict };
+      return { pctA, pctX, pctB, verdict, scoreA: goalsA, scoreB: goalsB };
     }
 
     const _predCache = new Map();
@@ -14441,9 +14489,9 @@ Rispondi SOLO con questo JSON (niente altro testo):
       const innerPad=22;
       const innerY=FOOT_PANEL_Y+innerPad;
       const innerH=FOOT_PANEL_H-innerPad*2;
-      const commZoneH=innerH*0.32;
-      const quoteZoneH=innerH*0.48;
-      const resZoneH=innerH*0.20;
+      const commZoneH=innerH*0.30;
+      const quoteZoneH=innerH*0.43;
+      const resZoneH=innerH*0.27; // v1.915: tabellone del risultato piu' grande (era 20%)
 
       // ── COMMENTO: font scalato per riempire la sua zona, max 3 righe ──
       let commentoLines=0, commFontSize=38;
@@ -14516,8 +14564,8 @@ Rispondi SOLO con questo JSON (niente altro testo):
         // ── RISULTATO PIÙ PROBABILE: tabellone stadio, font scalato — NESSUN tetto massimo fisso ──
         const resZoneY=boxesY+boxH+16;
         const favorB=pred.pctB>pred.pctA;
-        const resA=favorB?Math.floor(1+Math.random()*1):Math.floor(2+Math.random()*2);
-        const resB=favorB?Math.floor(2+Math.random()*2):Math.floor(1+Math.random()*1);
+        // v1.915: stesso risultato del testo e del commento (prima: Math.random con intervalli fissi)
+        const resA=pred.scoreA, resB=pred.scoreB;
         const resLabelSize=Math.round(24*Math.min(1.3,resZoneH/110));
         ctx.font=`800 ${resLabelSize}px "Segoe UI",Arial`;ctx.fillStyle='rgba(255,255,255,0.88)';ctx.textAlign='center';
         ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=4;
@@ -14951,6 +14999,7 @@ Rispondi SOLO con questo JSON (niente altro testo):
           const aiPrompt = `Sei un telecronista calcistico italiano ironico e simpatico. Scrivi UN commento narrativo di massimo 2 righe (50 parole) per presentare questa formazione di calcetto tra amici. Menziona i nomi dei giocatori più forti e spiega perché una squadra è favorita. Tono: colloquiale, calcistico, divertente. SOLO il testo, nessuna introduzione.
 Squadra ${nomeB} (${_titCount(f.squadraB, f.riserveB)} titolari, probabilità vittoria ${pred.pctB}%): ${playersB.map(p=>p.soprannome||p.nome).join(', ')}
 Squadra ${nomeA} (${_titCount(f.squadraA, f.riserveA)} titolari, probabilità vittoria ${pred.pctA}%): ${playersA.map(p=>p.soprannome||p.nome).join(', ')}
+Risultato più probabile calcolato dai dati: ${pred.scoreA}-${pred.scoreB} (${nomeA}-${nomeB}) — se lo citi usa ESATTAMENTE questo, non inventarne altri.
 Se le due squadre hanno un numero diverso di titolari, la superiorità numerica è il fattore decisivo: dillo chiaramente nel commento.
 Statistiche: ${JSON.stringify(profiliFull)}`;
           // Bug critico trovato 20/8/2026 (Alby: "temo l'AI non venga mai chiamata qui") — CONFERMATO:
@@ -16408,6 +16457,11 @@ OUTPUT: Rispondi SOLO con JSON valido:
 
     // ══════════════════════════════════════════════════════════════
     // ══════════════════════════════════════════════════════════════
+    // v1.914 (segnalato da Alby: Identikit con "9 gol in 29 partite" per chi in stagione ne aveva 13 con 1 gol):
+    // un Identikit e' "vecchio" se e' stato scritto quando il giocatore aveva PIU' partite di adesso — vuol dire
+    // che le statistiche sono ripartite da zero (nuova stagione) o sono scese (partita eliminata) e il testo
+    // cita numeri che non esistono piu'. Prima la differenza negativa non attivava mai la rigenerazione.
+    const _nickIsStale = (n, p) => !!n && (n.partiteAl || 0) > (p?.partiteTotali || 0);
     const aiNicknames = ref({}); // { playerId: { soprannome_ai, confronto, generatedAt, partiteAl } }
 
     // ══════════════════════════════════════════════════════════════════════════════
@@ -16753,11 +16807,13 @@ OUTPUT: Rispondi SOLO con JSON valido:
     // generazione normale (_generateNicknames) sia dalla rigenerazione mirata dell'Annuario di una
     // stagione già archiviata (retryAnnuarioNicknames), così il vincolo di lunghezza e le regole
     // restano in un solo posto, mai due copie da tenere sincronizzate.
-    const _buildNicknamePrompt = (profili) => `Sei uno scout calcistico ironico. Per ogni giocatore genera soprannome e confronto con calciatore famoso BASANDOTI SOLO SUI DATI REALI forniti. NON inventare statistiche.
+    const _buildNicknamePrompt = (profili, evita = []) => `Sei uno scout calcistico ironico. Per ogni giocatore genera soprannome e confronto con calciatore famoso BASANDOTI SOLO SUI DATI REALI forniti. NON inventare statistiche.
 GIOCATORI (dati reali da usare): ${JSON.stringify(profili)}
+${evita.length ? `GIA' ASSEGNATI AD ALTRI GIOCATORI DEL GRUPPO (non riusare questi soprannomi, non paragonare a questi stessi calciatori, non ripetere questi giri di frase):\n${evita.map(e => '- "' + e.s + '" / ' + e.c).join('\n')}\n` : ''}
 NOTE CAMPI:
 - numero_riferimento: riportalo identico in output nel campo "n" (numero da 1 a ${profili.length})
-- partite_giocate: quante partite ha disputato in totale (NON è un punteggio)
+- partite_giocate / gol_fatti / assist / voto_medio: sono i dati della STAGIONE CORRENTE (non della carriera). Se li citi, scrivi "in stagione" e usa ESATTAMENTE questi numeri; non citare mai altri numeri di partite o gol che non compaiono qui
+- partite_giocate: quante partite ha disputato in stagione (NON è un punteggio)
 - punti_medi_a_partita: rendimento medio (punti per presenza, scala calcistica)
 - descrizione_qualita (se presente): note personali su stile di gioco, pregi e difetti — usale per personalizzare il soprannome e il confronto
 - numero_preferito (se presente): il numero di maglia scelto dal giocatore — puoi citarlo con ironia se si presta (es. legato a un calciatore famoso con quel numero), ma non è obbligatorio
@@ -16777,6 +16833,8 @@ REGOLE OBBLIGATORIE:
 - Se ci sono autogol o rigori sbagliati, puoi citarli con ironia leggera
 - Confronto ironico ma calcisticamente sensato basato sui numeri
 - Mai offensivo, sempre divertente
+- VARIETA': ogni giocatore deve avere soprannome e calciatore di confronto DIVERSI da tutti gli altri (anche tra quelli di questo gruppo di giocatori); ogni "motivazione" deve iniziare in modo diverso e avere una struttura diversa (non sempre "Con X gol...")
+- Evita i paragoni scontati e le frasi fatte; preferisci un dettaglio concreto preso dai dati del giocatore
 JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motivazione":"..."}]}`;
 
     const _generateNicknames = async (forceAll = false) => {
@@ -16790,6 +16848,7 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
         const existing = aiNicknames.value[p.uid || String(p.id)];
         if (!existing) return true;
         const partiteDa = (p.partiteTotali||0) - (existing.partiteAl||0);
+        if (partiteDa < 0) return true; // statistiche ripartite/scese: il testo cita numeri vecchi
         return partiteDa >= (forceAll ? 1 : 4); // 4 = ~1 mese di partite settimanali; 1 = Riepilogo Stagione
       });
       if (!toGenerate.length) { _aiLog('Soprannomi','✅ Tutti i soprannomi sono aggiornati'); return; }
@@ -16835,7 +16894,13 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
           return obj;
         });
 
-        const prompt = _buildNicknamePrompt(profili);
+        // v1.915: soprannomi e confronti gia' assegnati agli ALTRI giocatori (non in rigenerazione) —
+        // l'AI li vede e non li ripete, cosi' i commenti non si somigliano tra giocatori.
+        const _inBatch = new Set(toGenerate.map(x => x.uid || String(x.id)));
+        const _evita = Object.entries(updated)
+          .filter(([k, n]) => !_inBatch.has(k) && n?.soprannome_ai && !_nickIsStale(n, groupPlayers.value.find(x => (x.uid && x.uid === k) || String(x.id) === String(k))))
+          .slice(0, 30).map(([, n]) => ({ s: n.soprannome_ai, c: String(n.confronto || '').slice(0, 70) }));
+        const prompt = _buildNicknamePrompt(profili, _evita);
 
         // Budget alzato da 800 a 1400 (18/8/2026): col vincolo di lunghezza raddoppiato (richiesta
         // di Alby dopo la prima rigenerazione, risultata troppo corta), 800 token bastavano a stento
@@ -16907,7 +16972,7 @@ JSON ONLY: {"soprannomi":[{"n":1,"soprannome_ai":"...","confronto":"...","motiva
       const players = groupPlayers.value;
       const entries = Object.entries(nicks).map(([key,n])=>{
         const player=players.find(p=>(p.soprannome||p.nome||'').toLowerCase().trim()===key||String(p.id)===String(key));
-        return player?{...n,player}:null;
+        return player&&!_nickIsStale(n,player)?{...n,player}:null;
       }).filter(x=>x&&x.player&&x.soprannome_ai);
       if (!entries.length) return null;
       const idx = Math.floor(Date.now() / 600000) % entries.length;
@@ -17550,200 +17615,214 @@ JSON ONLY: {"titolo":"...","primoGol":{"nome":"...","motivo":"..."},"mvpPrevisto
       }
     };
 
+    // ═══════════════════════════════════════════════════════════════════════════
+    // ARTICOLO / COMMENTO PARTITA (v1.915, richieste di Alby 27/11/2026)
+    // Prima: due prompt diversi (articolo e commento breve), ognuno con i propri esempi fissi
+    // ("Mamma mia!", "il bomber di periferia"), nessuna memoria di cosa era stato scritto prima
+    // (nel backup: 6 articoli su 14 iniziavano con "AMICI MIEI, CHE..."), firma cambiata solo una volta
+    // al giorno, e Groq/OpenRouter non erano gestiti per niente (nessun commento). Ora UN SOLO
+    // generatore, che usa _callAI (tutti i provider configurati, con fallback), uno stile da grande
+    // firma del giornalismo sportivo scelto a rotazione, fatti ricavati dai dati e memoria dei testi precedenti.
+    // ═══════════════════════════════════════════════════════════════════════════
+    const _STILI_ARTICOLO = [
+      { id:'brera', nome:'Gianni Brera', stile:'prosa epica e barocca, neologismi inventati con ironia colta, similitudini mitologiche e campagnole, sentenze solenni sul "calcio" come fatica e destino, qualche termine antico o lombardo; tono sornione da maestro' },
+      { id:'viola', nome:'Beppe Viola', stile:'ironia malinconica e milanese, frasi brevi e taglienti, battute da bar, understatement, il quotidiano che sgonfia ogni retorica; sembra un amico che racconta la partita al bancone' },
+      { id:'ciotti', nome:'Sandro Ciotti', stile:'radiocronaca dalla voce roca: ritmo che sale, frasi lunghe che esplodono, incisi e parentesi inattese, suspense, enfasi sul "clamoroso", come se fosse collegamento in diretta dal campetto' },
+      { id:'montes', nome:'Andrés Montes', stile:'telecronaca scatenata e pop: soprannomi inventati per ognuno, urla di gioia, ritmo da rap, citazioni di musica e cultura pop, esagerazione allegra, qualche esclamazione spagnola (¡golazo!, ¡partidazo!) senza esagerare' },
+      { id:'mura', nome:'Gianni Mura', stile:'prosa letteraria e affettuosa, riferimenti a cibo, vino, ciclismo e letteratura, occhio da cronista di costume, tenerezza ironica verso chi ha perso' },
+      { id:'pizzul', nome:'Bruno Pizzul', stile:'telecronaca pacata e signorile, aggettivi misurati, ironia sottile e garbata, "va detto", la solennità istituzionale che rende comico il contesto da campetto' },
+      { id:'caressa', nome:'Fabio Caressa', stile:'telecronaca moderna e drammatica: pathos, domande retoriche, frasi a effetto in tre tempi, momenti di svolta annunciati come eventi storici' },
+      { id:'processo', nome:'il Processo del Lunedì', stile:'moviola e processo: opinionisti che litigano, pagelle impietose ma affettuose, tribunale sportivo con capi d\'accusa comici e sentenza finale' },
+    ];
+    const _FIRME_ARTICOLO = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattonaccio','Zdenek Zemone','Marcello Lippardo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio','Oronzo Canaglia','Learco Borlottone','Ugo Fantozzone','Lino Banfollone','Gianni Breretta','Beppe Violetta','Sandro Ciottolo','Andrés Montesino','Bruno Pizzulone'];
+
+    // Toglie il markdown che i modelli aggiungono (asterischi, #, elenchi): il testo e' mostrato "grezzo"
+    const _cleanAIText = (t) => String(t || '').replace(/\r/g, '')
+      .replace(/\*\*([^*]+)\*\*/g, '$1').replace(/\*([^*\n]+)\*/g, '$1').replace(/__([^_]+)__/g, '$1')
+      .replace(/^\s*#{1,6}\s*/gm, '').replace(/^\s*[-•]\s+/gm, '').replace(/\n{3,}/g, '\n\n').trim();
+
+    // Ultimi articoli gia' scritti (stessa stagione): titoli, aperture e firme da NON ripetere
+    const _recentArticles = (excludeData, excludeScore, n = 5) => {
+      return [...(groupMatches.value || [])]
+        .filter(m => m?.commentoAI && m.commentoAI.trim().length > 20 && !(m.data === excludeData && `${m.risultato?.goalA}-${m.risultato?.goalB}` === excludeScore))
+        .sort((a, b) => String(b.data || '').localeCompare(String(a.data || '')))
+        .slice(0, n)
+        .map(m => {
+          const txt = m.commentoAI.trim();
+          const fm = txt.match(/\n[—-]\s*([^\n]+)$/);
+          const corpo = txt.replace(/\n[—-]\s*[^\n]+$/, '');
+          return { titolo: (m.titoloGiornale || '').trim(), apertura: corpo.split(/\s+/).slice(0, 12).join(' '), firma: fm ? fm[1].trim() : '' };
+        });
+    };
+
+    const _pickArticleStyle = () => {
+      const _k = 'amicifc_art_stili_' + (currentGroup.value?.id || '');
+      let usati = []; try { usati = JSON.parse(localStorage.getItem(_k) || '[]'); } catch(e) {}
+      const liberi = _STILI_ARTICOLO.filter(s => !usati.includes(s.id));
+      const pool = liberi.length ? liberi : _STILI_ARTICOLO;
+      const scelto = pool[Math.floor(Math.random() * pool.length)];
+      try { localStorage.setItem(_k, JSON.stringify([...usati, scelto.id].slice(-5))); } catch(e) {}
+      return scelto;
+    };
+    const _pickFirma = (firmeRecenti) => {
+      const pool = _FIRME_ARTICOLO.filter(f => !firmeRecenti.includes(f));
+      const p = pool.length ? pool : _FIRME_ARTICOLO;
+      return p[Math.floor(Math.random() * p.length)];
+    };
+
+    // Fatti ricavati dai dati della partita (e dalla stagione CORRENTE prima di questa partita) —
+    // l'AI sceglie i piu' succosi, cosi' ogni articolo ha davvero qualcosa di suo da raccontare.
+    const _matchFacts = (m) => {
+      const facts = [];
+      const { gA, gB } = m, sqA = (m.sqA || '').trim(), sqB = (m.sqB || '').trim(), tot = gA + gB, diff = Math.abs(gA - gB);
+      const prior = (groupMatches.value || []).filter(x => !(x.data === m.data && x.risultato?.goalA === gA && x.risultato?.goalB === gB));
+      if (gA === gB) facts.push(tot === 0 ? 'Finisce 0-0: nessuno trova la porta' : `Pareggio ${gA}-${gB}`);
+      else if (diff >= 4) facts.push(`Goleada: ${gA > gB ? sqA : sqB} vince con ${diff} gol di scarto`);
+      else if (diff === 1) facts.push(`Vittoria di misura di ${gA > gB ? sqA : sqB}, decisa da un solo gol`);
+      else facts.push(`${gA > gB ? sqA : sqB} vince con ${diff} gol di scarto`);
+      if (prior.length >= 4) {
+        const tots = prior.map(x => (x.risultato?.goalA || 0) + (x.risultato?.goalB || 0));
+        if (tot > Math.max(...tots)) facts.push(`Con ${tot} gol totali e' la partita piu' ricca di reti della stagione (record precedente ${Math.max(...tots)})`);
+        if (tot < Math.min(...tots)) facts.push(`Con ${tot} gol totali e' la partita piu' avara di reti della stagione`);
+      }
+      if (tot > 0 && (gA === 0 || gB === 0)) facts.push(`${gA === 0 ? sqA : sqB} non segna nemmeno un gol`);
+      const priorMap = {};
+      for (const x of prior) for (const s of (x.statisticheGiocatori || [])) {
+        const k = String(s.playerId); (priorMap[k] = priorMap[k] || { g: 0, p: 0 }); priorMap[k].g += s.goal || 0; priorMap[k].p += 1;
+      }
+      // classifica marcatori PRIMA e DOPO questa partita (un solo giocatore puo' essere "in testa")
+      const _dopo = {}; for (const [k, v] of Object.entries(priorMap)) _dopo[k] = v.g;
+      for (const pl of m.players) _dopo[String(pl.uid)] = (_dopo[String(pl.uid)] || 0) + (pl.goal || 0);
+      const _maxDopo = Math.max(0, ...Object.values(_dopo));
+      const _inTestaDopo = Object.entries(_dopo).filter(([, g]) => g === _maxDopo).map(([k]) => k);
+      const _maxPrima = Math.max(0, ...Object.values(priorMap).map(v => v.g));
+      const _inTestaPrima = Object.entries(priorMap).filter(([, v]) => v.g === _maxPrima).map(([k]) => k);
+      for (const pl of m.players) {
+        const pr = priorMap[String(pl.uid)] || { g: 0, p: 0 };
+        if (pl.goal >= 3) facts.push(`TRIPLETTA (hat-trick) di ${pl.nome}`);
+        else if (pl.goal === 2) facts.push(`Doppietta di ${pl.nome}`);
+        if (pl.goal >= 1 && pr.g === 0 && pr.p >= 3) facts.push(`${pl.nome} segna il suo primo gol della stagione dopo ${pr.p} partite a secco`);
+        if (pl.goal >= 1 && _inTestaDopo.length === 1 && _inTestaDopo[0] === String(pl.uid) && !(_inTestaPrima.length === 1 && _inTestaPrima[0] === String(pl.uid)) && prior.length >= 4) facts.push(`${pl.nome} passa in testa alla classifica marcatori della stagione (${_maxDopo} gol)`);
+        if (pl.goal >= 1 && (pl.ruolo === 'Difensore' || pl.ruolo === 'Portiere')) facts.push(`Il ${pl.ruolo.toLowerCase()} ${pl.nome} va a segno`);
+        if (pl.assist >= 2) facts.push(`${pl.nome} serve ${pl.assist} assist`);
+        if (pl.autogol) facts.push(`Autogol di ${pl.nome}`);
+        if (pl.rigSbagliati) facts.push(`${pl.nome} sbaglia un rigore`);
+        if (pl.rigParati) facts.push(`${pl.nome} para un rigore`);
+        if (pl.rigSegnati) facts.push(`${pl.nome} trasforma un rigore`);
+      }
+      const votati = m.players.filter(p => p.voto > 0);
+      if (votati.length >= 4) {
+        const hi = [...votati].sort((a, b) => b.voto - a.voto)[0], lo = [...votati].sort((a, b) => a.voto - b.voto)[0];
+        if (hi.voto !== lo.voto) { facts.push(`Miglior voto: ${hi.nome} (${hi.voto})`); facts.push(`Peggior voto: ${lo.nome} (${lo.voto})`); }
+      }
+      if (m.uomName) facts.push(`Uomo della partita: ${m.uomName}`);
+      if (m.sostTxt) facts.push(`Sostituzioni per infortunio: ${m.sostTxt}`);
+      if (m.portiereTxt) facts.push(`Portiere in campo aperto: ${m.portiereTxt} — di ruolo portiere, ma questa partita "a turno" e con contributo offensivo, probabile che non fosse lui in porta`);
+      return facts;
+    };
+
+    // m = { data, sqA, sqB, gA, gB, notes, uomName, sostTxt, portiereTxt, titoloManuale, players:[{uid,nome,ruolo,squadra,voto,goal,assist,autogol,rigSegnati,rigSbagliati,rigParati,uom}] }
+    // Ritorna { titolo, testo, firma, stile } oppure null se nessuna AI ha risposto.
+    const _generateMatchArticle = async (m) => {
+      m = { ...m, sqA: (m.sqA || 'Squadra A').trim(), sqB: (m.sqB || 'Squadra B').trim() };
+      const stile = _pickArticleStyle();
+      const recenti = _recentArticles(m.data, `${m.gA}-${m.gB}`);
+      const firma = _pickFirma(recenti.map(r => r.firma).filter(Boolean));
+      const facts = _matchFacts(m);
+      const righeGiocatori = m.players.map(p => `[${p.squadra === 'A' ? m.sqA : m.sqB}] ${p.nome}${p.ruolo ? ' (' + p.ruolo + ')' : ''}: ${p.voto ? 'voto ' + p.voto : 'voto n.d.'}, gol ${p.goal}, assist ${p.assist}${p.autogol ? ', autogol ' + p.autogol : ''}${p.uom ? ', UOMO PARTITA' : ''} — stagione prima di questa partita: ${p.priorG} gol in ${p.priorP} presenze`).join('\n');
+      const evita = recenti.length
+        ? `ARTICOLI GIA' PUBBLICATI (non ripetere titoli, aperture, giri di frase, metafore o battute):\n${recenti.map((r, i) => `${i + 1}. ${r.titolo ? 'Titolo "' + r.titolo + '" — ' : ''}apertura "${r.apertura}…"`).join('\n')}`
+        : '';
+      const prompt = `Sei una grande firma del giornalismo sportivo italiano e scrivi il pezzo su una partita di calcetto tra amici.
+STILE DI QUESTO ARTICOLO: ${stile.nome} — ${stile.stile}. Ispirati al suo modo di scrivere (ritmo, lessico, ironia), senza copiare frasi celebri e senza mettergli in bocca citazioni. Tono sempre ironico, simpatico e affettuoso: si prende in giro, non si offende nessuno.
+
+DATI DELLA PARTITA (${m.data || 'data n.d.'}):
+${m.sqA} ${m.gA} - ${m.gB} ${m.sqB}
+${righeGiocatori}
+
+FATTI DA RACCONTARE (scegli i più succosi, non serve usarli tutti):
+${facts.map(f => '- ' + f).join('\n')}
+${m.notes ? `\nNOTE DAL CAMPO (obbligatorio integrarle nel racconto): ${m.notes}\n` : ''}
+${evita}
+
+REGOLE:
+- Racconta SOLO ciò che è nei dati: niente gol, minuti, azioni specifiche o dettagli inventati. Puoi colorire con ironia e metafore, ma i fatti restano quelli.
+- Usa i nomi dei giocatori esattamente come scritti sopra. I numeri "stagione" sono della STAGIONE CORRENTE, mai della carriera.
+- NON iniziare con "Amici miei", "Amici" o un saluto, e non usare le frasi fatte "che spettacolo", "che delirio", "mamma mia", "roba da matti". Parti direttamente dalla scena, da un'immagine o dal fatto più clamoroso.
+- Nessun markdown: niente asterischi, cancelletti o elenchi puntati; niente emoji.
+- Non firmare l'articolo (la firma viene aggiunta dopo).
+FORMATO:
+${m.titoloManuale ? `Il titolo è già deciso ("${m.titoloManuale}"): NON scrivere il titolo, scrivi direttamente l'articolo.` : 'Prima riga: titolo creativo TUTTO IN MAIUSCOLO. Poi una riga vuota.'}
+Articolo di 120-170 parole in 2-3 paragrafi brevi, con una chiusura memorabile o sarcastica nell'ultima riga.
+Restituisci solo il testo, nessuna spiegazione.`;
+      const raw = await _callAI(prompt, 1100);
+      if (!raw || raw === '__QUOTA__') return null;
+      const pulito = _cleanAIText(raw);
+      const righe = pulito.split('\n');
+      let titolo = '', testo = pulito;
+      if (!m.titoloManuale && righe.length >= 2 && righe[0].length < 120 && righe[0] === righe[0].toUpperCase() && /[A-ZÀ-Ù]/.test(righe[0])) {
+        titolo = righe[0].trim(); testo = righe.slice(1).join('\n').trim();
+      }
+      if (testo.length < 40) return null;
+      logEvent('info', 'ai', `Articolo partita generato (stile ${stile.nome}, firma ${firma})`);
+      return { titolo, testo, firma, stile: stile.id };
+    };
+
+    let _lastAIArticleTitle = '';
     const generateCommentAI = async () => {
       aiLoading.value = true;
       aiComment.value = '';
-
       const allPlayers = [...teamA.value, ...teamB.value];
-      const _sqA = activeFormation.value?.nomeSquadraA||'Squadra A';
-      const _sqB = activeFormation.value?.nomeSquadraB||'Squadra B';
-      const _scorers = allPlayers.filter(p=>(playerStats.value[p]?.goal||0)>0)
-        .map(p=>{ const pl=getPlayer(p),s=playerStats.value[p]; return (pl?.soprannome||pl?.nome)+' '+s.goal+' gol'+(s.assist?' +'+s.assist+' assist':''); });
-      const _ogs = allPlayers.filter(p=>(playerStats.value[p]?.autogol||0)>0)
-        .map(p=>{ const pl=getPlayer(p); return pl?.soprannome||pl?.nome; });
-      const _uomName = computedUomoPartita.value?(getPlayer(computedUomoPartita.value)?.soprannome||getPlayer(computedUomoPartita.value)?.nome):null;
-      const stats = allPlayers.map(pid => {
-        const p = getPlayer(pid), s = playerStats.value[pid]||{};
-        const inA = teamA.value.includes(pid);
-        const hist = 'storico: '+(p?.goalTotali||0)+' gol in '+(p?.partiteTotali||0)+' partite, media '+(p?.mediaVoto||6).toFixed(1);
-        const extra = [s.autogol?'OG:'+s.autogol:'',s.uomoPartita?'UoM':''].filter(Boolean).join(' ');
-        return '['+(inA?_sqA:_sqB)+'] '+(p?.soprannome||p?.nome)+': voto '+(s.voto||6)+', gol '+(s.goal||0)+', assist '+(s.assist||0)+(extra?' '+extra:'')+'  ('+hist+')';
-      }).join('\n');
-
+      const _sqA = activeFormation.value?.nomeSquadraA || matchInfo.value?.nomeSquadraA || 'Squadra A';
+      const _sqB = activeFormation.value?.nomeSquadraB || matchInfo.value?.nomeSquadraB || 'Squadra B';
       const mvpName = computedMVP.value ? (getPlayer(computedMVP.value)?.soprannome || getPlayer(computedMVP.value)?.nome) : 'nessuno';
-      const notesSection = matchNotes.value.trim() ? '\nNote dal campo: '+matchNotes.value.trim() : '';
-      const _scorersSection = _scorers.length ? '\nMarcatori: '+_scorers.join(', ') : '';
-      const _ogsSection = _ogs.length ? '\nAutogol (OG): '+_ogs.join(', ') : '';
-      const _uomSection = _uomName ? '\nUomo della partita: '+_uomName : '';
-      const hasPagelle = allPlayers.some(pid => (playerStats.value[pid]?.voto||0) !== 6 && (playerStats.value[pid]?.voto||0) > 0);
-
-      // Portiere dichiarato, Fase 4 (13/8/2026): rileva un Portiere di ruolo che, in QUESTA
-      // partita specifica, ha la squadra dichiarata "a turno" (non sappiamo con certezza chi era
-      // in porta) E ha comunque fatto qualcosa da giocatore di movimento (gol/assist/rigore
-      // sbagliato) — segnale genuino che probabilmente non era lui in porta quella volta.
-      // Condizione concordata con Alby: SOLO "a turno", non se un altro portiere specifico era
-      // dichiarato (in quel caso sappiamo per certo che ha giocato fuori, non è una sorpresa).
-      const _portiereFuoriRuolo = [];
-      for (const pid of allPlayers) {
-        const p = getPlayer(pid);
-        if (!p || (p.ruolo||'').trim() !== 'Portiere') continue;
-        const inA = teamA.value.includes(pid);
-        const declared = matchPortiereDichiarato.value[inA ? 'A' : 'B'];
-        if (declared && declared !== '__turno__') continue; // dichiarato specificamente (lui o un altro) — non ambiguo
-        const s = playerStats.value[pid] || {};
-        const azioni = [];
-        if (s.goal) azioni.push(s.goal + ' gol');
-        if (s.assist) azioni.push(s.assist + ' assist');
-        if (s.rigoriSbagliati) azioni.push('rigore sbagliato');
-        if (azioni.length) _portiereFuoriRuolo.push((p.soprannome||p.nome) + ' (' + azioni.join(', ') + ')');
-      }
-
-      // ── Build match data section ──
-      const _datiPartita = [
-        `Gruppo: ${currentGroup.value?.nome || 'Amici FC'}`,
-        `Data: ${matchInfo.value.data || 'oggi'}`,
-        `Risultato: ${_sqA} ${matchGoalA.value} - ${matchGoalB.value} ${_sqB}`,
-        _scorers.length ? `Marcatori: ${_scorers.join(', ')}` : 'Nessun marcatore registrato',
-        _ogs.length ? `Autogol: ${_ogs.join(', ')}` : '',
-        _uomSection ? `Uomo della partita: ${_uomName}` : '',
-        mvpName !== 'nessuno' ? `MVP: ${mvpName}` : '',
-        (matchSostituzioni.value||[]).length ? `Sostituzioni per infortunio: ${matchSostituzioni.value.map(s => {
-          const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
-          return (inf?.soprannome||inf?.nome||'?') + ' esce infortunato, entra ' + (sos?.soprannome||sos?.nome||'?');
-        }).join('; ')}` : '',
-        _portiereFuoriRuolo.length ? `Portiere in campo aperto: ${_portiereFuoriRuolo.join('; ')} — di ruolo portiere, ma questa partita "a turno" e con contributo offensivo, probabile che non fosse lui in porta stavolta` : '',
-        '',
-        'Pagelle e statistiche giocatori:',
-        ...allPlayers.map(pid => {
-          const p = getPlayer(pid), s = playerStats.value[pid]||{};
-          const inA = teamA.value.includes(pid);
-          const squad = inA ? _sqA : _sqB;
-          const nome = (p?.soprannome||p?.nome||'?');
-          const voto = s.voto||0;
-          const storico = `${p?.goalTotali||0} gol in ${p?.partiteTotali||0} partite`;
-          const extras = [s.uomoPartita?'Uomo Partita':'', s.autogol?`Autogol:${s.autogol}`:''].filter(Boolean).join(' ');
-          return `[${squad}] ${nome}: ${voto?'voto '+voto:'voto n.d.'}, gol ${s.goal||0}${extras?' ('+extras+')':''} — storico: ${storico}`;
-        })
-      ].filter(Boolean).join('\n');
-
-      const _noteSezione = matchNotes.value.trim()
-        ? `\nNote dal campo: ${matchNotes.value.trim()}`
-        : '';
-
-      const prompt = `Scrivi un articolo giornalistico sportivo in italiano sul resoconto di una partita di calcetto tra amici.
-Lo stile deve essere:
-- ironico, brillante e narrativo
-- ispirato a Gianni Brera e Gianni Mura
-- con soprannomi, metafore calcistiche e un tono leggermente epico ma divertente
-- mai troppo formale, deve sembrare un pezzo di giornale sportivo "vecchia scuola"
-
-STRUTTURA:
-- Titolo creativo e accattivante (TUTTO IN MAIUSCOLO)
-- Sottotitolo breve e ironico
-- Articolo di 8–12 righe
-- Chiusura con frase memorabile o commento sarcastico
-
-DATI PARTITA:
-${_datiPartita}
-${_noteSezione}
-
-LINEE GUIDA IMPORTANTI:
-- Usa i soprannomi dei giocatori presenti nei dati, arricchendoli con epiteti creativi (es: "il bomber di periferia", "il muro invalicabile", "l'ombra silenziosa del centrocampo")
-- Enfatizza momenti chiave: gol, errori clamorosi, giocate decisive, l'uomo partita
-- Se presenti, integra le "Note dal campo" nel racconto in modo naturale
-- Se presente una "Sostituzione per infortunio", raccontala con un tocco drammatico-ironico (es. "il dramma si consuma al 30esimo minuto...") — solo se il dato è presente, non inventarla mai
-- Se presente un "Portiere in campo aperto", raccontalo con un tocco scherzoso (es. "anche i portieri stanchi di parare vogliono la gloria") — solo se il dato è presente, non inventarlo mai
-- Puoi esagerare leggermente per effetto comico
-- Evita tono cronachistico puro: deve essere storytelling
-- Usa esclamazioni italiane: "Mamma mia!", "Incredibile!", "Che serata!", "Roba da matti!"
-- Lunghezza totale: max 180 parole
-
-OUTPUT:
-Restituisci solo l'articolo completo nel formato:
-TITOLO
-Sottotitolo
-[testo articolo]
-[frase finale]
-Niente altro, nessuna spiegazione.`;
-
       try {
-        const prov = settings.value.aiProvider;
-        const key  = settings.value.apiKey;
-
-        if (!key) {
-          aiComment.value = generateLocalComment(mvpName);
-          aiLoading.value = false;
-          return;
-        }
-
-        let resp;
-        if (prov === 'claude') {
-          resp = await fetch('https://api.anthropic.com/v1/messages', {
-            method:'POST',
-            headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01' },
-            body: JSON.stringify({ model:'claude-opus-4-6', max_tokens:600, messages:[{role:'user',content:prompt}] })
-          });
-          const data = await resp.json();
-          { const _raw = data.content?.[0]?.text || generateLocalComment(mvpName);
-          const _lines = _raw.trim().split('\n');
-          if (_lines.length >= 2 && _lines[0] === _lines[0].toUpperCase() && _lines[0].length < 120) {
-            articleTitle.value = _lines[0];
-            aiComment.value = _lines.slice(1).join('\n').trim();
-          } else {
-            aiComment.value = _raw;
+        const _data = matchInfo.value?.data || '';
+        const _priorOf = (pid) => {
+          let g = 0, pr = 0;
+          for (const x of (groupMatches.value || [])) {
+            if (x.data === _data && x.risultato?.goalA === matchGoalA.value && x.risultato?.goalB === matchGoalB.value) continue;
+            const s = (x.statisticheGiocatori || []).find(y => String(y.playerId) === String(pid));
+            if (s) { pr++; g += s.goal || 0; }
           }
+          return { g, p: pr };
+        };
+        // Portiere dichiarato (Fase 4): un Portiere di ruolo "a turno" che fa gol/assist/rigore sbagliato
+        const _portiereFuoriRuolo = [];
+        for (const pid of allPlayers) {
+          const p = getPlayer(pid);
+          if (!p || (p.ruolo || '').trim() !== 'Portiere') continue;
+          const declared = matchPortiereDichiarato.value[teamA.value.includes(pid) ? 'A' : 'B'];
+          if (declared && declared !== '__turno__') continue;
+          const s = playerStats.value[pid] || {};
+          const az = []; if (s.goal) az.push(s.goal + ' gol'); if (s.assist) az.push(s.assist + ' assist'); if (s.rigoriSbagliati) az.push('rigore sbagliato');
+          if (az.length) _portiereFuoriRuolo.push((p.soprannome || p.nome) + ' (' + az.join(', ') + ')');
         }
-
-        } else if (prov === 'chatgpt') {
-          resp = await fetch('https://api.openai.com/v1/chat/completions', {
-            method:'POST',
-            headers:{ 'Content-Type':'application/json', 'Authorization':'Bearer '+key },
-            body: JSON.stringify({ model:'gpt-4o-mini', max_tokens:600, messages:[{role:'user',content:prompt}] })
-          });
-          const data = await resp.json();
-          { const _raw = data.choices?.[0]?.message?.content || generateLocalComment(mvpName);
-          const _lines = _raw.trim().split('\n');
-          if (_lines.length >= 2 && _lines[0] === _lines[0].toUpperCase() && _lines[0].length < 120) {
-            articleTitle.value = _lines[0];
-            aiComment.value = _lines.slice(1).join('\n').trim();
-          } else {
-            aiComment.value = _raw;
-          }
-        }
-
-        } else if (prov === 'gemini') {
-          const geminiModels = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
-          let data = null;
-          let _usedModel = null;
-          for (const model of geminiModels) {
-            const r = await fetch(
-              `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-              { method:'POST', headers:{'Content-Type':'application/json'},
-                body: JSON.stringify({
-                  contents:[{parts:[{text:prompt}]}],
-                  generationConfig:{maxOutputTokens:600,temperature:0.92,topP:0.95,thinkingConfig:_geminiThinkingConfig(model)}
-                })
-              }
-            );
-            data = await r.json();
-            if (!data.error) { _usedModel = model; break; }
-            const code = data.error?.code || 0;
-            if (code !== 404 && code !== 429) break;
-          }
-          // Log del modello Gemini effettivamente usato per il commento partita — richiesta di
-          // Alby 23/7/2026, utile per sapere con che versione l'AI sta lavorando senza doverlo
-          // dedurre a posteriori. Gli altri due punti di chiamata Gemini (test connessione e
-          // _callAI condiviso) loggano già; qui e in regenAIComment mancava del tutto.
-          logEvent('info', 'ai', _usedModel ? `Commento partita generato con ${_usedModel}` : `Commento partita: tutti i modelli Gemini falliti, uso fallback locale`);
-          { const _raw = data?.candidates?.[0]?.content?.parts?.[0]?.text || generateLocalComment(mvpName);
-          const _lines = _raw.trim().split('\n');
-          if (_lines.length >= 2 && _lines[0] === _lines[0].toUpperCase() && _lines[0].length < 120) {
-            articleTitle.value = _lines[0];
-            aiComment.value = _lines.slice(1).join('\n').trim();
-          } else {
-            aiComment.value = _raw;
-          }
-        }
+        const m = {
+          data: _data, sqA: _sqA, sqB: _sqB, gA: matchGoalA.value, gB: matchGoalB.value,
+          notes: (matchNotes.value || '').trim(),
+          uomName: computedUomoPartita.value ? (getPlayer(computedUomoPartita.value)?.soprannome || getPlayer(computedUomoPartita.value)?.nome) : '',
+          sostTxt: (matchSostituzioni.value || []).map(s => {
+            const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
+            return (inf?.soprannome || inf?.nome || '?') + ' esce infortunato, entra ' + (sos?.soprannome || sos?.nome || '?');
+          }).join('; '),
+          portiereTxt: _portiereFuoriRuolo.join('; '),
+          titoloManuale: (articleTitle.value || '').trim() && articleTitle.value !== _lastAIArticleTitle ? articleTitle.value.trim() : '',
+          players: allPlayers.map(pid => {
+            const p = getPlayer(pid), s = playerStats.value[pid] || {}, pr = _priorOf(pid);
+            return { uid: p?.uid || pid, nome: p?.soprannome || p?.nome || '?', ruolo: p?.ruolo || '', squadra: teamA.value.includes(pid) ? 'A' : 'B',
+              voto: s.voto || 0, goal: s.goal || 0, assist: s.assist || 0, autogol: s.autogol || 0,
+              rigSegnati: s.rigoriSegnati || 0, rigSbagliati: s.rigoriSbagliati || 0, rigParati: s.rigoriParati || 0,
+              uom: !!s.uomoPartita, priorG: pr.g, priorP: pr.p };
+          })
+        };
+        const res = await _generateMatchArticle(m);
+        if (!res) {
+          if (!settings.value.apiKey && !settings.value.apiKeyGemini && !settings.value.apiKeyGroq && !settings.value.apiKeyOpenrouter && !settings.value.apiKeyChatgpt) aiComment.value = generateLocalComment(mvpName);
+          else { aiComment.value = generateLocalComment(mvpName); toast('⚠️ L\'AI non ha risposto: ho messo un commento base, riprova con Rigenera', 'info', 4000); }
+        } else {
+          if (res.titolo) { articleTitle.value = res.titolo; _lastAIArticleTitle = res.titolo; }
+          aiComment.value = res.testo + '\n— ' + res.firma;
         }
       } catch (err) {
         console.error('AI Error:', err);
@@ -25745,60 +25824,55 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         const apiKey = settings.value.apiKey;
         const provider = settings.value.aiProvider || 'gemini';
         if (!apiKey) { toast('Nessuna API Key nelle impostazioni', 'error'); return; }
-        const stats = (match.statisticheGiocatori||[]).map(s => {
-          const p = getPlayer(s.playerId);
-          const nome = p ? (p.soprannome || p.nome) : s.playerId;
-          return nome + ': ' + (s.goal||0) + ' gol, ' + (s.assist||0) + ' assist, voto ' + (s.voto||'-') + (s.uomoPartita ? ' UoM' : '');
-        }).join('; ');
         const sqA = match.nomeSquadraA || 'Squadra A';
         const sqB = match.nomeSquadraB || 'Squadra B';
-        const ris = (match.risultato ? match.risultato.goalA||0 : 0) + '-' + (match.risultato ? match.risultato.goalB||0 : 0);
         const nota = match.noteAI || match.notePartita || '';
-        // Modalità Sostituzioni, Consegna C (6/8/2026): stessa logica del prompt iniziale
-        // (generateCommentAI) — se c'è stato un infortunio con sostituzione, l'AI deve saperlo
-        // per poterlo raccontare, dato reale letto da match.sostituzioni (non inventato).
-        const sostText = (match.sostituzioni||[]).length
-          ? ' Sostituzioni per infortunio: ' + match.sostituzioni.map(s => {
-              const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
-              return (inf?.soprannome||inf?.nome||'?') + ' esce infortunato, entra ' + (sos?.soprannome||sos?.nome||'?');
-            }).join('; ') + '.'
-          : '';
-        const prompt = 'Sei un telecronista italiano divertente. Genera commento epico (max 3 righe) per partita calcetto tra amici.' +
-          ' ' + sqA + ' vs ' + sqB + ' risultato ' + ris + '.' +
-          ' Giocatori: ' + stats + '.' + (nota ? ' Note: ' + nota + '.' : '') + sostText +
-          ' Sii ironico e usa i soprannomi.';
-        let comment = '';
-        if (provider === 'gemini') {
-          const geminiModels = ['gemini-3.6-flash', 'gemini-3.8-flash', 'gemini-2.5-flash-lite'];
-          for (const model of geminiModels) {
-            const rr = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + model + ':generateContent?key=' + apiKey,
-              {method:'POST', headers:{'Content-Type':'application/json'},
-               body: JSON.stringify({contents:[{parts:[{text:prompt}]}], generationConfig:{maxOutputTokens:400,thinkingConfig:_geminiThinkingConfig(model)}})});
-            const dd = await rr.json();
-            if (dd.error?.status === 'RESOURCE_EXHAUSTED') continue; // try next model
-            if (dd.error) throw new Error('Gemini (' + model + '): ' + (dd.error.message || JSON.stringify(dd.error)));
-            comment = ((dd.candidates||[])[0]?.content?.parts||[])[0]?.text || '';
-            if (comment) { logEvent('info', 'ai', `Rigenerazione commento partita con ${model}`); break; }
+        // v1.915: stesso generatore dell'articolo (tutti i provider configurati, stile a rotazione, anti-ripetizione, firma)
+        const _gA = match.risultato ? match.risultato.goalA || 0 : 0, _gB = match.risultato ? match.risultato.goalB || 0 : 0;
+        const _setA = new Set((match.squadraA || []).map(String));
+        const _priorOf = (pid) => {
+          let g = 0, pr = 0;
+          for (const x of (groupMatches.value || [])) {
+            if (x.data === match.data && x.risultato?.goalA === _gA && x.risultato?.goalB === _gB) continue;
+            const st = (x.statisticheGiocatori || []).find(y => String(y.playerId) === String(pid));
+            if (st) { pr++; g += st.goal || 0; }
           }
-        } else if (provider === 'claude') {
-          const rr = await fetch('https://api.anthropic.com/v1/messages',
-            {method:'POST', headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},
-             body: JSON.stringify({model:'claude-sonnet-4-20250514', max_tokens:300, messages:[{role:'user',content:prompt}]})});
-          const dd = await rr.json();
-          comment = ((dd.content||[])[0]?.text) || '';
-        } else if (provider === 'chatgpt') {
-          const rr = await fetch('https://api.openai.com/v1/chat/completions',
-            {method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer ' + apiKey},
-             body: JSON.stringify({model:'gpt-4o-mini', max_tokens:300, messages:[{role:'user',content:prompt}]})});
-          const dd = await rr.json();
-          comment = dd.choices?.[0]?.message?.content || '';
+          return { g, p: pr };
+        };
+        const _uomS = (match.statisticheGiocatori || []).find(x => x.uomoPartita);
+        const _portTxt = [];
+        for (const st of (match.statisticheGiocatori || [])) {
+          const p = getPlayer(st.playerId);
+          if (!p || (p.ruolo || '').trim() !== 'Portiere') continue;
+          const dich = (match.portiereDichiarato || {})[_setA.has(String(st.playerId)) ? 'A' : 'B'];
+          if (dich && dich !== '__turno__') continue;
+          const az = []; if (st.goal) az.push(st.goal + ' gol'); if (st.assist) az.push(st.assist + ' assist'); if (st.rigoriSbagliati) az.push('rigore sbagliato');
+          if (az.length) _portTxt.push((p.soprannome || p.nome) + ' (' + az.join(', ') + ')');
         }
+        const mm = {
+          data: match.data || '', sqA, sqB, gA: _gA, gB: _gB, notes: (nota || '').trim(),
+          uomName: _uomS ? (getPlayer(_uomS.playerId)?.soprannome || getPlayer(_uomS.playerId)?.nome || '') : '',
+          sostTxt: (match.sostituzioni || []).map(s => {
+            const inf = getPlayer(s.infortunatoUid), sos = getPlayer(s.sostitutoUid);
+            return (inf?.soprannome || inf?.nome || '?') + ' esce infortunato, entra ' + (sos?.soprannome || sos?.nome || '?');
+          }).join('; '),
+          portiereTxt: _portTxt.join('; '),
+          titoloManuale: (match.titoloGiornale || '').trim(),
+          players: (match.statisticheGiocatori || []).map(st => {
+            const p = getPlayer(st.playerId), pr = _priorOf(st.playerId);
+            return { uid: p?.uid || st.playerId, nome: p ? (p.soprannome || p.nome) : String(st.playerId), ruolo: p?.ruolo || '', squadra: _setA.has(String(st.playerId)) ? 'A' : 'B',
+              voto: st.voto || 0, goal: st.goal || 0, assist: st.assist || 0, autogol: st.autogol || 0,
+              rigSegnati: st.rigoriSegnati || 0, rigSbagliati: st.rigoriSbagliati || 0, rigParati: st.rigoriParati || 0,
+              uom: !!st.uomoPartita, priorG: pr.g, priorP: pr.p };
+          })
+        };
+        const _res = await _generateMatchArticle(mm);
+        let comment = '', _firmaScelta = '';
+        if (_res) { comment = _res.testo; _firmaScelta = _res.firma; if (_res.titolo && !(match.titoloGiornale || '').trim()) match.titoloGiornale = _res.titolo; }
         if (comment) {
-          const _firmePool = ['Luciano Spallucci','Carlo Ancelottone','Josè Mourinaccio','Pep Guardiolone','Fabio Capellone','Arrigo Sacchettoni','Giovanni Trapattonaccio','Zdenek Zemone','Marcello Lippardo','Roberto Mancinifico','Sven-Göran Erikssonetto','Claudio Ranieriello','Antonio Contestarone','Massimiliano Allegrigio','Sinisa Mihajlovicchio','Oronzo Canaglia','Learco Borlottone','Ugo Fantozzone','Lino Banfollone'];
-          const _firma = _firmePool[Math.floor(Date.now() / 86400000) % _firmePool.length];
-          match.commentoAI = comment.trim() + '\n— ' + _firma;
+          match.commentoAI = comment.trim() + '\n— ' + _firmaScelta;
           try {
-            await db.matches.update(match.id, { commentoAI: match.commentoAI, updatedAt: Date.now() });
+            await db.matches.update(match.id, { commentoAI: match.commentoAI, titoloGiornale: match.titoloGiornale || '', updatedAt: Date.now() });
             logEvent('info', 'ai', 'Commento rigenerato e salvato per partita ' + (match.data||''));
           } catch(e) {
             logEvent('warn', 'ai', 'Commento rigenerato ma non salvato: ' + e.message);
@@ -25831,7 +25905,7 @@ ${backupPlayers.length} giocatori · ${importedMatches} partite su Firebase · $
         // Con la nuova struttura le chiavi sono uid UUID — lookup per uid o id come fallback
         const ns_all=Object.entries(aiNicknames.value).map(([key,n])=>{
           const pl=groupPlayers.value.find(p=>(p.uid&&p.uid===key)||String(p.id)===String(key));
-          return pl?{...n,player:pl}:null;
+          return pl&&!_nickIsStale(n,pl)?{...n,player:pl}:null;
         }).filter(x=>x&&x.player&&x.soprannome_ai);
         if(!ns_all.length) return null;
         const idx=(Math.floor(Date.now()/2700000)+off)%ns_all.length; // 45 min
